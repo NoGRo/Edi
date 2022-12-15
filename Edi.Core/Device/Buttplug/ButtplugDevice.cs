@@ -4,6 +4,7 @@ using Edi.Core.Gallery;
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using System.Text;
 using System.Timers;
@@ -12,7 +13,7 @@ using Timer = System.Timers.Timer;
 
 namespace Edi.Core.Device.Buttplug
 {
-    internal class ButtplugDevice : IDevice, ISendGallery
+    internal class ButtplugDevice :  ISendGallery, IEqualityComparer<ButtplugDevice>
     {
         private ButtplugClientDevice device { get; set; }
         private IGalleryRepository repository { get; set; }
@@ -144,6 +145,17 @@ namespace Edi.Core.Device.Buttplug
         private async void OnCommandEnd(object sender, ElapsedEventArgs e)
         {
             PlayNext(); 
+        }
+
+        public bool Equals(ButtplugDevice? x, ButtplugDevice? y)
+            => x?.device == y?.device;
+        
+
+        public int GetHashCode([DisallowNull] ButtplugDevice obj)
+        {
+            var h= new HashCode() ;
+            h.Add(obj.device);
+            return h.ToHashCode();
         }
     }
 }

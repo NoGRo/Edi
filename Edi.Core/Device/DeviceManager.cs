@@ -21,5 +21,10 @@ namespace Edi.Core.Device
 
             Devices.AsParallel().ForAll(async x => await x.SendGallery(name,seek));
         }
+
+        public void UnloadDevice(ISendGallery device)
+        {
+            Devices.Remove(device);
+        }
     }
 }

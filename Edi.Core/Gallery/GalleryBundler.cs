@@ -10,14 +10,9 @@ namespace Edi.Core.Gallery
 {
     public class GalleryBundler
     {
-
-        public List<GalleryIndex> Galleries = new List<GalleryIndex>();
-
-        private List<CmdLinear> cmds;
-        public List<CmdLinear> Cmds { get => cmds; private set => cmds = value; }
+        private List<GalleryIndex> Galleries = new List<GalleryIndex>();
 
         private ScriptBuilder sb = new ScriptBuilder();
-
         public GalleryConfig Config { get; set; }
 
         public void Add(GalleryIndex gallery, bool repeats, bool hasSpacer)
@@ -55,7 +50,7 @@ namespace Edi.Core.Gallery
 
         public Dictionary<string, FileInfo> GenerateBundle()
         {
-            cmds = sb.Generate();
+            var cmds = sb.Generate();
 
             var final = new Dictionary<string, FileInfo>();
 

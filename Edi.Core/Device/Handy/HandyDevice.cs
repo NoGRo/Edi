@@ -16,7 +16,7 @@ using Timer = System.Timers.Timer;
 
 namespace Edi.Core.Device.Handy
 {
-    internal class HandyDevice : IDeviceUpload, ISendGallery
+    internal class HandyDevice :  ISendGallery
     {
 
         public string Key { get; set; }

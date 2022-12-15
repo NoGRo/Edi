@@ -12,27 +12,24 @@ using Timer = System.Timers.Timer;
 
 namespace Edi.Core.Device.Buttplug
 {
-    public class ButtplugProvider 
+    public class ButtplugProvider : IProvider
     {
-        public ButtplugProvider(ILoadDevice DeviceLoad, IGalleryRepository repository, ButtplugConfig Config)
+        public ButtplugProvider(ILoadDevice deviceLoad, IGalleryRepository repository,ButtplugConfig config)
         {
-            this.DeviceLoad = DeviceLoad;
-            this.Config = Config;
+            this.DeviceLoad = deviceLoad;
+            this.Config = config;
             this.repository = repository;
         }
 
-        public readonly ButtplugConfig Config ;
+        public readonly ButtplugConfig Config;
         private Timer timerReconnect = new Timer();
-        
+
         private readonly ILoadDevice DeviceLoad;
         public ButtplugClient client { get; set; }
         private IGalleryRepository repository { get; }
-
-
         public async Task Init()
         {
             timerReconnect.Elapsed += timerReconnectevent;
-
             await Connect();
         }
 
@@ -45,7 +42,6 @@ namespace Edi.Core.Device.Buttplug
         public async Task Connect()
         {
 
-            
             OnStatusChange("Connecting...");
 
             if (client != null)
@@ -67,7 +63,7 @@ namespace Edi.Core.Device.Buttplug
 
             try
             {
-                if(!string.IsNullOrEmpty(Config.ButtplugUrl))
+                if (!string.IsNullOrEmpty(Config.ButtplugUrl))
                     await client.ConnectAsync(new ButtplugWebsocketConnectorOptions(new Uri(Config.ButtplugUrl)));
                 else
                     await client.ConnectAsync(new ButtplugEmbeddedConnectorOptions());
@@ -100,6 +96,12 @@ namespace Edi.Core.Device.Buttplug
         }
         private void RemoveDeviceOn(ButtplugClientDevice Device)
         {
+            if (Device.AllowedMessages.ContainsKey(ServerMessage.Types.MessageAttributeType.LinearCmd)
+                || Device.AllowedMessages.ContainsKey(ServerMessage.Types.MessageAttributeType.VibrateCmd))
+            {
+                DeviceLoad.UnloadDevice(new ButtplugDevice(Device, repository));
+                OnStatusChange($"Device Remove [{Device.Name}]");
+            }
             OnStatusChange("Disconnect");
         }
 
@@ -111,7 +113,6 @@ namespace Edi.Core.Device.Buttplug
         private void Client_DeviceRemoved(object sender, DeviceRemovedEventArgs e)
         {
             RemoveDeviceOn(e.Device);
-            OnStatusChange($"DeviceRemoved {e.Device.Name}");
         }
         private void Client_ErrorReceived(object sender, ButtplugExceptionEventArgs e)
         {

@@ -18,8 +18,6 @@ namespace Edi.Rest.Controllers
             edi = Edi;
         }
 
-        [HttpGet(Name = "Play/{name}")]
-        [HttpPut(Name = "Play/{name}")]
         [HttpPost(Name = "Play/{name}")]
         public async Task Play([FromRoute]string Name,[FromQuery]long Seek = 0)
         {

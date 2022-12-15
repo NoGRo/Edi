@@ -8,6 +8,6 @@ namespace Edi.Core.Device.Buttplug
 {
     public  class ButtplugConfig
     {
-        public string ButtplugUrl { get; set; } = "";
+        public string Url { get; set; } = "";
     }
 }

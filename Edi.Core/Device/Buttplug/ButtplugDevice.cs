@@ -13,7 +13,7 @@ using Timer = System.Timers.Timer;
 
 namespace Edi.Core.Device.Buttplug
 {
-    internal class ButtplugDevice :  ISendGallery, IEqualityComparer<ButtplugDevice>
+    internal class ButtplugDevice :  IDevice, IEqualityComparer<ButtplugDevice>
     {
         private ButtplugClientDevice device { get; set; }
         private IGalleryRepository repository { get; set; }
@@ -156,6 +156,16 @@ namespace Edi.Core.Device.Buttplug
             var h= new HashCode() ;
             h.Add(obj.device);
             return h.ToHashCode();
+        }
+
+        public Task Pause()
+        {
+            throw new NotImplementedException();
+        }
+
+        public Task Resume()
+        {
+            throw new NotImplementedException();
         }
     }
 }

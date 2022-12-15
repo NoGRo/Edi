@@ -13,10 +13,11 @@ using Edi.Core.Gallery;
 using System.Diagnostics;
 using System.Timers;
 using Timer = System.Timers.Timer;
+using System.Diagnostics.CodeAnalysis;
 
 namespace Edi.Core.Device.Handy
 {
-    internal class HandyDevice :  ISendGallery
+    internal class HandyDevice : IDevice, IEqualityComparer<HandyDevice>
     {
 
         public string Key { get; set; }
@@ -40,10 +41,7 @@ namespace Edi.Core.Device.Handy
             this.repository = repository;
         }
 
-        public void Pausa()
-        {
-            //TODO SendPause
-        }
+
 
         public async Task Play(long? timeMs)
         {
@@ -57,10 +55,6 @@ namespace Edi.Core.Device.Handy
             var resp = await Client.PutAsync("hssp/play", new StringContent(JsonConvert.SerializeObject(req), Encoding.UTF8, "application/json"));
         }
 
-        public async Task Stop()
-        {
-
-        }
 
         private long ServerTime => DateTimeOffset.UtcNow.ToUnixTimeMilliseconds() + timeSyncInitialOffset + timeSyncAvrageOffset;
 
@@ -116,10 +110,29 @@ namespace Edi.Core.Device.Handy
             if (currentGallery.Repeats)
                 await SendGallery(currentGallery.Name);
             else
-                Pausa();
+                await Pause();
 
         }
 
+        public Task Pause()
+        {
+            throw new NotImplementedException();
+        }
+
+        public Task Resume()
+        {
+            throw new NotImplementedException();
+        }
+
+        public bool Equals(HandyDevice? x, HandyDevice? y)
+            => x.Key == y.Key;
+
+        public int GetHashCode([DisallowNull] HandyDevice obj)
+        {
+            var hash = new HashCode();
+            hash.Add(obj.Key);
+            return hash.ToHashCode();
+        }
     }
     public record ServerTimeResponse(long serverTime);
     public record SyncPlayRequest(long estimatedServerTime, long startTime);

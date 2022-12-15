@@ -8,6 +8,6 @@ namespace Edi.Core.Device.Handy
 {
     public class HandyConfig
     {
-        public string HandyKey { get; set; }
+        public string Key { get; set; }
     }
 }

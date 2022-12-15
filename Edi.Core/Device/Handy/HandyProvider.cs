@@ -1,4 +1,6 @@
-﻿using Edi.Core.Gallery;
+﻿using Edi.Core.Device.Buttplug;
+using Edi.Core.Gallery;
+using Microsoft.Extensions.Configuration;
 using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
@@ -8,12 +10,14 @@ using System.Threading.Tasks;
 
 namespace Edi.Core.Device.Handy
 {
-    public class HandyProvider
+    public class HandyProvider : IDeviceProvider
     {
-        public HandyProvider(ILoadDevice DeviceLoad, IGalleryRepository repository, HandyConfig Config)
+        public HandyProvider(ILoadDevice DeviceLoad, IGalleryRepository repository, IConfiguration config)
         {
             this.DeviceLoad = DeviceLoad;
-            this.Config = Config;
+            this.Config = new HandyConfig();
+            config.GetSection("Handy").Bind(this.Config);
+
             this.repository = repository;
         }
 
@@ -24,11 +28,11 @@ namespace Edi.Core.Device.Handy
 
         public async Task Init()
         {
-            if (string.IsNullOrEmpty(Config.HandyKey))
+            if (string.IsNullOrEmpty(Config.Key))
                 return;
 
             Client.DefaultRequestHeaders.Remove("X-Connection-Key");
-            Client.DefaultRequestHeaders.Add("X-Connection-Key", Config.HandyKey);
+            Client.DefaultRequestHeaders.Add("X-Connection-Key", Config.Key);
 
             var resp = await Client.GetAsync("connected");
             if (resp.StatusCode != System.Net.HttpStatusCode.OK)

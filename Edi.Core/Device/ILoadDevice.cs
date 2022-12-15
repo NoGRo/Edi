@@ -8,7 +8,7 @@ namespace Edi.Core.Device
 {
     public interface ILoadDevice
     {
-        public void LoadDevice(ISendGallery device);
-        public void UnloadDevice(ISendGallery device);
+        public void LoadDevice(IDevice device);
+        public void UnloadDevice(IDevice device);
     }
 }

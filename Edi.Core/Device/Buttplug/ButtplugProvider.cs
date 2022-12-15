@@ -1,6 +1,7 @@
 ﻿
 using Buttplug;
 using Edi.Core.Gallery;
+using Microsoft.Extensions.Configuration;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -12,12 +13,15 @@ using Timer = System.Timers.Timer;
 
 namespace Edi.Core.Device.Buttplug
 {
-    public class ButtplugProvider : IProvider
+    public class ButtplugProvider : IDeviceProvider
     {
-        public ButtplugProvider(ILoadDevice deviceLoad, IGalleryRepository repository,ButtplugConfig config)
+        public ButtplugProvider(ILoadDevice deviceLoad, IGalleryRepository repository, IConfiguration config)
         {
             this.DeviceLoad = deviceLoad;
-            this.Config = config;
+            this.Config = new ButtplugConfig();
+
+            config.GetSection("Buttplug").Bind(this.Config);
+
             this.repository = repository;
         }
 
@@ -63,8 +67,8 @@ namespace Edi.Core.Device.Buttplug
 
             try
             {
-                if (!string.IsNullOrEmpty(Config.ButtplugUrl))
-                    await client.ConnectAsync(new ButtplugWebsocketConnectorOptions(new Uri(Config.ButtplugUrl)));
+                if (!string.IsNullOrEmpty(Config.Url))
+                    await client.ConnectAsync(new ButtplugWebsocketConnectorOptions(new Uri(Config.Url)));
                 else
                     await client.ConnectAsync(new ButtplugEmbeddedConnectorOptions());
             }

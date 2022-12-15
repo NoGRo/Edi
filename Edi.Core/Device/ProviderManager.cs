@@ -4,6 +4,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using Edi.Core.Device.Buttplug;
+using Edi.Core.Device.Interfaces;
 using Microsoft.Extensions.DependencyInjection;
 namespace Edi.Core.Device
 {

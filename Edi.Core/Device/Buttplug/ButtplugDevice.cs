@@ -1,4 +1,5 @@
 ﻿using Buttplug;
+using Edi.Core.Device.Interfaces;
 using Edi.Core.Funscript;
 using Edi.Core.Gallery;
 using System;

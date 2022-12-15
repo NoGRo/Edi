@@ -1,4 +1,5 @@
 ﻿using Edi.Core.Device.Buttplug;
+using Edi.Core.Device.Interfaces;
 using Edi.Core.Gallery;
 using Microsoft.Extensions.Configuration;
 using Newtonsoft.Json;

@@ -139,6 +139,9 @@ namespace Edi.Core.Gallery
 
         }
 
-        
+        public List<GalleryDefinition> GetDefinitions()
+        {
+            return Config.Definitions;
+        }
     }
 }

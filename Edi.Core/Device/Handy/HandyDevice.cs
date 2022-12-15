@@ -14,6 +14,7 @@ using System.Diagnostics;
 using System.Timers;
 using Timer = System.Timers.Timer;
 using System.Diagnostics.CodeAnalysis;
+using Edi.Core.Device.Interfaces;
 
 namespace Edi.Core.Device.Handy
 {

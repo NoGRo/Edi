@@ -28,7 +28,7 @@ namespace Edi.Core.Gallery
 
         }
 
-        private Dictionary<string, List<GalleryIndex>> Galleries { get; set; } = new Dictionary<string, List<GalleryIndex>>();
+        private Dictionary<string, List<GalleryIndex>> Galleries { get; set; } = new Dictionary<string, List<GalleryIndex>>(StringComparer.OrdinalIgnoreCase);
         public Dictionary<string, FileInfo> Assets { get; set; } = new Dictionary<string, FileInfo>(StringComparer.OrdinalIgnoreCase);
 
         private List<string> Variants { get; set; } =  new List<string>();

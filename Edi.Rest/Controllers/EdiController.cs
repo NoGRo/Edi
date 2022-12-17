@@ -21,6 +21,16 @@ namespace Edi.Rest.Controllers
         {
             await edi.Play(Name, Seek);
         }
+        [HttpPost("Stop")]
+        public async Task Stop()
+        {
+            await edi.Stop();
+        }
+        [HttpPost("Filler/{Name}")]
+        public async Task Filler([FromRoute] string Name, [FromQuery]bool Play = false,[FromQuery] long Seek = 0)
+        {
+            await edi.Filler(Name, Play, Seek);
+        }
         [HttpPost("Pause")]
         public async Task Pause()
         {

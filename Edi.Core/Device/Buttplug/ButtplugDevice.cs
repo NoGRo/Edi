@@ -2,6 +2,7 @@
 using Edi.Core.Device.Interfaces;
 using Edi.Core.Funscript;
 using Edi.Core.Gallery;
+using Edi.Core.Gallery.models;
 using System;
 using System.Collections;
 using System.Collections.Generic;
@@ -28,11 +29,13 @@ namespace Edi.Core.Device.Buttplug
 
         public ButtplugDevice(ButtplugClientDevice device, IGalleryRepository repository)
         {
+            this.device = device;
+            this.repository = repository;
             timerCmdEnd.Elapsed += OnCommandEnd;
             vibCommandTimer.Elapsed += FadeVibratorCmd;
         }
 
-        private Timer vibCommandTimer = new Timer(30);
+        private Timer vibCommandTimer = new Timer(50);
         public async  Task SendCmd(CmdLinear cmd)
         {
             vibCommandTimer.Stop();
@@ -84,6 +87,7 @@ namespace Edi.Core.Device.Buttplug
             var passes = DateTime.Now - SendAt;
             var distanceToTravel = CurrentCmd.Value - CurrentCmd.InitialValue;
             var travel = Math.Round(distanceToTravel * (passes.TotalMilliseconds / CurrentCmd.Millis), 0);
+            travel = travel is double.NaN ? 0 : travel;
             var currVal = Math.Abs(CurrentCmd.InitialValue + Convert.ToInt16(travel));
             var speed = Math.Min(1.0, Math.Max(0, currVal / (double)100));
 
@@ -109,7 +113,7 @@ namespace Edi.Core.Device.Buttplug
 
             CurrentGallery = gallery;
             SyncSend = DateTime.Now;
-            queue = CurrentGallery.Commands;
+            queue = CurrentGallery.Commands.ToList();
             queue.AddAbsoluteTime();
 
             if (seek != 0)

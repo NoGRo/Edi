@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Text;
 
-namespace Edi.Core.Gallery
+namespace Edi.Core.Gallery.models
 {
     public class GalleryIndex : Gallery
     {

@@ -8,21 +8,22 @@ using Edi.Core.Device.Interfaces;
 using Microsoft.Extensions.DependencyInjection;
 namespace Edi.Core.Device
 {
-    public class ProviderManager
+    public class ProviderManager : IDeviceProvider
     {
         public ProviderManager(IServiceProvider service)
         {
             Service = service;
-            Providers = Service.GetServices<IDeviceProvider>();
+            Providers = Service.GetServices<IDeviceProvider>()
+                        .Where(x=> x is not ProviderManager);
         }
 
         
         public IServiceProvider Service { get; }
         public IEnumerable<IDeviceProvider> Providers { get; }
 
-        private async Task Init()
+        public async Task Init(ILoadDevice loadDevice)
         {
-            Providers.AsParallel().ForAll(async x => await x.Init());
+            Providers.AsParallel().ForAll(async x => await x.Init(loadDevice));
         }
 
     }

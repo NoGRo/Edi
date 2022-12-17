@@ -3,8 +3,8 @@ using System.IO;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
-using Edi.Core.Gallery;
 using Edi.Core.Funscript;
+using Edi.Core.Gallery.models;
 
 namespace Edi.Core.Gallery
 {
@@ -15,6 +15,8 @@ namespace Edi.Core.Gallery
         private ScriptBuilder sb = new ScriptBuilder();
         public GalleryConfig Config { get; set; }
 
+        public int spacerDuration { get; set; } = 5000;
+        public int repearDuration { get; set; } = 5000;
         public void Add(GalleryIndex gallery, bool repeats, bool hasSpacer)
         {
 
@@ -23,8 +25,6 @@ namespace Edi.Core.Gallery
 
             var Index = gallery;
 
-            var spacerDuration = 5000;
-            var repearDuration = 6000;
 
             var startTime = sb.TotalTime;
 
@@ -58,12 +58,12 @@ namespace Edi.Core.Gallery
             var funscript = new FunScriptFile();
             funscript.actions = cmds.Select(x => new FunScriptAction { at = x.AbsoluteTime, pos = x.Value }).ToList();
 
-            var filePath = Config.UserDataPath + "bundle.funscript";
+            var filePath = Config.UserDataPath + "\\bundle.funscript";
             funscript.Save(filePath);
             final.Add("funscript", new FileInfo(filePath));
 
             var csv = new FunScriptCsv(cmds);
-            var csvPath = Config.UserDataPath + "bundle.csv";
+            var csvPath = Config.UserDataPath + "\\bundle.csv";
             csv.Save(csvPath);
             final.Add("csv", new FileInfo(csvPath));
 

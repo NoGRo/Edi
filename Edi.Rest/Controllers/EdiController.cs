@@ -7,8 +7,6 @@ namespace Edi.Rest.Controllers
     [Route("[controller]")]
     public class EdiController : ControllerBase
     {
-     
-
         private readonly ILogger<EdiController> _logger;
         private readonly iEdi edi;
 
@@ -18,15 +16,20 @@ namespace Edi.Rest.Controllers
             edi = Edi;
         }
 
-        [HttpPost(Name = "Play/{name}")]
+        [HttpPost("Play/{Name}")]
         public async Task Play([FromRoute]string Name,[FromQuery]long Seek = 0)
         {
-            edi.Play(Name,Seek);
+            await edi.Play(Name, Seek);
         }
-
-        public async Task Stop()
+        [HttpPost("Pause")]
+        public async Task Pause()
         {
-            edi.Stop();
+            await edi.Pause();
+        }
+        [HttpPost("Resume")]
+        public async Task Resume()
+        {
+            await edi.Resume();
         }
 
     }

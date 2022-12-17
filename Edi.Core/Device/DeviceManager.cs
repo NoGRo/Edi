@@ -8,9 +8,11 @@ using Edi.Core.Device.Interfaces;
 
 namespace Edi.Core.Device
 {
-    public class DeviceManager : ILoadDevice, IDevice
+    public class DeviceManager : IDeviceManager
     {
-        public List<IDevice> Devices { get; set; } =  new List<IDevice>();    
+
+
+        public List<IDevice> Devices { get; private set; } =  new List<IDevice>();    
         public ParallelQuery<IDevice> DevicesParallel => Devices.Where(x => x != null).AsParallel();
         public void LoadDevice(IDevice device)
         {

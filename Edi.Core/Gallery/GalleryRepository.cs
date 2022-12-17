@@ -13,19 +13,26 @@ using CsvHelper;
 using static System.Net.WebRequestMethods;
 using File = System.IO.File;
 using System.Xml.Linq;
-using Edi.Core.Gallery;
 using Edi.Core.Funscript;
+using Edi.Core.Gallery.models;
+using Microsoft.Extensions.Configuration;
 
 namespace Edi.Core.Gallery
 {
     public class GalleryRepository : IGalleryRepository
     {
+        public GalleryRepository(IConfiguration configuration)
+        {
+            Config = new GalleryConfig();
+            configuration.GetSection("Gallery").Bind(Config);
+
+        }
 
         private Dictionary<string, List<GalleryIndex>> Galleries { get; set; } = new Dictionary<string, List<GalleryIndex>>();
         public Dictionary<string, FileInfo> Assets { get; set; } = new Dictionary<string, FileInfo>(StringComparer.OrdinalIgnoreCase);
 
         private List<string> Variants { get; set; } =  new List<string>();
-        private GalleryConfig Config { get; set; }
+        private GalleryConfig Config { get; set; } 
 
         public async Task Init()
         {
@@ -49,7 +56,7 @@ namespace Edi.Core.Gallery
                 Config.Definitions = csv.GetRecords<GalleryDefinition>().ToList();
             }
 
-            var bundler = new GalleryBundler();
+            var bundler = new GalleryBundler() { Config = Config};
             var FunscriptCache = new Dictionary<string, FunScriptFile>(StringComparer.OrdinalIgnoreCase);
 
             var variants = Directory.GetDirectories($"{GalleryPath}");
@@ -60,7 +67,7 @@ namespace Edi.Core.Gallery
                 foreach (var galleryDefinition in Config.Definitions)
                 {
                     var filePath = $"{GalleryPath}\\{variant}\\{galleryDefinition.FileName}.funscript";
-                    FunScriptFile funscript = null;
+                    FunScriptFile funscript;
                     if (!FunscriptCache.ContainsKey(filePath))
                     {
                         try
@@ -122,14 +129,14 @@ namespace Edi.Core.Gallery
             => Variants;
 
 
-        public GalleryIndex Get(string name, string variant = null)
+        public GalleryIndex? Get(string name, string variant = null)
         {
             //TODO: asset ovverride order priority similar minecraft texture packt 
             variant = variant ?? Config.SelectedVariant ?? Config.DefaulVariant;
 
             var variants = Galleries.GetValueOrDefault(name);
 
-            if (variant is null)
+            if (variants is null)
                 return null;
 
             var gallery = variants.FirstOrDefault(x => x.Variant == variant)

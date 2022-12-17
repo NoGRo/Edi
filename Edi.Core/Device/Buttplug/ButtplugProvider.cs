@@ -16,9 +16,9 @@ namespace Edi.Core.Device.Buttplug
 {
     public class ButtplugProvider : IDeviceProvider
     {
-        public ButtplugProvider(ILoadDevice deviceLoad, IGalleryRepository repository, IConfiguration config)
+        public ButtplugProvider(IGalleryRepository repository, IConfiguration config)
         {
-            this.DeviceLoad = deviceLoad;
+            
             this.Config = new ButtplugConfig();
 
             config.GetSection("Buttplug").Bind(this.Config);
@@ -29,11 +29,12 @@ namespace Edi.Core.Device.Buttplug
         public readonly ButtplugConfig Config;
         private Timer timerReconnect = new Timer();
 
-        private readonly ILoadDevice DeviceLoad;
+        private ILoadDevice DeviceLoad;
         public ButtplugClient client { get; set; }
         private IGalleryRepository repository { get; }
-        public async Task Init()
+        public async Task Init(ILoadDevice deviceLoad)
         {
+            DeviceLoad = deviceLoad;
             timerReconnect.Elapsed += timerReconnectevent;
             await Connect();
         }

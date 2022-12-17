@@ -9,7 +9,6 @@ namespace Edi.Core.Funscript
 {
     public class ScriptBuilder
     {
-
         private List<CmdLinear> Sequence { get; set; } = new List<CmdLinear>();
 
         public List<CmdLinear> Generate()
@@ -57,25 +56,35 @@ namespace Edi.Core.Funscript
         internal void AddCommandSpeed(double speed, int value)
         => AddCommandSpeed(Convert.ToInt32(speed), value);
 
-        public void MergeCommands() //remove redundant commands from Sequence
+        public void MergeCommands()
         {
-            var final = new List<CmdLinear>() { Sequence.First() };
-            for (int i = 1; i < Sequence.Count(); i++)
+            var final = new List<CmdLinear>();
+
+            if (Sequence.Count < 2)
+                return;
+
+            var last = Sequence.First();
+            final.Add(last);
+
+            for (int i = 1; i < Sequence.Count; i++)
             {
-                var last = final.Last();
                 var comNext = Sequence[i];
 
-                if (last.Speed == comNext?.Speed && last.Direction == comNext?.Direction)
+                if (last.Speed == comNext.Speed && last.Direction == comNext.Direction)
                 {
                     last.Value = comNext.Value;
                     last.Millis += comNext.Millis;
                 }
                 else
+                {
                     final.Add(comNext);
+                    last = comNext;
+                }
             }
-
             Sequence = final.Where(x => x.Millis > 0).ToList();
         }
+
+
 
         public void TrimTimeTo(int maxTime)
         {
@@ -88,9 +97,7 @@ namespace Edi.Core.Funscript
 
             var last = final.Last();
             if (last.AbsoluteTime != maxTime)
-                last.Millis += Convert.ToInt32(maxTime - last.AbsoluteTime);
-
-            
+                last.Millis += Convert.ToInt32(maxTime - last.AbsoluteTime);            
         }
 
     }

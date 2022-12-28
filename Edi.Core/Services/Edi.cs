@@ -1,97 +1,155 @@
-﻿using Edi.Core.Device;
-using Edi.Core.Device.Interfaces;
-using Edi.Core.Gallery;
-using System;
-using System.Timers;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
+﻿using System;
 using System.Threading.Tasks;
-using Timer = System.Timers.Timer;
+using System.Timers;
 using Microsoft.Extensions.Configuration;
+using Edi.Core.Gallery;
+using Edi.Core.Device.Interfaces;
+using Edi.Core.Device;
+using Timer = System.Timers.Timer;
 
 namespace Edi.Core.Services
 {
-    public class Edi : iEdi
+    public class Edi : IEdi
     {
-        private readonly IDeviceManager deviceManager;
-        private readonly ProviderManager providerManager;
-        private readonly IGalleryRepository repository;
-        private readonly IConfiguration configuration;
+        private readonly IDeviceManager _deviceManager;
+        private readonly IDeviceProvider _providerManager;
+        private readonly IGalleryRepository _repository;
+        private readonly IConfiguration _configuration;
 
-        public Edi(IDeviceManager deviceManager, ProviderManager providerManager, IGalleryRepository repository, IConfiguration configuration)
+        public Edi(IDeviceManager deviceManager, IDeviceProvider providerManager, IGalleryRepository repository, IConfiguration configuration)
         {
-            this.deviceManager = deviceManager;
-            this.providerManager = providerManager;
-            this.repository = repository;
-            this.configuration = configuration;
+            _deviceManager = deviceManager;
+            _providerManager = providerManager;
+            _repository = repository;
+            _configuration = configuration;
+
             TimerGalleryStop = new Timer();
-            TimerGalleryStop.Elapsed += TimerGalleryStop_ElapsedAsync; ;
+            TimerGalleryStop.Elapsed += TimerGalleryStop_ElapsedAsync;
 
-            config = new EdiConfig();
-            configuration.GetSection("Edi").Bind(config);
+            TimerReactStop = new Timer();
+            TimerReactStop.Elapsed += TimerReactStop_ElapsedAsync;
 
+            Config = new EdiConfig();
+            _configuration.GetSection("Edi").Bind(Config);
         }
 
-        private EdiConfig config;
-        private string filler;
+        private EdiConfig Config { get; set; }
+        private string CurrentFiller { get; set; }
+        private string LastGallery { get; set; }
+        private string LastFiller { get; set; }
+        private DateTime? GallerySendTime { get; set; }
+        private DateTime? ReactSendTime { get; set; }
         private Timer TimerGalleryStop { get; set; }
+        private Timer TimerReactStop { get; set; }
+
         public async Task Init()
         {
-            await repository.Init();
-            await providerManager.Init(deviceManager); 
+            await _repository.Init();
+            await _providerManager.Init(_deviceManager);
         }
-        public async Task Filler(string name, bool play = false, long seek = 0) 
+
+        public async Task SetFiller(string name, bool play = false, long seek = 0)
         {
-            filler = name;
+            CurrentFiller = name;
             if (play)
-                await SendFiller(filler, seek);
+                await SendFiller(CurrentFiller, seek);
         }
 
-        public async Task Play(string name, long seek)
+        public async Task StopFiller()
         {
-            await SendGallery(name, seek);
+            await SendGallery("Off");
         }
-        public async Task Pause()
-        {
-            await deviceManager.Pause();
-        }
-        public async Task Resume()
-        {
-            await deviceManager.Resume();
-        }
-        public async Task Stop()
-        {
-            await SendFiller(filler);
-        }
-        private async Task SendFiller(string Name, long seek = 0)
-        {
-            if (!config.Filler)
-                Name = "FillerOff";
 
-            await SendGallery(Name, seek);
-        }
-            
-        private async Task SendGallery(string Name, long Seek = 0)
+        public async Task PlayGallery(string name, bool play = true, long seek = 0)
         {
-            if (!config.Gallery)
+            if (Config.Gallery)
+            {
+                await SendGallery(name, seek);
+            }
+        }
+
+        public async Task PlayReaction(string name)
+        {
+            if (!Config.Reactive)
                 return;
 
-            TimerGalleryStop.Stop();
-            var task = deviceManager.SendGallery(Name, Seek);
-            var gallery = repository.Get(Name);
+            var gallery = _repository.Get(name);
+            ReactSendTime = DateTime.Now;
             if (!gallery.Repeats)
             {
-                TimerGalleryStop.Interval = Math.Abs(gallery.Duration - Seek);
+                TimerReactStop.Interval = Math.Abs(gallery.Duration);
+                TimerReactStop.Start();
+            }
+
+            await _deviceManager.SendGallery(name);
+        }
+
+        private async void TimerReactStop_ElapsedAsync(object? sender, ElapsedEventArgs e)
+            => await StopReaction();
+        public async Task StopReaction()
+        {
+            if (!ReactSendTime.HasValue || !GallerySendTime.HasValue)
+                return;
+
+            var seekBack = Convert.ToInt64((DateTime.Now - GallerySendTime.Value).TotalMilliseconds);
+            await SendGallery(LastGallery, seekBack);
+        }
+
+        public async Task StopGallery()
+        {
+            await SendFiller(CurrentFiller);
+        }
+
+        public async Task Pause()
+        {
+            await _deviceManager.Pause();
+        }
+
+        public async Task Resume()
+        {
+            await _deviceManager.Resume();
+        }
+
+        private async Task SendGallery(string name, long seek = 0)
+        {
+            if (!Config.Gallery || string.IsNullOrEmpty(name))
+                return;
+
+            var gallery = _repository.Get(name);
+
+            if (gallery == null)
+                return;
+
+            if (seek != 0 && gallery.Duration > 0)
+            {
+                var seekTime = TimeSpan.FromMilliseconds(seek);
+                var galleryTime = TimeSpan.FromMilliseconds(gallery.Duration);
+
+                if (seekTime > galleryTime)
+                    seek =  Convert.ToInt16(seekTime.TotalMilliseconds % galleryTime.TotalMilliseconds);
+            }
+
+            GallerySendTime = DateTime.Now;
+            LastGallery = name;
+
+            if (!gallery.Repeats)
+            {
+                TimerGalleryStop.Interval = Math.Abs(gallery.Duration);
                 TimerGalleryStop.Start();
             }
-            await task;
+
+            await _deviceManager.SendGallery(name, seek);
         }
 
         private async void TimerGalleryStop_ElapsedAsync(object? sender, ElapsedEventArgs e)
-        {
-            await Stop();
-        }
+            => await StopGallery();
 
+        private async Task SendFiller(string name, long seek = 0)
+        {
+            if (!Config.Filler)
+                name = "Off";
+
+            await SendGallery(name, seek);
+        }
     }
 }

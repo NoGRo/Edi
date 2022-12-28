@@ -2,6 +2,7 @@
 using Edi.Core.Device.Buttplug;
 using Edi.Core.Device.Handy;
 using Edi.Core.Device.Interfaces;
+using Edi.Core.Funscript;
 using Edi.Core.Gallery;
 using Microsoft.Extensions.DependencyInjection;
 using System;
@@ -26,7 +27,11 @@ namespace Edi.Core.Services
             builder.AddSingleton<IDeviceManager, DeviceManager>();
             builder.AddSingleton<IGalleryRepository, GalleryRepository>();
 
-            builder.AddSingleton<iEdi, Edi>();
+            builder.AddSingleton<GalleryBundler>();
+
+            
+
+            builder.AddSingleton<IEdi, Edi>();
 
         }
              

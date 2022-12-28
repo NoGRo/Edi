@@ -136,6 +136,7 @@ namespace Edi.Core.Gallery
             {
                 Name = galleryDefinition.Name,
                 Variant = variant,
+                Definition = galleryDefinition,
                 Duration = Convert.ToInt32(galleryDefinition.EndTime - galleryDefinition.StartTime)
             };
             sb.TrimTimeTo(gallery.Duration);

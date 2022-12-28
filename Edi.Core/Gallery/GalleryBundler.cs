@@ -6,6 +6,7 @@ using System.Text;
 using Edi.Core.Funscript;
 using Edi.Core.Gallery.models;
 using Microsoft.Extensions.Configuration;
+using System.Reflection;
 
 namespace Edi.Core.Gallery
 {
@@ -19,7 +20,6 @@ namespace Edi.Core.Gallery
         {
             Config = new GalleryBundlerConfig();
             configuration.GetSection("GalleryBundler").Bind(Config);
-            this.sb = sb;
         }
 
         public GalleryBundlerConfig Config { get; set; }
@@ -42,8 +42,14 @@ namespace Edi.Core.Gallery
             //6 seconds repear in script bundle for loop msg delay
             if (gallery.Repeats)
             {
+                int loopDuration = Index.Duration + Config.RepearDuration;
+
                 sb.addCommands(gallery.Commands.Clone());
-                sb.TrimTimeTo(sb.TotalTime + Config.RepearDuration);
+                while (sb.TotalTime <= loopDuration)
+                {
+                    sb.addCommands(gallery.Commands.Clone());
+                }
+                sb.TrimTimeTo(loopDuration);
             }
 
             if (Config.SpacerDuration > 0 ) // extra, no movement
@@ -51,8 +57,6 @@ namespace Edi.Core.Gallery
 
             Galleries.Add(Index);
         }
-
-
         public Dictionary<string, FileInfo> GenerateBundle()
         {
             var cmds = sb.Generate();

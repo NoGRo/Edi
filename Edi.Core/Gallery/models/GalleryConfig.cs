@@ -11,8 +11,6 @@ namespace Edi.Core.Gallery.models
         public string DefaulVariant { get; set; }
         public string SelectedVariant { get; set; }
         public string GalleryPath { get; set; }
-        public string UserDataPath { get; set; }
-
         public List<GalleryDefinition> Definitions { get; set; }
     }
 }

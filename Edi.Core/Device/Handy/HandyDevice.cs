@@ -15,7 +15,7 @@ using System.Timers;
 using Timer = System.Timers.Timer;
 using System.Diagnostics.CodeAnalysis;
 using Edi.Core.Device.Interfaces;
-using Edi.Core.Gallery.models;
+using Edi.Core.Gallery.Index;
 
 namespace Edi.Core.Device.Handy
 {
@@ -33,10 +33,10 @@ namespace Edi.Core.Device.Handy
         private static long timeSyncAvrageOffset;
         private static long timeSyncInitialOffset;
         private HttpClient Client ;
-        private IGalleryRepository repository { get; set; }
+        private IGalleryRepository<IndexGallery> repository { get; set; }
         private Timer timerGalleryEnd = new Timer();
 
-        public HandyDevice(HttpClient Client, IGalleryRepository repository)
+        public HandyDevice(HttpClient Client, IGalleryRepository<IndexGallery> repository)
         {
             timerGalleryEnd.Elapsed += TimerGalleryEnd_Elapsed;
             this.Client = Client;
@@ -92,7 +92,7 @@ namespace Edi.Core.Device.Handy
             return estimatedServerTimeNow - receiveTime;
         }
 
-        private GalleryIndex currentGallery;
+        private IndexGallery currentGallery;
         public async Task SendGallery(string name, long seek = 0)
         {
             var gallery = repository.Get(name);

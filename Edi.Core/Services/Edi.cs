@@ -6,7 +6,7 @@ using Edi.Core.Gallery;
 using Edi.Core.Device.Interfaces;
 using Edi.Core.Device;
 using Timer = System.Timers.Timer;
-using Edi.Core.Gallery.models;
+using Edi.Core.Gallery.Definition;
 
 namespace Edi.Core.Services
 {
@@ -14,10 +14,10 @@ namespace Edi.Core.Services
     {
         private readonly IDeviceManager _deviceManager;
         private readonly IDeviceProvider _providerManager;
-        private readonly IGalleryRepository _repository;
+        private readonly IGalleryRepository<DefinitionGallery> _repository;
         private readonly IConfiguration _configuration;
 
-        public Edi(IDeviceManager deviceManager, IDeviceProvider providerManager, IGalleryRepository repository, IConfiguration configuration)
+        public Edi(IDeviceManager deviceManager, IDeviceProvider providerManager, IGalleryRepository<DefinitionGallery> repository, IConfiguration configuration)
         {
             _deviceManager = deviceManager;
             _providerManager = providerManager;
@@ -36,9 +36,9 @@ namespace Edi.Core.Services
 
         private EdiConfig Config { get; set; }
         private string CurrentFiller { get; set; }
-        private GalleryIndex LastGallery { get; set; }
+        private DefinitionGallery LastGallery { get; set; }
         private DateTime? GallerySendTime { get; set; }
-        public GalleryIndex? ReactSendGallery { get; private set; }
+        public DefinitionGallery? ReactSendGallery { get; private set; }
         private Timer TimerGalleryStop { get; set; }
         private Timer TimerReactStop { get; set; }
 
@@ -48,7 +48,7 @@ namespace Edi.Core.Services
             await _providerManager.Init(_deviceManager);
         }
 
-        private async Task SetFiller(GalleryIndex gallery)
+        private async Task SetFiller(DefinitionGallery gallery)
         {
             CurrentFiller = gallery.Name;
             if (LastGallery == null && ReactSendGallery == null)
@@ -62,7 +62,7 @@ namespace Edi.Core.Services
             if (gallery == null)
                 return;
 
-            switch (gallery.Definition.Type)
+            switch (gallery.Type)
             {
                 case "filler":
                     if (Config.Filler)
@@ -88,10 +88,10 @@ namespace Edi.Core.Services
 
         }
 
-        private async Task PlayReaction(GalleryIndex gallery)
+        private async Task PlayReaction(DefinitionGallery gallery)
         {
             ReactSendGallery = gallery;
-            if (!gallery.Repeats)
+            if (!gallery.Loop)
             {
                 TimerReactStop.Interval = Math.Abs(gallery.Duration);
                 TimerReactStop.Start();
@@ -144,7 +144,7 @@ namespace Edi.Core.Services
                 return;
             await SendGallery( _repository.Get(name), seek);
         }
-        private async Task SendGallery(GalleryIndex gallery, long seek = 0)
+        private async Task SendGallery(DefinitionGallery gallery, long seek = 0)
         {
             ReactSendGallery = null;
             TimerReactStop.Stop();
@@ -155,7 +155,7 @@ namespace Edi.Core.Services
             // If the seek time is greater than the gallery time And it Repeats, then modulo the seek time by the gallery time to get the correct seek time.
             if (seek != 0 && seek > gallery.Duration) 
             {
-                if (gallery.Repeats)
+                if (gallery.Loop)
                     seek = Convert.ToInt16(seek % gallery.Duration);
                 else
                 {
@@ -168,7 +168,7 @@ namespace Edi.Core.Services
             GallerySendTime = DateTime.Now;
             LastGallery = gallery;
             // If the gallery does not repeat, then start a timer to stop the gallery after its duration.
-            if (!gallery.Repeats)
+            if (!gallery.Loop)
             {
                 TimerGalleryStop.Interval = Math.Abs(gallery.Duration);
                 TimerGalleryStop.Start();

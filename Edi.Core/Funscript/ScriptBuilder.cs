@@ -86,7 +86,7 @@ namespace Edi.Core.Funscript
 
 
 
-        public void TrimTimeTo(int maxTime)
+        public void TrimTimeTo(long maxTime)
         {
             Sequence.AddAbsoluteTime();
 

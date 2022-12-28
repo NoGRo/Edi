@@ -2,15 +2,13 @@
 using System.IO;
 using Edi.Core.Funscript;
 
-namespace Edi.Core.Gallery.models
+namespace Edi.Core.Gallery.CmdLineal
 {
-    public class Gallery
+    public class CmdLinealGallery
     {
         public string Name { get; set; }
         public string Variant { get; set; }
         public virtual List<CmdLinear> Commands { get; set; } = new List<CmdLinear>();
-        public Dictionary<string, FileInfo> Assets { get; set; } = new Dictionary<string, FileInfo>();
-
-        public GalleryDefinition Definition { get; set; }
+        public bool Repeats { get; set; }
     }
 }

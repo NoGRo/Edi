@@ -4,6 +4,9 @@ using Edi.Core.Device.Handy;
 using Edi.Core.Device.Interfaces;
 using Edi.Core.Funscript;
 using Edi.Core.Gallery;
+using Edi.Core.Gallery.CmdLineal;
+using Edi.Core.Gallery.Definition;
+using Edi.Core.Gallery.Index;
 using Microsoft.Extensions.DependencyInjection;
 using System;
 using System.Collections.Generic;
@@ -25,7 +28,10 @@ namespace Edi.Core.Services
             builder.AddSingleton<ProviderManager>();
 
             builder.AddSingleton<IDeviceManager, DeviceManager>();
-            builder.AddSingleton<IGalleryRepository, GalleryRepository>();
+
+            builder.AddSingleton<IGalleryRepository<DefinitionGallery>, DefinitionRepository>();
+            builder.AddSingleton<IGalleryRepository<IndexGallery>, IndexRepository>();
+            builder.AddSingleton<IGalleryRepository<CmdLinealGallery>, CmdLinealRepository>();
 
             builder.AddSingleton<GalleryBundler>();
 

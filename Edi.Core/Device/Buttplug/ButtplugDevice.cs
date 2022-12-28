@@ -2,7 +2,7 @@
 using Edi.Core.Device.Interfaces;
 using Edi.Core.Funscript;
 using Edi.Core.Gallery;
-using Edi.Core.Gallery.models;
+using Edi.Core.Gallery.CmdLineal;
 using System;
 using System.Collections;
 using System.Collections.Generic;
@@ -18,7 +18,7 @@ namespace Edi.Core.Device.Buttplug
     internal class ButtplugDevice :  IDevice, IEqualityComparer<ButtplugDevice>
     {
         private ButtplugClientDevice device { get; set; }
-        private IGalleryRepository repository { get; set; }
+        private IGalleryRepository<CmdLinealGallery> repository { get; set; }
         public string Name => device.Name;
 
         private  CmdLinear CurrentCmd { get;  set; }
@@ -27,7 +27,7 @@ namespace Edi.Core.Device.Buttplug
 
         private static Timer timerCmdEnd = new Timer();
 
-        public ButtplugDevice(ButtplugClientDevice device, IGalleryRepository repository)
+        public ButtplugDevice(ButtplugClientDevice device, IGalleryRepository<CmdLinealGallery> repository)
         {
             this.device = device;
             this.repository = repository;
@@ -104,7 +104,7 @@ namespace Edi.Core.Device.Buttplug
         private static List<CmdLinear> queue { get; set; } = new List<CmdLinear>();
         public static DateTime SyncSend { get; private set; }
 
-        private GalleryIndex CurrentGallery;
+        private CmdLinealGallery CurrentGallery;
         public async Task SendGallery(string name,long seek = 0)
         {
             var gallery = repository.Get(name, device.AllowedMessages.ContainsKey(MessageAttributeType.VibrateCmd) ? "vibrator" : null);

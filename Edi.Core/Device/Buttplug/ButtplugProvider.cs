@@ -2,6 +2,7 @@
 using Buttplug;
 using Edi.Core.Device.Interfaces;
 using Edi.Core.Gallery;
+using Edi.Core.Gallery.CmdLineal;
 using Microsoft.Extensions.Configuration;
 using System;
 using System.Collections.Generic;
@@ -16,7 +17,7 @@ namespace Edi.Core.Device.Buttplug
 {
     public class ButtplugProvider : IDeviceProvider
     {
-        public ButtplugProvider(IGalleryRepository repository, IConfiguration config)
+        public ButtplugProvider(IGalleryRepository<CmdLinealGallery> repository, IConfiguration config)
         {
             
             this.Config = new ButtplugConfig();
@@ -31,7 +32,7 @@ namespace Edi.Core.Device.Buttplug
 
         private ILoadDevice DeviceLoad;
         public ButtplugClient client { get; set; }
-        private IGalleryRepository repository { get; }
+        private IGalleryRepository<CmdLinealGallery> repository { get; }
         public async Task Init(ILoadDevice deviceLoad)
         {
             DeviceLoad = deviceLoad;

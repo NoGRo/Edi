@@ -4,17 +4,17 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using Edi.Core.Funscript;
-using Edi.Core.Gallery.models;
 using Microsoft.Extensions.Configuration;
 using System.Reflection;
+using Edi.Core.Gallery.CmdLineal;
 
-namespace Edi.Core.Gallery
+namespace Edi.Core.Gallery.Index
 {
-    public partial class GalleryBundler
+    public class GalleryBundler
     {
-        private List<GalleryIndex> Galleries = new List<GalleryIndex>();
+        private List<IndexGallery> Galleries = new List<IndexGallery>();
 
-        
+
 
         public GalleryBundler(IConfiguration configuration)
         {
@@ -25,11 +25,11 @@ namespace Edi.Core.Gallery
         public GalleryBundlerConfig Config { get; set; }
         private ScriptBuilder sb { get; set; } = new ScriptBuilder();
 
-        public void Add(GalleryIndex gallery, bool repeats)
+        public void Add(CmdLinealGallery gallery, bool repeats)
         {
             gallery.Repeats = repeats;
 
-            var Index = gallery;
+            var Index = new IndexGallery();
 
             var startTime = sb.TotalTime;
 
@@ -37,7 +37,6 @@ namespace Edi.Core.Gallery
 
             Index.Duration = sb.TotalTime - startTime;
             Index.StartTime = startTime;
-            Index.EndTime = sb.TotalTime;
 
             //6 seconds repear in script bundle for loop msg delay
             if (gallery.Repeats)
@@ -52,7 +51,7 @@ namespace Edi.Core.Gallery
                 sb.TrimTimeTo(loopDuration);
             }
 
-            if (Config.SpacerDuration > 0 ) // extra, no movement
+            if (Config.SpacerDuration > 0) // extra, no movement
                 sb.AddCommandMillis(Config.SpacerDuration, sb.lastValue);
 
             Galleries.Add(Index);

@@ -6,9 +6,9 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace Edi.Core.Gallery.models
+namespace Edi.Core.Gallery.Definition
 {
-    public class GalleryDefinition: IValidatableObject
+    public class DefinitionGallery : IValidatableObject
     {
         [Required]
         public string Name { get; set; }
@@ -16,6 +16,7 @@ namespace Edi.Core.Gallery.models
         [Required]
         [RegularExpression("filler|gallery|reaction")]
         public string Type { get; set; }
+
         [Required]
         public string FileName { get; set; }
         public long StartTime { get; set; }

@@ -1,46 +1,21 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.IO;
+﻿
 using System.Text.Json;
-using System.Resources;
-using System.Collections;
-using System.Reflection;
-using System.Formats.Asn1;
 using System.Globalization;
 using CsvHelper;
-using static System.Net.WebRequestMethods;
 using File = System.IO.File;
-using System.Xml.Linq;
 using Edi.Core.Funscript;
-using Edi.Core.Gallery.models;
 using Microsoft.Extensions.Configuration;
+using Edi.Core.Gallery.models;
+using System.Runtime.CompilerServices;
 
 namespace Edi.Core.Gallery
 {
     public class GalleryRepository : IGalleryRepository
     {
-        public GalleryRepository(IConfiguration configuration)
+        public GalleryRepository(IConfiguration configuration, GalleryBundler bundler)
         {
             Config = new GalleryConfig();
             configuration.GetSection("Gallery").Bind(Config);
-
-        }
-
-        private Dictionary<string, List<GalleryIndex>> Galleries { get; set; } = new Dictionary<string, List<GalleryIndex>>(StringComparer.OrdinalIgnoreCase);
-        public Dictionary<string, FileInfo> Assets { get; set; } = new Dictionary<string, FileInfo>(StringComparer.OrdinalIgnoreCase);
-
-        private List<string> Variants { get; set; } =  new List<string>();
-        private GalleryConfig Config { get; set; } 
-
-        public async Task Init()
-        {
-            LoadGalleryFromCsv();
-        }
-
-        private void LoadGalleryFromCsv()
-        {
 
             var GalleryPath = $"{Config.GalleryPath}\\";
 
@@ -55,18 +30,80 @@ namespace Edi.Core.Gallery
             {
                 Config.Definitions = csv.GetRecords<GalleryDefinition>().ToList();
             }
+            Bundler = bundler;
+        }
 
-            var bundler = new GalleryBundler() { Config = Config};
-            var FunscriptCache = new Dictionary<string, FunScriptFile>(StringComparer.OrdinalIgnoreCase);
+        private Dictionary<string, List<GalleryIndex>> Galleries { get; set; } = new Dictionary<string, List<GalleryIndex>>(StringComparer.OrdinalIgnoreCase);
+        public Dictionary<string, FileInfo> Assets { get; set; } = new Dictionary<string, FileInfo>(StringComparer.OrdinalIgnoreCase);
+
+        private List<string> Variants { get; set; } = new List<string>();
+        private GalleryConfig Config { get; set; }
+        private GalleryBundler Bundler { get; set; }
+
+        public async Task Init()
+        {
+            LoadGalleryFromCsv();
+        }
+
+
+        private void LoadGalleryFromCsv()
+        {
+
+            var GalleryPath = $"{Config.GalleryPath}\\";
+
+            if (!Directory.Exists($"{GalleryPath}"))
+                return;
+
+            
 
             var variants = Directory.GetDirectories($"{GalleryPath}");
             Variants.AddRange(variants);
+
+
+            var FunscriptCache = GetGalleryFunscripts();
+
             foreach (var variantPath in variants)
             {
                 var variant = new DirectoryInfo(variantPath).Name;
                 foreach (var galleryDefinition in Config.Definitions)
                 {
-                    var filePath = $"{GalleryPath}\\{variant}\\{galleryDefinition.FileName}.funscript";
+                    var filePath = $"{Config.GalleryPath}\\{variant}\\{galleryDefinition.FileName}.funscript";
+
+                    if (!FunscriptCache.ContainsKey(filePath))
+                        continue;
+
+                    var funscript = FunscriptCache[filePath];
+
+                    var actions = funscript.actions
+                        .Where(x => x.at > galleryDefinition.StartTime
+                                 && x.at <= galleryDefinition.EndTime);
+
+                    if (!actions.Any())
+                        continue;
+
+                    GalleryIndex gallery = ParseActions(variant, galleryDefinition, actions);
+
+                    if (!Galleries.ContainsKey(galleryDefinition.Name))
+                        Galleries.Add(galleryDefinition.Name, new List<GalleryIndex>());
+
+                    Bundler.Add(gallery, galleryDefinition.Loop);
+                    Galleries[gallery.Name].Add(gallery);
+                }
+
+
+            }
+            Assets = Bundler.GenerateBundle();
+        }
+
+        private Dictionary<string, FunScriptFile> GetGalleryFunscripts()
+        {
+            var FunscriptCache = new Dictionary<string, FunScriptFile>(StringComparer.OrdinalIgnoreCase);
+            foreach (var variantPath in Variants)
+            {
+                var variant = new DirectoryInfo(variantPath).Name;
+                foreach (var galleryDefinition in Config.Definitions)
+                {
+                    var filePath = $"{Config.GalleryPath}\\{variant}\\{galleryDefinition.FileName}.funscript";
                     FunScriptFile funscript;
                     if (!FunscriptCache.ContainsKey(filePath))
                     {
@@ -81,53 +118,40 @@ namespace Edi.Core.Gallery
                         }
                         FunscriptCache.Add(filePath, funscript);
                     }
-                    funscript = FunscriptCache[filePath];
-
-
-                    var actions = funscript.actions
-                        .Where(x => x.at > galleryDefinition.StartTime
-                                 && x.at <= galleryDefinition.EndTime);
-
-                    if (!actions.Any())
-                        continue;
-
-                    var sb = new ScriptBuilder();
-
-                    foreach (var action in actions)
-                    {
-                        sb.AddCommandMillis(
-                            millis: Convert.ToInt32(action.at - galleryDefinition.StartTime - sb.TotalTime),
-                            value: action.pos);
-                    }
-
-                    var gallery = new GalleryIndex
-                    {
-                        Name = galleryDefinition.Name,
-                        Variant = variant,
-                        Duration = Convert.ToInt32(galleryDefinition.EndTime - galleryDefinition.StartTime)
-                    };
-                    sb.TrimTimeTo(gallery.Duration);
-
-                    gallery.Commands = sb.Generate();
-
-
-                    if (!Galleries.ContainsKey(galleryDefinition.Name))
-                        Galleries.Add(galleryDefinition.Name, new List<GalleryIndex>());
-
-                    bundler.Add(gallery, galleryDefinition.Loop, true);
-                    Galleries[gallery.Name].Add(gallery);
                 }
-
-
             }
-            Assets = bundler.GenerateBundle();
+            return FunscriptCache;
+
+        }
+        private static GalleryIndex ParseActions(string variant, GalleryDefinition galleryDefinition, IEnumerable<FunScriptAction> actions)
+        {
+            var sb = new ScriptBuilder();
+            foreach (var action in actions)
+            {
+                sb.AddCommandMillis(
+                    millis: Convert.ToInt32(action.at - galleryDefinition.StartTime - sb.TotalTime),
+                    value: action.pos);
+            }
+            var gallery = new GalleryIndex
+            {
+                Name = galleryDefinition.Name,
+                Variant = variant,
+                Duration = Convert.ToInt32(galleryDefinition.EndTime - galleryDefinition.StartTime)
+            };
+            sb.TrimTimeTo(gallery.Duration);
+
+            gallery.Commands = sb.Generate();
+
+            return gallery;
         }
 
         public List<string> GetNames()
             => Galleries.Keys.ToList();
         public List<string> GetVariants()
             => Variants;
-
+        public List<GalleryDefinition> GetDefinitions()
+            => Config.Definitions;
+        
 
         public GalleryIndex? Get(string name, string variant = null)
         {
@@ -146,9 +170,6 @@ namespace Edi.Core.Gallery
 
         }
 
-        public List<GalleryDefinition> GetDefinitions()
-        {
-            return Config.Definitions;
-        }
+
     }
 }

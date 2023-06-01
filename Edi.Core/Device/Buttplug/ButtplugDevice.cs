@@ -1,4 +1,7 @@
 ﻿using Buttplug;
+using Buttplug.Client;
+using Buttplug.Core;
+using Buttplug.Core.Messages;
 using Edi.Core.Device.Interfaces;
 using Edi.Core.Funscript;
 using Edi.Core.Gallery;
@@ -10,16 +13,17 @@ using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using System.Text;
 using System.Timers;
-using static Buttplug.ServerMessage.Types;
 using Timer = System.Timers.Timer;
 
 namespace Edi.Core.Device.Buttplug
 {
-    internal class ButtplugDevice :  IDevice, IEqualityComparer<ButtplugDevice>
+    internal class ButtplugDevice : IDevice, IEqualityComparer<ButtplugDevice>
     {
         private ButtplugClientDevice device { get; set; }
-        private IGalleryRepository<CmdLinealGallery> repository { get; set; }
-        public string Name => device.Name;
+        public ActuatorType Actuator { get; }
+        public uint Channel { get; }
+        private IGalleryRepository<FunscriptGallery> repository { get; set; }
+        public string Name => $"{device.Name} ({Actuator}:{Channel})";
 
         private  CmdLinear CurrentCmd { get;  set; }
         private DateTime SendAt { get;  set; }
@@ -27,10 +31,14 @@ namespace Edi.Core.Device.Buttplug
 
         private static Timer timerCmdEnd = new Timer();
 
-        public ButtplugDevice(ButtplugClientDevice device, IGalleryRepository<CmdLinealGallery> repository)
+        private double lastSpeedSend = 0;
+        public ButtplugDevice(ButtplugClientDevice device, ActuatorType actuator, uint channel, IGalleryRepository<FunscriptGallery> repository)
         {
             this.device = device;
+            Actuator = actuator;
+            Channel = channel;
             this.repository = repository;
+            vibCommandTimer.Interval = (device.MessageTimingGap == 0 ) ? 50: device.MessageTimingGap;
             timerCmdEnd.Elapsed += OnCommandEnd;
             vibCommandTimer.Elapsed += FadeVibratorCmd;
         }
@@ -43,15 +51,22 @@ namespace Edi.Core.Device.Buttplug
                 return;
 
             Task sendtask = Task.CompletedTask;
-         
-            if (device.AllowedMessages.ContainsKey(ServerMessage.Types.MessageAttributeType.LinearCmd))
+
+            switch (Actuator)
             {
-                sendtask = device.SendLinearCmd(cmd.buttplugMillis, cmd.LinearValue);
-            }
-            if (device.AllowedMessages.ContainsKey(MessageAttributeType.VibrateCmd))
-            {
-                vibCommandTimer.Start();
-            }
+                case ActuatorType.Vibrate or ActuatorType.Oscillate:
+                    vibCommandTimer.Start();
+                    //ButtplugController.start?
+                    break;
+                case ActuatorType.Position:
+                    sendtask = device.LinearAsync(new [] { ( cmd.buttplugMillis, cmd.LinearValue);
+                    break;
+                case ActuatorType.Rotate:
+                    sendtask = device.RotateAsync(Math.Min(1.0, Math.Max(0, CurrentCmd.Speed / (double)450)), CurrentCmd.Direction); ;
+                    break;
+                            }
+
+
             CurrentCmd = cmd;
             
             SendAt = DateTime.Now;
@@ -75,6 +90,7 @@ namespace Edi.Core.Device.Buttplug
                 await sendtask;
         }
 
+
         private async void FadeVibratorCmd(object? sender, ElapsedEventArgs e)
         {
             
@@ -87,13 +103,36 @@ namespace Edi.Core.Device.Buttplug
             var passes = DateTime.Now - SendAt;
             var distanceToTravel = CurrentCmd.Value - CurrentCmd.InitialValue;
             var travel = Math.Round(distanceToTravel * (passes.TotalMilliseconds / CurrentCmd.Millis), 0);
-            travel = travel is double.NaN ? 0 : travel;
+            travel = travel is double.NaN or double.PositiveInfinity or double.NegativeInfinity ? 0 : travel;
             var currVal = Math.Abs(CurrentCmd.InitialValue + Convert.ToInt16(travel));
-            var speed = Math.Min(1.0, Math.Max(0, currVal / (double)100));
+
+            var actuadores = device.GenericAcutatorAttributes(Actuator);
+            double  steps = actuadores[(int)Channel].StepCount;
+            if (steps == 0) 
+                steps = 1;
+            steps = (100.0 / steps);
+
+
+            var speed = (int)Math.Round(currVal / (double)steps) * steps;
+            speed = (Math.Min(1.0, Math.Max(0, speed / (double)100)));
 
             try
             {
-                await device.SendVibrateCmd(speed);
+                switch (Actuator)
+                {
+                    case ActuatorType.Vibrate:                        
+                        if(speed != lastSpeedSend)
+                            await device.VibrateAsync(new [] { (Channel, speed) });
+                        break;
+                    case ActuatorType.Oscillate:
+                        if (speed != lastSpeedSend)
+                            await device.OscillateAsync(new[] { (Channel, speed) });
+                        break;
+
+
+                 
+                }
+                lastSpeedSend = speed;
             }
             catch (ButtplugDeviceException)
             {
@@ -103,11 +142,12 @@ namespace Edi.Core.Device.Buttplug
 
         private static List<CmdLinear> queue { get; set; } = new List<CmdLinear>();
         public static DateTime SyncSend { get; private set; }
+        private long ResumeAt { get; set; }
 
-        private CmdLinealGallery CurrentGallery;
-        public async Task SendGallery(string name,long seek = 0)
+        private FunscriptGallery CurrentGallery;
+        public async Task PlayGallery(string name,long seek = 0)
         {
-            var gallery = repository.Get(name, device.AllowedMessages.ContainsKey(MessageAttributeType.VibrateCmd) ? "vibrator" : null);
+            var gallery = repository.Get(name);
             if (gallery == null)
                 return;
 
@@ -134,7 +174,7 @@ namespace Edi.Core.Device.Buttplug
             }
             else if (CurrentGallery.Repeats)
             {
-                await SendGallery(CurrentGallery.Name);
+                await PlayGallery(CurrentGallery.Name);
             }
 
         }
@@ -163,14 +203,15 @@ namespace Edi.Core.Device.Buttplug
             return h.ToHashCode();
         }
 
-        public Task Pause()
+        public async Task Pause()
         {
-            throw new NotImplementedException();
+            ResumeAt = (long)CurrentTime;
+            await SendCmd(CmdLinear.GetCommandMillis(1500, 1));//go home
         }
-
-        public Task Resume()
+        public async Task Resume()
         {
-            throw new NotImplementedException();
+            await Seek(ResumeAt);
+            await PlayNext();
         }
     }
 }

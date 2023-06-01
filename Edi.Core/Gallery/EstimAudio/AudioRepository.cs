@@ -15,9 +15,9 @@ namespace Edi.Core.Gallery.EStimAudio
 {
 
 
-    public class EstimRepository : IGalleryRepository<EStimGallery>
+    public class AudioRepository : IGalleryRepository<AudioGallery>
     {
-        public EstimRepository(IConfiguration configuration, IGalleryRepository<DefinitionGallery> definitions)
+        public AudioRepository(IConfiguration configuration, IGalleryRepository<DefinitionGallery> definitions)
         {
             Config = new GalleryConfig();
             configuration.GetSection("Gallery").Bind(Config);
@@ -28,7 +28,7 @@ namespace Edi.Core.Gallery.EStimAudio
         private List<string> Variants { get; set; } = new List<string>();
         private GalleryConfig Config { get; set; }
         private IGalleryRepository<DefinitionGallery> Definitions { get; }
-        private Dictionary<string, List<EStimGallery>> Galleries { get; set; } = new Dictionary<string, List<EStimGallery>>(StringComparer.OrdinalIgnoreCase);
+        private Dictionary<string, List<AudioGallery>> Galleries { get; set; } = new Dictionary<string, List<AudioGallery>>(StringComparer.OrdinalIgnoreCase);
 
         public async Task Init()
         {
@@ -82,7 +82,7 @@ namespace Edi.Core.Gallery.EStimAudio
 
 
                     // Crear una nueva galería para almacenar el fragmento de audio
-                    EStimGallery gallery = new EStimGallery
+                    AudioGallery gallery = new AudioGallery
                     {
                         Name = definition.Name,
                         Variant = variant,
@@ -94,7 +94,7 @@ namespace Edi.Core.Gallery.EStimAudio
 
                     // Añadir la galería a la lista de galerías
                     if (!Galleries.ContainsKey(definition.Name))
-                        Galleries.Add(definition.Name, new List<EStimGallery>());
+                        Galleries.Add(definition.Name, new List<AudioGallery>());
 
                     Galleries[definition.Name].Add(gallery);
                 }
@@ -102,10 +102,10 @@ namespace Edi.Core.Gallery.EStimAudio
         }
         public List<string> GetVariants()
             => Variants;
-        public List<EStimGallery> GetAll()
+        public List<AudioGallery> GetAll()
             => Galleries.Values.SelectMany(x=>x).ToList();
 
-        public EStimGallery? Get(string name, string variant = null)
+        public AudioGallery? Get(string name, string variant = null)
         {
             //TODO: asset ovverride order priority similar minecraft texture packt 
             variant = variant ?? Config.SelectedVariant ?? Config.DefaulVariant;

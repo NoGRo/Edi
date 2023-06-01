@@ -13,14 +13,12 @@ namespace Edi.Core.Services
     public class Edi : IEdi
     {
         private readonly IDeviceManager _deviceManager;
-        private readonly IDeviceProvider _providerManager;
-        private readonly IGalleryRepository<DefinitionGallery> _repository;
+        private readonly DefinitionRepository _repository;
         private readonly IConfiguration _configuration;
 
-        public Edi(IDeviceManager deviceManager, IDeviceProvider providerManager, IGalleryRepository<DefinitionGallery> repository, IConfiguration configuration)
+        public Edi(IDeviceManager deviceManager,  DefinitionRepository repository, IConfiguration configuration)
         {
             _deviceManager = deviceManager;
-            _providerManager = providerManager;
             _repository = repository;
             _configuration = configuration;
 
@@ -32,7 +30,8 @@ namespace Edi.Core.Services
 
             Config = new EdiConfig();
             _configuration.GetSection("Edi").Bind(Config);
-        }
+
+                    }
 
         private EdiConfig Config { get; set; }
         private string CurrentFiller { get; set; }
@@ -45,7 +44,7 @@ namespace Edi.Core.Services
         public async Task Init()
         {
             await _repository.Init();
-            await _providerManager.Init(_deviceManager);
+            await _deviceManager.Init();
         }
 
         private async Task SetFiller(DefinitionGallery gallery)
@@ -55,7 +54,7 @@ namespace Edi.Core.Services
                 await SendFiller(CurrentFiller);
         }
 
-        public async Task Gallery(string name, long seek = 0)
+        public async Task Play(string name, long seek = 0)
         {
             var gallery = _repository.Get(name);
 
@@ -97,7 +96,7 @@ namespace Edi.Core.Services
                 TimerReactStop.Start();
             }
 
-            await _deviceManager.SendGallery(gallery.Name);
+            await _deviceManager.PlayGallery(gallery.Name);
         }
 
         private async void TimerReactStop_ElapsedAsync(object? sender, ElapsedEventArgs e)
@@ -117,7 +116,7 @@ namespace Edi.Core.Services
           await SendGallery(LastGallery, seekBack);
         }
 
-        public async Task StopGallery()
+        public async Task Stop()
         {
             if(ReactSendGallery != null)
             {
@@ -160,7 +159,7 @@ namespace Edi.Core.Services
                 else
                 {
                     //seek out of range StopGallery
-                    await StopGallery();
+                    await Stop();
                     return;
                 }
             }
@@ -173,11 +172,11 @@ namespace Edi.Core.Services
                 TimerGalleryStop.Interval = Math.Abs(gallery.Duration);
                 TimerGalleryStop.Start();
             }
-            await _deviceManager.SendGallery(gallery.Name, seek);
+            await _deviceManager.PlayGallery(gallery.Name, seek);
         }
 
         private async void TimerGalleryStop_ElapsedAsync(object? sender, ElapsedEventArgs e)
-            => await StopGallery();
+            => await Stop();
 
         private async Task SendFiller(string name, long seek = 0)
         {

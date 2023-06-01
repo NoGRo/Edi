@@ -2,6 +2,7 @@
 namespace Edi.Core.Gallery
 {
     public interface IGalleryRepository<T>
+        where T : class, IGallery
     {
         Task Init();
         T Get(string name, string? variant = null);

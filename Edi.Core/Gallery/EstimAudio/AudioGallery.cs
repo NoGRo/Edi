@@ -5,7 +5,7 @@ using NAudio.Wave;
 
 namespace Edi.Core.Gallery.EStimAudio
 {
-    public class EStimGallery
+    public class AudioGallery : IGallery
     {
         public string Name { get; set; }
         public string Variant { get; set; }

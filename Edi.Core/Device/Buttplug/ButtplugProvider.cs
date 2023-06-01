@@ -1,5 +1,8 @@
 ﻿
-using Buttplug;
+using Buttplug.Client;
+using Buttplug.Client.Connectors.WebsocketConnector;
+using Buttplug.Core;
+using Buttplug.Core.Messages;
 using Edi.Core.Device.Interfaces;
 using Edi.Core.Gallery;
 using Edi.Core.Gallery.CmdLineal;
@@ -17,7 +20,7 @@ namespace Edi.Core.Device.Buttplug
 {
     public class ButtplugProvider : IDeviceProvider
     {
-        public ButtplugProvider(IGalleryRepository<CmdLinealGallery> repository, IConfiguration config)
+        public ButtplugProvider(FunscriptRepository repository, IConfiguration config, IDeviceManager deviceManager)
         {
             
             this.Config = new ButtplugConfig();
@@ -25,17 +28,18 @@ namespace Edi.Core.Device.Buttplug
             config.GetSection("Buttplug").Bind(this.Config);
 
             this.repository = repository;
+            DeviceManager = deviceManager;
         }
 
         public readonly ButtplugConfig Config;
         private Timer timerReconnect = new Timer();
 
-        private ILoadDevice DeviceLoad;
+        private IDeviceManager DeviceManager;
         public ButtplugClient client { get; set; }
-        private IGalleryRepository<CmdLinealGallery> repository { get; }
-        public async Task Init(ILoadDevice deviceLoad)
+        private IGalleryRepository<FunscriptGallery> repository { get; }
+        public async Task Init()
         {
-            DeviceLoad = deviceLoad;
+            await repository.Init();
             timerReconnect.Elapsed += timerReconnectevent;
             await Connect();
         }
@@ -49,8 +53,6 @@ namespace Edi.Core.Device.Buttplug
         public async Task Connect()
         {
 
-            OnStatusChange("Connecting...");
-
             if (client != null)
             {
                 if (client.Connected)
@@ -60,7 +62,7 @@ namespace Edi.Core.Device.Buttplug
                 client = null;
                 timerReconnect.Enabled = false;
             }
-            client = new ButtplugClient("DJ Sex");
+            client = new ButtplugClient("Edi");
 
             client.DeviceAdded += Client_DeviceAdded;
             client.DeviceRemoved += Client_DeviceRemoved;
@@ -71,45 +73,67 @@ namespace Edi.Core.Device.Buttplug
             try
             {
                 if (!string.IsNullOrEmpty(Config.Url))
-                    await client.ConnectAsync(new ButtplugWebsocketConnectorOptions(new Uri(Config.Url)));
-                else
-                    await client.ConnectAsync(new ButtplugEmbeddedConnectorOptions());
+                    await client.ConnectAsync(new ButtplugWebsocketConnector(new Uri(Config.Url)));
+//                else
+  //                  await client.ConnectAsync(new buttplugE);
             }
-            catch (ButtplugConnectorException ex)
+            catch (ButtplugClientConnectorException ex)
             {
-                OnStatusChange("Can't Connect");
                 return;
             }
 
-            if (client.Connected)
-                OnStatusChange("Connected");
-
-            await client.StartScanningAsync();
-            foreach (var buttplugClientDevice in client.Devices)
-            {
-                AddDeviceOn(buttplugClientDevice);
+            if (!client.Connected) {
+                await client.ConnectAsync(new ButtplugWebsocketConnector(new Uri(Config.Url)));
+            } else {
+                await client.StartScanningAsync();
             }
+
+           
+
+           
 
         }
         private void AddDeviceOn(ButtplugClientDevice Device)
         {
-            if (Device.AllowedMessages.ContainsKey(ServerMessage.Types.MessageAttributeType.LinearCmd)
-                || Device.AllowedMessages.ContainsKey(ServerMessage.Types.MessageAttributeType.VibrateCmd))
+            for (uint i = 0; i < Device.LinearAttributes.Count; i++)
             {
-
-                DeviceLoad.LoadDevice(new ButtplugDevice(Device, repository));
-                OnStatusChange($"Device Found [{Device.Name}]");
+                DeviceManager.LoadDevice(new ButtplugDevice(Device,ActuatorType.Position, i, repository));
             }
+
+            for (uint i = 0; i < Device.VibrateAttributes.Count; i++)
+            {
+                DeviceManager.LoadDevice(new ButtplugDevice(Device, ActuatorType.Vibrate, i, repository));
+            }
+            for (uint i = 0; i < Device.RotateAttributes.Count; i++)
+            {
+                DeviceManager.LoadDevice(new ButtplugDevice(Device, ActuatorType.Rotate, i, repository));
+            }
+            for (uint i = 0; i < Device.OscillateAttributes.Count; i++)
+            {
+                DeviceManager.LoadDevice(new ButtplugDevice(Device, ActuatorType.Oscillate, i, repository));
+            }
+
+
         }
         private void RemoveDeviceOn(ButtplugClientDevice Device)
         {
-            if (Device.AllowedMessages.ContainsKey(ServerMessage.Types.MessageAttributeType.LinearCmd)
-                || Device.AllowedMessages.ContainsKey(ServerMessage.Types.MessageAttributeType.VibrateCmd))
+            for (uint i = 0; i < Device.LinearAttributes.Count; i++)
             {
-                DeviceLoad.UnloadDevice(new ButtplugDevice(Device, repository));
-                OnStatusChange($"Device Remove [{Device.Name}]");
+                DeviceManager.UnloadDevice(new ButtplugDevice(Device, ActuatorType.Position, i, repository));
             }
-            OnStatusChange("Disconnect");
+
+            for (uint i = 0; i < Device.VibrateAttributes.Count; i++)
+            {
+                DeviceManager.UnloadDevice(new ButtplugDevice(Device, ActuatorType.Vibrate, i, repository));
+            }
+            for (uint i = 0; i < Device.RotateAttributes.Count; i++)
+            {
+                DeviceManager.UnloadDevice(new ButtplugDevice(Device, ActuatorType.Rotate, i, repository));
+            }
+            for (uint i = 0; i < Device.OscillateAttributes.Count; i++)
+            {
+                DeviceManager.UnloadDevice(new ButtplugDevice(Device, ActuatorType.Oscillate, i, repository));
+            }
         }
 
         private void Client_ServerDisconnect(object sender, EventArgs e)

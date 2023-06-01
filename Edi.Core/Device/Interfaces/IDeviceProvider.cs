@@ -2,6 +2,6 @@
 {
     public interface IDeviceProvider
     {
-        Task Init(ILoadDevice DeviceLoad);
+        Task Init();
     }
 }

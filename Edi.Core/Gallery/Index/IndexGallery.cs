@@ -5,7 +5,7 @@ using System.Text;
 
 namespace Edi.Core.Gallery.Index
 {
-    public class IndexGallery
+    public class IndexGallery: IGallery
     {
 
         public string Name { get; set; }

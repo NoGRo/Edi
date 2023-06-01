@@ -10,18 +10,20 @@ using Edi.Core.Gallery.Definition;
 
 namespace Edi.Core.Gallery.CmdLineal
 {
-    public class CmdLinealRepository : IGalleryRepository<CmdLinealGallery>
+    public class FunscriptRepository : IGalleryRepository<FunscriptGallery>
     {
-        public CmdLinealRepository(IConfiguration configuration, DefinitionRepository definition)
+        public FunscriptRepository(IConfiguration configuration, DefinitionRepository definition)
         {
             Config = new GalleryConfig();
             configuration.GetSection("Gallery").Bind(Config);
+            Definition = definition;
         }
-        private Dictionary<string, List<CmdLinealGallery>> Galleries { get; set; } = new Dictionary<string, List<CmdLinealGallery>>(StringComparer.OrdinalIgnoreCase);
+        private Dictionary<string, List<FunscriptGallery>> Galleries { get; set; } = new Dictionary<string, List<FunscriptGallery>>(StringComparer.OrdinalIgnoreCase);
         public Dictionary<string, FileInfo> Assets { get; set; } = new Dictionary<string, FileInfo>(StringComparer.OrdinalIgnoreCase);
 
         private List<string> Variants { get; set; } = new List<string>();
         private GalleryConfig Config { get; set; }
+        public DefinitionRepository Definition { get; }
 
         public async Task Init()
         {
@@ -43,7 +45,7 @@ namespace Edi.Core.Gallery.CmdLineal
             foreach (var variantPath in variants)
             {
                 var variant = new DirectoryInfo(variantPath).Name;
-                foreach (var DefinitionGallery in Config.Definitions)
+                foreach (var DefinitionGallery in Definition.GetAll())
                 {
                     var filePath = $"{Config.GalleryPath}\\{variant}\\{DefinitionGallery.FileName}.funscript";
 
@@ -59,10 +61,10 @@ namespace Edi.Core.Gallery.CmdLineal
                     if (!actions.Any())
                         continue;
 
-                    CmdLinealGallery gallery = ParseActions(variant, DefinitionGallery, actions);
+                    FunscriptGallery gallery = ParseActions(variant, DefinitionGallery, actions);
 
                     if (!Galleries.ContainsKey(DefinitionGallery.Name))
-                        Galleries.Add(DefinitionGallery.Name, new List<CmdLinealGallery>());
+                        Galleries.Add(DefinitionGallery.Name, new List<FunscriptGallery>());
 
                     Galleries[gallery.Name].Add(gallery);
                 }
@@ -75,7 +77,7 @@ namespace Edi.Core.Gallery.CmdLineal
             foreach (var variantPath in Variants)
             {
                 var variant = new DirectoryInfo(variantPath).Name;
-                foreach (var DefinitionGallery in Config.Definitions)
+                foreach (var DefinitionGallery in Definition.GetAll())
                 {
                     var filePath = $"{Config.GalleryPath}\\{variant}\\{DefinitionGallery.FileName}.funscript";
                     FunScriptFile funscript;
@@ -97,7 +99,7 @@ namespace Edi.Core.Gallery.CmdLineal
             return FunscriptCache;
 
         }
-        private static CmdLinealGallery ParseActions(string variant, DefinitionGallery DefinitionGallery, IEnumerable<FunScriptAction> actions)
+        private static FunscriptGallery ParseActions(string variant, DefinitionGallery DefinitionGallery, IEnumerable<FunScriptAction> actions)
         {
             var sb = new ScriptBuilder();
             foreach (var action in actions)
@@ -106,7 +108,7 @@ namespace Edi.Core.Gallery.CmdLineal
                     millis: Convert.ToInt32(action.at - DefinitionGallery.StartTime - sb.TotalTime),
                     value: action.pos);
             }
-            var gallery = new CmdLinealGallery
+            var gallery = new FunscriptGallery
             {
                 Name = DefinitionGallery.Name,
                 Variant = variant,
@@ -122,10 +124,10 @@ namespace Edi.Core.Gallery.CmdLineal
 
         public List<string> GetVariants()
             => Variants;
-        public List<CmdLinealGallery> GetAll()
+        public List<FunscriptGallery> GetAll()
             => Galleries.Values.SelectMany(x => x).ToList();
 
-        public CmdLinealGallery? Get(string name, string variant = null)
+        public FunscriptGallery? Get(string name, string variant = null)
         {
             //TODO: asset ovverride order priority similar minecraft texture packt 
             variant = variant ?? Config.SelectedVariant ?? Config.DefaulVariant;

@@ -20,22 +20,24 @@ namespace Edi.Core.Services
     {
         public static void AddEdi(this IServiceCollection builder)
         {
-
+            #region Devices
             builder.AddSingleton<IDeviceProvider, ButtplugProvider>();
             builder.AddSingleton<IDeviceProvider, HandyProvider>();
             //TODO: Arquiere other from external dll
 
-            builder.AddSingleton<ProviderManager>();
-
             builder.AddSingleton<IDeviceManager, DeviceManager>();
+            #endregion
 
-            builder.AddSingleton<IGalleryRepository<DefinitionGallery>, DefinitionRepository>();
-            builder.AddSingleton<IGalleryRepository<IndexGallery>, IndexRepository>();
-            builder.AddSingleton<IGalleryRepository<CmdLinealGallery>, CmdLinealRepository>();
-
+            #region Repositories
             builder.AddSingleton<GalleryBundler>();
 
+            builder.AddSingleton<DefinitionRepository>();
+            builder.AddSingleton<FunscriptRepository>();
+            builder.AddSingleton<IndexRepository>();
+
             
+            #endregion
+
 
             builder.AddSingleton<IEdi, Edi>();
 

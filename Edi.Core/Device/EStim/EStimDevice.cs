@@ -16,25 +16,28 @@ namespace Edi.Core.Device.EStim
 
     public class EStimDevice : IDevice
     {
-        private readonly IGalleryRepository<EStimGallery> _repository;
+        private readonly IGalleryRepository<AudioGallery> _repository;
         private readonly IWavePlayer _wavePlayer;
-        private EStimGallery _currentGallery;
+        private AudioGallery _currentGallery;
 
         private Mp3FileReader _curentAudioFile { get; set; }
 
         private Timer _timerGalleryEnds;
         private bool _isPlaying;
+        private Dictionary<string, Mp3FileReader> _inMemoryMp3;
 
-        public EStimDevice(IGalleryRepository<EStimGallery> repository, IWavePlayer wavePlayer)
+        public EStimDevice(IGalleryRepository<AudioGallery> repository, IWavePlayer wavePlayer)
         {
             _repository = repository;
             _wavePlayer = wavePlayer;
             _timerGalleryEnds = new Timer();
             _timerGalleryEnds.Elapsed += OnTimerElapsed;
             _wavePlayer.PlaybackStopped += OnPlaybackStoppedAsync;
+
+            _inMemoryMp3 = _repository.GetAll().Select(x=> x.AudioPath).Distinct().ToDictionary(x=> x, y => new Mp3FileReader(y));
         }
 
-        public async Task SendGallery(string name, long seek = 0)
+        public async Task PlayGallery(string name, long seek = 0)
         {
             // Obtener la galería del repositorio
             var gallery = _repository.Get(name);
@@ -43,18 +46,10 @@ namespace Edi.Core.Device.EStim
                 return;
             }
 
-            // Asignar la galería actual
             _currentGallery = gallery;
+            _curentAudioFile = _inMemoryMp3[gallery.AudioPath];
 
-            // Abrir el archivo de audio
-            _curentAudioFile = new Mp3FileReader(gallery.AudioPath);
 
-            // Saltar hasta la posición deseada
-            PlayGallery(gallery, seek);
-        }
-
-        private void PlayGallery(EStimGallery gallery, long seek= 0 )
-        {
             _curentAudioFile.CurrentTime = TimeSpan.FromMilliseconds(gallery.StartTime + seek);
             _timerGalleryEnds.Interval = gallery.Duration;
             _timerGalleryEnds.Start();
@@ -62,6 +57,7 @@ namespace Edi.Core.Device.EStim
             _wavePlayer.Init(_curentAudioFile);
             _wavePlayer.Play();
         }
+
 
         private void OnTimerElapsed(object sender, ElapsedEventArgs e)
         {
@@ -85,12 +81,7 @@ namespace Edi.Core.Device.EStim
         private async void OnPlaybackStoppedAsync(object sender, StoppedEventArgs e)
         {
             _timerGalleryEnds.Stop();
-            if (_currentGallery.Repeats)
-            {
-                PlayGallery(_currentGallery);
-            }
         }
-
 
     }
 }

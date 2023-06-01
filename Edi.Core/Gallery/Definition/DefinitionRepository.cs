@@ -32,14 +32,13 @@ namespace Edi.Core.Gallery.Definition
             {
                 Config.Definitions = csv.GetRecords<DefinitionGallery>().ToList();
             }
-            Bundler = bundler;
         }
 
         public Dictionary<string, FileInfo> Assets { get; set; } = new Dictionary<string, FileInfo>(StringComparer.OrdinalIgnoreCase);
 
         private List<string> Variants { get; set; } = new List<string>();
         private GalleryConfig Config { get; set; }
-        private GalleryBundler Bundler { get; set; }
+
 
         public async Task Init()
         {

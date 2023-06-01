@@ -4,7 +4,7 @@ using Edi.Core.Funscript;
 
 namespace Edi.Core.Gallery.CmdLineal
 {
-    public class CmdLinealGallery
+    public class FunscriptGallery: IGallery
     {
         public string Name { get; set; }
         public string Variant { get; set; }

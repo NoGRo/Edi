@@ -25,7 +25,7 @@ namespace Edi.Core.Gallery.Index
         public GalleryBundlerConfig Config { get; set; }
         private ScriptBuilder sb { get; set; } = new ScriptBuilder();
 
-        public void Add(CmdLinealGallery gallery, bool repeats)
+        public void Add(FunscriptGallery gallery, bool repeats)
         {
             gallery.Repeats = repeats;
 

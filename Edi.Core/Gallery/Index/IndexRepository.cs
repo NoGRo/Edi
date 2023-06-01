@@ -14,10 +14,11 @@ namespace Edi.Core.Gallery.Index
 {
     public class IndexRepository : IGalleryRepository<IndexGallery>
     {
-        public IndexRepository(IConfiguration configuration, GalleryBundler bundler, IGalleryRepository<CmdLinealGallery> Cmdlineals)
+        public IndexRepository(IConfiguration configuration, GalleryBundler bundler, FunscriptRepository Cmdlineals)
         {
             Config = new GalleryConfig();
             configuration.GetSection("Gallery").Bind(Config);
+            Bundler = bundler;
             this.Cmdlineals = Cmdlineals;
         }
 
@@ -26,16 +27,16 @@ namespace Edi.Core.Gallery.Index
 
         private List<string> Variants { get; set; } = new List<string>();
         private GalleryConfig Config { get; set; }
-        private GalleryBundler Bundler { get; set; }
-        public IGalleryRepository<CmdLinealGallery> Cmdlineals { get; }
+        private GalleryBundler Bundler { get; set; } 
+        public FunscriptRepository Cmdlineals { get; }
 
         public async Task Init()
         {
-            LoadGalleryv();
+            LoadGallery();
         }
 
 
-        private void LoadGalleryv()
+        private void LoadGallery()
         {
             var CmdGalleries = Cmdlineals.GetAll();
             foreach (var cmdGallery in CmdGalleries)

@@ -16,6 +16,7 @@ using Timer = System.Timers.Timer;
 using System.Diagnostics.CodeAnalysis;
 using Edi.Core.Device.Interfaces;
 using Edi.Core.Gallery.Index;
+using Edi.Core.Gallery.Definition;
 
 namespace Edi.Core.Device.Handy
 {
@@ -24,34 +25,29 @@ namespace Edi.Core.Device.Handy
 
         public string Key { get; set; }
 
-        public long CurrentTime { get; set; }
-        public bool IsPlaying { get; set; }
+        private long CurrentTime { get; set; }
+        private bool IsPlaying { get; set; }
 
-        public bool isReady { get; set; }
+        private bool isReady { get; set; }
 
         
         private static long timeSyncAvrageOffset;
         private static long timeSyncInitialOffset;
         private HttpClient Client ;
-        private IGalleryRepository<IndexGallery> repository { get; set; }
+        private IndexRepository repository { get; set; }
         private Timer timerGalleryEnd = new Timer();
 
-        public HandyDevice(HttpClient Client, IGalleryRepository<IndexGallery> repository)
+        public HandyDevice(HttpClient Client, IndexRepository repository)
         {
             timerGalleryEnd.Elapsed += TimerGalleryEnd_Elapsed;
             this.Client = Client;
             this.repository = repository;
+            
         }
 
 
 
-        public async Task Play(long? timeMs)
-        {
-            await Seek(timeMs ?? 0);
-
-        }
-
-        public async Task Seek(long timeMs)
+        private async Task Seek(long timeMs)
         {
             var req = new SyncPlayRequest(ServerTime, timeMs);
             var resp = await Client.PutAsync("hssp/play", new StringContent(JsonConvert.SerializeObject(req), Encoding.UTF8, "application/json"));
@@ -59,6 +55,8 @@ namespace Edi.Core.Device.Handy
 
 
         private long ServerTime => DateTimeOffset.UtcNow.ToUnixTimeMilliseconds() + timeSyncInitialOffset + timeSyncAvrageOffset;
+
+        private long ResumeAt { get; set; }
 
         public async Task updateServerTime()
         {
@@ -93,7 +91,7 @@ namespace Edi.Core.Device.Handy
         }
 
         private IndexGallery currentGallery;
-        public async Task SendGallery(string name, long seek = 0)
+        public async Task PlayGallery(string name, long seek = 0)
         {
             var gallery = repository.Get(name);
             if (gallery == null)
@@ -110,20 +108,21 @@ namespace Edi.Core.Device.Handy
         {
             timerGalleryEnd.Stop();
             if (currentGallery.Repeats)
-                await SendGallery(currentGallery.Name);
+                await PlayGallery(currentGallery.Name);
             else
                 await Pause();
 
         }
 
-        public Task Pause()
+        public async Task Pause()
         {
-            throw new NotImplementedException();
+            ResumeAt = CurrentTime;
+            await Task.Delay(1); //not implemented yet 
         }
 
-        public Task Resume()
+        public async Task Resume()
         {
-            throw new NotImplementedException();
+            await Seek(ResumeAt);
         }
 
         public bool Equals(HandyDevice? x, HandyDevice? y)

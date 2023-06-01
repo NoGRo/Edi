@@ -10,7 +10,7 @@ namespace Edi.Core.Funscript
 
         public static int SpeedLimit => 400;
 
-
+        #region move to some creation pattern
         public static CmdLinear GetCommandSpeed(int speed, int value, int initialValue)
         {
             speed = speed > SpeedLimit ? SpeedLimit : speed;
@@ -77,6 +77,8 @@ namespace Edi.Core.Funscript
                 Value = Convert.ToByte(value)
             };
         }
+
+        #endregion 
         public CmdLinear Prev { get; set; }
         public CmdLinear Next { get; set; }
 

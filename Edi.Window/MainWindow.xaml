@@ -1,0 +1,32 @@
+﻿<Window x:Class="Edi.Window.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:local="clr-namespace:Edi.Window"
+        mc:Ignorable="d"
+        Title="MainWindow" Height="413" Width="797">
+    <Grid>
+        <TabControl SelectionChanged="TabControl_SelectionChanged">
+            <TabItem Header="Main" Margin="-2,-2,-2,2">
+                <Grid HorizontalAlignment="Left" Width="794" Height="350">
+                    <DataGrid d:ItemsSource="{d:SampleData ItemCount=2}" Margin="319,10,10,217"/>
+                    <CheckBox Content="Filler" HorizontalAlignment="Left" Margin="10,10,0,0" VerticalAlignment="Top" RenderTransformOrigin="-0.063,-0.829" Checked="CheckBox_Checked"/>
+                    <CheckBox Content="Gallery" HorizontalAlignment="Left" Margin="10,30,0,0" VerticalAlignment="Top" RenderTransformOrigin="-0.063,-0.829" Checked="CheckBox_Checked"/>
+                    <CheckBox Content="Reaction" HorizontalAlignment="Left" Margin="10,50,0,0" VerticalAlignment="Top" RenderTransformOrigin="-0.063,-0.829" Checked="CheckBox_Checked"/>
+                    <Label Content="Status:" HorizontalAlignment="Left" Margin="10,152,0,0" VerticalAlignment="Top"/>
+
+                </Grid>
+            </TabItem>
+            <TabItem Header="Devices Config">
+            </TabItem>
+
+
+
+
+
+
+        </TabControl>
+
+    </Grid>
+</Window>

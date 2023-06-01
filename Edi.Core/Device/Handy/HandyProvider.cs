@@ -14,26 +14,27 @@ namespace Edi.Core.Device.Handy
 {
     public class HandyProvider : IDeviceProvider
     {
-        public HandyProvider(IGalleryRepository<IndexGallery> repository, IConfiguration config)
+        public HandyProvider(IndexRepository repository, IConfiguration config, IDeviceManager deviceLoad)
         {
             this.Config = new HandyConfig();
             config.GetSection("Handy").Bind(this.Config);
 
             this.repository = repository;
+            this.deviceLoad = deviceLoad;
         }
 
         private HttpClient Client = new HttpClient() { BaseAddress = new Uri("https://www.handyfeeling.com/api/handy/v2/") };
         public HandyConfig Config { get; set; }
-        private ILoadDevice deviceLoad;
-        public IGalleryRepository<IndexGallery> repository { get; set; }
+        private IDeviceManager deviceLoad;
+        public IndexRepository repository { get; set; }
 
-        public async Task Init(ILoadDevice DeviceLoad)
+        public async Task Init()
         {
+            repository.Init();
             if (string.IsNullOrEmpty(Config.Key))
                 return;
 
-            deviceLoad = DeviceLoad;
-
+            
             Client.DefaultRequestHeaders.Remove("X-Connection-Key");
             Client.DefaultRequestHeaders.Add("X-Connection-Key", Config.Key);
 
@@ -72,7 +73,7 @@ namespace Edi.Core.Device.Handy
             //OnStatusChange("Uploading");
             await upload;
             
-            DeviceLoad.LoadDevice(handyDevice);
+            deviceLoad.LoadDevice(handyDevice);
         }
         public async Task UploadHandy(string scriptUrl)
         {

@@ -4,8 +4,8 @@
     {
         
         public Task Init();
-        public Task Gallery(string Name, long Seek = 0);
-        public Task StopGallery();
+        public Task Play(string Name, long Seek = 0);
+        public Task Stop();
         public Task Pause();
         public Task Resume();
 

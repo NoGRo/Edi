@@ -8,7 +8,7 @@ namespace Edi.Core.Device.Interfaces
 {
     public interface IDevice
     {
-        public Task SendGallery(string name, long seek = 0);
+        public Task PlayGallery(string name, long seek = 0);
         public Task Pause();
         public Task Resume();
     }

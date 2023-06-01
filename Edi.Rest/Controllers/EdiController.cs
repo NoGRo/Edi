@@ -16,23 +16,23 @@ namespace Edi.Web.Controllers
             _edi = edi;
         }
 
-        [HttpPost("Gallery/{name}")]
+        [HttpPost("Play/{name}")]
         [SwaggerOperation(
             Summary = "Plays a gallery.",
             Description = "This method plays a gallery of multimedia content. The `name` parameter specifies the name of the gallery. The `play` parameter is a flag indicating whether to start playback of the gallery. The default value is `true`. The `seek` parameter is the seek position, in milliseconds, from the beginning of the gallery. The default value is `0`."
         )]
-        public async Task Gallery([FromRoute]string name, [FromQuery] long seek = 0)
+        public async Task Play([FromRoute]string name, [FromQuery] long seek = 0)
         {
-            await _edi.Gallery(name,  seek);
+            await _edi.Play(name,  seek);
         }
 
         /// <summary>
         /// Stops the playback of the current gallery of multimedia content.
         /// </summary>
-        [HttpPost("StopGallery")]
-        public async Task StopGallery()
+        [HttpPost("Stop")]
+        public async Task Stop()
         {
-            await _edi.StopGallery();
+            await _edi.Stop();
         }
 
         /// <summary>

@@ -7,7 +7,7 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Edi.Rest", "Edi.Rest\Edi.Re
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Edi.Core", "Edi.Core\Edi.Core.csproj", "{E4046236-6153-4D91-A546-B440CA95C4A9}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Edi.Window", "Edi.Window\Edi.Window.csproj", "{CC8D3EDF-0579-4479-9E75-F0F5CB4F5824}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Edi.Forms", "Edi.Window\Edi.Forms.csproj", "{CC8D3EDF-0579-4479-9E75-F0F5CB4F5824}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution

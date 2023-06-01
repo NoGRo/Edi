@@ -59,7 +59,7 @@ namespace Edi.Core.Device.Buttplug
                     //ButtplugController.start?
                     break;
                 case ActuatorType.Position:
-                    sendtask = device.LinearAsync(new [] { ( cmd.buttplugMillis, cmd.LinearValue);
+                    sendtask = device.LinearAsync(new[] { (cmd.buttplugMillis, cmd.LinearValue) });
                     break;
                 case ActuatorType.Rotate:
                     sendtask = device.RotateAsync(Math.Min(1.0, Math.Max(0, CurrentCmd.Speed / (double)450)), CurrentCmd.Direction); ;

@@ -5,9 +5,9 @@ Edi.Core is a .NET library that simplifies device management, providing develope
 ## Key Features
 
 - Simple, intuitive device management through the Gallery system
-- Easy control over tasks: pause, resume, stop
-- Configuration and management of different types of tasks
-- Ideal for game development and applications that require flexible device control
+- Easy control: pause, resume, stop, Pay(gallery)
+- Configuration and management of different devices
+- Ideal for game development and applications that require flexible and detailed device control
 
 ## Getting Started
 
@@ -43,6 +43,32 @@ await edi.Init();
 
 And there you have it! You're now ready to start using Edi.Core in your application.
 
+Configuration file Example
+```json
+{
+  "Edi": {
+    "Filler": true,
+    "Gallery": true,
+    "Reactive": true
+  },
+  "Handy": {
+    "Key": "[YourHandyKey]"
+  },
+  "Buttplug": {
+    "Url": "ws://localhost:12345"
+  },
+  "Gallery": {
+    "DefaulVariant": "detailed",
+    "GalleryPath": ".\\Gallery"
+  },
+  "GalleryBundler": {
+    "SpacerDuration": 5000,
+    "LoopRepeterDuration": 5000,
+    "UserDataPath": ".\\Gallery"
+  }
+}
+```
 ## Contact
 
 If you have any issues, questions, or suggestions, feel free to open an issue on this repository. Contributions are also welcome!
+

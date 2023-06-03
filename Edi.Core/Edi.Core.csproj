@@ -4,13 +4,16 @@
     <TargetFramework>net6.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
-	<Description>
-	  Edi.Core is a library that provides an effective way to control and manage devices through a simple Gallery sistem.
-	  It is ideal for applications like Games that require detailed and flexible control over the devices.
-	</Description>
-	<PackageTags>Edi Core, Device Management For Games</PackageTags>
-	<PackageReadmeFile>README.md</PackageReadmeFile>
-	<PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <Version>1.0.1</Version>
+    <Authors>DimNoGro</Authors>
+    <Company>Edi</Company>
+    <Description>
+        Edi.Core is a library that provides an effective way to control and manage devices through a simple Gallery sistem.
+        It is ideal for applications like Games that require detailed and flexible control over the devices.
+    </Description>
+    <PackageTags>Edi Core, Device Management For Games</PackageTags>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
   </PropertyGroup>
 
   <ItemGroup>
@@ -24,6 +27,7 @@
     <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="7.0.0" />
     <PackageReference Include="NAudio" Version="2.1.0" />
     <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
+	 <None Include=".\README.md" Pack="true" PackagePath="\"/>
   </ItemGroup>
 
 </Project>

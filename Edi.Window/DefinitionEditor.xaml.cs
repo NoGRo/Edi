@@ -12,7 +12,7 @@ using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using System.Windows.Shapes;
 
-namespace Edi.Window
+namespace Edi.Forms
 {
     /// <summary>
     /// Lógica de interacción para DefinitionEditor.xaml

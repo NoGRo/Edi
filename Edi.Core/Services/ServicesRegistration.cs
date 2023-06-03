@@ -24,13 +24,12 @@ namespace Edi.Core.Services
             builder.AddSingleton<IDeviceProvider, ButtplugProvider>();
             builder.AddSingleton<IDeviceProvider, HandyProvider>();
             //TODO: Arquiere other from external dll
-
+            //builder.AddSingleton<IEnumerable<IDeviceProvider>, List<IDeviceProvider>>(x=>  new List<IDeviceProvider>());
             builder.AddSingleton<IDeviceManager, DeviceManager>();
             #endregion
 
             #region Repositories
             builder.AddSingleton<GalleryBundler>();
-
             builder.AddSingleton<DefinitionRepository>();
             builder.AddSingleton<FunscriptRepository>();
             builder.AddSingleton<IndexRepository>();

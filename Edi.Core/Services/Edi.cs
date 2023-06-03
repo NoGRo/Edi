@@ -31,7 +31,7 @@ namespace Edi.Core.Services
             Config = new EdiConfig();
             _configuration.GetSection("Edi").Bind(Config);
 
-                    }
+        }
 
         private EdiConfig Config { get; set; }
         private string CurrentFiller { get; set; }

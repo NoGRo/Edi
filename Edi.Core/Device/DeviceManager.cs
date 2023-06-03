@@ -19,17 +19,27 @@ namespace Edi.Core.Device
         public ParallelQuery<IDevice> DevicesParallel => Devices.Where(x => x != null).AsParallel();
         private string? lastGallerySend;
 
+
+
+        [ActivatorUtilitiesConstructor]
         public DeviceManager(IServiceProvider serviceProvider)
         {
             ServiceProvider = serviceProvider;
         }
 
-        public IEnumerable<IDeviceProvider> Providers { get; set; }
+        public DeviceManager()
+        {
+        }
+
+        public List<IDeviceProvider> Providers { get; set; } =  new List<IDeviceProvider>();
+
         public IServiceProvider ServiceProvider { get; }
 
         public async Task Init()
         {
-            Providers = ServiceProvider.GetServices<IDeviceProvider>();
+            if (!Providers.Any() && ServiceProvider != null)
+                Providers.AddRange(ServiceProvider.GetServices<IDeviceProvider>());
+
             Providers.AsParallel().ForAll(async x => await x.Init());
         }
 

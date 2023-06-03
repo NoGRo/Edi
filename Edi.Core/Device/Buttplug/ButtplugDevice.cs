@@ -38,7 +38,7 @@ namespace Edi.Core.Device.Buttplug
             Actuator = actuator;
             Channel = channel;
             this.repository = repository;
-            vibCommandTimer.Interval = (device.MessageTimingGap == 0 ) ? 50: device.MessageTimingGap;
+            vibCommandTimer.Interval = (device.MessageTimingGap == 0 ) ? 20: device.MessageTimingGap;
             timerCmdEnd.Elapsed += OnCommandEnd;
             vibCommandTimer.Elapsed += FadeVibratorCmd;
         }
@@ -52,10 +52,12 @@ namespace Edi.Core.Device.Buttplug
 
             Task sendtask = Task.CompletedTask;
 
+            CurrentCmd = cmd;
+
             switch (Actuator)
             {
                 case ActuatorType.Vibrate or ActuatorType.Oscillate:
-                    vibCommandTimer.Start();
+                    vibCommandTimer.Start(); //constant resend Vibrations
                     //ButtplugController.start?
                     break;
                 case ActuatorType.Position:
@@ -64,10 +66,10 @@ namespace Edi.Core.Device.Buttplug
                 case ActuatorType.Rotate:
                     sendtask = device.RotateAsync(Math.Min(1.0, Math.Max(0, CurrentCmd.Speed / (double)450)), CurrentCmd.Direction); ;
                     break;
-                            }
+            }
 
 
-            CurrentCmd = cmd;
+            
             
             SendAt = DateTime.Now;
             cmd.Sent = DateTime.Now;
@@ -93,36 +95,22 @@ namespace Edi.Core.Device.Buttplug
 
         private async void FadeVibratorCmd(object? sender, ElapsedEventArgs e)
         {
-            
+
             if (device == null)
             {
                 vibCommandTimer.Stop();
                 return;
             }
 
-            var passes = DateTime.Now - SendAt;
-            var distanceToTravel = CurrentCmd.Value - CurrentCmd.InitialValue;
-            var travel = Math.Round(distanceToTravel * (passes.TotalMilliseconds / CurrentCmd.Millis), 0);
-            travel = travel is double.NaN or double.PositiveInfinity or double.NegativeInfinity ? 0 : travel;
-            var currVal = Math.Abs(CurrentCmd.InitialValue + Convert.ToInt16(travel));
-
-            var actuadores = device.GenericAcutatorAttributes(Actuator);
-            double  steps = actuadores[(int)Channel].StepCount;
-            if (steps == 0) 
-                steps = 1;
-            steps = (100.0 / steps);
-
-
-            var speed = (int)Math.Round(currVal / (double)steps) * steps;
-            speed = (Math.Min(1.0, Math.Max(0, speed / (double)100)));
+            double speed = CalculateSpeed();
 
             try
             {
                 switch (Actuator)
                 {
-                    case ActuatorType.Vibrate:                        
-                        if(speed != lastSpeedSend)
-                            await device.VibrateAsync(new [] { (Channel, speed) });
+                    case ActuatorType.Vibrate:
+                        if (speed != lastSpeedSend)
+                            await device.VibrateAsync(new[] { (Channel, speed) });
                         break;
                     case ActuatorType.Oscillate:
                         if (speed != lastSpeedSend)
@@ -130,7 +118,7 @@ namespace Edi.Core.Device.Buttplug
                         break;
 
 
-                 
+
                 }
                 lastSpeedSend = speed;
             }
@@ -138,6 +126,24 @@ namespace Edi.Core.Device.Buttplug
             {
                 device = null;
             }
+        }
+
+        private double CalculateSpeed()
+        {
+            var passes = DateTime.Now - SendAt;
+            var distanceToTravel = CurrentCmd.Value - CurrentCmd.InitialValue;
+            var travel = Math.Round(distanceToTravel * (passes.TotalMilliseconds / CurrentCmd.Millis), 0);
+            travel = travel is double.NaN or double.PositiveInfinity or double.NegativeInfinity ? 0 : travel;
+            var currVal = Math.Abs(CurrentCmd.InitialValue + Convert.ToInt16(travel));
+
+            var actuadores = device.GenericAcutatorAttributes(Actuator);
+            double steps = actuadores[(int)Channel].StepCount;
+            if (steps == 0)
+                steps = 1;
+            steps = (100.0 / steps);
+            var speed = (int)Math.Round(currVal / (double)steps) * steps;
+            speed = (Math.Min(1.0, Math.Max(0, speed / (double)100)));
+            return speed;
         }
 
         private static List<CmdLinear> queue { get; set; } = new List<CmdLinear>();
@@ -189,7 +195,7 @@ namespace Edi.Core.Device.Buttplug
         }
         private async void OnCommandEnd(object sender, ElapsedEventArgs e)
         {
-            PlayNext(); 
+            await PlayNext(); 
         }
 
         public bool Equals(ButtplugDevice? x, ButtplugDevice? y)

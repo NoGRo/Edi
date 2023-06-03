@@ -12,7 +12,7 @@ namespace Edi.Core.Gallery.Definition
 {
     public class DefinitionRepository : IGalleryRepository<DefinitionGallery>
     {
-        public DefinitionRepository(IConfiguration configuration, GalleryBundler bundler)
+        public DefinitionRepository(IConfiguration configuration)
         {
             Config = new GalleryConfig();
             configuration.GetSection("Gallery").Bind(Config);

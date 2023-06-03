@@ -1,4 +1,4 @@
-using Edi.Core.Services;
+using Edi.Core;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.OpenApi.Models;
 

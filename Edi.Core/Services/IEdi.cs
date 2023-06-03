@@ -1,4 +1,4 @@
-﻿namespace Edi.Core.Services
+﻿namespace Edi.Core
 {
     public interface IEdi
     {

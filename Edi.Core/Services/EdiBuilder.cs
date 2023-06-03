@@ -14,7 +14,7 @@ using System.Runtime.InteropServices;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace Edi.Core.Services
+namespace Edi.Core
 {
     public static class EdiBuilder
     {

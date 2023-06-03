@@ -4,6 +4,13 @@
     <TargetFramework>net6.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
+	<Description>
+	  Edi.Core is a library that provides an effective way to control and manage devices through a simple Gallery sistem.
+	  It is ideal for applications like Games that require detailed and flexible control over the devices.
+	</Description>
+	<PackageTags>Edi Core, Device Management For Games</PackageTags>
+	<PackageReadmeFile>README.md</PackageReadmeFile>
+	<PackageLicenseExpression>MIT</PackageLicenseExpression>
   </PropertyGroup>
 
   <ItemGroup>

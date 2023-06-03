@@ -8,7 +8,7 @@ using Edi.Core.Device;
 using Timer = System.Timers.Timer;
 using Edi.Core.Gallery.Definition;
 
-namespace Edi.Core.Services
+namespace Edi.Core
 {
     public class Edi : IEdi
     {
@@ -37,7 +37,7 @@ namespace Edi.Core.Services
         private string CurrentFiller { get; set; }
         private DefinitionGallery LastGallery { get; set; }
         private DateTime? GallerySendTime { get; set; }
-        public DefinitionGallery? ReactSendGallery { get; private set; }
+        private DefinitionGallery? ReactSendGallery { get; set; }
         private Timer TimerGalleryStop { get; set; }
         private Timer TimerReactStop { get; set; }
 

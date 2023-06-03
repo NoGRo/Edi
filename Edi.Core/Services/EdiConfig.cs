@@ -4,7 +4,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace Edi.Core.Services
+namespace Edi.Core
 {
     public class EdiConfig
     {

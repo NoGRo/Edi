@@ -1,5 +1,5 @@
 using Microsoft.AspNetCore.Mvc;
-using Edi.Core.Services;
+using Edi.Core;
 using Edi.Core.Device.Interfaces;
 using Swashbuckle.AspNetCore.Annotations;
 

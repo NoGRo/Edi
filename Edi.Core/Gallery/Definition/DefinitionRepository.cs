@@ -2,11 +2,7 @@
 using System.Text.Json;
 using System.Globalization;
 using CsvHelper;
-using File = System.IO.File;
-using Edi.Core.Funscript;
 using Microsoft.Extensions.Configuration;
-using System.Runtime.CompilerServices;
-using Edi.Core.Gallery.Index;
 
 namespace Edi.Core.Gallery.Definition
 {

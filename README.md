@@ -43,6 +43,32 @@ await edi.Init();
 
 And there you have it! You're now ready to start using Edi.Core in your application.
 
+Configuration file Example
+```
+{
+  "Edi": {
+    "Filler": true,
+    "Gallery": true,
+    "Reactive": true
+  },
+  "Handy": {
+    "Key": "[YourHandyKey]"
+  },
+  "Buttplug": {
+    "Url": "ws://localhost:12345"
+  },
+  "Gallery": {
+    "DefaulVariant": "detailed",
+    "GalleryPath": ".\\Gallery"
+  },
+  "GalleryBundler": {
+    "SpacerDuration": 5000,
+    "LoopRepeterDuration": 5000,
+    "UserDataPath": ".\\Gallery"
+  }
+}
+
 ## Contact
 
 If you have any issues, questions, or suggestions, feel free to open an issue on this repository. Contributions are also welcome!
+

@@ -5,9 +5,9 @@ Edi.Core is a .NET library that simplifies device management, providing develope
 ## Key Features
 
 - Simple, intuitive device management through the Gallery system
-- Easy control over tasks: pause, resume, stop
-- Configuration and management of different types of tasks
-- Ideal for game development and applications that require flexible device control
+- Easy control: pause, resume, stop, Pay(gallery)
+- Configuration and management of different devices
+- Ideal for game development and applications that require flexible and detailed device control
 
 ## Getting Started
 

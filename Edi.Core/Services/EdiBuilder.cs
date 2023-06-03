@@ -19,7 +19,7 @@ namespace Edi.Core
     public static class EdiBuilder
     {
 
-        public static Edi Create(string ConfigurationPath)
+        public static IEdi Create(string ConfigurationPath)
         {
             #region Configuration
             

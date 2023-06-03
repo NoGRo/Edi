@@ -44,7 +44,7 @@ await edi.Init();
 And there you have it! You're now ready to start using Edi.Core in your application.
 
 Configuration file Example
-```
+```json
 {
   "Edi": {
     "Filler": true,
@@ -67,7 +67,7 @@ Configuration file Example
     "UserDataPath": ".\\Gallery"
   }
 }
-
+```
 ## Contact
 
 If you have any issues, questions, or suggestions, feel free to open an issue on this repository. Contributions are also welcome!

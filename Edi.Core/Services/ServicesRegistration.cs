@@ -39,7 +39,7 @@ namespace Edi.Core
 
 
             builder.AddSingleton<IEdi, Edi>();
-
+            
         }
              
     }

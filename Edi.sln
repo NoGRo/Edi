@@ -7,7 +7,7 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Edi.Rest", "Edi.Rest\Edi.Re
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Edi.Core", "Edi.Core\Edi.Core.csproj", "{E4046236-6153-4D91-A546-B440CA95C4A9}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Edi.Forms", "Edi.Window\Edi.Forms.csproj", "{CC8D3EDF-0579-4479-9E75-F0F5CB4F5824}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Edi.Launcher", "Edi.Launcher\Edi.Launcher.csproj", "{3D1971F6-532C-465B-92A6-FD91E8727186}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -23,10 +23,10 @@ Global
 		{E4046236-6153-4D91-A546-B440CA95C4A9}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{E4046236-6153-4D91-A546-B440CA95C4A9}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{E4046236-6153-4D91-A546-B440CA95C4A9}.Release|Any CPU.Build.0 = Release|Any CPU
-		{CC8D3EDF-0579-4479-9E75-F0F5CB4F5824}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{CC8D3EDF-0579-4479-9E75-F0F5CB4F5824}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{CC8D3EDF-0579-4479-9E75-F0F5CB4F5824}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{CC8D3EDF-0579-4479-9E75-F0F5CB4F5824}.Release|Any CPU.Build.0 = Release|Any CPU
+		{3D1971F6-532C-465B-92A6-FD91E8727186}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{3D1971F6-532C-465B-92A6-FD91E8727186}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{3D1971F6-532C-465B-92A6-FD91E8727186}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{3D1971F6-532C-465B-92A6-FD91E8727186}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

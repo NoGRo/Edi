@@ -3,11 +3,11 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 17
 VisualStudioVersion = 17.3.32929.385
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Edi.Rest", "Edi.Rest\Edi.Rest.csproj", "{62D19D9E-EF34-4145-A228-02EB529F2D90}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Edi", "Edi.Rest\Edi.csproj", "{62D19D9E-EF34-4145-A228-02EB529F2D90}"
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Edi.Core", "Edi.Core\Edi.Core.csproj", "{E4046236-6153-4D91-A546-B440CA95C4A9}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Edi.Launcher", "Edi.Launcher\Edi.Launcher.csproj", "{3D1971F6-532C-465B-92A6-FD91E8727186}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Edi.Launcher", "Edi.Launcher\Edi.Launcher.csproj", "{3D1971F6-532C-465B-92A6-FD91E8727186}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution

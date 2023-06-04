@@ -27,9 +27,7 @@ namespace Edi.Core.Device
             ServiceProvider = serviceProvider;
         }
 
-        public DeviceManager()
-        {
-        }
+        public DeviceManager() { }
 
         public List<IDeviceProvider> Providers { get; set; } =  new List<IDeviceProvider>();
 

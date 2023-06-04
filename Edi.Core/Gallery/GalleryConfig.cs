@@ -9,6 +9,7 @@ namespace Edi.Core.Gallery
 {
     public class GalleryConfig
     {
+        public static string Secction = "Gallery";
         public string DefaulVariant { get; set; }
         public string SelectedVariant { get; set; }
         public string GalleryPath { get; set; }

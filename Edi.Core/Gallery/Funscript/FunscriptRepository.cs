@@ -15,7 +15,7 @@ namespace Edi.Core.Gallery.CmdLineal
         public FunscriptRepository(IConfiguration configuration, DefinitionRepository definition)
         {
             Config = new GalleryConfig();
-            configuration.GetSection("Gallery").Bind(Config);
+            configuration.GetSection(GalleryConfig.Secction).Bind(Config);
             Definition = definition;
         }
         private Dictionary<string, List<FunscriptGallery>> Galleries { get; set; } = new Dictionary<string, List<FunscriptGallery>>(StringComparer.OrdinalIgnoreCase);

@@ -8,6 +8,7 @@ namespace Edi.Core
 {
     public class EdiConfig
     {
+        public static string Seccition = "Edi";
         public bool Filler { get; set; }
         public bool Gallery { get; set; }
         public bool Reactive { get; set; }

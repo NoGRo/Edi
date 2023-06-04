@@ -87,7 +87,7 @@ namespace Edi.Core.Gallery.EStimAudio
                         Name = definition.Name,
                         Variant = variant,
                         AudioPath = filePath,
-                        Repeats = definition.Loop,
+                        Loop = definition.Loop,
                         Duration = definition.Duration,
                         StartTime = definition.StartTime
                     };

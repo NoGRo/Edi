@@ -8,6 +8,7 @@ namespace Edi.Core.Device.Handy
 {
     public class HandyConfig
     {
+        public static string Section = "Handy";
         public string Key { get; set; }
     }
 }

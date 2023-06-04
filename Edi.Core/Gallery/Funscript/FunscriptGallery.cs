@@ -9,6 +9,6 @@ namespace Edi.Core.Gallery.CmdLineal
         public string Name { get; set; }
         public string Variant { get; set; }
         public virtual List<CmdLinear> Commands { get; set; } = new List<CmdLinear>();
-        public bool Repeats { get; set; }
+        public bool Loop { get; set; }
     }
 }

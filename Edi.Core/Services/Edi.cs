@@ -29,7 +29,7 @@ namespace Edi.Core
             TimerReactStop.Elapsed += TimerReactStop_ElapsedAsync;
 
             Config = new EdiConfig();
-            _configuration.GetSection("Edi").Bind(Config);
+            _configuration.GetSection(EdiConfig.Seccition).Bind(Config);
 
         }
 
@@ -145,11 +145,12 @@ namespace Edi.Core
         }
         private async Task SendGallery(DefinitionGallery gallery, long seek = 0)
         {
-            ReactSendGallery = null;
-            TimerReactStop.Stop();
 
             if (gallery == null || gallery.Duration <= 0)
                 return;
+
+            ReactSendGallery = null;
+            TimerReactStop.Stop();
 
             // If the seek time is greater than the gallery time And it Repeats, then modulo the seek time by the gallery time to get the correct seek time.
             if (seek != 0 && seek > gallery.Duration) 

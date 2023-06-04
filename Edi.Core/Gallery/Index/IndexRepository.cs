@@ -45,18 +45,18 @@ namespace Edi.Core.Gallery.Index
                 IndexGallery index = new IndexGallery
                 {
                     Name = cmdGallery.Name,
-                    Repeats = cmdGallery.Repeats,
+                    Loop = cmdGallery.Loop,
                     Variant = cmdGallery.Variant,
                 };
                 if (!Galleries.ContainsKey(cmdGallery.Name))
                     Galleries.Add(cmdGallery.Name, new List<IndexGallery>());
 
-                Bundler.Add(cmdGallery, cmdGallery.Repeats);
+                Bundler.Add(cmdGallery, cmdGallery.Loop);
                 Galleries[cmdGallery.Name].Add(index);
             }
             Assets = Bundler.GenerateBundle();
         }
-
+        #region obsolete?
         private Dictionary<string, FunScriptFile> GetGalleryFunscripts()
         {
             var FunscriptCache = new Dictionary<string, FunScriptFile>(StringComparer.OrdinalIgnoreCase);
@@ -107,9 +107,10 @@ namespace Edi.Core.Gallery.Index
 
             return gallery;
         }
+        #endregion
 
         public List<string> GetVariants()
-            => Variants;
+            => Cmdlineals.GetVariants();
         public List<IndexGallery> GetAll()
             => Galleries.Values.SelectMany(x => x).ToList();
 

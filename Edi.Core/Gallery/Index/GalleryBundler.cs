@@ -19,7 +19,7 @@ namespace Edi.Core.Gallery.Index
         public GalleryBundler(IConfiguration configuration)
         {
             Config = new GalleryBundlerConfig();
-            configuration.GetSection("GalleryBundler").Bind(Config);
+            configuration.GetSection(GalleryBundlerConfig.Secction).Bind(Config);
         }
 
         public GalleryBundlerConfig Config { get; set; }
@@ -27,7 +27,7 @@ namespace Edi.Core.Gallery.Index
 
         public void Add(FunscriptGallery gallery, bool repeats)
         {
-            gallery.Repeats = repeats;
+            gallery.Loop = repeats;
 
             var Index = new IndexGallery();
 
@@ -39,7 +39,7 @@ namespace Edi.Core.Gallery.Index
             Index.StartTime = startTime;
 
             //6 seconds repear in script bundle for loop msg delay
-            if (gallery.Repeats)
+            if (gallery.Loop)
             {
                 int loopDuration = Index.Duration + Config.RepearDuration;
 

@@ -178,7 +178,7 @@ namespace Edi.Core.Device.Buttplug
                 await SendCmd(cmd);
 
             }
-            else if (CurrentGallery.Repeats)
+            else if (CurrentGallery.Loop)
             {
                 await PlayGallery(CurrentGallery.Name);
             }

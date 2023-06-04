@@ -107,7 +107,7 @@ namespace Edi.Core.Device.Handy
         private async void TimerGalleryEnd_Elapsed(object? sender, ElapsedEventArgs e)
         {
             timerGalleryEnd.Stop();
-            if (currentGallery.Repeats)
+            if (currentGallery.Loop)
                 await PlayGallery(currentGallery.Name);
             else
                 await Pause();

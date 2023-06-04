@@ -17,7 +17,7 @@ namespace Edi.Core.Device.Handy
         public HandyProvider(IndexRepository repository, IConfiguration config, IDeviceManager deviceLoad)
         {
             this.Config = new HandyConfig();
-            config.GetSection("Handy").Bind(this.Config);
+            config.GetSection(HandyConfig.Section).Bind(this.Config);
 
             this.repository = repository;
             this.deviceLoad = deviceLoad;

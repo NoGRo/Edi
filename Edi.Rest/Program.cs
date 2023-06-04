@@ -41,12 +41,14 @@ using (var serviceScope = app.Services.CreateScope())
     await edi.Init();
 
 }
-app.Run();
-Main();
-[STAThread] // Esta línea asegura que el hilo principal se ejecute en el modelo de subprocesamiento STA
-static void Main()
+var threadWeb = app.RunAsync();
+Thread thread = new Thread(() =>
 {
-    App app = new App();
-    MainWindow mainWindow = new MainWindow();
-    app.Run(mainWindow);
-}
+    var appForm = new App();
+    var mainWindows = new MainWindow();
+    appForm.Run(mainWindows);
+});
+thread.SetApartmentState(ApartmentState.STA);
+thread.Start();
+
+await threadWeb;

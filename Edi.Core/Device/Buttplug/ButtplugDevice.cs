@@ -211,8 +211,11 @@ namespace Edi.Core.Device.Buttplug
 
         public async Task Pause()
         {
+            
             ResumeAt = (long)CurrentTime;
-            await SendCmd(CmdLinear.GetCommandMillis(1500, 1));//go home
+            timerCmdEnd.Stop();
+            vibCommandTimer.Stop();
+            await device.Stop();
         }
         public async Task Resume()
         {

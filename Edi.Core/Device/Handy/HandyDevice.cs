@@ -117,7 +117,7 @@ namespace Edi.Core.Device.Handy
         public async Task Pause()
         {
             ResumeAt = CurrentTime;
-            await Task.Delay(1); //not implemented yet 
+            await Client.PutAsync("hssp/stop",null);
         }
 
         public async Task Resume()

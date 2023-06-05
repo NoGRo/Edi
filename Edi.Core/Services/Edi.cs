@@ -33,7 +33,7 @@ namespace Edi.Core
 
         }
 
-        private EdiConfig Config { get; set; }
+        public EdiConfig Config { get; set; }
         private string CurrentFiller { get; set; }
         private DefinitionGallery LastGallery { get; set; }
         private DateTime? GallerySendTime { get; set; }
@@ -181,8 +181,13 @@ namespace Edi.Core
 
         private async Task SendFiller(string name, long seek = 0)
         {
-            if (!Config.Filler)
-                name = "Off";
+            if (!Config.Filler || string.IsNullOrEmpty(name))
+            {
+                await Pause();
+                return;
+            }
+
+
 
             await SendGallery(name, seek);
         }

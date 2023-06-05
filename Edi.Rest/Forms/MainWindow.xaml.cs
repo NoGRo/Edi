@@ -23,6 +23,7 @@ namespace Edi.Forms
         public MainWindow()
         {
             InitializeComponent();
+            this.edi = edi;
 
         }
     }

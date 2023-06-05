@@ -5,8 +5,32 @@
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:local="clr-namespace:Edi.Forms"
         mc:Ignorable="d"
-        Title="MainWindow" Height="450" Width="800">
-    <Grid>
+        Title="Edi Launcher" Height="387" Width="827">
+    <Grid Height="362" VerticalAlignment="Top">
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="217*"/>
+            <ColumnDefinition Width="58*"/>
+        </Grid.ColumnDefinitions>
+        <TabControl  HorizontalAlignment="Left"  VerticalAlignment="Top" Width="814" Grid.ColumnSpan="2">
+            <TabItem Header="Main" Margin="-2,-2,-2,2">
+                <Grid HorizontalAlignment="Left" VerticalAlignment="Top" Width="794" Height="350">
+                    <Grid.ColumnDefinitions>
+
+
+                    </Grid.ColumnDefinitions>
+                    <DataGrid d:ItemsSource="{d:SampleData ItemCount=2}" Margin="143,7,10,220"/>
+                    
+                    <CheckBox Content="Filler" HorizontalAlignment="Left" Margin="10,10,0,0" VerticalAlignment="Top" RenderTransformOrigin="-0.063,-0.829" x:Name="chkFiller" />
+                    <CheckBox Content="Gallery" HorizontalAlignment="Left" Margin="10,30,0,0" VerticalAlignment="Top" RenderTransformOrigin="-0.063,-0.829" x:Name="chkGallery"/>
+                    <CheckBox Content="Reaction" HorizontalAlignment="Left" Margin="10,50,0,0" VerticalAlignment="Top" RenderTransformOrigin="-0.063,-0.829" x:Name="chkReaction" />
+                    <Label Content="Status: Server on http://localhost:5000/Edi/" HorizontalAlignment="Left" Margin="10,152,0,0" VerticalAlignment="Top" x:Name="lblStatus"/>
+
+                </Grid>
+            </TabItem>
+            <TabItem Header="Devices Config">
+            </TabItem>
+
+        </TabControl>
 
     </Grid>
 </Window>

@@ -32,7 +32,7 @@ namespace Edi.Core.Device.Buttplug
         }
 
         public readonly ButtplugConfig Config;
-        private Timer timerReconnect = new Timer();
+        private Timer timerReconnect = new Timer(20000);
 
         private IDeviceManager DeviceManager;
         public ButtplugClient client { get; set; }
@@ -41,6 +41,7 @@ namespace Edi.Core.Device.Buttplug
         {
             await repository.Init();
             timerReconnect.Elapsed += timerReconnectevent;
+            timerReconnect.Start(); 
             await Connect();
         }
 
@@ -53,6 +54,7 @@ namespace Edi.Core.Device.Buttplug
         public async Task Connect()
         {
 
+
             if (client != null)
             {
                 if (client.Connected)
@@ -60,7 +62,6 @@ namespace Edi.Core.Device.Buttplug
 
                 client.Dispose();
                 client = null;
-                timerReconnect.Enabled = false;
             }
             client = new ButtplugClient("Edi");
 
@@ -68,29 +69,25 @@ namespace Edi.Core.Device.Buttplug
             client.DeviceRemoved += Client_DeviceRemoved;
             client.ErrorReceived += Client_ErrorReceived;
             client.ServerDisconnect += Client_ServerDisconnect;
-            client.ScanningFinished += Client_ScanningFinished;
+            
 
             try
             {
                 if (!string.IsNullOrEmpty(Config.Url))
-                    await client.ConnectAsync(new ButtplugWebsocketConnector(new Uri(Config.Url)));
+                {
+                    var conector = new ButtplugWebsocketConnector(new Uri(Config.Url));
+                    await client.ConnectAsync(conector);
+                    if (client.Connected)
+                        await client.StartScanningAsync();
+                }
 //                else
   //                  await client.ConnectAsync(new buttplugE);
             }
             catch (ButtplugClientConnectorException ex)
             {
+               
                 return;
             }
-
-            if (!client.Connected) {
-                await client.ConnectAsync(new ButtplugWebsocketConnector(new Uri(Config.Url)));
-            } else {
-                await client.StartScanningAsync();
-            }
-
-           
-
-           
 
         }
         private void AddDeviceOn(ButtplugClientDevice Device)

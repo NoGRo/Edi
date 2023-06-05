@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Mvc;
 using Edi.Core;
 using Edi.Core.Device.Interfaces;
 using Swashbuckle.AspNetCore.Annotations;
+using Edi.Forms;
 
 namespace Edi.Controllers
 {
@@ -9,11 +10,11 @@ namespace Edi.Controllers
     [Route("[controller]")]
     public class EdiController : ControllerBase
     {
-        private readonly IEdi _edi;
+        private readonly IEdi _edi = App.Edi;
 
-        public EdiController(IEdi edi)
+        public EdiController()
         {
-            _edi = edi;
+        
         }
 
         [HttpPost("Play/{name}")]

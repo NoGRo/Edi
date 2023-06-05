@@ -1,4 +1,5 @@
-﻿using System;
+﻿using Edi.Core;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -20,11 +21,20 @@ namespace Edi.Forms
     /// </summary>
     public partial class MainWindow : Window
     {
+        private readonly IEdi edi =  App.Edi;
+        private EdiConfig config;
         public MainWindow()
         {
             InitializeComponent();
-            this.edi = edi;
+            
+            LoadForm();
+        }
 
+        private void LoadForm()
+        {
+            chkFiller.IsChecked = edi.Config.Filler;
+            chkGallery.IsChecked = edi.Config.Gallery;
+            chkReaction.IsChecked = edi.Config.Reactive;
         }
     }
 }

@@ -21,19 +21,21 @@ namespace Edi.Core
         public static void AddEdi(this IServiceCollection builder)
         {
             #region Devices
+            
             builder.AddSingleton<IDeviceProvider, ButtplugProvider>();
             builder.AddSingleton<IDeviceProvider, HandyProvider>();
             //TODO: Arquiere other from external dll
 
             builder.AddSingleton<IDeviceManager, DeviceManager>();
+            
             #endregion
 
             #region Repositories
+
             builder.AddSingleton<GalleryBundler>();
             builder.AddSingleton<DefinitionRepository>();
             builder.AddSingleton<FunscriptRepository>();
             builder.AddSingleton<IndexRepository>();
-
             
             #endregion
 

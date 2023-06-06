@@ -18,7 +18,6 @@ namespace Edi.Core.Device.Handy
         {
             this.Config = new HandyConfig();
             config.GetSection(HandyConfig.Section).Bind(this.Config);
-
             this.repository = repository;
             this.deviceLoad = deviceLoad;
         }
@@ -30,7 +29,6 @@ namespace Edi.Core.Device.Handy
 
         public async Task Init()
         {
-            repository.Init();
             if (string.IsNullOrEmpty(Config.Key))
                 return;
 

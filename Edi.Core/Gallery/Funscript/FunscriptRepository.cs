@@ -112,7 +112,7 @@ namespace Edi.Core.Gallery.CmdLineal
             {
                 Name = DefinitionGallery.Name,
                 Variant = variant,
-                //Definition = DefinitionGallery,
+                Loop = DefinitionGallery.Loop,
 
             };
             sb.TrimTimeTo(DefinitionGallery.Duration);

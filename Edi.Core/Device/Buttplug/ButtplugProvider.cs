@@ -39,7 +39,6 @@ namespace Edi.Core.Device.Buttplug
         private IGalleryRepository<FunscriptGallery> repository { get; }
         public async Task Init()
         {
-            await repository.Init();
             timerReconnect.Elapsed += timerReconnectevent;
             timerReconnect.Start(); 
             await Connect();

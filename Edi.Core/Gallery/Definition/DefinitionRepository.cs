@@ -11,8 +11,19 @@ namespace Edi.Core.Gallery.Definition
         public DefinitionRepository(IConfiguration configuration)
         {
             Config = new GalleryConfig();
-            configuration.GetSection("Gallery").Bind(Config);
+            configuration.GetSection(GalleryConfig.Secction).Bind(Config);
 
+
+        }
+
+        public Dictionary<string, FileInfo> Assets { get; set; } = new Dictionary<string, FileInfo>(StringComparer.OrdinalIgnoreCase);
+
+        private List<string> Variants { get; set; } = new List<string>();
+        private GalleryConfig Config { get; set; }
+
+
+        public async Task Init()
+        {
             var GalleryPath = $"{Config.GalleryPath}\\";
 
             if (!Directory.Exists($"{GalleryPath}"))
@@ -28,17 +39,6 @@ namespace Edi.Core.Gallery.Definition
             {
                 Config.Definitions = csv.GetRecords<DefinitionGallery>().ToList();
             }
-        }
-
-        public Dictionary<string, FileInfo> Assets { get; set; } = new Dictionary<string, FileInfo>(StringComparer.OrdinalIgnoreCase);
-
-        private List<string> Variants { get; set; } = new List<string>();
-        private GalleryConfig Config { get; set; }
-
-
-        public async Task Init()
-        {
-
         }
         public List<string> GetVariants()
             => Variants;

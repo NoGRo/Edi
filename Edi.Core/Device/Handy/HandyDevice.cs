@@ -116,6 +116,7 @@ namespace Edi.Core.Device.Handy
 
         public async Task Pause()
         {
+            timerGalleryEnd.Stop();
             ResumeAt = CurrentTime;
             await Client.PutAsync("hssp/stop",null);
         }

@@ -41,17 +41,10 @@ namespace Edi.Core.Gallery.Index
             var CmdGalleries = Cmdlineals.GetAll();
             foreach (var cmdGallery in CmdGalleries)
             {
-
-                IndexGallery index = new IndexGallery
-                {
-                    Name = cmdGallery.Name,
-                    Loop = cmdGallery.Loop,
-                    Variant = cmdGallery.Variant,
-                };
                 if (!Galleries.ContainsKey(cmdGallery.Name))
                     Galleries.Add(cmdGallery.Name, new List<IndexGallery>());
 
-                Bundler.Add(cmdGallery, cmdGallery.Loop);
+                var index = Bundler.Add(cmdGallery, cmdGallery.Loop);
                 Galleries[cmdGallery.Name].Add(index);
             }
             Assets = Bundler.GenerateBundle();

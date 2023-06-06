@@ -36,7 +36,11 @@ namespace Edi.Core
             builder.AddSingleton<DefinitionRepository>();
             builder.AddSingleton<FunscriptRepository>();
             builder.AddSingleton<IndexRepository>();
-            
+
+            builder.AddSingleton<IRepository, DefinitionRepository>();
+            builder.AddSingleton<IRepository, FunscriptRepository>();
+            builder.AddSingleton<IRepository, IndexRepository>();
+
             #endregion
 
 

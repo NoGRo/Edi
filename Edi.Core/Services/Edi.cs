@@ -14,12 +14,14 @@ namespace Edi.Core
     {
         private readonly IDeviceManager _deviceManager;
         private readonly DefinitionRepository _repository;
+        private readonly IEnumerable<IRepository> repos;
         private readonly IConfiguration _configuration;
 
-        public Edi(IDeviceManager deviceManager,  DefinitionRepository repository, IConfiguration configuration)
+        public Edi(IDeviceManager deviceManager,  DefinitionRepository repository,IEnumerable<IRepository> repos, IConfiguration configuration)
         {
             _deviceManager = deviceManager;
             _repository = repository;
+            this.repos = repos;
             _configuration = configuration;
 
             TimerGalleryStop = new Timer();
@@ -43,7 +45,13 @@ namespace Edi.Core
 
         public async Task Init()
         {
-            await _repository.Init();
+            //await _repository.Init();
+            foreach (var repo in repos)
+            {
+                await repo.Init();
+            }
+
+
             await _deviceManager.Init();
         }
 

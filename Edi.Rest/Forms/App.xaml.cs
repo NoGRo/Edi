@@ -52,7 +52,7 @@ namespace Edi.Forms
         protected override async void OnStartup(StartupEventArgs e)
         {
 
-            var Edi = serviceProvider.GetRequiredService<IEdi>();
+            var Edi = EdiBuilder.Create("appsettings.json");
             await Edi.Init();
             App.Edi = Edi;
             var mainWindos = serviceProvider.GetRequiredService<MainWindow>();

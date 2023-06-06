@@ -2,6 +2,7 @@
 using Edi.Core.Device.Buttplug;
 using Edi.Core.Device.Handy;
 using Edi.Core.Device.Interfaces;
+using Edi.Core.Gallery;
 using Edi.Core.Gallery.CmdLineal;
 using Edi.Core.Gallery.Definition;
 using Edi.Core.Gallery.Index;
@@ -47,7 +48,7 @@ namespace Edi.Core
 
             #endregion
             
-            return new Edi(deviceManager, definitionRepository, configuration);
+            return new Edi(deviceManager, definitionRepository,new IRepository[] { definitionRepository, funscriptRepository, indexRepository }, configuration);
 
         }
 

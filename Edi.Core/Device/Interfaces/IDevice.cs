@@ -11,8 +11,8 @@ namespace Edi.Core.Device.Interfaces
         string SelectedVariant { get; set; }
         IEnumerable<string> Variants { get; }
         string Name { get; }
-        protected Task PlayGallery(string name, long seek = 0);
-        protected Task Pause();
-        protected Task Resume();
+        public Task PlayGallery(string name, long seek = 0);
+        public Task Pause();
+        public Task Resume();
     }
 }

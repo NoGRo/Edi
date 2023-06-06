@@ -1,5 +1,4 @@
-﻿using Edi.Core.Device.Interfaces;
-using Edi.Core.Gallery.EStimAudio;
+﻿using Edi.Core.Gallery.EStimAudio;
 using Edi.Core.Gallery;
 using NAudio.Wave;
 using System;
@@ -10,6 +9,7 @@ using System.Threading.Tasks;
 using System.Timers;
 using Timer = System.Timers.Timer;
 using System.Threading;
+using Edi.Core.Device.Interfaces;
 
 namespace Edi.Core.Device.EStim
 {

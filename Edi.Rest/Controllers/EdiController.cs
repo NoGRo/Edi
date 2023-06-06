@@ -1,8 +1,8 @@
 using Microsoft.AspNetCore.Mvc;
 using Edi.Core;
 using Edi.Core.Device.Interfaces;
-using Swashbuckle.AspNetCore.Annotations;
 using Edi.Forms;
+
 
 namespace Edi.Controllers
 {
@@ -18,10 +18,6 @@ namespace Edi.Controllers
         }
 
         [HttpPost("Play/{name}")]
-        [SwaggerOperation(
-            Summary = "Plays a gallery.",
-            Description = "This method plays a gallery of multimedia content. The `name` parameter specifies the name of the gallery. The `play` parameter is a flag indicating whether to start playback of the gallery. The default value is `true`. The `seek` parameter is the seek position, in milliseconds, from the beginning of the gallery. The default value is `0`."
-        )]
         public async Task Play([FromRoute] string name, [FromQuery] long seek = 0)
         {
             await _edi.Play(name, seek);

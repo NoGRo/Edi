@@ -4,7 +4,6 @@ using System.Timers;
 using Microsoft.Extensions.Configuration;
 using Edi.Core.Gallery;
 using Edi.Core.Device.Interfaces;
-using Edi.Core.Device;
 using Timer = System.Timers.Timer;
 using Edi.Core.Gallery.Definition;
 
@@ -17,6 +16,7 @@ namespace Edi.Core
         private readonly IEnumerable<IRepository> repos;
         private readonly IConfiguration _configuration;
 
+        public IEnumerable<IDevice> Devices => _deviceManager.Devices;
         public Edi(IDeviceManager deviceManager,  DefinitionRepository repository,IEnumerable<IRepository> repos, IConfiguration configuration)
         {
             _deviceManager = deviceManager;
@@ -42,7 +42,6 @@ namespace Edi.Core
         private DefinitionGallery? ReactSendGallery { get; set; }
         private Timer TimerGalleryStop { get; set; }
         private Timer TimerReactStop { get; set; }
-
         public async Task Init()
         {
             //await _repository.Init();
@@ -199,5 +198,8 @@ namespace Edi.Core
 
             await SendGallery(name, seek);
         }
+
+        
+
     }
 }

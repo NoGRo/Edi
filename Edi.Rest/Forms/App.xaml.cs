@@ -1,5 +1,4 @@
 ﻿using Edi.Core;
-using Microsoft.OpenApi.Models;
 using System;
 using System.Collections.Generic;
 using System.Configuration;
@@ -8,6 +7,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Configuration;
 using System.Windows;
+using Microsoft.OpenApi.Models;
 
 namespace Edi.Forms
 {

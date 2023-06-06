@@ -10,7 +10,7 @@ namespace Edi.Core.Device.Interfaces
     {
         Task Init();
         public List<IDevice> Devices { get; }
-        public void LoadDevice(IDevice device);
-        public void UnloadDevice(IDevice device);
+        internal void LoadDevice(IDevice device);
+        internal void UnloadDevice(IDevice device);
     }
 }

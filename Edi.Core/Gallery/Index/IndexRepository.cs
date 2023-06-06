@@ -25,8 +25,7 @@ namespace Edi.Core.Gallery.Index
         private Dictionary<string, List<IndexGallery>> Galleries { get; set; } = new Dictionary<string, List<IndexGallery>>(StringComparer.OrdinalIgnoreCase);
         public Dictionary<string, FileInfo> Assets { get; set; } = new Dictionary<string, FileInfo>(StringComparer.OrdinalIgnoreCase);
 
-        private List<string> Variants { get; set; } = new List<string>();
-        private GalleryConfig Config { get; set; }
+        public GalleryConfig Config { get; set; }
         private GalleryBundler Bundler { get; set; } 
         public FunscriptRepository Cmdlineals { get; }
 
@@ -34,8 +33,7 @@ namespace Edi.Core.Gallery.Index
         {
             LoadGallery();
         }
-
-
+        
         private void LoadGallery()
         {
             var CmdGalleries = Cmdlineals.GetAll();
@@ -49,58 +47,6 @@ namespace Edi.Core.Gallery.Index
             }
             Assets = Bundler.GenerateBundle();
         }
-        #region obsolete?
-        private Dictionary<string, FunScriptFile> GetGalleryFunscripts()
-        {
-            var FunscriptCache = new Dictionary<string, FunScriptFile>(StringComparer.OrdinalIgnoreCase);
-            foreach (var variantPath in Variants)
-            {
-                var variant = new DirectoryInfo(variantPath).Name;
-                foreach (var DefinitionGallery in Config.Definitions)
-                {
-                    var filePath = $"{Config.GalleryPath}\\{variant}\\{DefinitionGallery.FileName}.funscript";
-                    FunScriptFile funscript;
-                    if (!FunscriptCache.ContainsKey(filePath))
-                    {
-                        try
-                        {
-                            funscript = JsonSerializer.Deserialize<FunScriptFile>(File.ReadAllText(filePath));
-                            funscript.actions = funscript.actions.OrderBy(x => x.at).ToList();
-                        }
-                        catch
-                        {
-                            continue;
-                        }
-                        FunscriptCache.Add(filePath, funscript);
-                    }
-                }
-            }
-            return FunscriptCache;
-
-        }
-        private static IndexGallery ParseActions(string variant, DefinitionGallery DefinitionGallery, IEnumerable<FunScriptAction> actions)
-        {
-            var sb = new ScriptBuilder();
-            foreach (var action in actions)
-            {
-                sb.AddCommandMillis(
-                    millis: Convert.ToInt32(action.at - DefinitionGallery.StartTime - sb.TotalTime),
-                    value: action.pos);
-            }
-            var gallery = new IndexGallery
-            {
-                Name = DefinitionGallery.Name,
-                Variant = variant,
-                //Definition = DefinitionGallery,
-                Duration = Convert.ToInt32(DefinitionGallery.EndTime - DefinitionGallery.StartTime)
-            };
-            sb.TrimTimeTo(gallery.Duration);
-
-
-
-            return gallery;
-        }
-        #endregion
 
         public List<string> GetVariants()
             => Cmdlineals.GetVariants();

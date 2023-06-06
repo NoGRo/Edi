@@ -21,7 +21,7 @@ namespace Edi.Core.Gallery.Definition
 
         private List<string> Variants { get; set; } = new List<string>();
         private GalleryConfig Config { get; set; }
-
+        private List<DefinitionGallery> definitions { get; set; } = new List<DefinitionGallery>();
 
         public async Task Init()
         {
@@ -42,7 +42,7 @@ namespace Edi.Core.Gallery.Definition
                 definitionsDtos = csv.GetRecords<DefinitionDto>().ToList();
             }
             int linesCount = 0;
-            Config.Definitions = new List<DefinitionGallery>();
+            definitions = new List<DefinitionGallery>();
             foreach (var definitionDto in definitionsDtos)
             {
                 linesCount++;
@@ -70,7 +70,7 @@ namespace Edi.Core.Gallery.Definition
                     throw new Exception($"Can't convert the value EndTime: [{def.EndTime}] to a valid Time, in line [{linesCount}] gallery name [{def.Name}] of csv definition file. use format: (22:50:30.333) hh:mm:ss.nnn)");
                 }
 
-                Config.Definitions.Add(def);
+                definitions.Add(def);
             }
         }
 
@@ -84,10 +84,10 @@ namespace Edi.Core.Gallery.Definition
         public List<string> GetVariants()
             => Variants;
         public List<DefinitionGallery> GetAll()
-            => Config.Definitions;
+            => definitions;
 
         public DefinitionGallery? Get(string name, string variant = null)
-            => Config.Definitions.FirstOrDefault(x => x.Name == name);
+            => definitions.FirstOrDefault(x => x.Name == name);
 
 
     }

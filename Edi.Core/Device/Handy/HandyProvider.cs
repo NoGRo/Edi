@@ -79,7 +79,7 @@ namespace Edi.Core.Device.Handy
 
             var upload = UploadHandy(await blob);
             handyDevice = new HandyDevice(Client, repository);
-
+            handyDevice.Key = Config.Key;
             await handyDevice.updateServerTime();
             //OnStatusChange("Uploading");
             await upload;

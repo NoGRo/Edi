@@ -13,13 +13,12 @@ namespace Edi.Core.Device
 {
     public class DeviceManager : IDeviceManager
     {
-
-
         public List<IDevice> Devices { get; private set; } =  new List<IDevice>();    
         public ParallelQuery<IDevice> DevicesParallel => Devices.Where(x => x != null).AsParallel();
         private string? lastGallerySend;
 
-
+        public event IDeviceManager.OnUnloadDeviceHandler OnUnloadDevice;
+        public event IDeviceManager.OnloadDeviceHandler OnloadDevice;
 
         [ActivatorUtilitiesConstructor]
         public DeviceManager(IServiceProvider serviceProvider)
@@ -32,6 +31,9 @@ namespace Edi.Core.Device
         public List<IDeviceProvider> Providers { get; set; } =  new List<IDeviceProvider>();
 
         public IServiceProvider ServiceProvider { get; }
+        public string SelectedVariant { get => throw new NotImplementedException(); set => throw new NotImplementedException(); }
+
+        public IEnumerable<string> Variants => throw new NotImplementedException();
 
         public async Task Init()
         {
@@ -42,16 +44,22 @@ namespace Edi.Core.Device
         }
 
 
-        public void LoadDevice(IDevice device)
+        public async void LoadDevice(IDevice device)
         {
-            Devices.Add(device); 
+            Devices.Add(device);
+
+            if(OnloadDevice!= null)
+                OnloadDevice(device);
             if (lastGallerySend != null)
-                device.PlayGallery(lastGallerySend);
+                await device.PlayGallery(lastGallerySend);
             
         }
-        public void UnloadDevice(IDevice device)
+        public async void UnloadDevice(IDevice device)
         {
-            Devices.Remove(device);
+
+            Devices.RemoveAll(x => x.Name == device.Name);
+            if (OnUnloadDevice != null)
+                OnUnloadDevice(device);
         }
 
         public async Task Pause()

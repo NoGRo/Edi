@@ -8,8 +8,11 @@ namespace Edi.Core.Device.Interfaces
 {
     public interface IDevice
     {
-        public Task PlayGallery(string name, long seek = 0);
-        public Task Pause();
-        public Task Resume();
+        string SelectedVariant { get; set; }
+        IEnumerable<string> Variants { get; }
+        string Name { get; }
+        protected Task PlayGallery(string name, long seek = 0);
+        protected Task Pause();
+        protected Task Resume();
     }
 }

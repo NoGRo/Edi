@@ -25,17 +25,20 @@ namespace Edi.Core.Device.Handy
 
         public string Key { get; set; }
 
+        public string Name => $"The Handy [{Key}]";
         private long CurrentTime { get; set; }
-        private bool IsPlaying { get; set; }
-
-        private bool isReady { get; set; }
-
         
         private static long timeSyncAvrageOffset;
         private static long timeSyncInitialOffset;
         private HttpClient Client ;
         private IndexRepository repository { get; set; }
         private Timer timerGalleryEnd = new Timer();
+
+        private IndexGallery currentGallery;
+        private string selectedVariant;
+        public string SelectedVariant { get => selectedVariant ??  repository.Config.DefaulVariant; set => selectedVariant = value; }
+
+        public IEnumerable<string> Variants => repository.GetVariants();
 
         public HandyDevice(HttpClient Client, IndexRepository repository)
         {
@@ -57,6 +60,7 @@ namespace Edi.Core.Device.Handy
         private long ServerTime => DateTimeOffset.UtcNow.ToUnixTimeMilliseconds() + timeSyncInitialOffset + timeSyncAvrageOffset;
 
         private long ResumeAt { get; set; }
+
 
         public async Task updateServerTime()
         {
@@ -90,10 +94,11 @@ namespace Edi.Core.Device.Handy
             return estimatedServerTimeNow - receiveTime;
         }
 
-        private IndexGallery currentGallery;
+        
+
         public async Task PlayGallery(string name, long seek = 0)
         {
-            var gallery = repository.Get(name);
+            var gallery = repository.Get(name, selectedVariant);
             if (gallery == null)
             {
                 return ;

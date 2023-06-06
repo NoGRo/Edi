@@ -22,7 +22,7 @@ namespace Edi.Core.Gallery.CmdLineal
         public Dictionary<string, FileInfo> Assets { get; set; } = new Dictionary<string, FileInfo>(StringComparer.OrdinalIgnoreCase);
 
         private List<string> Variants { get; set; } = new List<string>();
-        private GalleryConfig Config { get; set; }
+        public  GalleryConfig Config { get; set; }
         public DefinitionRepository Definition { get; }
 
         public async Task Init()
@@ -69,6 +69,7 @@ namespace Edi.Core.Gallery.CmdLineal
                     Galleries[gallery.Name].Add(gallery);
                 }
             }
+            Variants = Galleries.SelectMany(x=> x.Value.Select(y=> y.Variant)).Distinct().ToList();
         }
 
         private Dictionary<string, FunScriptFile> GetGalleryFunscripts()

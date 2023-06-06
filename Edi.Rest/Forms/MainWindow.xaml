@@ -5,21 +5,29 @@
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:local="clr-namespace:Edi.Forms"
         mc:Ignorable="d"
-        Title="Edi Launcher" Height="387" Width="827">
-    <Grid Height="362" VerticalAlignment="Top">
+        Title="Edi Launcher" Height="399" Width="883">
+    <Grid Height="358" VerticalAlignment="Top" Margin="0,0,10,0">
         <Grid.ColumnDefinitions>
-            <ColumnDefinition Width="217*"/>
-            <ColumnDefinition Width="58*"/>
+            <ColumnDefinition/>
         </Grid.ColumnDefinitions>
-        <TabControl  HorizontalAlignment="Left"  VerticalAlignment="Top" Width="814" Grid.ColumnSpan="2">
+        <TabControl  HorizontalAlignment="Center"  VerticalAlignment="Center" Width="852" Height="342">
             <TabItem Header="Main" Margin="-2,-2,-2,2">
-                <Grid HorizontalAlignment="Left" VerticalAlignment="Top" Width="794" Height="350">
-                    <Grid.ColumnDefinitions>
+                <Grid HorizontalAlignment="Left" VerticalAlignment="Top" Width="839" Height="307">
 
+                    <DataGrid x:Name="DevicesGrid" AutoGenerateColumns="False" Margin="0,0,10,168" HorizontalAlignment="Right" Width="454" Height="129" VerticalAlignment="Bottom">
+                        <DataGrid.Columns>
 
-                    </Grid.ColumnDefinitions>
-                    <DataGrid d:ItemsSource="{d:SampleData ItemCount=2}" Margin="143,7,10,220"/>
-                    
+                            <DataGridTextColumn Header="Name" Binding="{Binding Name}" />
+                            <DataGridTemplateColumn Header="Selected Variant">
+                                <DataGridTemplateColumn.CellTemplate>
+                                    <DataTemplate>
+                                        <ComboBox ItemsSource="{Binding Variants}" SelectedItem="{Binding SelectedVariant, Mode=TwoWay}" />
+                                    </DataTemplate>
+                                </DataGridTemplateColumn.CellTemplate>
+                            </DataGridTemplateColumn>
+                        </DataGrid.Columns>
+                    </DataGrid>
+
                     <CheckBox Content="Filler" HorizontalAlignment="Left" Margin="10,10,0,0" VerticalAlignment="Top" RenderTransformOrigin="-0.063,-0.829" x:Name="chkFiller" />
                     <CheckBox Content="Gallery" HorizontalAlignment="Left" Margin="10,30,0,0" VerticalAlignment="Top" RenderTransformOrigin="-0.063,-0.829" x:Name="chkGallery"/>
                     <CheckBox Content="Reaction" HorizontalAlignment="Left" Margin="10,50,0,0" VerticalAlignment="Top" RenderTransformOrigin="-0.063,-0.829" x:Name="chkReaction" />

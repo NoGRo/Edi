@@ -16,17 +16,20 @@ namespace Edi.Core.Device.EStim
 
     public class EStimDevice : IDevice
     {
-        private readonly IGalleryRepository<AudioGallery> _repository;
+        private readonly AudioRepository _repository;
         private readonly IWavePlayer _wavePlayer;
         private AudioGallery _currentGallery;
-
+        public string Name => "Estim";
         private Mp3FileReader _curentAudioFile { get; set; }
+        private string selectedVariant;
+        public string SelectedVariant { get => selectedVariant ?? _repository.Config.DefaulVariant; set => selectedVariant = value; }
+        public IEnumerable<string> Variants => _repository.GetVariants();
 
         private Timer _timerGalleryEnds;
         private bool _isPlaying;
         private Dictionary<string, Mp3FileReader> _inMemoryMp3;
 
-        public EStimDevice(IGalleryRepository<AudioGallery> repository, IWavePlayer wavePlayer)
+        public EStimDevice(AudioRepository repository, IWavePlayer wavePlayer)
         {
             _repository = repository;
             _wavePlayer = wavePlayer;

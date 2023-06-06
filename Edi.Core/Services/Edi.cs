@@ -6,20 +6,24 @@ using Edi.Core.Gallery;
 using Edi.Core.Device.Interfaces;
 using Timer = System.Timers.Timer;
 using Edi.Core.Gallery.Definition;
+using NAudio.Wave.SampleProviders;
 
 namespace Edi.Core
 {
     public class Edi : IEdi
     {
-        private readonly IDeviceManager _deviceManager;
+        public IDeviceManager DeviceManager { get; private set; }
         private readonly DefinitionRepository _repository;
         private readonly IEnumerable<IRepository> repos;
         private readonly IConfiguration _configuration;
 
-        public IEnumerable<IDevice> Devices => _deviceManager.Devices;
+        public event IEdi.ChangeStatusHandler OnChangeStatus;
+
+        
+        public IEnumerable<IDevice> Devices => DeviceManager.Devices;
         public Edi(IDeviceManager deviceManager,  DefinitionRepository repository,IEnumerable<IRepository> repos, IConfiguration configuration)
         {
-            _deviceManager = deviceManager;
+            DeviceManager = deviceManager;
             _repository = repository;
             this.repos = repos;
             _configuration = configuration;
@@ -50,10 +54,11 @@ namespace Edi.Core
                 await repo.Init();
             }
 
-
-            await _deviceManager.Init();
+            await DeviceManager.Init();
         }
 
+        private void  changeStatus(string message)
+            => OnChangeStatus($"[{DateTime.Now.ToShortTimeString()}] {message}");
         private async Task SetFiller(DefinitionGallery gallery)
         {
             CurrentFiller = gallery.Name;
@@ -63,11 +68,15 @@ namespace Edi.Core
 
         public async Task Play(string name, long seek = 0)
         {
+            
             var gallery = _repository.Get(name);
 
             if (gallery == null)
+            {
+                changeStatus($"Ignored not found [{name}]");
                 return;
-
+            }
+            changeStatus($"recived [{name}] {gallery.Type}");
             switch (gallery.Type)
             {
                 case "filler":
@@ -102,8 +111,8 @@ namespace Edi.Core
                 TimerReactStop.Interval = Math.Abs(gallery.Duration);
                 TimerReactStop.Start();
             }
-
-            await _deviceManager.PlayGallery(gallery.Name);
+            changeStatus($"Device Reaction [{gallery.Name}], loop:{gallery.Loop}");
+            await DeviceManager.PlayGallery(gallery.Name);
         }
 
         private async void TimerReactStop_ElapsedAsync(object? sender, ElapsedEventArgs e)
@@ -116,39 +125,47 @@ namespace Edi.Core
 
             ReactSendGallery = null;
 
+            changeStatus($"Stop Reaction");
             if (!GallerySendTime.HasValue || LastGallery == null)
                 return;
 
           var seekBack = Convert.ToInt64((DateTime.Now - GallerySendTime.Value).TotalMilliseconds);
+          
           await SendGallery(LastGallery, seekBack);
+
         }
 
         public async Task Stop()
         {
+
             if(ReactSendGallery != null)
             {
                 await StopReaction();
+
             }
             else
             {
+                changeStatus("Stop Galley");
                 await SendFiller(CurrentFiller);
             }   
         }
 
         public async Task Pause()
         {
-            await _deviceManager.Pause();
+            changeStatus("Device Pause");
+            await DeviceManager.Pause();
         }
 
         public async Task Resume()
         {
-            await _deviceManager.Resume();
+            changeStatus("Device Resume");
+            await DeviceManager.Resume();
         }
         private async Task SendGallery(string name, long seek = 0) 
         {
             if (string.IsNullOrEmpty(name))
                 return;
-            await SendGallery( _repository.Get(name), seek);
+            await SendGallery(_repository.Get(name), seek);
         }
         private async Task SendGallery(DefinitionGallery gallery, long seek = 0)
         {
@@ -180,7 +197,8 @@ namespace Edi.Core
                 TimerGalleryStop.Interval = Math.Abs(gallery.Duration);
                 TimerGalleryStop.Start();
             }
-            await _deviceManager.PlayGallery(gallery.Name, seek);
+            changeStatus($"Device Play [{gallery.Name}] at {seek}, loop:[{gallery.Loop}]");
+            await DeviceManager.PlayGallery(gallery.Name, seek);
         }
 
         private async void TimerGalleryStop_ElapsedAsync(object? sender, ElapsedEventArgs e)
@@ -193,8 +211,6 @@ namespace Edi.Core
                 await Pause();
                 return;
             }
-
-
 
             await SendGallery(name, seek);
         }

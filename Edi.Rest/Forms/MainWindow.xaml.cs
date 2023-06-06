@@ -26,8 +26,28 @@ namespace Edi.Forms
         public MainWindow()
         {
             InitializeComponent();
-            
+
+            edi.DeviceManager.OnloadDevice += DeviceManager_OnloadDevice;
+            edi.DeviceManager.OnUnloadDevice += DeviceManager_OnUnloadDevice;
             LoadForm();
+        }
+        private void DeviceManager_OnUnloadDevice(Core.Device.Interfaces.IDevice device)
+        {
+            Dispatcher.Invoke(() =>
+            {
+                //DevicesGrid.Items.Clear();
+                DevicesGrid.ItemsSource = edi.DeviceManager.Devices;
+            });
+
+        }
+
+        private void DeviceManager_OnloadDevice(Core.Device.Interfaces.IDevice device)
+        {
+            Dispatcher.Invoke(() =>
+            {
+                //DevicesGrid.Items.Clear();
+                DevicesGrid.ItemsSource = edi.DeviceManager.Devices;
+            });
         }
 
         private void LoadForm()
@@ -35,6 +55,7 @@ namespace Edi.Forms
             chkFiller.IsChecked = edi.Config.Filler;
             chkGallery.IsChecked = edi.Config.Gallery;
             chkReaction.IsChecked = edi.Config.Reactive;
+            DevicesGrid.ItemsSource = edi.DeviceManager.Devices;
         }
     }
 }

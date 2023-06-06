@@ -26,7 +26,7 @@ namespace Edi.Core.Gallery.EStimAudio
 
         public Dictionary<string, FileInfo> Assets { get; set; } = new Dictionary<string, FileInfo>(StringComparer.OrdinalIgnoreCase);
         private List<string> Variants { get; set; } = new List<string>();
-        private GalleryConfig Config { get; set; }
+        public GalleryConfig Config { get; set; }
         private IGalleryRepository<DefinitionGallery> Definitions { get; }
         private Dictionary<string, List<AudioGallery>> Galleries { get; set; } = new Dictionary<string, List<AudioGallery>>(StringComparer.OrdinalIgnoreCase);
 

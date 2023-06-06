@@ -17,13 +17,18 @@ using Timer = System.Timers.Timer;
 
 namespace Edi.Core.Device.Buttplug
 {
-    internal class ButtplugDevice : IDevice, IEqualityComparer<ButtplugDevice>
+    internal class ButtplugDevice : IDevice 
     {
         private ButtplugClientDevice device { get; set; }
         public ActuatorType Actuator { get; }
         public uint Channel { get; }
-        private IGalleryRepository<FunscriptGallery> repository { get; set; }
+        private FunscriptRepository repository { get; set; }
         public string Name => $"{device.Name} ({Actuator}:{Channel})";
+
+        private string selectedVariant;
+        public string SelectedVariant { get => selectedVariant ?? repository.Config.DefaulVariant; set => selectedVariant = value; }
+
+        public IEnumerable<string> Variants => repository.GetVariants();
 
         private  CmdLinear CurrentCmd { get;  set; }
         private DateTime SendAt { get;  set; }
@@ -32,7 +37,7 @@ namespace Edi.Core.Device.Buttplug
         private static Timer timerCmdEnd = new Timer();
 
         private double lastSpeedSend = 0;
-        public ButtplugDevice(ButtplugClientDevice device, ActuatorType actuator, uint channel, IGalleryRepository<FunscriptGallery> repository)
+        public ButtplugDevice(ButtplugClientDevice device, ActuatorType actuator, uint channel, FunscriptRepository repository)
         {
             this.device = device;
             Actuator = actuator;
@@ -68,17 +73,12 @@ namespace Edi.Core.Device.Buttplug
                     break;
             }
 
-
-            
-            
             SendAt = DateTime.Now;
             cmd.Sent = DateTime.Now;
             
             var time = cmd.AbsoluteTime != 0
                         ? cmd.AbsoluteTime - CurrentTime
                         : cmd.Millis;
-
-
 
             if (time <= 0)
                 time = 1;
@@ -150,10 +150,11 @@ namespace Edi.Core.Device.Buttplug
         public static DateTime SyncSend { get; private set; }
         private long ResumeAt { get; set; }
 
+
         private FunscriptGallery CurrentGallery;
         public async Task PlayGallery(string name,long seek = 0)
         {
-            var gallery = repository.Get(name);
+            var gallery = repository.Get(name, SelectedVariant);
             if (gallery == null)
                 return;
 
@@ -196,17 +197,6 @@ namespace Edi.Core.Device.Buttplug
         private async void OnCommandEnd(object sender, ElapsedEventArgs e)
         {
             await PlayNext(); 
-        }
-
-        public bool Equals(ButtplugDevice? x, ButtplugDevice? y)
-            => x?.device == y?.device;
-        
-
-        public int GetHashCode([DisallowNull] ButtplugDevice obj)
-        {
-            var h= new HashCode() ;
-            h.Add(obj.device);
-            return h.ToHashCode();
         }
 
         public async Task Pause()

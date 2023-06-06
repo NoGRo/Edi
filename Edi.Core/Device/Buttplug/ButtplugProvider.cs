@@ -36,7 +36,7 @@ namespace Edi.Core.Device.Buttplug
 
         private IDeviceManager DeviceManager;
         public ButtplugClient client { get; set; }
-        private IGalleryRepository<FunscriptGallery> repository { get; }
+        private FunscriptRepository repository { get; }
         public async Task Init()
         {
             timerReconnect.Elapsed += timerReconnectevent;

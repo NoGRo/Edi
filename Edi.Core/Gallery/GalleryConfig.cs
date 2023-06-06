@@ -13,6 +13,5 @@ namespace Edi.Core.Gallery
         public string DefaulVariant { get; set; }
         public string SelectedVariant { get; set; }
         public string GalleryPath { get; set; }
-        public List<DefinitionGallery> Definitions { get; set; }
     }
 }

@@ -3,6 +3,7 @@ using System.Text.Json;
 using System.Globalization;
 using CsvHelper;
 using Microsoft.Extensions.Configuration;
+using System.Reflection.Metadata.Ecma335;
 
 namespace Edi.Core.Gallery.Definition
 {
@@ -33,12 +34,52 @@ namespace Edi.Core.Gallery.Definition
             if (!csvFile.Exists)
                 return;
 
+            List<DefinitionDto> definitionsDtos;
             Assets.Add("csv", csvFile);
             using (var reader = csvFile.OpenText())
             using (var csv = new CsvReader(reader, CultureInfo.InvariantCulture))
             {
-                Config.Definitions = csv.GetRecords<DefinitionGallery>().ToList();
+                definitionsDtos = csv.GetRecords<DefinitionDto>().ToList();
             }
+            int linesCount = 0;
+            Config.Definitions = new List<DefinitionGallery>();
+            foreach (var definitionDto in definitionsDtos)
+            {
+                linesCount++;
+                var def = new DefinitionGallery
+                {
+                    Name = definitionDto.Name,
+                    FileName = definitionDto.FileName,
+                    Type = definitionDto.Type,
+                    Loop = definitionDto.Loop,
+                };
+                try
+                {
+                    def.StartTime = parseTimeField(definitionDto.StartTime);
+                }
+                catch
+                {
+                    throw new Exception($"Can't convert the value StartTime: [{def.StartTime}] to a valid TimeSpan, in line [{linesCount}] gallery name [{def.Name}] of csv definition file. use format: (22:50:30.333) hh:mm:ss.nnn");
+                }
+                try
+                {
+                    def.EndTime = parseTimeField(definitionDto.EndTime);
+                }
+                catch
+                {
+                    throw new Exception($"Can't convert the value EndTime: [{def.EndTime}] to a valid Time, in line [{linesCount}] gallery name [{def.Name}] of csv definition file. use format: (22:50:30.333) hh:mm:ss.nnn)");
+                }
+
+                Config.Definitions.Add(def);
+            }
+        }
+
+        private long parseTimeField(string field)
+        {
+            if(string.IsNullOrEmpty(field)) return 0;
+            return field.Contains(":") || field.Contains(".")
+                ? Convert.ToInt64(TimeSpan.Parse(field, DateTimeFormatInfo.InvariantInfo).TotalMilliseconds)
+                : long.Parse(field);
         }
         public List<string> GetVariants()
             => Variants;

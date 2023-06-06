@@ -94,9 +94,9 @@ namespace Edi.Core.Device.Handy
             return estimatedServerTimeNow - receiveTime;
         }
 
+        
 
-
-        protected async Task PlayGallery(string name, long seek = 0)
+        public async Task PlayGallery(string name, long seek = 0)
         {
             var gallery = repository.Get(name, selectedVariant);
             if (gallery == null)
@@ -119,14 +119,14 @@ namespace Edi.Core.Device.Handy
 
         }
 
-        protected async Task Pause()
+        public async Task Pause()
         {
             timerGalleryEnd.Stop();
             ResumeAt = CurrentTime;
             await Client.PutAsync("hssp/stop",null);
         }
 
-        protected async Task Resume()
+        public async Task Resume()
         {
             await Seek(ResumeAt);
         }

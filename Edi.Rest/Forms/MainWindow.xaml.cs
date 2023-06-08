@@ -29,8 +29,18 @@ namespace Edi.Forms
 
             edi.DeviceManager.OnloadDevice += DeviceManager_OnloadDevice;
             edi.DeviceManager.OnUnloadDevice += DeviceManager_OnUnloadDevice;
+            edi.OnChangeStatus += Edi_OnChangeStatus    ;
             LoadForm();
         }
+
+        private void Edi_OnChangeStatus(string message)
+        {
+            Dispatcher.Invoke(() =>
+            {
+                lblStatus.Content = message;
+            });
+        }
+
         private void DeviceManager_OnUnloadDevice(Core.Device.Interfaces.IDevice device)
         {
             Dispatcher.Invoke(() =>

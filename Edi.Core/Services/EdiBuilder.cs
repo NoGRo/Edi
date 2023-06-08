@@ -25,7 +25,7 @@ namespace Edi.Core
             #region Configuration
             
             var builder = new ConfigurationBuilder()
-                //                .SetBasePath(Directory.GetCurrentDirectory()) // Definimos la ruta de donde se tomará el archivo de configuración
+                                .SetBasePath(Directory.GetCurrentDirectory()) // Definimos la ruta de donde se tomará el archivo de configuración
                 .AddJsonFile(ConfigurationPath, optional: true, reloadOnChange: true); // Agregamos el archivo de configuración en formato json
             var configuration = builder.Build();
 

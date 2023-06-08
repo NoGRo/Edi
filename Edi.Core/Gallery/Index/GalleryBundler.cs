@@ -43,8 +43,6 @@ namespace Edi.Core.Gallery.Index
                 StartTime = startTime
             };
 
-                
-
             //6 seconds repear in script bundle for loop msg delay
             if (gallery.Loop)
             {

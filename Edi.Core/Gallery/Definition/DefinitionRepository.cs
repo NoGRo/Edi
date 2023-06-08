@@ -21,7 +21,7 @@ namespace Edi.Core.Gallery.Definition
 
         private List<string> Variants { get; set; } = new List<string>();
         private GalleryConfig Config { get; set; }
-        private List<DefinitionGallery> definitions { get; set; } = new List<DefinitionGallery>();
+        private Dictionary<string, DefinitionGallery> dicDefinitions { get; set; } = new Dictionary<string, DefinitionGallery>(StringComparer.OrdinalIgnoreCase);
 
         public async Task Init()
         {
@@ -42,7 +42,7 @@ namespace Edi.Core.Gallery.Definition
                 definitionsDtos = csv.GetRecords<DefinitionDto>().ToList();
             }
             int linesCount = 0;
-            definitions = new List<DefinitionGallery>();
+
             foreach (var definitionDto in definitionsDtos)
             {
                 linesCount++;
@@ -53,41 +53,51 @@ namespace Edi.Core.Gallery.Definition
                     Type = definitionDto.Type,
                     Loop = definitionDto.Loop,
                 };
-                try
-                {
-                    def.StartTime = parseTimeField(definitionDto.StartTime);
-                }
-                catch
-                {
-                    throw new Exception($"Can't convert the value StartTime: [{def.StartTime}] to a valid TimeSpan, in line [{linesCount}] gallery name [{def.Name}] of csv definition file. use format: (22:50:30.333) hh:mm:ss.nnn");
-                }
-                try
-                {
-                    def.EndTime = parseTimeField(definitionDto.EndTime);
-                }
-                catch
-                {
-                    throw new Exception($"Can't convert the value EndTime: [{def.EndTime}] to a valid Time, in line [{linesCount}] gallery name [{def.Name}] of csv definition file. use format: (22:50:30.333) hh:mm:ss.nnn)");
-                }
 
-                definitions.Add(def);
+                long time;
+                if (parseTimeField(definitionDto.StartTime, out time))
+                    def.StartTime = time;
+                else
+                    throw new Exception($"Can't convert the value StartTime: [{def.StartTime}] to a valid TimeSpan, in line [{linesCount}] gallery name [{def.Name}] of csv definition file. use format: (22:50:30.333) hh:mm:ss.nnn");
+
+
+                if (parseTimeField(definitionDto.EndTime, out time))
+                    def.EndTime = time;
+                else
+                    throw new Exception($"Can't convert the value EndTime: [{def.EndTime}] to a valid Time, in line [{linesCount}] gallery name [{def.Name}] of csv definition file. use format: (22:50:30.333) hh:mm:ss.nnn");
+
+
+                if (dicDefinitions.ContainsKey(def.Name))
+                    throw new Exception($"Can't have two galleries with the same name, check [{def.Name}] duplicate in line [{linesCount}]");
+
+
+                dicDefinitions.Add(def.Name, def);
             }
         }
+        
 
-        private long parseTimeField(string field)
+        private bool parseTimeField(string field, out long millis)
         {
-            if(string.IsNullOrEmpty(field)) return 0;
-            return field.Contains(":") || field.Contains(".")
-                ? Convert.ToInt64(TimeSpan.Parse(field, DateTimeFormatInfo.InvariantInfo).TotalMilliseconds)
-                : long.Parse(field);
+            millis = 0;
+            if (string.IsNullOrEmpty(field)) 
+                return false;
+            try
+            {
+                millis = field.Contains(":") || field.Contains(".")
+                    ? Convert.ToInt64(TimeSpan.Parse(field, DateTimeFormatInfo.InvariantInfo).TotalMilliseconds)
+                    : long.Parse(field);
+            }
+            catch { return false; }
+
+            return true;
         }
         public List<string> GetVariants()
             => Variants;
         public List<DefinitionGallery> GetAll()
-            => definitions;
+            => dicDefinitions.Values.ToList();
 
         public DefinitionGallery? Get(string name, string variant = null)
-            => definitions.FirstOrDefault(x => x.Name == name);
+            => dicDefinitions.GetValueOrDefault(name);
 
 
     }

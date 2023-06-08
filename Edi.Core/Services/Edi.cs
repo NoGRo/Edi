@@ -46,6 +46,9 @@ namespace Edi.Core
         private DefinitionGallery? ReactSendGallery { get; set; }
         private Timer TimerGalleryStop { get; set; }
         private Timer TimerReactStop { get; set; }
+
+        public IEnumerable<DefinitionGallery> Definitions => _repository.GetAll();
+
         public async Task Init()
         {
             //await _repository.Init();
@@ -77,6 +80,7 @@ namespace Edi.Core
                 return;
             }
             changeStatus($"recived [{name}] {gallery.Type}");
+
             switch (gallery.Type)
             {
                 case "filler":

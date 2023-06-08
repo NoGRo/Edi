@@ -2,7 +2,7 @@ using Microsoft.AspNetCore.Mvc;
 using Edi.Core;
 using Edi.Core.Device.Interfaces;
 using Edi.Forms;
-
+using Edi.Core.Gallery.Definition;
 
 namespace Edi.Controllers
 {
@@ -49,5 +49,9 @@ namespace Edi.Controllers
         {
             await _edi.Resume();
         }
+
+        [HttpGet("Definitions")]
+        public async Task<IEnumerable<DefinitionGallery>> GetDefinitions()
+        => _edi.Definitions.ToArray();
     }
 }

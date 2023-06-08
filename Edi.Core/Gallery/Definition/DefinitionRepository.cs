@@ -60,16 +60,13 @@ namespace Edi.Core.Gallery.Definition
                 else
                     throw new Exception($"Can't convert the value StartTime: [{def.StartTime}] to a valid TimeSpan, in line [{linesCount}] gallery name [{def.Name}] of csv definition file. use format: (22:50:30.333) hh:mm:ss.nnn");
 
-
                 if (parseTimeField(definitionDto.EndTime, out time))
                     def.EndTime = time;
                 else
                     throw new Exception($"Can't convert the value EndTime: [{def.EndTime}] to a valid Time, in line [{linesCount}] gallery name [{def.Name}] of csv definition file. use format: (22:50:30.333) hh:mm:ss.nnn");
 
-
                 if (dicDefinitions.ContainsKey(def.Name))
                     throw new Exception($"Can't have two galleries with the same name, check [{def.Name}] duplicate in line [{linesCount}]");
-
 
                 dicDefinitions.Add(def.Name, def);
             }

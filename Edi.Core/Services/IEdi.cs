@@ -8,14 +8,14 @@ namespace Edi.Core
     {
         public Task Init();
         public IDeviceManager DeviceManager { get; }
-
-        public delegate void ChangeStatusHandler(string message);
-        public event ChangeStatusHandler OnChangeStatus;
         public EdiConfig Config { get; set; }
         public IEnumerable<DefinitionGallery> Definitions { get; }
         public Task Play(string Name, long Seek = 0);
         public Task Stop();
         public Task Pause();
         public Task Resume();
+
+        public delegate void ChangeStatusHandler(string message);
+        public event ChangeStatusHandler OnChangeStatus;
     }
 }

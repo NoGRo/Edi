@@ -14,7 +14,7 @@ namespace Edi.Core.Device
     public class DeviceManager : IDeviceManager
     {
         public List<IDevice> Devices { get; private set; } =  new List<IDevice>();    
-        public ParallelQuery<IDevice> DevicesParallel => Devices.Where(x => x != null).AsParallel();
+        public ParallelQuery<IDevice> DevicesParallel => Devices.Where(x => x != null && x.IsReady).AsParallel();
         private string? lastGallerySend;
 
         public event IDeviceManager.OnUnloadDeviceHandler OnUnloadDevice;
@@ -31,7 +31,7 @@ namespace Edi.Core.Device
         public List<IDeviceProvider> Providers { get; set; } =  new List<IDeviceProvider>();
 
         public IServiceProvider ServiceProvider { get; }
-        public string SelectedVariant { get => throw new NotImplementedException(); set => throw new NotImplementedException(); }
+        public Dictionary<string, string> DeviceVariant { get; set; } = new Dictionary<string, string>();  
 
         public IEnumerable<string> Variants => throw new NotImplementedException();
 
@@ -44,16 +44,34 @@ namespace Edi.Core.Device
         }
 
 
+        
         public async void LoadDevice(IDevice device)
         {
             Devices.Add(device);
 
-            if(OnloadDevice!= null)
+            if (OnloadDevice != null)
                 OnloadDevice(device);
+
+            UniqueName(device);
+
+            
             if (lastGallerySend != null)
                 await device.PlayGallery(lastGallerySend);
-            
+
         }
+
+        private void UniqueName(IDevice device)
+        {
+            var c = 0;
+            var NewName = device.Name;
+            while (DeviceVariant.ContainsKey(NewName))
+            {
+                c++;
+                NewName = $"device.Name ({c})";
+            }
+            device.Name = NewName;
+        }
+
         public async void UnloadDevice(IDevice device)
         {
 

@@ -19,7 +19,7 @@ namespace Edi.Core.Gallery.CmdLineal
             Definition = definition;
         }
         private Dictionary<string, List<FunscriptGallery>> Galleries { get; set; } = new Dictionary<string, List<FunscriptGallery>>(StringComparer.OrdinalIgnoreCase);
-        public Dictionary<string, FileInfo> Assets { get; set; } = new Dictionary<string, FileInfo>(StringComparer.OrdinalIgnoreCase);
+
 
         private List<string> Variants { get; set; } = new List<string>();
         public  GalleryConfig Config { get; set; }

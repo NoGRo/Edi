@@ -19,11 +19,15 @@ namespace Edi.Core.Device.EStim
         private readonly AudioRepository _repository;
         private readonly IWavePlayer _wavePlayer;
         private AudioGallery _currentGallery;
-        public string Name => "Estim";
+        public string Name { get; set; } = "Estim";
         private Mp3FileReader _curentAudioFile { get; set; }
         private string selectedVariant;
         public string SelectedVariant { get => selectedVariant ?? _repository.Config.DefaulVariant; set => selectedVariant = value; }
         public IEnumerable<string> Variants => _repository.GetVariants();
+
+        public bool IsReady => throw new NotImplementedException();
+
+        
 
         private Timer _timerGalleryEnds;
         private bool _isPlaying;

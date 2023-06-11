@@ -15,14 +15,18 @@ namespace Edi.Core
         public IDeviceManager DeviceManager { get; private set; }
         private readonly DefinitionRepository _repository;
         private readonly IEnumerable<IRepository> repos;
-        private readonly IConfiguration _configuration;
+        public static string OutputDir => Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData) + "/Edi";
 
+        private readonly IConfiguration _configuration;
         public event IEdi.ChangeStatusHandler OnChangeStatus;
 
 
         public IEnumerable<IDevice> Devices => DeviceManager.Devices;
         public Edi(IDeviceManager deviceManager, DefinitionRepository repository, IEnumerable<IRepository> repos, IConfiguration configuration)
         {
+            if (!Directory.Exists(OutputDir))  
+                Directory.CreateDirectory(OutputDir);
+                
             DeviceManager = deviceManager;
             _repository = repository;
             this.repos = repos;
@@ -66,12 +70,6 @@ namespace Edi.Core
             OnChangeStatus($"[{DateTime.Now.ToShortTimeString()}] {message}");
         }
 
-        private async Task SetFiller(DefinitionGallery gallery)
-        {
-            CurrentFiller = gallery.Name;
-            if (LastGallery == null && ReactSendGallery == null)
-                await SendFiller(CurrentFiller);
-        }
 
         public async Task Play(string name, long seek = 0)
         {
@@ -122,7 +120,6 @@ namespace Edi.Core
             changeStatus($"Device Reaction [{gallery.Name}], loop:{gallery.Loop}");
             await DeviceManager.PlayGallery(gallery.Name);
         }
-
         private async void TimerReactStop_ElapsedAsync(object? sender, ElapsedEventArgs e)
             => await StopReaction();
         private async Task StopReaction()
@@ -134,19 +131,35 @@ namespace Edi.Core
             ReactSendGallery = null;
 
             changeStatus($"Stop Reaction");
-            if (!GallerySendTime.HasValue || LastGallery == null)
-                return;
 
-            var seekBack = Convert.ToInt64((DateTime.Now - GallerySendTime.Value).TotalMilliseconds);
+            if (LastGallery != null)
+            {
+                var seekBack = Convert.ToInt64((DateTime.Now - GallerySendTime.Value).TotalMilliseconds);
+                await SendGallery(LastGallery, seekBack);
 
-            await SendGallery(LastGallery, seekBack);
+            }
+            else if (CurrentFiller != null)
+            {
+                await SendFiller(CurrentFiller);
+            }
+            else 
+            {
+                await Pause();
+            }
+
+
+
+
+
 
         }
+
 
         public async Task Stop()
         {
             if (ReactSendGallery != null)
             {
+                changeStatus("Stop Reaction");
                 await StopReaction();
 
             }
@@ -156,6 +169,27 @@ namespace Edi.Core
                 await SendFiller(CurrentFiller);
             }
         }
+
+        private async Task SetFiller(DefinitionGallery gallery)
+        {
+            CurrentFiller = gallery.Name;
+            if ((LastGallery == null && ReactSendGallery == null)
+                || (LastGallery?.Type == "filler" && LastGallery.Name != CurrentFiller))
+                await SendFiller(CurrentFiller);
+        }
+        private async Task SendFiller(string name, long seek = 0)
+        {
+            if (!Config.Filler || string.IsNullOrEmpty(name))
+            {
+                LastGallery = null;
+                await Pause();
+                return;
+            }
+
+            await SendGallery(name, seek);
+        }
+
+
 
         public async Task Pause()
         {
@@ -215,18 +249,7 @@ namespace Edi.Core
         }
     
 
-        private async Task SendFiller(string name, long seek = 0)
-        {
-            if (!Config.Filler || string.IsNullOrEmpty(name))
-            {
-                await Pause();
-                return;
-            }
 
-            await SendGallery(name, seek);
-        }
-
-        
 
     }
 }

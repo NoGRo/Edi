@@ -17,7 +17,6 @@ namespace Edi.Core.Gallery.Definition
 
         }
 
-        public Dictionary<string, FileInfo> Assets { get; set; } = new Dictionary<string, FileInfo>(StringComparer.OrdinalIgnoreCase);
 
         private List<string> Variants { get; set; } = new List<string>();
         private GalleryConfig Config { get; set; }
@@ -35,7 +34,7 @@ namespace Edi.Core.Gallery.Definition
                 return;
 
             List<DefinitionDto> definitionsDtos;
-            Assets.Add("csv", csvFile);
+
             using (var reader = csvFile.OpenText())
             using (var csv = new CsvReader(reader, CultureInfo.InvariantCulture))
             {

@@ -9,6 +9,8 @@ using System.Runtime.CompilerServices;
 using System;
 using Edi.Core.Gallery.CmdLineal;
 using Edi.Core.Gallery.Definition;
+using System.Xml.Linq;
+using NAudio.Dmo;
 
 namespace Edi.Core.Gallery.Index
 {
@@ -22,8 +24,7 @@ namespace Edi.Core.Gallery.Index
             this.Cmdlineals = Cmdlineals;
         }
 
-        private Dictionary<string, List<IndexGallery>> Galleries { get; set; } = new Dictionary<string, List<IndexGallery>>(StringComparer.OrdinalIgnoreCase);
-        public Dictionary<string, FileInfo> Assets { get; set; } = new Dictionary<string, FileInfo>(StringComparer.OrdinalIgnoreCase);
+        private Dictionary<string, Dictionary<string, IndexGallery>> Galleries { get; set; } = new Dictionary<string, Dictionary<string, IndexGallery>>(StringComparer.OrdinalIgnoreCase);
 
         public GalleryConfig Config { get; set; }
         private GalleryBundler Bundler { get; set; } 
@@ -33,41 +34,52 @@ namespace Edi.Core.Gallery.Index
         {
             LoadGallery();
         }
-        
+
+        public FileInfo GetBundle(string variant, string format) 
+            => new FileInfo($"{Edi.OutputDir}/bundle.{variant}.{format}");
+
         private void LoadGallery()
         {
-            var CmdGalleries = Cmdlineals.GetAll();
-            foreach (var cmdGallery in CmdGalleries)
+            foreach (var variant in GetVariants())
             {
-                if (!Galleries.ContainsKey(cmdGallery.Name))
-                    Galleries.Add(cmdGallery.Name, new List<IndexGallery>());
 
-                var index = Bundler.Add(cmdGallery, cmdGallery.Loop);
-                Galleries[cmdGallery.Name].Add(index);
+            
+                var finalGallery = Cmdlineals.GetAll().Where(x => x.Variant == Config.DefaulVariant).ToDictionary(x => x.Name, x => x);
+
+                var variantGalleries = Cmdlineals.GetAll().Where(x => x.Variant == variant);
+                foreach (var funscriptGallery in variantGalleries)
+                {
+                    if (finalGallery.ContainsKey(funscriptGallery.Name))
+                        finalGallery[funscriptGallery.Name] = funscriptGallery;
+                    else
+                        finalGallery.Add(funscriptGallery.Name, funscriptGallery);
+                }
+
+                Bundler.Clear();
+                Galleries.Add(variant, new Dictionary<string, IndexGallery>(StringComparer.OrdinalIgnoreCase));
+                foreach (var gallery in finalGallery.Values)
+                {
+                    Galleries[variant].Add(gallery.Name, Bundler.Add(gallery));
+                   
+                }
+                Bundler.GenerateBundle(variant);
             }
-            Assets = Bundler.GenerateBundle();
+
+
         }
 
         public List<string> GetVariants()
             => Cmdlineals.GetVariants();
         public List<IndexGallery> GetAll()
-            => Galleries.Values.SelectMany(x => x).ToList();
-
+            => Galleries.Values.SelectMany(x => x.Values).ToList();
 
         public IndexGallery? Get(string name, string variant = null)
         {
             //TODO: asset ovverride order priority similar minecraft texture packt 
             variant = variant ?? Config.SelectedVariant ?? Config.DefaulVariant;
 
-            var variants = Galleries.GetValueOrDefault(name);
+            return Galleries.GetValueOrDefault(variant)?.GetValueOrDefault(name);
 
-            if (variants is null)
-                return null;
-
-            var gallery = variants.FirstOrDefault(x => x.Variant == variant)
-                        ?? variants.FirstOrDefault(x => x.Variant == Config.SelectedVariant)
-                        ?? variants.FirstOrDefault();
-            return gallery;
 
         }
 

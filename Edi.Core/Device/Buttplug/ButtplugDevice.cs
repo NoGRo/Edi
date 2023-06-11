@@ -11,22 +11,31 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.Linq;
+using System.Net;
 using System.Text;
 using System.Timers;
 using Timer = System.Timers.Timer;
 
 namespace Edi.Core.Device.Buttplug
 {
-    internal class ButtplugDevice : IDevice 
+    internal class ButtplugDevice : IDevice
     {
         private ButtplugClientDevice device { get; set; }
         public ActuatorType Actuator { get; }
         public uint Channel { get; }
         private FunscriptRepository repository { get; set; }
-        public string Name => $"{device.Name} ({Actuator}:{Channel})";
+        public string Name { get; set; } 
 
         private string selectedVariant;
-        public string SelectedVariant { get => selectedVariant ?? repository.Config.DefaulVariant; set => selectedVariant = value; }
+        public string SelectedVariant
+        {
+            get => selectedVariant ?? repository.Config.DefaulVariant; 
+            set
+            {
+                selectedVariant = value;
+
+            }
+        }
 
         public IEnumerable<string> Variants => repository.GetVariants();
 
@@ -37,17 +46,25 @@ namespace Edi.Core.Device.Buttplug
         private static Timer timerCmdEnd = new Timer();
 
         private double lastSpeedSend = 0;
+
+        public bool IsReady => true;
+
         public ButtplugDevice(ButtplugClientDevice device, ActuatorType actuator, uint channel, FunscriptRepository repository)
         {
             this.device = device;
+            Name = device.Name;
             Actuator = actuator;
             Channel = channel;
             this.repository = repository;
             vibCommandTimer.Interval = (device.MessageTimingGap == 0 ) ? 20: device.MessageTimingGap;
             timerCmdEnd.Elapsed += OnCommandEnd;
             vibCommandTimer.Elapsed += FadeVibratorCmd;
+
+            selectedVariant =  Variants.FirstOrDefault(x => x.Contains(Actuator.ToString(),StringComparison.OrdinalIgnoreCase))
+                                ?? repository.Config.DefaulVariant;
         }
 
+        
         private Timer vibCommandTimer = new Timer(50);
         public async  Task SendCmd(CmdLinear cmd)
         {
@@ -149,7 +166,7 @@ namespace Edi.Core.Device.Buttplug
         private static List<CmdLinear> queue { get; set; } = new List<CmdLinear>();
         public static DateTime SyncSend { get; private set; }
         private long ResumeAt { get; set; }
-
+        
 
         private FunscriptGallery CurrentGallery;
         public async Task PlayGallery(string name,long seek = 0)

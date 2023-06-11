@@ -17,6 +17,8 @@ using System.Diagnostics.CodeAnalysis;
 using Edi.Core.Gallery.Index;
 using Edi.Core.Gallery.Definition;
 using Edi.Core.Device.Interfaces;
+using System.Runtime.CompilerServices;
+using System.Threading;
 
 namespace Edi.Core.Device.Handy
 {
@@ -25,30 +27,79 @@ namespace Edi.Core.Device.Handy
 
         public string Key { get; set; }
 
-        public string Name => $"The Handy [{Key}]";
+        public string Name { get; set; }
         private long CurrentTime { get; set; }
         
         private static long timeSyncAvrageOffset;
         private static long timeSyncInitialOffset;
-        private HttpClient Client ;
+        private HttpClient Client = null;
         private IndexRepository repository { get; set; }
         private Timer timerGalleryEnd = new Timer();
+        
 
         private IndexGallery currentGallery;
         private string selectedVariant;
-        public string SelectedVariant { get => selectedVariant ??  repository.Config.DefaulVariant; set => selectedVariant = value; }
-
+        public string SelectedVariant
+        {
+            get => selectedVariant ?? repository.Config.DefaulVariant;
+            set
+            {
+                selectedVariant = value;
+                upload();
+                
+            }
+        }
+        public bool IsReady { get; private set; } = false;
         public IEnumerable<string> Variants => repository.GetVariants();
+
 
         public HandyDevice(HttpClient Client, IndexRepository repository)
         {
+            Key = Client.DefaultRequestHeaders.GetValues("X-Connection-Key").First();
             timerGalleryEnd.Elapsed += TimerGalleryEnd_Elapsed;
+            Name = $"The Handy [{Key}]";
             this.Client = Client;
             this.repository = repository;
-            
+           
+            SelectedVariant = repository.Config.DefaulVariant;
+          
         }
 
+        private Task uploadTask { get; set; }
+        private CancellationTokenSource uploadCancellationTokenSource;
 
+        private async void upload()
+        {
+            uploadCancellationTokenSource?.Cancel();
+            uploadCancellationTokenSource = new CancellationTokenSource();
+            uploadTask = Task.Run(async () =>
+            {
+                
+                try
+                {
+                    await Task.Delay(3000, uploadCancellationTokenSource.Token);
+                }
+                catch (TaskCanceledException)
+                {
+                    return;
+                }
+
+                try
+                {
+                    var blob = await uploadBlob(repository.GetBundle(selectedVariant, "csv"), uploadCancellationTokenSource.Token);
+
+                    IsReady = false;
+                    var resp = await Client.PutAsync("hssp/setup", new StringContent(JsonConvert.SerializeObject(new SyncUpload(blob)), Encoding.UTF8, "application/json"), uploadCancellationTokenSource.Token);
+                    IsReady = true;
+                }
+                catch (TaskCanceledException)
+                {
+                    return;
+                }
+            });
+        }
+
+      
 
         private async Task Seek(long timeMs)
         {
@@ -56,6 +107,26 @@ namespace Edi.Core.Device.Handy
             var resp = await Client.PutAsync("hssp/play", new StringContent(JsonConvert.SerializeObject(req), Encoding.UTF8, "application/json"));
         }
 
+
+        private async Task<string> uploadBlob(FileInfo file, CancellationToken  cancellationToken)
+        {
+
+            using (var blobClient = new HttpClient())
+            {
+                var request = new HttpRequestMessage(HttpMethod.Post, "https://www.handyfeeling.com/api/sync/upload");
+
+                var content = new MultipartFormDataContent
+                {
+                    { new StreamContent(file.OpenRead()), "syncFile", "Edi.csv" }
+                };
+
+                request.Content = content;
+
+                var resp = await blobClient.SendAsync(request, cancellationToken);
+
+                return JsonConvert.DeserializeObject<SyncUpload>(await resp.Content.ReadAsStringAsync(cancellationToken)).url;
+            }
+        }
 
         private long ServerTime => DateTimeOffset.UtcNow.ToUnixTimeMilliseconds() + timeSyncInitialOffset + timeSyncAvrageOffset;
 

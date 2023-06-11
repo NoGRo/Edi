@@ -64,8 +64,7 @@ namespace Edi.Core.Device.Handy
 
             Connected = true;
 
-            //OnStatusChange("Uploading & Sync");
-            var blob = uploadBlob(repository.Assets["csv"]);
+
 
             resp = await Client.PutAsync("mode", new StringContent(JsonConvert.SerializeObject(new ModeRequest(1)), Encoding.UTF8, "application/json"));
 
@@ -76,15 +75,13 @@ namespace Edi.Core.Device.Handy
                 return;
             }
 
-
-            var upload = UploadHandy(await blob);
             handyDevice = new HandyDevice(Client, repository);
             handyDevice.Key = Config.Key;
-            await handyDevice.updateServerTime();
-            //OnStatusChange("Uploading");
-            await upload;
-            
             deviceManager.LoadDevice(handyDevice);
+
+
+            await handyDevice.updateServerTime();
+            
         }
         private async void TimerReconnect_Elapsed(object? sender, ElapsedEventArgs e)
         {

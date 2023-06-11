@@ -25,11 +25,13 @@ namespace Edi.Core.Gallery.Index
         public GalleryBundlerConfig Config { get; set; }
         private ScriptBuilder sb { get; set; } = new ScriptBuilder();
 
-        public IndexGallery Add(FunscriptGallery gallery, bool repeats)
+        public void Clear()
         {
-            gallery.Loop = repeats;
-
-
+            sb = new ScriptBuilder();
+        }
+        public IndexGallery Add(FunscriptGallery gallery )
+        {
+            
             var startTime = sb.TotalTime;
 
             sb.addCommands(gallery.Commands);
@@ -63,7 +65,7 @@ namespace Edi.Core.Gallery.Index
 
             return indexGallery;
         }
-        public Dictionary<string, FileInfo> GenerateBundle()
+        public Dictionary<string, FileInfo> GenerateBundle(string variant)
         {
             var cmds = sb.Generate();
 
@@ -72,14 +74,14 @@ namespace Edi.Core.Gallery.Index
             var funscript = new FunScriptFile();
             funscript.actions = cmds.Select(x => new FunScriptAction { at = x.AbsoluteTime, pos = x.Value }).ToList();
 
-            var filePath = Config.OutputFolder + "\\bundle.funscript";
+            var filePath = Edi.OutputDir + $"\\bundle.{variant}.funscript";
             funscript.Save(filePath);
-            final.Add("funscript", new FileInfo(filePath));
+            final.Add(variant+".funscript", new FileInfo(filePath));
 
             var csv = new FunScriptCsv(cmds);
-            var csvPath = Config.OutputFolder + "\\bundle.csv";
+            var csvPath = Edi.OutputDir + $"\\bundle.{variant}.csv";
             csv.Save(csvPath);
-            final.Add("csv", new FileInfo(csvPath));
+            final.Add(variant+".csv", new FileInfo(csvPath));
 
             Galleries.ForEach(x => x.Assets = final);
 

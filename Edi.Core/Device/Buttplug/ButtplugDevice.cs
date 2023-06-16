@@ -25,17 +25,7 @@ namespace Edi.Core.Device.Buttplug
         public uint Channel { get; }
         private FunscriptRepository repository { get; set; }
         public string Name { get; set; } 
-
-        private string selectedVariant;
-        public string SelectedVariant
-        {
-            get => selectedVariant ?? repository.Config.DefaulVariant; 
-            set
-            {
-                selectedVariant = value;
-
-            }
-        }
+        public string SelectedVariant { get; set; }
 
         public IEnumerable<string> Variants => repository.GetVariants();
 
@@ -60,7 +50,7 @@ namespace Edi.Core.Device.Buttplug
             timerCmdEnd.Elapsed += OnCommandEnd;
             vibCommandTimer.Elapsed += FadeVibratorCmd;
 
-            selectedVariant =  Variants.FirstOrDefault(x => x.Contains(Actuator.ToString(),StringComparison.OrdinalIgnoreCase))
+            SelectedVariant =  Variants.FirstOrDefault(x => x.Contains(Actuator.ToString(),StringComparison.OrdinalIgnoreCase))
                                 ?? repository.Config.DefaulVariant;
         }
 

@@ -5,11 +5,11 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace Edi.Core.Device.Handy
+namespace Edi.Core.Device
 {
     [AddINotifyPropertyChangedInterface]
-    public class HandyConfig
+    public class DevicesConfig
     {
-        public string Key { get; set; }
+        public Dictionary<string, string> DeviceVariant { get; set; } = new Dictionary<string, string>();
     }
 }

@@ -21,6 +21,6 @@ namespace Edi.Core.Gallery.Definition
         public string StartTime { get; set; }
         [Required]
         public string EndTime { get; set; }
-        public bool Loop { get; set; }
+        public string Loop { get; set; }
     }
 }

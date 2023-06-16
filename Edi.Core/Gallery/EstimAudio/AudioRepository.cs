@@ -4,7 +4,7 @@ using System.Globalization;
 using CsvHelper;
 using File = System.IO.File;
 using Edi.Core.Funscript;
-using Microsoft.Extensions.Configuration;
+
 using System.Runtime.CompilerServices;
 using Edi.Core.Gallery.Index;
 using Edi.Core.Gallery.CmdLineal;
@@ -17,10 +17,9 @@ namespace Edi.Core.Gallery.EStimAudio
 
     public class AudioRepository : IGalleryRepository<AudioGallery>
     {
-        public AudioRepository(IConfiguration configuration, IGalleryRepository<DefinitionGallery> definitions)
+        public AudioRepository(ConfigurationManager configuration, IGalleryRepository<DefinitionGallery> definitions)
         {
-            Config = new GalleryConfig();
-            configuration.GetSection("Gallery").Bind(Config);
+            Config = configuration.Get<GalleryConfig>();
             Definitions = definitions;
         }
 

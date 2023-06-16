@@ -1,4 +1,5 @@
 ﻿using Edi.Core;
+using Edi.Core.Device.Interfaces;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -22,9 +23,11 @@ namespace Edi.Forms
     public partial class MainWindow : Window
     {
         private readonly IEdi edi =  App.Edi;
-        private EdiConfig config;
+        public EdiConfig config;
         public MainWindow()
         {
+            config = edi.ConfigurationManager.Get<EdiConfig>();
+            this.DataContext = new { config= config,};
             InitializeComponent();
 
             edi.DeviceManager.OnloadDevice += DeviceManager_OnloadDevice;
@@ -62,10 +65,15 @@ namespace Edi.Forms
 
         private void LoadForm()
         {
-            chkFiller.IsChecked = edi.Config.Filler;
-            chkGallery.IsChecked = edi.Config.Gallery;
-            chkReaction.IsChecked = edi.Config.Reactive;
             DevicesGrid.ItemsSource = edi.DeviceManager.Devices;
         }
+
+        private void Variants_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            var device = (IDevice)e.Source;
+            edi.DeviceManager.SelectVariant(device.Name, device.SelectedVariant);
+        }
+
+    
     }
 }

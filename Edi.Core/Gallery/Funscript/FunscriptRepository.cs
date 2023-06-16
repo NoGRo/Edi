@@ -4,7 +4,7 @@ using System.Globalization;
 using CsvHelper;
 using File = System.IO.File;
 using Edi.Core.Funscript;
-using Microsoft.Extensions.Configuration;
+
 using System.Runtime.CompilerServices;
 using Edi.Core.Gallery.Definition;
 
@@ -12,10 +12,9 @@ namespace Edi.Core.Gallery.CmdLineal
 {
     public class FunscriptRepository : IGalleryRepository<FunscriptGallery>
     {
-        public FunscriptRepository(IConfiguration configuration, DefinitionRepository definition)
+        public FunscriptRepository(ConfigurationManager configuration, DefinitionRepository definition)
         {
-            Config = new GalleryConfig();
-            configuration.GetSection(GalleryConfig.Secction).Bind(Config);
+            Config = configuration.Get<GalleryConfig>();
             Definition = definition;
         }
         private Dictionary<string, List<FunscriptGallery>> Galleries { get; set; } = new Dictionary<string, List<FunscriptGallery>>(StringComparer.OrdinalIgnoreCase);

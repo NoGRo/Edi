@@ -6,7 +6,6 @@ using Edi.Core.Gallery;
 using Edi.Core.Gallery.CmdLineal;
 using Edi.Core.Gallery.Definition;
 using Edi.Core.Gallery.Index;
-using Microsoft.Extensions.Configuration;
 
 using System;
 using System.Collections.Generic;
@@ -23,11 +22,7 @@ namespace Edi.Core
         public static IEdi Create(string ConfigurationPath)
         {
             #region Configuration
-            
-            var builder = new ConfigurationBuilder()
-                                .SetBasePath(Directory.GetCurrentDirectory()) // Definimos la ruta de donde se tomará el archivo de configuración
-                .AddJsonFile(ConfigurationPath, optional: true, reloadOnChange: true); // Agregamos el archivo de configuración en formato json
-            var configuration = builder.Build();
+            var configuration = new ConfigurationManager(ConfigurationPath);
 
             #endregion
 
@@ -39,7 +34,7 @@ namespace Edi.Core
 
             #endregion
 
-            var deviceManager = new DeviceManager();
+            var deviceManager = new DeviceManager(configuration);
 
             #region Device Provides 
 

@@ -6,7 +6,7 @@ using Buttplug.Core.Messages;
 using Edi.Core.Device.Interfaces;
 using Edi.Core.Gallery;
 using Edi.Core.Gallery.CmdLineal;
-using Microsoft.Extensions.Configuration;
+
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -20,12 +20,10 @@ namespace Edi.Core.Device.Buttplug
 {
     public class ButtplugProvider : IDeviceProvider
     {
-        public ButtplugProvider(FunscriptRepository repository, IConfiguration config, IDeviceManager deviceManager)
+        public ButtplugProvider(FunscriptRepository repository, ConfigurationManager config, IDeviceManager deviceManager)
         {
-            
-            this.Config = new ButtplugConfig();
 
-            config.GetSection("Buttplug").Bind(this.Config);
+            this.Config = config.Get<ButtplugConfig>();
 
             this.repository = repository;
             DeviceManager = deviceManager;

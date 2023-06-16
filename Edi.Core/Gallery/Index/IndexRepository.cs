@@ -4,7 +4,7 @@ using System.Globalization;
 using CsvHelper;
 using File = System.IO.File;
 using Edi.Core.Funscript;
-using Microsoft.Extensions.Configuration;
+
 using System.Runtime.CompilerServices;
 using System;
 using Edi.Core.Gallery.CmdLineal;
@@ -16,10 +16,9 @@ namespace Edi.Core.Gallery.Index
 {
     public class IndexRepository : IGalleryRepository<IndexGallery>
     {
-        public IndexRepository(IConfiguration configuration, GalleryBundler bundler, FunscriptRepository Cmdlineals)
+        public IndexRepository(ConfigurationManager configuration, GalleryBundler bundler, FunscriptRepository Cmdlineals)
         {
-            Config = new GalleryConfig();
-            configuration.GetSection("Gallery").Bind(Config);
+            Config = configuration.Get<GalleryConfig>();
             Bundler = bundler;
             this.Cmdlineals = Cmdlineals;
         }

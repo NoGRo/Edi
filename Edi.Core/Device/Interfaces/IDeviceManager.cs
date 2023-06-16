@@ -13,10 +13,12 @@ namespace Edi.Core.Device.Interfaces
         public List<IDevice> Devices { get; }
         internal void LoadDevice(IDevice device);
         internal void UnloadDevice(IDevice device);
+        public void SelectVariant(string deviceName, string variant);
 
         public Task PlayGallery(string name, long seek = 0);
         public Task Pause();
         public Task Resume();
+        
 
         public delegate void OnUnloadDeviceHandler(IDevice device);
         public delegate void OnloadDeviceHandler(IDevice device);

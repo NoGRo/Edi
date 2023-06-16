@@ -2,17 +2,16 @@
 using System.Text.Json;
 using System.Globalization;
 using CsvHelper;
-using Microsoft.Extensions.Configuration;
 using System.Reflection.Metadata.Ecma335;
+using Edi.Core.Device.Handy;
 
 namespace Edi.Core.Gallery.Definition
 {
     public class DefinitionRepository : IGalleryRepository<DefinitionGallery>
     {
-        public DefinitionRepository(IConfiguration configuration)
+        public DefinitionRepository(ConfigurationManager configuration)
         {
-            Config = new GalleryConfig();
-            configuration.GetSection(GalleryConfig.Secction).Bind(Config);
+            Config = configuration.Get<GalleryConfig>(); 
 
 
         }
@@ -50,7 +49,7 @@ namespace Edi.Core.Gallery.Definition
                     Name = definitionDto.Name,
                     FileName = definitionDto.FileName,
                     Type = definitionDto.Type,
-                    Loop = definitionDto.Loop,
+                    Loop = definitionDto.Loop.ToLower() == "true",
                 };
 
                 long time;

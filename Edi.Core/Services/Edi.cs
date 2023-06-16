@@ -1,7 +1,6 @@
 ﻿using System;
 using System.Threading.Tasks;
 using System.Timers;
-using Microsoft.Extensions.Configuration;
 using Edi.Core.Gallery;
 using Edi.Core.Device.Interfaces;
 using Timer = System.Timers.Timer;
@@ -12,17 +11,17 @@ namespace Edi.Core
 {
     public class Edi : IEdi
     {
+        public  ConfigurationManager ConfigurationManager { get; set; }
         public IDeviceManager DeviceManager { get; private set; }
         private readonly DefinitionRepository _repository;
         private readonly IEnumerable<IRepository> repos;
         public static string OutputDir => Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData) + "/Edi";
 
-        private readonly IConfiguration _configuration;
         public event IEdi.ChangeStatusHandler OnChangeStatus;
 
 
         public IEnumerable<IDevice> Devices => DeviceManager.Devices;
-        public Edi(IDeviceManager deviceManager, DefinitionRepository repository, IEnumerable<IRepository> repos, IConfiguration configuration)
+        public Edi(IDeviceManager deviceManager, DefinitionRepository repository, IEnumerable<IRepository> repos, ConfigurationManager configuration)
         {
             if (!Directory.Exists(OutputDir))  
                 Directory.CreateDirectory(OutputDir);
@@ -30,16 +29,15 @@ namespace Edi.Core
             DeviceManager = deviceManager;
             _repository = repository;
             this.repos = repos;
-            _configuration = configuration;
+            
 
             TimerGalleryStop = new Timer();
             TimerGalleryStop.Elapsed += TimerGalleryStop_ElapsedAsync;
 
             TimerReactStop = new Timer();
             TimerReactStop.Elapsed += TimerReactStop_ElapsedAsync;
-
-            Config = new EdiConfig();
-            _configuration.GetSection(EdiConfig.Seccition).Bind(Config);
+            ConfigurationManager = configuration;
+            Config = configuration.Get<EdiConfig>();
 
         }
 
@@ -124,6 +122,7 @@ namespace Edi.Core
             => await StopReaction();
         private async Task StopReaction()
         {
+            
             TimerReactStop.Stop();
             if (ReactSendGallery == null)
                 return;
@@ -158,16 +157,15 @@ namespace Edi.Core
         public async Task Stop()
         {
             if (ReactSendGallery != null)
-            {
-                changeStatus("Stop Reaction");
                 await StopReaction();
+            else if (LastGallery?.Type == "gallery")
+                await StopGallery();
+        }
 
-            }
-            else
-            {
-                changeStatus("Stop Galley");
-                await SendFiller(CurrentFiller);
-            }
+        private async Task StopGallery()
+        {
+            LastGallery = null;
+            await SendFiller(CurrentFiller);
         }
 
         private async Task SetFiller(DefinitionGallery gallery)
@@ -216,6 +214,7 @@ namespace Edi.Core
 
             ReactSendGallery = null;
             TimerReactStop.Stop();
+            TimerGalleryStop.Stop();
 
             // If the seek time is greater than the gallery time And it Repeats, then modulo the seek time by the gallery time to get the correct seek time.
             if (seek != 0 && seek > gallery.Duration)

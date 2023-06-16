@@ -85,8 +85,6 @@ namespace Edi.Core.Funscript
             TotalTime = last.AbsoluteTime;
         }
 
-
-
         public void TrimTimeTo(long maxTime)
         {
 

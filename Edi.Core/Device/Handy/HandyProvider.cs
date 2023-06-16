@@ -2,7 +2,7 @@
 using Edi.Core.Device.Interfaces;
 using Edi.Core.Gallery;
 using Edi.Core.Gallery.Index;
-using Microsoft.Extensions.Configuration;
+
 using NAudio.CoreAudioApi;
 using Newtonsoft.Json;
 using System;
@@ -17,10 +17,9 @@ namespace Edi.Core.Device.Handy
 {
     public class HandyProvider : IDeviceProvider
     {
-        public HandyProvider(IndexRepository repository, IConfiguration config, IDeviceManager deviceManager)
+        public HandyProvider(IndexRepository repository, ConfigurationManager config, IDeviceManager deviceManager)
         {
-            this.Config = new HandyConfig();
-            config.GetSection(HandyConfig.Section).Bind(this.Config);
+            this.Config = config.Get<HandyConfig>(); 
             this.repository = repository;
             this.deviceManager = deviceManager;
             timerReconnect.Elapsed += TimerReconnect_Elapsed;

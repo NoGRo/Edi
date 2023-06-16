@@ -4,7 +4,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using Edi.Core.Funscript;
-using Microsoft.Extensions.Configuration;
+
 using System.Reflection;
 using Edi.Core.Gallery.CmdLineal;
 
@@ -16,10 +16,9 @@ namespace Edi.Core.Gallery.Index
 
 
 
-        public GalleryBundler(IConfiguration configuration)
+        public GalleryBundler(ConfigurationManager configuration)
         {
-            Config = new GalleryBundlerConfig();
-            configuration.GetSection(GalleryBundlerConfig.Secction).Bind(Config);
+            Config = configuration.Get<GalleryBundlerConfig>();
         }
 
         public GalleryBundlerConfig Config { get; set; }

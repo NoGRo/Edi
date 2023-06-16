@@ -8,7 +8,7 @@ namespace Edi.Core
     {
         public Task Init();
         public IDeviceManager DeviceManager { get; }
-        public EdiConfig Config { get; set; }
+        public ConfigurationManager ConfigurationManager { get; }
         public IEnumerable<DefinitionGallery> Definitions { get; }
         public Task Play(string Name, long Seek = 0);
         public Task Stop();

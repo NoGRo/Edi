@@ -26,8 +26,6 @@ namespace Edi.Forms
             IServiceCollection services = webAppBuilder.Services;
 
 
-            services.AddEdi();
-            
             services.AddControllers();
             services.AddSwaggerGen(c =>
             {
@@ -52,7 +50,7 @@ namespace Edi.Forms
         protected override async void OnStartup(StartupEventArgs e)
         {
 
-            var Edi = EdiBuilder.Create("appsettings.json");
+            var Edi = EdiBuilder.Create("EdiConfig.json");
             await Edi.Init();
             App.Edi = Edi;
             var mainWindos = serviceProvider.GetRequiredService<MainWindow>();

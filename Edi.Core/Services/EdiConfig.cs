@@ -1,4 +1,5 @@
-﻿using System;
+﻿using PropertyChanged;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -6,11 +7,14 @@ using System.Threading.Tasks;
 
 namespace Edi.Core
 {
+    [AddINotifyPropertyChangedInterface]
     public class EdiConfig
     {
-        public static string Seccition = "Edi";
-        public bool Filler { get; set; }
-        public bool Gallery { get; set; }
-        public bool Reactive { get; set; }
+        public bool Filler { get; set; } = true;
+        public bool Gallery { get; set; } = true;
+        public bool Reactive { get; set; } = true;
+
+        Dictionary<string, string> DeviceVariant { get; set; }
+
     }
 }

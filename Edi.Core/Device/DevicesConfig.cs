@@ -5,7 +5,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace Edi.Core.Device
+namespace Edi.Core
 {
     [AddINotifyPropertyChangedInterface]
     public class DevicesConfig

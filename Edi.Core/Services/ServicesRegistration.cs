@@ -26,7 +26,7 @@ namespace Edi.Core
             builder.AddSingleton<IDeviceProvider, HandyProvider>();
             //TODO: Arquiere other from external dll
 
-            builder.AddSingleton<IDeviceManager, DeviceManager>();
+            builder.AddSingleton<DeviceManager, DeviceManager>();
             
             #endregion
 

@@ -17,7 +17,7 @@ namespace Edi.Core.Device.Handy
 {
     public class HandyProvider : IDeviceProvider
     {
-        public HandyProvider(IndexRepository repository, ConfigurationManager config, IDeviceManager deviceManager)
+        public HandyProvider(IndexRepository repository, ConfigurationManager config, DeviceManager deviceManager)
         {
             this.Config = config.Get<HandyConfig>(); 
             this.repository = repository;
@@ -32,7 +32,7 @@ namespace Edi.Core.Device.Handy
 
         private HttpClient Client;
         public HandyConfig Config { get; set; }
-        private IDeviceManager deviceManager;
+        private DeviceManager deviceManager;
         private IndexRepository repository { get; set; }
 
         public async Task Init()
@@ -40,21 +40,29 @@ namespace Edi.Core.Device.Handy
             if (string.IsNullOrEmpty(Config.Key))
                 return;
 
+
+    
+            timerReconnect.Stop();
             timerReconnect.Start();
 
             Client = new HttpClient() { BaseAddress = new Uri("https://www.handyfeeling.com/api/handy/v2/") };
             Client.DefaultRequestHeaders.Remove("X-Connection-Key");
             Client.DefaultRequestHeaders.Add("X-Connection-Key", Config.Key);
+            HttpResponseMessage resp = null;
 
-            var resp = await Client.GetAsync("connected");
-            if (resp.StatusCode != System.Net.HttpStatusCode.OK)
+            try
+            {
+                resp = await Client.GetAsync("connected");
+            }
+            catch { }
+
+            if (resp?.StatusCode != System.Net.HttpStatusCode.OK)
             {
                 return;
             }
+
             
-
             var status = JsonConvert.DeserializeObject<ConnectedResponse>(await resp.Content.ReadAsStringAsync());
-
             if (!status.connected)
             {
                 return;
@@ -74,6 +82,10 @@ namespace Edi.Core.Device.Handy
                 return;
             }
 
+            if (handyDevice != null)
+            {
+                deviceManager.UnloadDevice(handyDevice);
+            }
             handyDevice = new HandyDevice(Client, repository);
             handyDevice.Key = Config.Key;
             deviceManager.LoadDevice(handyDevice);

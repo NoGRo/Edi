@@ -1,4 +1,7 @@
 ﻿using Edi.Core;
+using Edi.Core.Device;
+using Edi.Core.Device.Buttplug;
+using Edi.Core.Device.Handy;
 using Edi.Core.Device.Interfaces;
 using System;
 using System.Collections.Generic;
@@ -24,13 +27,25 @@ namespace Edi.Forms
     {
         private readonly IEdi edi =  App.Edi;
         public EdiConfig config;
+        public HandyConfig handyConfig;
+        public ButtplugConfig buttplugConfig;
         public MainWindow()
         {
             config = edi.ConfigurationManager.Get<EdiConfig>();
-            this.DataContext = new { config= config,};
+            handyConfig = edi.ConfigurationManager.Get<HandyConfig>();
+            buttplugConfig = edi.ConfigurationManager.Get<ButtplugConfig>();
+            this.DataContext = new
+            {
+                config = config,
+                handyConfig = handyConfig,
+                buttplugConfig = buttplugConfig,
+                devices = edi.DeviceManager.Devices,
+
+
+            };
             InitializeComponent();
 
-            edi.DeviceManager.OnloadDevice += DeviceManager_OnloadDevice;
+            edi.DeviceManager.OnloadDevice += DeviceManager_OnloadDeviceAsync;
             edi.DeviceManager.OnUnloadDevice += DeviceManager_OnUnloadDevice;
             edi.OnChangeStatus += Edi_OnChangeStatus    ;
             LoadForm();
@@ -46,20 +61,24 @@ namespace Edi.Forms
 
         private void DeviceManager_OnUnloadDevice(Core.Device.Interfaces.IDevice device)
         {
+            Thread.Sleep(500);
             Dispatcher.Invoke(() =>
             {
-                //DevicesGrid.Items.Clear();
-                DevicesGrid.ItemsSource = edi.DeviceManager.Devices;
+                DevicesGrid.ItemsSource = ((dynamic)this.DataContext).devices; ;
+                
+                DevicesGrid.Items.Refresh();
             });
 
         }
 
-        private void DeviceManager_OnloadDevice(Core.Device.Interfaces.IDevice device)
+        private async void DeviceManager_OnloadDeviceAsync(Core.Device.Interfaces.IDevice device)
         {
-            Dispatcher.Invoke(() =>
+            Thread.Sleep(500);
+
+            await Dispatcher.InvokeAsync(async () =>
             {
-                //DevicesGrid.Items.Clear();
-                DevicesGrid.ItemsSource = edi.DeviceManager.Devices;
+                
+                DevicesGrid.Items.Refresh();
             });
         }
 
@@ -70,10 +89,30 @@ namespace Edi.Forms
 
         private void Variants_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
-            var device = (IDevice)e.Source;
-            edi.DeviceManager.SelectVariant(device.Name, device.SelectedVariant);
+            ComboBox comboBox = (sender as ComboBox);
+            
+            var device = comboBox.DataContext as IDevice;
+            edi.DeviceManager.SelectVariant(device.Name, (string)comboBox.SelectedValue);
         }
 
-    
+
+        private async void ReloadButton_Click(object sender, RoutedEventArgs e)
+        {
+            await Dispatcher.Invoke(async () =>
+            {
+                await edi.Init();
+            });
+           
+        }
+
+        private async void ReconnectButton_ClickAsync(object sender, RoutedEventArgs e)
+        {
+            await Dispatcher.Invoke(async () =>
+            {
+                await edi.DeviceManager.Init();
+            });
+        }
+
+   
     }
 }

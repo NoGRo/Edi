@@ -7,7 +7,7 @@ namespace Edi.Core
     public interface IEdi
     {
         public Task Init();
-        public IDeviceManager DeviceManager { get; }
+        public DeviceManager DeviceManager { get; }
         public ConfigurationManager ConfigurationManager { get; }
         public IEnumerable<DefinitionGallery> Definitions { get; }
         public Task Play(string Name, long Seek = 0);

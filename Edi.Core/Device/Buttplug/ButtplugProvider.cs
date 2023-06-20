@@ -20,7 +20,7 @@ namespace Edi.Core.Device.Buttplug
 {
     public class ButtplugProvider : IDeviceProvider
     {
-        public ButtplugProvider(FunscriptRepository repository, ConfigurationManager config, IDeviceManager deviceManager)
+        public ButtplugProvider(FunscriptRepository repository, ConfigurationManager config, DeviceManager deviceManager)
         {
 
             this.Config = config.Get<ButtplugConfig>();
@@ -31,8 +31,8 @@ namespace Edi.Core.Device.Buttplug
 
         public readonly ButtplugConfig Config;
         private Timer timerReconnect = new Timer(20000);
-
-        private IDeviceManager DeviceManager;
+        private List<ButtplugDevice> devices = new List<ButtplugDevice>();
+        private DeviceManager DeviceManager;
         public ButtplugClient client { get; set; }
         private FunscriptRepository repository { get; }
         public async Task Init()
@@ -51,7 +51,7 @@ namespace Edi.Core.Device.Buttplug
         public async Task Connect()
         {
 
-
+            timerReconnect.Enabled = false;
             if (client != null)
             {
                 if (client.Connected)
@@ -82,52 +82,70 @@ namespace Edi.Core.Device.Buttplug
             }
             catch (ButtplugClientConnectorException ex)
             {
-               
+                timerReconnect.Enabled = true;
                 return;
             }
 
         }
         private void AddDeviceOn(ButtplugClientDevice Device)
         {
+            var newdevices = new List<ButtplugDevice>();
+            
             for (uint i = 0; i < Device.LinearAttributes.Count; i++)
             {
-                DeviceManager.LoadDevice(new ButtplugDevice(Device,ActuatorType.Position, i, repository));
+                newdevices.Add(new ButtplugDevice(Device,ActuatorType.Position, i, repository));
             }
 
             for (uint i = 0; i < Device.VibrateAttributes.Count; i++)
             {
-                DeviceManager.LoadDevice(new ButtplugDevice(Device, ActuatorType.Vibrate, i, repository));
+                newdevices.Add(new ButtplugDevice(Device, ActuatorType.Vibrate, i, repository));
             }
             for (uint i = 0; i < Device.RotateAttributes.Count; i++)
             {
-                DeviceManager.LoadDevice(new ButtplugDevice(Device, ActuatorType.Rotate, i, repository));
+                newdevices.Add(new ButtplugDevice(Device, ActuatorType.Rotate, i, repository));
             }
             for (uint i = 0; i < Device.OscillateAttributes.Count; i++)
             {
-                DeviceManager.LoadDevice(new ButtplugDevice(Device, ActuatorType.Oscillate, i, repository));
+                newdevices.Add(new ButtplugDevice(Device, ActuatorType.Oscillate, i, repository));
+            }
+
+            devices.AddRange(newdevices);
+
+            foreach (var device in newdevices) { 
+                DeviceManager.LoadDevice(device);
             }
 
 
         }
         private void RemoveDeviceOn(ButtplugClientDevice Device)
         {
+            var rmdevices =  new List<ButtplugDevice>();
+
             for (uint i = 0; i < Device.LinearAttributes.Count; i++)
             {
-                DeviceManager.UnloadDevice(new ButtplugDevice(Device, ActuatorType.Position, i, repository));
+                rmdevices.Add(devices.FirstOrDefault(x => x.Device == Device && x.Actuator == ActuatorType.Position && x.Channel == i));
             }
 
             for (uint i = 0; i < Device.VibrateAttributes.Count; i++)
             {
-                DeviceManager.UnloadDevice(new ButtplugDevice(Device, ActuatorType.Vibrate, i, repository));
+                rmdevices.Add(devices.FirstOrDefault(x => x.Device == Device && x.Actuator == ActuatorType.Vibrate && x.Channel == i));
+               
             }
             for (uint i = 0; i < Device.RotateAttributes.Count; i++)
             {
-                DeviceManager.UnloadDevice(new ButtplugDevice(Device, ActuatorType.Rotate, i, repository));
+                rmdevices.Add(devices.FirstOrDefault(x => x.Device == Device && x.Actuator == ActuatorType.Rotate && x.Channel == i));
             }
             for (uint i = 0; i < Device.OscillateAttributes.Count; i++)
             {
-                DeviceManager.UnloadDevice(new ButtplugDevice(Device, ActuatorType.Oscillate, i, repository));
+                rmdevices.Add(devices.FirstOrDefault(x => x.Device == Device && x.Actuator == ActuatorType.Oscillate && x.Channel == i));
             }
+
+            foreach (ButtplugDevice devicerm in rmdevices.Where(x=> x is not null))
+            {
+                devices.Remove(devicerm);
+                DeviceManager.UnloadDevice(devicerm);
+            }
+            
         }
 
         private void Client_ServerDisconnect(object sender, EventArgs e)
@@ -141,6 +159,10 @@ namespace Edi.Core.Device.Buttplug
         }
         private void Client_ErrorReceived(object sender, ButtplugExceptionEventArgs e)
         {
+            foreach (var device in (sender as ButtplugClient).Devices)
+            {
+                RemoveDeviceOn(device);
+            }
             OnStatusChange("Error");
         }
         private void Client_ScanningFinished(object sender, EventArgs e)

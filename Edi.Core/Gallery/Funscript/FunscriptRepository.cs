@@ -40,7 +40,7 @@ namespace Edi.Core.Gallery.CmdLineal
             Variants.AddRange(variants);
 
             var FunscriptCache = GetGalleryFunscripts();
-
+            Galleries.Clear();
             foreach (var variantPath in variants)
             {
                 var variant = new DirectoryInfo(variantPath).Name;

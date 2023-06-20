@@ -14,7 +14,5 @@ namespace Edi.Core
         public bool Gallery { get; set; } = true;
         public bool Reactive { get; set; } = true;
 
-        Dictionary<string, string> DeviceVariant { get; set; }
-
     }
 }

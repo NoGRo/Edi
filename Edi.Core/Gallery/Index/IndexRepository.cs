@@ -39,6 +39,7 @@ namespace Edi.Core.Gallery.Index
 
         private void LoadGallery()
         {
+            Galleries.Clear();
             foreach (var variant in GetVariants())
             {
 
@@ -59,7 +60,6 @@ namespace Edi.Core.Gallery.Index
                 foreach (var gallery in finalGallery.Values)
                 {
                     Galleries[variant].Add(gallery.Name, Bundler.Add(gallery));
-                   
                 }
                 Bundler.GenerateBundle(variant);
             }

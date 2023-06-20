@@ -5,40 +5,36 @@
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:local="clr-namespace:Edi.Forms"
         mc:Ignorable="d"
-        Title="Edi Launcher" Height="399" Width="883">
-    <Grid Height="358" VerticalAlignment="Top" Margin="0,0,10,0">
+        Title="Edi Launcher" Height="321" Width="665" ResizeMode="NoResize">
+    <Grid Height="311" VerticalAlignment="Top">
         <Grid.ColumnDefinitions>
-            <ColumnDefinition/>
+            <ColumnDefinition Width="16*"/>
+            <ColumnDefinition Width="19*"/>
         </Grid.ColumnDefinitions>
-        <TabControl  HorizontalAlignment="Center"  VerticalAlignment="Center" Width="852" Height="342">
-            <TabItem Header="Main" Margin="-2,-2,-2,2">
-                <Grid HorizontalAlignment="Left" VerticalAlignment="Top" Width="839" Height="307">
 
-                    <DataGrid x:Name="DevicesGrid" AutoGenerateColumns="False" Margin="0,0,10,168" HorizontalAlignment="Right" Width="454" Height="129" VerticalAlignment="Bottom">
-                        <DataGrid.Columns>
+        <DataGrid x:Name="DevicesGrid" ItemsSource="{Binding devices, Mode=OneWay}"  AutoGenerateColumns="False" Margin="5,78,0,72" HorizontalAlignment="Left" Width="337" Grid.Column="1">
+            <DataGrid.Columns>
 
-                            <DataGridTextColumn Header="Name" Binding="{Binding Name}" />
-                            <DataGridTemplateColumn Header="Selected Variant">
-                                <DataGridTemplateColumn.CellTemplate>
-                                    <DataTemplate>
-                                        <ComboBox x:Name="Variants" ItemsSource="{Binding Variants}" SelectionChanged="Variants_SelectionChanged"  SelectedItem="{Binding SelectedVariant, Mode=TwoWay}" />
-                                    </DataTemplate>
-                                </DataGridTemplateColumn.CellTemplate>
-                            </DataGridTemplateColumn>
-                        </DataGrid.Columns>
-                    </DataGrid>
+                <DataGridTextColumn Header="Name" Binding="{Binding Name}" />
+                <DataGridTemplateColumn Header="Selected Variant">
+                    <DataGridTemplateColumn.CellTemplate>
+                        <DataTemplate>
+                            <ComboBox x:Name="Variants" ItemsSource="{Binding Variants}" SelectionChanged="Variants_SelectionChanged"  SelectedItem="{Binding SelectedVariant, Mode=TwoWay}" />
+                        </DataTemplate>
+                    </DataGridTemplateColumn.CellTemplate>
+                </DataGridTemplateColumn>
+            </DataGrid.Columns>
+        </DataGrid>
 
-                    <CheckBox Content="Filler" HorizontalAlignment="Left" Margin="10,10,0,0" VerticalAlignment="Top" RenderTransformOrigin="-0.063,-0.829" x:Name="chkFiller" IsChecked="{Binding config.Filler, Mode=TwoWay}" />
-                    <CheckBox Content="Gallery" HorizontalAlignment="Left" Margin="10,30,0,0" VerticalAlignment="Top" RenderTransformOrigin="-0.063,-0.829" x:Name="chkGallery" IsChecked="{Binding config.Gallery, Mode=TwoWay}"/>
-                    <CheckBox Content="Reaction" HorizontalAlignment="Left" Margin="10,50,0,0" VerticalAlignment="Top" RenderTransformOrigin="-0.063,-0.829" x:Name="chkReaction" IsChecked="{Binding config.Reactive, Mode=TwoWay}" />
-                    <Label Content="Status: Server on http://localhost:5000/Edi/" HorizontalAlignment="Left" Margin="10,152,0,0" VerticalAlignment="Top" x:Name="lblStatus"/>
-
-                </Grid>
-            </TabItem>
-            <TabItem Header="Devices Config">
-            </TabItem>
-
-        </TabControl>
-
+        <CheckBox Content="Filler" HorizontalAlignment="Left" Margin="5,11,0,0" VerticalAlignment="Top" RenderTransformOrigin="-0.063,-0.829" x:Name="chkFiller" IsChecked="{Binding config.Filler, Mode=TwoWay}" Grid.Column="1" />
+        <CheckBox Content="Gallery" HorizontalAlignment="Left" Margin="5,31,0,0" VerticalAlignment="Top" RenderTransformOrigin="-0.063,-0.829" x:Name="chkGallery" IsChecked="{Binding config.Gallery, Mode=TwoWay}" Grid.Column="1"/>
+        <CheckBox Content="Reaction" HorizontalAlignment="Left" Margin="5,51,0,0" VerticalAlignment="Top" RenderTransformOrigin="-0.063,-0.829" x:Name="chkReaction" IsChecked="{Binding config.Reactive, Mode=TwoWay}" Grid.Column="1" />
+        <Label Content="Status: Server on http://localhost:5000/Edi/" HorizontalAlignment="Left" Margin="10,244,0,0" x:Name="lblStatus" Width="598" Height="26" VerticalAlignment="Top" Grid.ColumnSpan="2"/>
+        <TextBox HorizontalAlignment="Left" Margin="84,19,0,0" TextWrapping="Wrap" ToolTip="Handy Key" Text="{Binding handyConfig.Key}" VerticalAlignment="Top" Width="76"/>
+        <Label Content="Handy Key:" HorizontalAlignment="Left" Margin="10,15,0,0" VerticalAlignment="Top"/>
+        <TextBox HorizontalAlignment="Left" Margin="84,45,0,0" TextWrapping="Wrap" Text="{Binding buttplugConfig.Url}" ToolTip="Buttplug Url" VerticalAlignment="Top" Width="127"/>
+        <Label Content="Intiface Url:" HorizontalAlignment="Left" Margin="10,41,0,0" VerticalAlignment="Top"/>
+        <Button Content="Reconnect" HorizontalAlignment="Left" Margin="222,98,0,0" VerticalAlignment="Top" x:Name="ReconnectButton" Click="ReconnectButton_ClickAsync" Height="22" Width="72"/>
+        <Button Content="Reload Galleries" HorizontalAlignment="Left" Margin="10,98,0,0" VerticalAlignment="Top" x:Name="ReloadButton"  Height="22" Width="103" Click="ReloadButton_Click"/>
     </Grid>
 </Window>

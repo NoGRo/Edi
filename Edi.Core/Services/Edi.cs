@@ -12,7 +12,7 @@ namespace Edi.Core
     public class Edi : IEdi
     {
         public  ConfigurationManager ConfigurationManager { get; set; }
-        public IDeviceManager DeviceManager { get; private set; }
+        public DeviceManager DeviceManager { get; private set; }
         private readonly DefinitionRepository _repository;
         private readonly IEnumerable<IRepository> repos;
         public static string OutputDir => Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData) + "/Edi";
@@ -21,7 +21,7 @@ namespace Edi.Core
 
 
         public IEnumerable<IDevice> Devices => DeviceManager.Devices;
-        public Edi(IDeviceManager deviceManager, DefinitionRepository repository, IEnumerable<IRepository> repos, ConfigurationManager configuration)
+        public Edi(DeviceManager deviceManager, DefinitionRepository repository, IEnumerable<IRepository> repos, ConfigurationManager configuration)
         {
             if (!Directory.Exists(OutputDir))  
                 Directory.CreateDirectory(OutputDir);
@@ -145,15 +145,7 @@ namespace Edi.Core
             {
                 await Pause();
             }
-
-
-
-
-
-
         }
-
-
         public async Task Stop()
         {
             if (ReactSendGallery != null)
@@ -172,7 +164,7 @@ namespace Edi.Core
         {
             CurrentFiller = gallery.Name;
             if ((LastGallery == null && ReactSendGallery == null)
-                || (LastGallery?.Type == "filler" && LastGallery.Name != CurrentFiller))
+                || (LastGallery?.Type == "filler"))
                 await SendFiller(CurrentFiller);
         }
         private async Task SendFiller(string name, long seek = 0)
@@ -246,9 +238,6 @@ namespace Edi.Core
             TimerGalleryStop.Stop();
             await Stop();
         }
-    
-
-
 
     }
 }

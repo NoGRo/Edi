@@ -41,6 +41,8 @@ namespace Edi.Core.Gallery.Definition
             }
             int linesCount = 0;
 
+            dicDefinitions.Clear();
+
             foreach (var definitionDto in definitionsDtos)
             {
                 linesCount++;

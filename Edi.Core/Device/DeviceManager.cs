@@ -11,17 +11,20 @@ using Microsoft.Extensions.DependencyInjection;
 using NAudio.CoreAudioApi;
 using PropertyChanged;
 
-namespace Edi.Core.Device
+namespace Edi.Core
 {
-    
-    public class DeviceManager : IDeviceManager
+
+    [AddINotifyPropertyChangedInterface]
+    public class DeviceManager
     {
         public List<IDevice> Devices { get; private set; } =  new List<IDevice>();    
         private  ParallelQuery<IDevice> DevicesParallel => Devices.Where(x => x != null && x.IsReady).AsParallel();
         private string? lastGallerySend;
 
-        public event IDeviceManager.OnUnloadDeviceHandler OnUnloadDevice;
-        public event IDeviceManager.OnloadDeviceHandler OnloadDevice;
+        public delegate void OnUnloadDeviceHandler(IDevice device);
+        public delegate void OnloadDeviceHandler(IDevice device);
+        public event OnUnloadDeviceHandler OnUnloadDevice;
+        public event OnloadDeviceHandler OnloadDevice;
 
         [ActivatorUtilitiesConstructor]
         public DeviceManager(IServiceProvider serviceProvider)
@@ -32,9 +35,12 @@ namespace Edi.Core.Device
         public DeviceManager(ConfigurationManager configuration ) 
         {
             Config = configuration.Get<DevicesConfig>();
+            this.configuration = configuration;
         }
 
         private DevicesConfig Config;
+        private readonly ConfigurationManager configuration;
+
         public List<IDeviceProvider> Providers { get; set; } =  new List<IDeviceProvider>();
 
         private IServiceProvider ServiceProvider { get; }
@@ -53,14 +59,18 @@ namespace Edi.Core.Device
         public void SelectVariant(string deviceName, string variant)
         {
             var device = Devices.FirstOrDefault(x  => x.Name == deviceName);
-
+            if (device is null)
+                return;
             if (Config.DeviceVariant.ContainsKey(deviceName))
             {
                 device.SelectedVariant = variant;
-                Config.DeviceVariant[deviceName] = variant; ;
+                Config.DeviceVariant[deviceName] = variant; 
             }
             else
                 Config.DeviceVariant.Add(deviceName, variant);
+            configuration.Save(Config);
+
+
         }
         
         public async void LoadDevice(IDevice device)
@@ -73,6 +83,7 @@ namespace Edi.Core.Device
                 device.SelectedVariant = Config.DeviceVariant[device.Name]; 
             else
                 Config.DeviceVariant.Add(device.Name, device.SelectedVariant);
+            configuration.Save(Config);
 
             if (OnloadDevice != null)
                 OnloadDevice(device);

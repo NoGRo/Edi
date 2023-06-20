@@ -18,6 +18,10 @@
 	<PackageReference Include="Swashbuckle.AspNetCore.Annotations" Version="6.4.0" />
     <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="7.0.0" />
   </ItemGroup>
+
+  <ItemGroup>
+    <Page Include="App.xaml" />
+  </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\Edi.Core\Edi.Core.csproj" />
   </ItemGroup>

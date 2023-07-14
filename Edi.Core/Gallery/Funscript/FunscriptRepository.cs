@@ -49,6 +49,9 @@ namespace Edi.Core.Gallery.CmdLineal
                     var filePath = $"{Config.GalleryPath}\\{variant}\\{DefinitionGallery.FileName}.funscript";
 
                     if (!FunscriptCache.ContainsKey(filePath))
+                        filePath = $"{Config.GalleryPath}\\{variant}\\{DefinitionGallery.FileName}.{variant}.funscript";
+
+                    if (!FunscriptCache.ContainsKey(filePath))
                         continue;
 
                     var funscript = FunscriptCache[filePath];
@@ -80,9 +83,15 @@ namespace Edi.Core.Gallery.CmdLineal
                 foreach (var DefinitionGallery in Definition.GetAll())
                 {
                     var filePath = $"{Config.GalleryPath}\\{variant}\\{DefinitionGallery.FileName}.funscript";
+
+                    if(!File.Exists(filePath))
+                        filePath = $"{Config.GalleryPath}\\{variant}\\{DefinitionGallery.FileName}.{variant}.funscript";
+
                     FunScriptFile funscript;
                     if (!FunscriptCache.ContainsKey(filePath))
                     {
+                        if (!File.Exists(filePath))
+                            continue;
                         try
                         {
                             funscript = JsonSerializer.Deserialize<FunScriptFile>(File.ReadAllText(filePath));

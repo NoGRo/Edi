@@ -22,6 +22,7 @@ namespace Edi.Core.Device.Handy
             this.Config = config.Get<HandyConfig>(); 
             this.repository = repository;
             this.deviceManager = deviceManager;
+
             timerReconnect.Elapsed += TimerReconnect_Elapsed;
         }
         private HandyDevice handyDevice;
@@ -30,8 +31,10 @@ namespace Edi.Core.Device.Handy
         private Timer timerReconnect = new Timer(20000);
         private bool Connected = false;
 
-        private HttpClient Client;
+        
         public HandyConfig Config { get; set; }
+        private List<String> Keys = new List<string>();
+        private Dictionary<string, HandyDevice> devices = new Dictionary<string, HandyDevice>();
         private DeviceManager deviceManager;
         private IndexRepository repository { get; set; }
 
@@ -40,14 +43,30 @@ namespace Edi.Core.Device.Handy
             if (string.IsNullOrEmpty(Config.Key))
                 return;
 
-
-    
+            
+            Keys = Config.Key.Split(',')
+                                .Where(x=> !string.IsNullOrWhiteSpace(x))
+                                .Select(x => x.Trim())  
+                                .ToList();
             timerReconnect.Stop();
-            timerReconnect.Start();
+            var tasks = new List<Task>();
 
-            Client = new HttpClient() { BaseAddress = new Uri("https://www.handyfeeling.com/api/handy/v2/") };
+            Keys.AsParallel().ForAll(async key =>
+            {
+                
+                await Connect(key);
+            });
+            
+            timerReconnect.Start();
+        }
+        private async Task Connect(string Key)
+        {
+            if (devices.ContainsKey(Key))
+                return;
+
+            var Client = new HttpClient() { BaseAddress = new Uri("https://www.handyfeeling.com/api/handy/v2/") };
             Client.DefaultRequestHeaders.Remove("X-Connection-Key");
-            Client.DefaultRequestHeaders.Add("X-Connection-Key", Config.Key);
+            Client.DefaultRequestHeaders.Add("X-Connection-Key", Key);
             HttpResponseMessage resp = null;
 
             try
@@ -61,17 +80,12 @@ namespace Edi.Core.Device.Handy
                 return;
             }
 
-            
+
             var status = JsonConvert.DeserializeObject<ConnectedResponse>(await resp.Content.ReadAsStringAsync());
             if (!status.connected)
             {
                 return;
             }
-
-
-            Connected = true;
-
-
 
             resp = await Client.PutAsync("mode", new StringContent(JsonConvert.SerializeObject(new ModeRequest(1)), Encoding.UTF8, "application/json"));
 
@@ -81,60 +95,37 @@ namespace Edi.Core.Device.Handy
                 //OnStatusChange("Server fail Response");
                 return;
             }
-
-            if (handyDevice != null)
-            {
-                deviceManager.UnloadDevice(handyDevice);
-            }
-            handyDevice = new HandyDevice(Client, repository);
+            var handyDevice = new HandyDevice(Client, repository);
             handyDevice.Key = Config.Key;
+
+
+
+            devices.Add(Key, handyDevice);
             deviceManager.LoadDevice(handyDevice);
-
-
             await handyDevice.updateServerTime();
-            
+
         }
         private async void TimerReconnect_Elapsed(object? sender, ElapsedEventArgs e)
         {
-            if (!Connected)
-            {
-                await Init();
-                return;
-            }
-            
-            var resp = await Client.GetAsync("connected");
-            if (resp.StatusCode != System.Net.HttpStatusCode.OK)
-            {
-                Connected = false;
-                deviceManager.UnloadDevice(handyDevice);
-                handyDevice = null;
-                await Init();
-            }
-            
-        }
-        public async Task UploadHandy(string scriptUrl)
-        {
-            var resp = await Client.PutAsync("hssp/setup", new StringContent(JsonConvert.SerializeObject(new SyncUpload(scriptUrl)), Encoding.UTF8, "application/json"));
-        }
-        private async Task<string> uploadBlob(FileInfo file)
-        {
+            var Client = new HttpClient() { BaseAddress = new Uri("https://www.handyfeeling.com/api/handy/v2/") };
 
-            using (var blobClient = new HttpClient())
+            foreach (var Key in Keys)
             {
-                var request = new HttpRequestMessage(HttpMethod.Post, "https://www.handyfeeling.com/api/sync/upload");
-
-                var content = new MultipartFormDataContent
+                Client.DefaultRequestHeaders.Remove("X-Connection-Key");
+                Client.DefaultRequestHeaders.Add("X-Connection-Key", Key);
+                var resp = await Client.GetAsync("connected");
+                if (resp.StatusCode != System.Net.HttpStatusCode.OK)
                 {
-                    { new StreamContent(file.OpenRead()), "syncFile", "Edi.csv" }
-                };
-
-                request.Content = content;
-
-                var resp = await blobClient.SendAsync(request);
-
-                return JsonConvert.DeserializeObject<SyncUpload>(await resp.Content.ReadAsStringAsync()).url;
+                    if (devices.ContainsKey(Key))
+                    {
+                        deviceManager.UnloadDevice(devices[Key]);
+                        devices.Remove(Key);
+                    }
+                    await Connect(Key);
+                }
             }
-        }
 
+        }
+       
     }
 }

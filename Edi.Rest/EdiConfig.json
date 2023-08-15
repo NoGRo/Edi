@@ -12,7 +12,7 @@
     "Url": "ws://localhost:12345"
   },
   "Handy": {
-    "Key": "ppJdVv3V"
+    "Key": "S23fddF, ssdJa3V"
   },
   "Edi": {
     "Filler": true,
@@ -25,7 +25,13 @@
       "Lovense Hush (1)": "detail",
       "The Handy [ppJdVv3V]": "detail",
       "Lovense Dolce Vibrate: 1": "vibrator",
-      "Lovense Dolce Vibrate: 2": "simple"
+      "Lovense Dolce Vibrate: 2": "simple",
+      "The Handy [ ppJdVv3V]": "detail",
+      "EStim": "EStim",
+      "EStim (1)": "detail"
     }
+  },
+  "EStim": {
+    "DeviceId": -1
   }
 }

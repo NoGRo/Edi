@@ -42,9 +42,6 @@ namespace Edi.Core.Gallery.EStimAudio
 
 
             var variants = Directory.GetDirectories($"{GalleryPath}");
-            Variants.AddRange(variants);
-
-
             var definitions = Definitions.GetAll();
 
             foreach (var variant in variants)
@@ -58,9 +55,9 @@ namespace Edi.Core.Gallery.EStimAudio
                 {
                     // Abrir el archivo de audio original
                     
-                    var filePath = $"{Config.GalleryPath}\\{variant}\\{definition.FileName}.Mp3";
+                    var filePath = $"{variant}\\{definition.FileName}.Mp3";
                     // Crear un nuevo archivo de audio para almacenar el fragmento
-                    
+                    var variantName = new DirectoryInfo(variant).Name;
 
                     var file = new FileInfo(filePath);
 
@@ -83,7 +80,7 @@ namespace Edi.Core.Gallery.EStimAudio
                     AudioGallery gallery = new AudioGallery
                     {
                         Name = definition.Name,
-                        Variant = variant,
+                        Variant = variantName,
                         AudioPath = filePath,
                         Loop = definition.Loop,
                         Duration = definition.Duration,
@@ -95,8 +92,11 @@ namespace Edi.Core.Gallery.EStimAudio
                         Galleries.Add(definition.Name, new List<AudioGallery>());
 
                     Galleries[definition.Name].Add(gallery);
+
                 }
+                
             }
+            Variants = Galleries.Values.SelectMany(x=> x.Select(y => y.Variant)).Distinct().ToList();
         }
         public List<string> GetVariants()
             => Variants;

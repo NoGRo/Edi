@@ -10,6 +10,7 @@ using System.Timers;
 using Timer = System.Timers.Timer;
 using System.Threading;
 using Edi.Core.Device.Interfaces;
+using System.Xml.Linq;
 
 namespace Edi.Core.Device.EStim
 {
@@ -19,15 +20,13 @@ namespace Edi.Core.Device.EStim
         private readonly AudioRepository _repository;
         private readonly IWavePlayer _wavePlayer;
         private AudioGallery _currentGallery;
-        public string Name { get; set; } = "Estim";
+        public string Name { get; set; }
         private Mp3FileReader _curentAudioFile { get; set; }
         private string selectedVariant;
         public string SelectedVariant { get => selectedVariant ?? _repository.Config.DefaulVariant; set => selectedVariant = value; }
         public IEnumerable<string> Variants => _repository.GetVariants();
 
-        public bool IsReady => throw new NotImplementedException();
-
-        
+        public bool IsReady => true;
 
         private Timer _timerGalleryEnds;
         private bool _isPlaying;
@@ -40,6 +39,8 @@ namespace Edi.Core.Device.EStim
             _timerGalleryEnds = new Timer();
             _timerGalleryEnds.Elapsed += OnTimerElapsed;
             _wavePlayer.PlaybackStopped += OnPlaybackStoppedAsync;
+
+            Name = "EStim";
 
             _inMemoryMp3 = _repository.GetAll().Select(x=> x.AudioPath).Distinct().ToDictionary(x=> x, y => new Mp3FileReader(y));
         }
@@ -58,17 +59,21 @@ namespace Edi.Core.Device.EStim
 
 
             _curentAudioFile.CurrentTime = TimeSpan.FromMilliseconds(gallery.StartTime + seek);
-            _timerGalleryEnds.Interval = gallery.Duration;
+            _timerGalleryEnds.Interval = gallery.Duration - seek;
             _timerGalleryEnds.Start();
-
+            _wavePlayer.Stop();
             _wavePlayer.Init(_curentAudioFile);
             _wavePlayer.Play();
         }
 
 
-        private void OnTimerElapsed(object sender, ElapsedEventArgs e)
+        private async void OnTimerElapsed(object sender, ElapsedEventArgs e)
         {
-            _wavePlayer.Stop();
+            if (_currentGallery.Loop)
+                await PlayGallery(_currentGallery.Name);
+            else
+                _wavePlayer.Stop();
+            
         }
 
         public async Task Pause()

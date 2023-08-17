@@ -37,6 +37,7 @@ namespace Edi.Core.Gallery.CmdLineal
                 return;
 
             var variants = Directory.GetDirectories($"{GalleryPath}");
+            Variants.Clear();
             Variants.AddRange(variants);
 
             var FunscriptCache = GetGalleryFunscripts();

@@ -216,10 +216,5 @@ namespace Edi.Core.Device.Buttplug
             vibCommandTimer.Stop();
             await Device.Stop();
         }
-        public async Task Resume()
-        {
-            await Seek(ResumeAt);
-            await PlayNext();
-        }
     }
 }

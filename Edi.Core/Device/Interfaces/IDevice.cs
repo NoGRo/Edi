@@ -14,6 +14,5 @@ namespace Edi.Core.Device.Interfaces
         string Name { get; set; }
         public Task PlayGallery(string name, long seek = 0);
         public Task Pause();
-        public Task Resume();
     }
 }

@@ -122,6 +122,7 @@ namespace Edi.Core.Gallery.CmdLineal
                 Name = DefinitionGallery.Name,
                 Variant = variant,
                 Loop = DefinitionGallery.Loop,
+                //Duration = DefinitionGallery.Duration,
 
             };
             sb.TrimTimeTo(DefinitionGallery.Duration);

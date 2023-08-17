@@ -119,11 +119,6 @@ namespace Edi.Core
             DevicesParallel.ForAll(async x => await x.Pause());
         }
 
-        public async Task Resume()
-        {
-            DevicesParallel.ForAll(async x => await x.Resume());
-        }
-
         public async Task PlayGallery(string name, long seek = 0)
         {
             lastGallerySend = name;

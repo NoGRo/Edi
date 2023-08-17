@@ -28,7 +28,6 @@ namespace Edi.Core.Device.Handy
         public string Key { get; set; }
 
         public string Name { get; set; }
-        private long CurrentTime { get; set; }
         
         private static long timeSyncAvrageOffset;
         private static long timeSyncInitialOffset;
@@ -130,9 +129,6 @@ namespace Edi.Core.Device.Handy
 
         private long ServerTime => DateTimeOffset.UtcNow.ToUnixTimeMilliseconds() + timeSyncInitialOffset + timeSyncAvrageOffset;
 
-        private long ResumeAt { get; set; }
-
-
         public async Task updateServerTime()
         {
             var totalCalls = 30;
@@ -178,6 +174,7 @@ namespace Edi.Core.Device.Handy
 
             timerGalleryEnd.Interval = gallery.Duration - seek;
             timerGalleryEnd.Start();
+
             await Seek(gallery.StartTime + seek);
         }
         private async void TimerGalleryEnd_Elapsed(object? sender, ElapsedEventArgs e)
@@ -193,13 +190,7 @@ namespace Edi.Core.Device.Handy
         public async Task Pause()
         {
             timerGalleryEnd.Stop();
-            ResumeAt = CurrentTime;
             await Client.PutAsync("hssp/stop",null);
-        }
-
-        public async Task Resume()
-        {
-            await Seek(ResumeAt);
         }
 
         public bool Equals(HandyDevice? x, HandyDevice? y)

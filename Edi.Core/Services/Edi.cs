@@ -6,6 +6,7 @@ using Edi.Core.Device.Interfaces;
 using Timer = System.Timers.Timer;
 using Edi.Core.Gallery.Definition;
 using NAudio.Wave.SampleProviders;
+using CsvHelper;
 
 namespace Edi.Core
 {
@@ -15,6 +16,8 @@ namespace Edi.Core
         public DeviceManager DeviceManager { get; private set; }
         private readonly DefinitionRepository _repository;
         private readonly IEnumerable<IRepository> repos;
+        private long resumePauseAt;
+
         public static string OutputDir => Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData) + "/Edi";
 
         public event IEdi.ChangeStatusHandler OnChangeStatus;
@@ -116,6 +119,7 @@ namespace Edi.Core
                 TimerReactStop.Start();
             }
             changeStatus($"Device Reaction [{gallery.Name}], loop:{gallery.Loop}");
+
             await DeviceManager.PlayGallery(gallery.Name);
         }
         private async void TimerReactStop_ElapsedAsync(object? sender, ElapsedEventArgs e)
@@ -133,7 +137,7 @@ namespace Edi.Core
 
             if (LastGallery != null)
             {
-                var seekBack = Convert.ToInt64((DateTime.Now - GallerySendTime.Value).TotalMilliseconds);
+                var seekBack = Convert.ToInt64((DateTime.Now - GallerySendTime.Value).TotalMilliseconds + resumePauseAt);
                 await SendGallery(LastGallery, seekBack);
 
             }
@@ -163,9 +167,7 @@ namespace Edi.Core
         private async Task SetFiller(DefinitionGallery gallery)
         {
             CurrentFiller = gallery.Name;
-            if ((LastGallery == null && ReactSendGallery == null)
-                || (LastGallery?.Type == "filler"))
-                await SendFiller(CurrentFiller);
+            await SendFiller(CurrentFiller);
         }
         private async Task SendFiller(string name, long seek = 0)
         {
@@ -184,13 +186,27 @@ namespace Edi.Core
         public async Task Pause()
         {
             changeStatus("Device Pause");
+
             await DeviceManager.Pause();
+
+            if (GallerySendTime is null || LastGallery is null)
+            {
+                resumePauseAt = -1;
+                return;
+            }
+            
+            resumePauseAt += Convert.ToInt64((DateTime.Now - GallerySendTime.Value).TotalMilliseconds);
+
+            if (resumePauseAt >= LastGallery.Duration && !LastGallery.Loop)
+                resumePauseAt = -1;
+
         }
 
         public async Task Resume()
         {
             changeStatus("Device Resume");
-            await DeviceManager.Resume();
+            if(resumePauseAt >= 0)
+                await SendGallery(LastGallery, resumePauseAt);
         }
         private async Task SendGallery(string name, long seek = 0)
         {
@@ -200,7 +216,6 @@ namespace Edi.Core
         }
         private async Task SendGallery(DefinitionGallery gallery, long seek = 0)
         {
-
             if (gallery == null || gallery.Duration <= 0)
                 return;
 
@@ -212,7 +227,7 @@ namespace Edi.Core
             if (seek != 0 && seek > gallery.Duration)
             {
                 if (gallery.Loop)
-                    seek = Convert.ToInt16(seek % gallery.Duration);
+                    seek = Convert.ToInt64(seek % gallery.Duration);
                 else
                 {
                     //seek out of range StopGallery
@@ -223,6 +238,7 @@ namespace Edi.Core
 
             GallerySendTime = DateTime.Now;
             LastGallery = gallery;
+            resumePauseAt = seek;
             // If the gallery does not repeat, then start a timer to stop the gallery after its duration.
             if (!gallery.Loop)
             {

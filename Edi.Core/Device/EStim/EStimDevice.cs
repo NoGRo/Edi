@@ -78,13 +78,6 @@ namespace Edi.Core.Device.EStim
             _timerGalleryEnds.Stop();
         }
 
-        public async Task Resume()
-        {
-            // Reanudar la reproducción del archivo de audio
-            _wavePlayer.Play();
-            _timerGalleryEnds.Start();
-        }
-
         private async void OnPlaybackStoppedAsync(object sender, StoppedEventArgs e)
         {
             _timerGalleryEnds.Stop();

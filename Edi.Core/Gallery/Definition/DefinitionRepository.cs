@@ -4,6 +4,7 @@ using System.Globalization;
 using CsvHelper;
 using System.Reflection.Metadata.Ecma335;
 using Edi.Core.Device.Handy;
+using Edi.Core.Funscript;
 
 namespace Edi.Core.Gallery.Definition
 {
@@ -29,8 +30,13 @@ namespace Edi.Core.Gallery.Definition
                 return;
 
             var csvFile = new FileInfo($"{GalleryPath}Definitions.csv");
+
+            if (!csvFile.Exists)
+                GenerateDefinitions(GalleryPath);
+
             if (!csvFile.Exists)
                 return;
+
 
             List<DefinitionDto> definitionsDtos;
 
@@ -72,7 +78,36 @@ namespace Edi.Core.Gallery.Definition
             }
         }
         
+        private void GenerateDefinitions(string GalleryPath)
 
+        { 
+            var dir = new DirectoryInfo(GalleryPath);
+            var funscriptsFiles = dir.EnumerateFiles("*.funscript");
+
+            funscriptsFiles.Concat(dir.EnumerateDirectories().SelectMany(d => d.EnumerateFiles("*.funscript")));
+
+            if (!funscriptsFiles.Any())
+                return;
+
+            funscriptsFiles = funscriptsFiles.DistinctBy(x => x.Name);
+
+            var newDefinitionFile = funscriptsFiles.Select(file =>
+                new DefinitionDto
+                {
+                    Name = Path.GetFileNameWithoutExtension(file.FullName),
+                    FileName = Path.GetFileNameWithoutExtension(file.FullName),
+                    Type = "gallery",
+                    Loop = "true",
+                    StartTime = "0",
+                    EndTime = (FunScriptFile.Load(file.FullName)?.actions.Max(x => x.at) ?? 0).ToString(),
+                }
+            );
+
+            using (var csv = new CsvWriter(new FileInfo($"{GalleryPath}definitions.csv").CreateText(), CultureInfo.InvariantCulture))
+            {
+                csv.WriteRecords(newDefinitionFile);
+            }
+        }
         private bool parseTimeField(string field, out long millis)
         {
             millis = 0;

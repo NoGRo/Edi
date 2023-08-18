@@ -13,11 +13,7 @@ namespace Edi.Core.Gallery.Definition
         public DefinitionRepository(ConfigurationManager configuration)
         {
             Config = configuration.Get<GalleryConfig>(); 
-
-
         }
-
-
         private List<string> Variants { get; set; } = new List<string>();
         private GalleryConfig Config { get; set; }
         private Dictionary<string, DefinitionGallery> dicDefinitions { get; set; } = new Dictionary<string, DefinitionGallery>(StringComparer.OrdinalIgnoreCase);
@@ -37,7 +33,6 @@ namespace Edi.Core.Gallery.Definition
             if (!csvFile.Exists)
                 return;
 
-
             List<DefinitionDto> definitionsDtos;
 
             using (var reader = csvFile.OpenText())
@@ -55,9 +50,9 @@ namespace Edi.Core.Gallery.Definition
                 var def = new DefinitionGallery
                 {
                     Name = definitionDto.Name,
-                    FileName = definitionDto.FileName,
-                    Type = definitionDto.Type,
-                    Loop = definitionDto.Loop.ToLower() == "true",
+                    FileName = definitionDto.FileName.Trim(),
+                    Type = definitionDto.Type.ToLower().Trim(),
+                    Loop = definitionDto.Loop.ToLower().Trim() == "true",
                 };
 
                 long time;
@@ -79,7 +74,6 @@ namespace Edi.Core.Gallery.Definition
         }
         
         private void GenerateDefinitions(string GalleryPath)
-
         { 
             var dir = new DirectoryInfo(GalleryPath);
             var funscriptsFiles = dir.EnumerateFiles("*.funscript");

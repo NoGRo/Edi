@@ -37,5 +37,6 @@
         <Button Content="Reload Galleries" HorizontalAlignment="Left" Margin="10,98,0,0" VerticalAlignment="Top" x:Name="ReloadButton"  Height="22" Width="103" Click="ReloadButton_Click"/>
         <Label Grid.Column="1"  Foreground="Blue" Content="http://localhost:5000/swagger/index.html" HorizontalAlignment="Left" MouseDoubleClick="Label_MouseDoubleClick" Margin="5,234,0,0" VerticalAlignment="Top" Width="337"/>
         <Label Content="Status:" HorizontalAlignment="Left" Margin="5,252,0,0" x:Name="lblStatus" Width="650" Height="26" VerticalAlignment="Top" Grid.ColumnSpan="2" />
+        <Button Content="RePackButton" HorizontalAlignment="Left" Margin="10,125,0,0" VerticalAlignment="Top" x:Name="RePackButton"  Height="22" Width="103" Click="RePackButton_Click"/>
     </Grid>
 </Window>

@@ -37,14 +37,18 @@ namespace Edi.Core.Funscript
         public string version { get; set; }
         public bool inverted { get; set; }
         public int range { get; set; }
+        [JsonIgnore]
         public string path { get; set; }
 
 
+        [JsonIgnore]
         private Regex regex = new Regex(@"^(?<name>.*?)(\.(?<variante>[^.]+))?$");
 
+        [JsonIgnore]
         public string name => regex.Match(Path.GetFileNameWithoutExtension(name)).Groups["name"].Value;
 
         private string _variant;
+        [JsonIgnore]
         public string variant
         {
             get => _variant ??  regex.Match(Path.GetFileNameWithoutExtension(name)).Groups["variant"].Value;

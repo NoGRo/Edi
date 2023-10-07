@@ -12,23 +12,23 @@ namespace Edi.Core.Gallery.Definition
     public class DefinitionDto 
     {
         [Required]
-        [Index(0)]
+        //[Index(0)]
         public string Name { get; set; }
 
         [Required]
-        [Index(1)]
+        //[Index(1)]
         public string FileName { get; set; }
-        [Index(2)]
+        //[Index(2)]
         public string StartTime { get; set; }
         [Required]
-        [Index(3)]
+        //[Index(3)]
         public string EndTime { get; set; }
 
         [Required]
         [RegularExpression("filler|gallery|reaction")]
-        [Index(4)]
+        //[Index(4)]
         public string Type { get; set; }
-        [Index(5)]
+        //[Index(5)]
         public string Loop { get; set; }
     }
 }

@@ -5,6 +5,7 @@ using CsvHelper;
 using System.Reflection.Metadata.Ecma335;
 using Edi.Core.Device.Handy;
 using Edi.Core.Funscript;
+using System.Text.RegularExpressions;
 
 namespace Edi.Core.Gallery.Definition
 {
@@ -30,6 +31,7 @@ namespace Edi.Core.Gallery.Definition
             if (!csvFile.Exists)
                 GenerateDefinitions(GalleryPath);
 
+            csvFile = new FileInfo($"{GalleryPath}Definitions.csv");
             if (!csvFile.Exists)
                 return;
 
@@ -38,6 +40,7 @@ namespace Edi.Core.Gallery.Definition
             using (var reader = csvFile.OpenText())
             using (var csv = new CsvReader(reader, CultureInfo.InvariantCulture))
             {
+
                 definitionsDtos = csv.GetRecords<DefinitionDto>().ToList();
             }
             int linesCount = 0;
@@ -82,20 +85,48 @@ namespace Edi.Core.Gallery.Definition
 
             if (!funscriptsFiles.Any())
                 return;
+            var regex = new Regex(@"^(?<nombre>.*?)(\.(?<variante>[^.]+))?$");
+
 
             funscriptsFiles = funscriptsFiles.DistinctBy(x => x.Name);
 
-            var newDefinitionFile = funscriptsFiles.Select(file =>
-                new DefinitionDto
+
+            var newDefinitionFile = new List<DefinitionDto>();
+                
+            foreach (var file in funscriptsFiles)  
+            {
+
+                var fileName = regex.Match(Path.GetFileNameWithoutExtension(file.FullName)).Groups["nombre"].Value;
+
+                var funscript = FunScriptFile.Read(file.FullName);
+                if (funscript.metadata?.chapters?.Any() == true)
                 {
-                    Name = Path.GetFileNameWithoutExtension(file.FullName),
-                    FileName = Path.GetFileNameWithoutExtension(file.FullName),
-                    Type = "gallery",
-                    Loop = "true",
-                    StartTime = "0",
-                    EndTime = (FunScriptFile.Load(file.FullName)?.actions.Max(x => x.at) ?? 0).ToString(),
+                    newDefinitionFile.AddRange(
+                        funscript.metadata.chapters.Select(x => new DefinitionDto { 
+                            Name = x.name,
+                            FileName = fileName,
+                            Type = "gallery",
+                            Loop = "true",
+                            StartTime = x.startTime,
+                            EndTime = x.endTime
+                        }).ToArray()
+                    );
                 }
-            );
+                else
+                {
+                    newDefinitionFile.Add( new() {
+                            Name = fileName,
+                            FileName = fileName,
+                            Type = "gallery",
+                            Loop = "true",
+                            StartTime = "0",
+                            EndTime = (funscript?.actions.Max(x => x.at) ?? 0).ToString(),
+                    });
+                }
+            }
+
+            //Detect Variants
+            newDefinitionFile = newDefinitionFile.DistinctBy(x => x.Name).ToList();
 
             using (var csv = new CsvWriter(new FileInfo($"{GalleryPath}definitions.csv").CreateText(), CultureInfo.InvariantCulture))
             {

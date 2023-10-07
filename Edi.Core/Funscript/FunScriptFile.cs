@@ -4,8 +4,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Text;
 using System.Text.Json;
-
-
+using System.Text.RegularExpressions;
 
 namespace Edi.Core.Funscript
 {
@@ -40,8 +39,20 @@ namespace Edi.Core.Funscript
         public int range { get; set; }
         public string path { get; set; }
 
-        public List<FunScriptAction> actions { get; set; }
 
+        private Regex regex = new Regex(@"^(?<name>.*?)(\.(?<variante>[^.]+))?$");
+
+        public string name => regex.Match(Path.GetFileNameWithoutExtension(name)).Groups["name"].Value;
+
+        private string _variant;
+        public string variant
+        {
+            get => _variant ??  regex.Match(Path.GetFileNameWithoutExtension(name)).Groups["variant"].Value;
+            set => _variant = value;
+        }
+
+        public List<FunScriptAction> actions { get; set; }
+        public FunScriptMetadata metadata { get; set; }
 
         public FunScriptFile()
         {
@@ -51,7 +62,20 @@ namespace Edi.Core.Funscript
             actions = new List<FunScriptAction>();
         }
 
-        public static FunScriptFile Load(string path)
+        public static FunScriptFile TryRead(string path)
+        {
+            try
+            {
+                return Read(path);
+            }
+            catch {
+                return null;
+            } 
+        }
+
+
+
+        public static FunScriptFile Read(string path)
         {
             path = Path.GetFullPath(path);
             return JsonConvert.DeserializeObject<FunScriptFile>(File.ReadAllText(path));

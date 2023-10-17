@@ -1,4 +1,5 @@
 ﻿using Edi.Core.Device.Interfaces;
+using Edi.Core.Gallery;
 using Edi.Core.Gallery.Definition;
 using System;
 
@@ -8,6 +9,8 @@ namespace Edi.Core
     {
         public Task Init();
         public DeviceManager DeviceManager { get; }
+        public Trepo GetRepo<Trepo>()
+        where Trepo : class , IRepository;
         public ConfigurationManager ConfigurationManager { get; }
         public IEnumerable<DefinitionGallery> Definitions { get; }
         public Task Play(string Name, long Seek = 0);

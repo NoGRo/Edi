@@ -45,7 +45,7 @@ namespace Edi.Core.Gallery.Index
             };
 
             //6 seconds repear in script bundle for loop msg delay
-            if (gallery.Loop)
+            if (gallery.Loop && gallery.Commands.Any())
             {
                 
                 var NewTotalTime = sb.TotalTime + Config.RepearDuration;

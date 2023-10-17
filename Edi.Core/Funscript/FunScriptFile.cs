@@ -40,14 +40,14 @@ namespace Edi.Core.Funscript
         public string path { get; set; }
 
 
-        private Regex regex = new Regex(@"^(?<name>.*?)(\.(?<variante>[^.]+))?$");
+        private Regex regex = new Regex(@"^(?<name>.*?)(\.(?<variant>[^.]+))?$");
 
-        public string name => regex.Match(Path.GetFileNameWithoutExtension(name)).Groups["name"].Value;
+        public string name => path is null ? "" : regex.Match(Path.GetFileNameWithoutExtension(path)).Groups["name"].Value;
 
-        private string _variant;
+        private string _variant = null;
         public string variant
         {
-            get => _variant ??  regex.Match(Path.GetFileNameWithoutExtension(name)).Groups["variant"].Value;
+            get => _variant ??( path is null ? "" :  regex.Match(Path.GetFileNameWithoutExtension(path)).Groups["variant"].Value);
             set => _variant = value;
         }
 
@@ -78,7 +78,9 @@ namespace Edi.Core.Funscript
         public static FunScriptFile Read(string path)
         {
             path = Path.GetFullPath(path);
-            return JsonConvert.DeserializeObject<FunScriptFile>(File.ReadAllText(path));
+            var result = JsonConvert.DeserializeObject<FunScriptFile>(File.ReadAllText(path));
+            result.path  = path;
+            return result;
         }
 
         public void Save(string filename)

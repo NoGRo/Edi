@@ -13,7 +13,7 @@ using Edi.Core.Funscript;
 
 namespace Edi.Core
 {
-    public class Edi : IEdi
+    public class Edi :  IEdi
     {
         public  ConfigurationManager ConfigurationManager { get; set; }
         public DeviceManager DeviceManager { get; private set; }
@@ -252,124 +252,14 @@ namespace Edi.Core
             await Stop();
         }
 
+
+
+        public Trepo? GetRepo<Trepo>() where Trepo : class, IRepository 
+            => repos?.FirstOrDefault(x => x is Trepo) as Trepo;
+
         public Task Repack()
         {
-            var records = _repository.GetAll();
-            var vasepath = "D:\\Juegos\\Agent_mirai-v3\\EdiDemo\\Gallery\\scripts";
-            var outputVideoName = "mirai-full";
-            var outputVideoPath = $"{vasepath}/{outputVideoName}";
-            
-            // Crear una lista para FFmpeg
-            var fileListPath = $"{vasepath}/filelist.txt";
-            using (var writer = new StreamWriter(fileListPath))
-            {
-                foreach (var record in records)
-                {
-                    writer.WriteLine($"file '{record.Name}.mp4'");
-                }
-            }
-
-            // Utilizar FFmpeg para concatenar los videos
-            var ffmpegCmd = $"-f concat -safe 0 -i {fileListPath} -c copy {outputVideoPath}.mp4";
-            var process = new System.Diagnostics.Process
-            {
-                StartInfo = new System.Diagnostics.ProcessStartInfo
-                {
-                    FileName = "ffmpeg",
-                    Arguments = ffmpegCmd,
-                    RedirectStandardOutput = true,
-                    UseShellExecute = false,
-                    CreateNoWindow = false,
-                }
-            };
-            process.Start();
-            process.WaitForExit();
-
-
-            var funRepo = repos.FirstOrDefault(x => x is FunscriptRepository) as FunscriptRepository;
-
-            // Ajustar los valores de StartTime y EndTime
-            long accumulatedTime = 0;
-            
-            foreach (var record in records)
-            {
-                
-                var duration = GetVideoDuration($"{vasepath}/{record.Name}.mp4");  // Obtener la duración en milisegundos
-
-                record.StartTime = accumulatedTime;
-                accumulatedTime += duration;
-                record.EndTime = accumulatedTime;
-                record.FileName = outputVideoName;
-                
-
-            }
-            var variants = funRepo.GetVariants();
-            foreach (var varian in variants)
-            {
-                var sb = new ScriptBuilder();
-                
-
-                foreach (var record in records)
-                {
-                    var funscipt = funRepo.Get(record.Name, varian);
-                    sb.addCommands(funscipt?.Commands);
-                    sb.TrimTimeTo(record.EndTime);
-                }
-                var actions = sb.Generate();
-                new FunScriptFile()
-                {
-                    actions = actions.Select(x => new FunScriptAction { at = x.AbsoluteTime, pos = x.Value }).ToList(),
-                    metadata = new()
-                    {
-                        chapters = records.Select(x => new FunScriptChapter
-                        {
-                            name = x.Name,
-                            startTime = $"{TimeSpan.FromMilliseconds(x.StartTime):hh\\:mm\\:ss\\.fff}",
-                            endTime = $"{TimeSpan.FromMilliseconds(x.EndTime):hh\\:mm\\:ss\\.fff}"
-                        }).ToList()
-                    }
-                }.Save($"{outputVideoPath}.{varian}.funscript");
-            }
-           
-
-            // Reescribir el CSV
-            using (var writer = new StreamWriter($"{outputVideoPath}.csv"))
-            using (var csv = new CsvWriter(writer, new CsvConfiguration(System.Globalization.CultureInfo.InvariantCulture)))
-            {
-                csv.WriteRecords(records);
-            }
-
-            // Eliminar el archivo filelist.txt temporal
-            //File.Delete(fileListPath);
-            return Task.CompletedTask;
-        }
-
-        public int GetVideoDuration(string videoPath)
-        {
-            var process = new System.Diagnostics.Process
-            {
-                StartInfo = new System.Diagnostics.ProcessStartInfo
-                {
-                    FileName = "ffmpeg",
-                    Arguments = $"-i {videoPath}",
-                    RedirectStandardError = true,
-                    UseShellExecute = false,
-                    CreateNoWindow = true,
-                }
-            };
-            process.Start();
-            var output = process.StandardError.ReadToEnd();
-            process.WaitForExit();
-
-            var durationMatch = System.Text.RegularExpressions.Regex.Match(output, @"Duration: (\d{2}):(\d{2}):(\d{2}\.\d{2})");
-            if (durationMatch.Success)
-            {
-                int hours = int.Parse(durationMatch.Groups[1].Value);
-                int minutes = int.Parse(durationMatch.Groups[2].Value);
-                double seconds = double.Parse(durationMatch.Groups[3].Value, System.Globalization.CultureInfo.InvariantCulture);
-                return (int)((hours * 3600 + minutes * 60 + seconds) * 1000);  // Convertir a milisegundos
-            }
-            return 0;
+            throw new NotImplementedException();
         }
     }
 }

@@ -29,75 +29,15 @@ namespace Edi.Core.Gallery.CmdLineal
 
         public async Task Init()
         {
-            LoadGalleryFromCsv();
+            LoadFromFunscripts();
         }
 
-        private void LoadGalleryFromCsv()
+
+        private void LoadFromFunscripts()
         {
             var GalleryPath = $"{Config.GalleryPath}\\";
-
-            if (!Directory.Exists($"{GalleryPath}"))
-                return;
-
-            var variants = Directory.GetDirectories($"{GalleryPath}");
-
-            if (!variants.Any())
-            {
-                variants = GetVarinasFromFunscripts();
-            }
-
-            Variants.Clear();
-            Variants.AddRange(variants);
-
-            var FunscriptCache = GetGalleryFunscripts();
             Galleries.Clear();
-            foreach (var variantPath in variants)
-            {
-                var variantDir = new DirectoryInfo(variantPath);
-                string variant = variantDir.Name;
-                foreach (var DefinitionGallery in Definition.GetAll())
-                {
-                    string filePath;
-                    if (!variantDir.Exists)
-                    {
-                        filePath = $"{Config.GalleryPath}\\{variant}\\{DefinitionGallery.FileName}.funscript";
-
-                        if (!FunscriptCache.ContainsKey(filePath))
-                            filePath = $"{Config.GalleryPath}\\{variant}\\{DefinitionGallery.FileName}.{variant}.funscript";
-                    }
-                    else
-                    {
-                        filePath = $"{Config.GalleryPath}\\{DefinitionGallery.FileName}.{variant}.funscript";
-                    }
-
-                    if (!FunscriptCache.ContainsKey(filePath))
-                        continue;
-
-                    var funscript = FunscriptCache[filePath];
-
-                    var actions = funscript.actions
-                        .Where(x => x.at > DefinitionGallery.StartTime
-                                 && x.at <= DefinitionGallery.EndTime);
-
-                    if (!actions.Any())
-                        continue;
-
-                    
-                    FunscriptGallery gallery = ParseActions(variant, DefinitionGallery, actions);
-
-                    if (!Galleries.ContainsKey(DefinitionGallery.Name))
-                        Galleries.Add(DefinitionGallery.Name, new List<FunscriptGallery>());
-
-                    Galleries[gallery.Name].Add(gallery);
-                }
-            }
-            Variants = Galleries.SelectMany(x=> x.Value.Select(y=> y.Variant)).Distinct().ToList();
-        }
-
-        private string[] GetVarinasFromFunscripts()
-        {
-            var GalleryPath = $"{Config.GalleryPath}\\";
-
+            Variants.Clear();
             if (!Directory.Exists($"{GalleryPath}"))
                 return;
 
@@ -107,18 +47,18 @@ namespace Edi.Core.Gallery.CmdLineal
                                     .GetAll().Select(x => x.FileName)
                                     .Distinct().ToHashSet(StringComparer.InvariantCultureIgnoreCase);
 
-            var funscriptsFiles = GetFunscripts().Values.Where(x=> FilesSourceNames.Contains(x.name));
+            var funscriptsFiles = GetFunscripts()
+                                    .Where(x=> FilesSourceNames.Contains(x.name))
+                                    .ToList();
 
-            var regex = new Regex(@"^(?:(?<variante>[^.\/]+)\/)?[^.]+?\.(?<variante>[^.]+)?$");
             foreach (var funscript in funscriptsFiles)
-                funscript.variant = regex.Match(funscript.path.Replace(Config.GalleryPath, "")).Groups["variante"].Value;
+            {
+                var pathVariant = funscript.path.Replace(GalleryPath, "").Split('\\')[0];
+                funscript.variant = !string.IsNullOrEmpty(funscript.variant)
+                                        ? funscript.variant
+                                        : pathVariant ?? Config.DefaulVariant;
+            }
             
-
-            var variants = funscriptsFiles.Select(x => x.variant)
-                                        .Where(x => !string.IsNullOrEmpty(x))
-                                        .Distinct()
-                                        .ToList();
-
             foreach (var DefinitionGallery in Definition.GetAll())
             {
                 Galleries.Add(DefinitionGallery.Name, new List<FunscriptGallery>());
@@ -138,21 +78,21 @@ namespace Edi.Core.Gallery.CmdLineal
                     Galleries[DefinitionGallery.Name].Add(gallery);
                 }
             }
-            return variants.ToArray();  
+            Variants = Galleries.SelectMany(x => x.Value.Select(y => y.Variant)).Distinct().ToList();
         }
 
-        private Dictionary<string, FunScriptFile> GetFunscripts()
+        private List<FunScriptFile> GetFunscripts()
         {
             var GalleryDir = new DirectoryInfo(Config.GalleryPath);
             
 
-            var funscriptsFiles = GalleryDir.EnumerateFiles("*.funscript");
-            funscriptsFiles.Concat(GalleryDir.EnumerateDirectories().SelectMany(d => d.EnumerateFiles("*.funscript")));
+            var funscriptsFiles = GalleryDir.EnumerateFiles("*.funscript").ToList();
+            funscriptsFiles.AddRange(GalleryDir.EnumerateDirectories().SelectMany(d => d.EnumerateFiles("*.funscript")));
 
             return  funscriptsFiles
                         .Select(x => FunScriptFile.TryRead(x.FullName))
-                        .Where(x=> x != null && x.actions.Any())
-                        .ToDictionary(x => x.path , x=> x);
+                        .Where(x=> x != null && x.actions?.Any() == true) 
+                        .ToList();
         }
 
         private Dictionary<string, FunScriptFile> GetGalleryFunscripts()
@@ -235,5 +175,73 @@ namespace Edi.Core.Gallery.CmdLineal
             return gallery;
 
         }
+
+
+
+
+        /*
+        private void LoadGalleryFromCsv()
+        {
+            var GalleryPath = $"{Config.GalleryPath}\\";
+
+            if (!Directory.Exists($"{GalleryPath}"))
+                return;
+
+            var variants = Directory.GetDirectories($"{GalleryPath}");
+
+            if (!variants.Any())
+            {
+                //variants = GetVarinasFromFunscripts();
+            }
+
+            Variants.Clear();
+            Variants.AddRange(variants);
+
+            var FunscriptCache = GetGalleryFunscripts();
+            Galleries.Clear();
+            foreach (var variantPath in variants)
+            {
+                var variantDir = new DirectoryInfo(variantPath);
+                string variant = variantDir.Name;
+                foreach (var DefinitionGallery in Definition.GetAll())
+                {
+                    string filePath;
+                    if (!variantDir.Exists)
+                    {
+                        filePath = $"{Config.GalleryPath}\\{variant}\\{DefinitionGallery.FileName}.funscript";
+
+                        if (!FunscriptCache.ContainsKey(filePath))
+                            filePath = $"{Config.GalleryPath}\\{variant}\\{DefinitionGallery.FileName}.{variant}.funscript";
+                    }
+                    else
+                    {
+                        filePath = $"{Config.GalleryPath}\\{DefinitionGallery.FileName}.{variant}.funscript";
+                    }
+
+                    if (!FunscriptCache.ContainsKey(filePath))
+                        continue;
+
+                    var funscript = FunscriptCache[filePath];
+
+                    var actions = funscript.actions
+                        .Where(x => x.at > DefinitionGallery.StartTime
+                                 && x.at <= DefinitionGallery.EndTime);
+
+                    if (!actions.Any())
+                        continue;
+
+
+                    FunscriptGallery gallery = ParseActions(variant, DefinitionGallery, actions);
+
+                    if (!Galleries.ContainsKey(DefinitionGallery.Name))
+                        Galleries.Add(DefinitionGallery.Name, new List<FunscriptGallery>());
+
+                    Galleries[gallery.Name].Add(gallery);
+                }
+            }
+            Variants = Galleries.SelectMany(x => x.Value.Select(y => y.Variant)).Distinct().ToList();
+        }
+
+        */
     }
 }

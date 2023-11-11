@@ -27,6 +27,7 @@ namespace Edi.Core.Device.Buttplug
 
             this.repository = repository;
             DeviceManager = deviceManager;
+            Controller = new ButtplugController(Config, deviceManager);
         }
 
         public readonly ButtplugConfig Config;
@@ -34,11 +35,12 @@ namespace Edi.Core.Device.Buttplug
         private List<ButtplugDevice> devices = new List<ButtplugDevice>();
         private DeviceManager DeviceManager;
         public ButtplugClient client { get; set; }
+        public ButtplugController Controller { get; set; }
         private FunscriptRepository repository { get; }
         public async Task Init()
         {
             timerReconnect.Elapsed += timerReconnectevent;
-            timerReconnect.Start(); 
+            timerReconnect.Start();
             await Connect();
         }
 

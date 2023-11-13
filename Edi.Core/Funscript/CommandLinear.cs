@@ -113,12 +113,14 @@ namespace Edi.Core.Funscript
             => cmds.Select(x => CmdLinear.GetCommandMillis(x.Millis, x.Value)).ToList();
 
         public static void AddAbsoluteTime(this List<CmdLinear> cmds)
-        {
-            var at = 0;
-            foreach (var cmd in cmds)
+            {lock (cmds)
             {
-                at += cmd.Millis;
-                cmd.AbsoluteTime = at;
+                var at = 0;
+                foreach (var cmd in cmds)
+                {
+                    at += cmd.Millis;
+                    cmd.AbsoluteTime = at;
+                }
             }
         }
     }

@@ -146,7 +146,8 @@ namespace Edi.Core.Device.Buttplug
                 IsPause = false;
                 var cmd = queue.First();
                 queue.RemoveAt(0);
-                await SendCmd(cmd);
+                if(cmd!= null)
+                    await SendCmd(cmd);
 
             }
             else if (CurrentGallery.Loop)

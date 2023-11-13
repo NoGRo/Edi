@@ -61,6 +61,8 @@ namespace Edi.Core.Device.Buttplug
 
                 client.Dispose();
                 client = null;
+                RemoveAllDevices();
+
             }
             client = new ButtplugClient("Edi");
 
@@ -89,6 +91,16 @@ namespace Edi.Core.Device.Buttplug
             }
 
         }
+
+        private void RemoveAllDevices()
+        {
+            foreach (ButtplugDevice devicerm in devices)
+            {
+                DeviceManager.UnloadDevice(devicerm);
+            }
+            devices.Clear();
+        }
+
         private void AddDeviceOn(ButtplugClientDevice Device)
         {
             var newdevices = new List<ButtplugDevice>();
@@ -116,8 +128,6 @@ namespace Edi.Core.Device.Buttplug
             foreach (var device in newdevices) { 
                 DeviceManager.LoadDevice(device);
             }
-
-
         }
         private void RemoveDeviceOn(ButtplugClientDevice Device)
         {
@@ -152,6 +162,7 @@ namespace Edi.Core.Device.Buttplug
 
         private void Client_ServerDisconnect(object sender, EventArgs e)
         {
+
             timerReconnect.Enabled = true;
             OnStatusChange("Disconnect");
         }

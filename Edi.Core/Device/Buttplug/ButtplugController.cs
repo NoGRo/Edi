@@ -77,15 +77,15 @@ namespace Edi.Core.Device.Buttplug
                 foreach (var command in commands)
                 {
                     
-                    if (!lastCommands.TryGetValue(command.Key.Device, out var lastCommand) || lastCommand != (command.Key.Actuator, command.Value))
+                    if (!lastCommands.TryGetValue(command.Key.Device, out var lastCommand) 
+                        || lastCommand != (command.Key.Actuator, command.Value))
                     {
                         sendTaks.Add(SendCommandAsync(command.Key.Device, command.Key.Actuator, command.Value));
                         lastCommands[command.Key.Device] = (command.Key.Actuator, command.Value);
-                        //await Task.Delay(Delay);
+                        await Task.Delay(5);
                     }
                 }
                 await Task.Delay(Delay);
-
             }
         }
 

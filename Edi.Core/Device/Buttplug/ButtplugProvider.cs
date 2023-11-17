@@ -162,7 +162,6 @@ namespace Edi.Core.Device.Buttplug
 
         private void Client_ServerDisconnect(object sender, EventArgs e)
         {
-
             timerReconnect.Enabled = true;
             OnStatusChange("Disconnect");
         }

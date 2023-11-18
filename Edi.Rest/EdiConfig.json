@@ -2,7 +2,7 @@
   "Gallery": {
     "DefaulVariant": "detail",
     "SelectedVariant": null,
-    "GalleryPath": "D:/Programacion/Mage Kanade’s Futanari Dungeon Quest/BepInEx/plugins/Gallery"
+    "GalleryPath": "D:\\Programacion\\Mage Kanade’s Futanari Dungeon Quest\\BepInEx\\plugins\\Gallery"
   },
   "GalleryBundler": {
     "RepearDuration": 5000,
@@ -21,11 +21,6 @@
   },
   "Devices": {
     "DeviceVariant": {
-      "Lovense Hush": "vibrator",
-      "Lovense Hush (1)": "detail",
-      "The Handy [ppJdVv3V]": "detail",
-      "Lovense Dolce Vibrate: 1": "vibrator",
-      "Lovense Dolce Vibrate: 2": "simple"
     }
   }
 }

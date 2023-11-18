@@ -18,7 +18,7 @@ using Timer = System.Timers.Timer;
 
 namespace Edi.Core.Device.Buttplug
 {
-    internal class ButtplugDevice : IDevice
+    public class ButtplugDevice : IDevice
     {
         public ButtplugClientDevice Device { get; private set; }
         public ActuatorType Actuator { get; }
@@ -45,22 +45,19 @@ namespace Edi.Core.Device.Buttplug
             Name = device.Name + (device.GenericAcutatorAttributes(actuator).Count() > 1 
                                     ? $" {actuator.ToString()}: {channel+1}" 
                                     : "" );
+            
             Actuator = actuator;
             Channel = channel;
             this.repository = repository;
-            vibCommandTimer.Interval = (device.MessageTimingGap == 0 ) ? 20: device.MessageTimingGap;
             timerCmdEnd.Elapsed += OnCommandEnd;
-            vibCommandTimer.Elapsed += FadeVibratorCmd;
 
-            SelectedVariant =  Variants.FirstOrDefault(x => x.Contains(Actuator.ToString(),StringComparison.OrdinalIgnoreCase))
+            SelectedVariant = Variants.FirstOrDefault(x => x.Contains(Actuator.ToString(),StringComparison.OrdinalIgnoreCase))
                                 ?? repository.Config.DefaulVariant;
         }
 
-        
-        private Timer vibCommandTimer = new Timer(50);
         public async  Task SendCmd(CmdLinear cmd)
         {
-            vibCommandTimer.Stop();
+
             if (Device == null)
                 return;
 
@@ -70,10 +67,6 @@ namespace Edi.Core.Device.Buttplug
 
             switch (Actuator)
             {
-                case ActuatorType.Vibrate or ActuatorType.Oscillate:
-                    vibCommandTimer.Start(); //constant resend Vibrations
-                    //ButtplugController.start?
-                    break;
                 case ActuatorType.Position:
                     sendtask = Device.LinearAsync(new[] { (cmd.buttplugMillis, cmd.LinearValue) });
                     break;
@@ -96,50 +89,16 @@ namespace Edi.Core.Device.Buttplug
             timerCmdEnd.Interval = time;
             timerCmdEnd.Start();
 
-
             if (sendtask != null)
                 await sendtask;
         }
 
 
-        private async void FadeVibratorCmd(object? sender, ElapsedEventArgs e)
-        {
-
-            if (Device == null)
-            {
-                vibCommandTimer.Stop();
-                return;
-            }
-
-            double speed = CalculateSpeed();
-
-            try
-            {
-                switch (Actuator)
-                {
-                    case ActuatorType.Vibrate:
-                        if (speed != lastSpeedSend)
-                            await Device.VibrateAsync(new[] { (Channel, speed) });
-                        break;
-                    case ActuatorType.Oscillate:
-                        if (speed != lastSpeedSend)
-                            await Device.OscillateAsync(new[] { (Channel, speed) });
-                        break;
-
-
-
-                }
-                lastSpeedSend = speed;
-            }
-            catch (ButtplugDeviceException)
-            {
-                Device = null;
-            }
-        }
-
-        private double CalculateSpeed()
+        public double CalculateSpeed()
         {
             var passes = DateTime.Now - SendAt;
+            if(CurrentCmd == null)
+                return 0;
             var distanceToTravel = CurrentCmd.Value - CurrentCmd.InitialValue;
             var travel = Math.Round(distanceToTravel * (passes.TotalMilliseconds / CurrentCmd.Millis), 0);
             travel = travel is double.NaN or double.PositiveInfinity or double.NegativeInfinity ? 0 : travel;
@@ -157,6 +116,7 @@ namespace Edi.Core.Device.Buttplug
 
         private static List<CmdLinear> queue { get; set; } = new List<CmdLinear>();
         public static DateTime SyncSend { get; private set; }
+        public bool IsPause { get; private set; } = true;
         private long ResumeAt { get; set; }
         
 
@@ -183,9 +143,11 @@ namespace Edi.Core.Device.Buttplug
             timerCmdEnd.Stop();
             if (queue?.Any() == true)
             {
+                IsPause = false;
                 var cmd = queue.First();
                 queue.RemoveAt(0);
-                await SendCmd(cmd);
+                if(cmd!= null)
+                    await SendCmd(cmd);
 
             }
             else if (CurrentGallery.Loop)
@@ -210,10 +172,9 @@ namespace Edi.Core.Device.Buttplug
 
         public async Task Pause()
         {
-            
+            IsPause = true;
             ResumeAt = (long)CurrentTime;
             timerCmdEnd.Stop();
-            vibCommandTimer.Stop();
             await Device.Stop();
         }
     }

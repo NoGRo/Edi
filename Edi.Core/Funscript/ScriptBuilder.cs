@@ -88,7 +88,7 @@ namespace Edi.Core.Funscript
 
         public void TrimTimeTo(long maxTime)
         {
-
+            if(lastCmd is null) return;
             Sequence.RemoveAll(x => x.AbsoluteTime > maxTime);
             TotalTime = lastCmd.AbsoluteTime;
 

@@ -27,6 +27,7 @@ namespace Edi.Core.Device.Buttplug
 
             this.repository = repository;
             DeviceManager = deviceManager;
+            Controller = new ButtplugController(Config, deviceManager);
         }
 
         public readonly ButtplugConfig Config;
@@ -34,11 +35,12 @@ namespace Edi.Core.Device.Buttplug
         private List<ButtplugDevice> devices = new List<ButtplugDevice>();
         private DeviceManager DeviceManager;
         public ButtplugClient client { get; set; }
+        public ButtplugController Controller { get; set; }
         private FunscriptRepository repository { get; }
         public async Task Init()
         {
             timerReconnect.Elapsed += timerReconnectevent;
-            timerReconnect.Start(); 
+            timerReconnect.Start();
             await Connect();
         }
 
@@ -59,6 +61,8 @@ namespace Edi.Core.Device.Buttplug
 
                 client.Dispose();
                 client = null;
+                RemoveAllDevices();
+
             }
             client = new ButtplugClient("Edi");
 
@@ -87,6 +91,16 @@ namespace Edi.Core.Device.Buttplug
             }
 
         }
+
+        private void RemoveAllDevices()
+        {
+            foreach (ButtplugDevice devicerm in devices)
+            {
+                DeviceManager.UnloadDevice(devicerm);
+            }
+            devices.Clear();
+        }
+
         private void AddDeviceOn(ButtplugClientDevice Device)
         {
             var newdevices = new List<ButtplugDevice>();
@@ -114,8 +128,6 @@ namespace Edi.Core.Device.Buttplug
             foreach (var device in newdevices) { 
                 DeviceManager.LoadDevice(device);
             }
-
-
         }
         private void RemoveDeviceOn(ButtplugClientDevice Device)
         {

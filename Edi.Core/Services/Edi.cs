@@ -7,10 +7,13 @@ using Timer = System.Timers.Timer;
 using Edi.Core.Gallery.Definition;
 using NAudio.Wave.SampleProviders;
 using CsvHelper;
+using CsvHelper.Configuration;
+using Edi.Core.Gallery.CmdLineal;
+using Edi.Core.Funscript;
 
 namespace Edi.Core
 {
-    public class Edi : IEdi
+    public class Edi :  IEdi
     {
         public  ConfigurationManager ConfigurationManager { get; set; }
         public DeviceManager DeviceManager { get; private set; }
@@ -71,7 +74,6 @@ namespace Edi.Core
             OnChangeStatus($"[{DateTime.Now.ToShortTimeString()}] {message}");
         }
 
-
         public async Task Play(string name, long seek = 0)
         {
 
@@ -126,7 +128,6 @@ namespace Edi.Core
             => await StopReaction();
         private async Task StopReaction()
         {
-            
             TimerReactStop.Stop();
             if (ReactSendGallery == null)
                 return;
@@ -181,8 +182,6 @@ namespace Edi.Core
             await SendGallery(name, seek);
         }
 
-
-
         public async Task Pause()
         {
             changeStatus("Device Pause");
@@ -199,7 +198,6 @@ namespace Edi.Core
 
             if (resumePauseAt >= LastGallery.Duration && !LastGallery.Loop)
                 resumePauseAt = -1;
-
         }
 
         public async Task Resume()
@@ -222,7 +220,6 @@ namespace Edi.Core
             ReactSendGallery = null;
             TimerReactStop.Stop();
             TimerGalleryStop.Stop();
-
             // If the seek time is greater than the gallery time And it Repeats, then modulo the seek time by the gallery time to get the correct seek time.
             if (seek != 0 && seek > gallery.Duration)
             {
@@ -255,5 +252,14 @@ namespace Edi.Core
             await Stop();
         }
 
+
+
+        public Trepo? GetRepo<Trepo>() where Trepo : class, IRepository 
+            => repos?.FirstOrDefault(x => x is Trepo) as Trepo;
+
+        public Task Repack()
+        {
+            throw new NotImplementedException();
+        }
     }
 }

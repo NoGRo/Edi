@@ -104,6 +104,14 @@ namespace Edi.Forms
                 await edi.Init();
             });
            
+        }    
+        private async void RePackButton_Click(object sender, RoutedEventArgs e)
+        {
+            await Dispatcher.Invoke(async () =>
+            {
+                await edi.Repack();
+            });
+           
         }
 
         private async void ReconnectButton_ClickAsync(object sender, RoutedEventArgs e)

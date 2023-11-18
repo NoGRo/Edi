@@ -37,7 +37,6 @@ namespace Edi.Core.Funscript
         public string version { get; set; }
         public bool inverted { get; set; }
         public int range { get; set; }
-        [JsonIgnore]
         public string path { get; set; }
 
 
@@ -51,7 +50,7 @@ namespace Edi.Core.Funscript
         [JsonIgnore]
         public string variant
         {
-            get => _variant ??  regex.Match(Path.GetFileNameWithoutExtension(name)).Groups["variant"].Value;
+            get => _variant ??( path is null ? "" :  regex.Match(Path.GetFileNameWithoutExtension(path)).Groups["variant"].Value);
             set => _variant = value;
         }
 
@@ -82,7 +81,9 @@ namespace Edi.Core.Funscript
         public static FunScriptFile Read(string path)
         {
             path = Path.GetFullPath(path);
-            return JsonConvert.DeserializeObject<FunScriptFile>(File.ReadAllText(path));
+            var result = JsonConvert.DeserializeObject<FunScriptFile>(File.ReadAllText(path));
+            result.path  = path;
+            return result;
         }
 
         public void Save(string filename)

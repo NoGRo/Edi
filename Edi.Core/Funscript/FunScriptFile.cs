@@ -41,10 +41,10 @@ namespace Edi.Core.Funscript
 
 
         [JsonIgnore]
-        private Regex regex = new Regex(@"^(?<name>.*?)(\.(?<variante>[^.]+))?$");
+        private Regex regex = new Regex(@"^(?<name>.*?)(\.(?<variant>[^.]+))?$");
 
         [JsonIgnore]
-        public string name => regex.Match(Path.GetFileNameWithoutExtension(name)).Groups["name"].Value;
+        public string name => regex.Match(Path.GetFileNameWithoutExtension(path)).Groups["name"].Value;
 
         private string _variant;
         [JsonIgnore]

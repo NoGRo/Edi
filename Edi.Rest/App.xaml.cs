@@ -23,8 +23,10 @@ namespace Edi.Forms
         {
             
             var webAppBuilder = WebApplication.CreateBuilder();
-            IServiceCollection services = webAppBuilder.Services;
+            
+            webAppBuilder.WebHost.UseUrls("http://localhost:5000");
 
+            IServiceCollection services = webAppBuilder.Services;
 
             services.AddControllers();
             services.AddSwaggerGen(c =>

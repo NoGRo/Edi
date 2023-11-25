@@ -67,7 +67,25 @@ namespace Edi.Core
             }
 
             var json = JsonConvert.SerializeObject(_configurations, Formatting.Indented);
-            File.WriteAllText(_filePath, json);
+            FileStream fileStream = null;
+            while (true)
+            {
+                try
+                {
+                    fileStream = new FileStream(_filePath, FileMode.Create, FileAccess.ReadWrite, FileShare.None);
+                    break; // Salir del bucle si se obtiene el acceso al archivo.
+                }
+                catch (IOException)
+                {
+                    // Esperar un tiempo breve antes de reintentar.
+                    Thread.Sleep(100);
+                }
+            }
+
+            using (var streamWriter = new StreamWriter(fileStream))
+            {
+                streamWriter.Write(json);
+            }
         }
 
         public void Save<T>(T config)

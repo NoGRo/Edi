@@ -112,7 +112,7 @@ namespace Edi.Core.Funscript
         public static List<CmdLinear> Clone(this IEnumerable<CmdLinear> cmds)
             => cmds.Select(x => CmdLinear.GetCommandMillis(x.Millis, x.Value)).ToList();
 
-        public static void AddAbsoluteTime(this List<CmdLinear> cmds)
+        public static List<CmdLinear> AddAbsoluteTime(this List<CmdLinear> cmds)
             {lock (cmds)
             {
                 var at = 0;
@@ -122,6 +122,7 @@ namespace Edi.Core.Funscript
                     cmd.AbsoluteTime = at;
                 }
             }
+            return cmds;
         }
     }
 }

@@ -6,6 +6,10 @@
         xmlns:local="clr-namespace:Edi.Forms"
         mc:Ignorable="d"
         Title="Edi Launcher" Height="321" Width="665" ResizeMode="NoResize">
+    <Window.Resources>
+        <local:BoolToReadyIconConverter x:Key="BoolToReadyIconConverter"/>
+    </Window.Resources>
+
     <Grid Height="303" VerticalAlignment="Top">
         <Grid.ColumnDefinitions>
             <ColumnDefinition Width="16*"/>
@@ -23,6 +27,7 @@
                         </DataTemplate>
                     </DataGridTemplateColumn.CellTemplate>
                 </DataGridTemplateColumn>
+                <DataGridTextColumn Header="Ready"  FontFamily="Segoe UI Emoji" FontSize="14" Binding="{Binding IsReady, Converter={StaticResource BoolToReadyIconConverter}}" />
             </DataGrid.Columns>
         </DataGrid>
 

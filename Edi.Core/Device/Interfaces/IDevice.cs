@@ -6,6 +6,7 @@ using System.Threading.Tasks;
 
 namespace Edi.Core.Device.Interfaces
 {
+
     public interface IDevice
     {
         public bool IsReady { get; }

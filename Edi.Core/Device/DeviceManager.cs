@@ -75,9 +75,13 @@ namespace Edi.Core
         
         public async void LoadDevice(IDevice device)
         {
-            UniqueName(device);
+            lock (Devices)
+            {
 
-            Devices.Add(device);
+                UniqueName(device);
+
+                Devices.Add(device);
+            }
 
             if(Config.DeviceVariant.ContainsKey(device.Name))
                 device.SelectedVariant = Config.DeviceVariant[device.Name]; 

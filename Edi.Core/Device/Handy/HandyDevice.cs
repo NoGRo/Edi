@@ -19,9 +19,11 @@ using Edi.Core.Gallery.Definition;
 using Edi.Core.Device.Interfaces;
 using System.Runtime.CompilerServices;
 using System.Threading;
+using PropertyChanged;
 
 namespace Edi.Core.Device.Handy
 {
+    [AddINotifyPropertyChangedInterface]
     internal class HandyDevice : IDevice, IEqualityComparer<HandyDevice>
     {
 
@@ -31,7 +33,7 @@ namespace Edi.Core.Device.Handy
         
         private static long timeSyncAvrageOffset;
         private static long timeSyncInitialOffset;
-        private HttpClient Client = null;
+        public HttpClient Client = null;
         private IndexRepository repository { get; set; }
         private Timer timerGalleryEnd = new Timer();
         
@@ -98,12 +100,23 @@ namespace Edi.Core.Device.Handy
             });
         }
 
+        
       
 
         private async Task Seek(long timeMs)
         {
+
             var req = new SyncPlayRequest(ServerTime, timeMs);
-            var resp = await Client.PutAsync("hssp/play", new StringContent(JsonConvert.SerializeObject(req), Encoding.UTF8, "application/json"));
+
+             await Client.PutAsync("hssp/play", new StringContent(JsonConvert.SerializeObject(req), Encoding.UTF8, "application/json"));
+
+        }
+        public async Task Pause()
+        {
+
+            timerGalleryEnd.Stop();
+            await Client.PutAsync("hssp/stop", null);
+
         }
 
 
@@ -187,11 +200,6 @@ namespace Edi.Core.Device.Handy
 
         }
 
-        public async Task Pause()
-        {
-            timerGalleryEnd.Stop();
-            await Client.PutAsync("hssp/stop",null);
-        }
 
         public bool Equals(HandyDevice? x, HandyDevice? y)
             => x.Key == y.Key;

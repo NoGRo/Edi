@@ -6,6 +6,7 @@ using Edi.Core.Device.Interfaces;
 using Edi.Core.Funscript;
 using Edi.Core.Gallery;
 using Edi.Core.Gallery.CmdLineal;
+using PropertyChanged;
 using System;
 using System.Collections;
 using System.Collections.Generic;
@@ -18,6 +19,7 @@ using Timer = System.Timers.Timer;
 
 namespace Edi.Core.Device.Buttplug
 {
+    [AddINotifyPropertyChangedInterface]
     public class ButtplugDevice : IDevice
     {
         public ButtplugClientDevice Device { get; private set; }
@@ -129,9 +131,8 @@ namespace Edi.Core.Device.Buttplug
 
             CurrentGallery = gallery;
             SyncSend = DateTime.Now;
-            queue = CurrentGallery.Commands.ToList();
-            queue.AddAbsoluteTime();
-
+            queue = CurrentGallery.Commands.ToList().AddAbsoluteTime();
+            
             if (seek != 0)
                 await Seek(seek);
 
@@ -141,16 +142,23 @@ namespace Edi.Core.Device.Buttplug
         private async Task PlayNext()
         {
             timerCmdEnd.Stop();
-            if (queue?.Any() == true)
+            CmdLinear nextcmd = null;
+            lock (queue)
             {
-                IsPause = false;
-                var cmd = queue.First();
-                queue.RemoveAt(0);
-                if(cmd!= null)
-                    await SendCmd(cmd);
+                if (queue?.Any() == true)
+                {
+                    IsPause = false;
+                    nextcmd = queue.First();
+                    queue.RemoveAt(0);
 
+                }
             }
-            else if (CurrentGallery.Loop)
+            if (nextcmd != null)
+            {
+                await SendCmd(nextcmd);
+                return;
+            }
+            if (CurrentGallery.Loop)
             {
                 await PlayGallery(CurrentGallery.Name);
             }

@@ -10,10 +10,12 @@ using System.Timers;
 using Timer = System.Timers.Timer;
 using System.Threading;
 using Edi.Core.Device.Interfaces;
+using PropertyChanged;
 
 namespace Edi.Core.Device.EStim
 {
 
+    [AddINotifyPropertyChangedInterface]
     public class EStimDevice : IDevice
     {
         private readonly AudioRepository _repository;

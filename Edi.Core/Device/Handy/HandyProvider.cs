@@ -64,9 +64,7 @@ namespace Edi.Core.Device.Handy
             if (devices.ContainsKey(Key))
                 return;
 
-            var Client = new HttpClient() { BaseAddress = new Uri("https://www.handyfeeling.com/api/handy/v2/") };
-            Client.DefaultRequestHeaders.Remove("X-Connection-Key");
-            Client.DefaultRequestHeaders.Add("X-Connection-Key", Key);
+            HttpClient Client = NewClient(Key);
             HttpResponseMessage resp = null;
 
             try
@@ -105,16 +103,31 @@ namespace Edi.Core.Device.Handy
             await handyDevice.updateServerTime();
 
         }
-        private async void TimerReconnect_Elapsed(object? sender, ElapsedEventArgs e)
+
+        public static HttpClient NewClient(string Key)
         {
             var Client = new HttpClient() { BaseAddress = new Uri("https://www.handyfeeling.com/api/handy/v2/") };
+            Client.DefaultRequestHeaders.Remove("X-Connection-Key");
+            Client.DefaultRequestHeaders.Add("X-Connection-Key", Key);
+            return Client;
+        }
+
+        private async void TimerReconnect_Elapsed(object? sender, ElapsedEventArgs e)
+        {
+            
 
             foreach (var Key in Keys)
             {
-                Client.DefaultRequestHeaders.Remove("X-Connection-Key");
-                Client.DefaultRequestHeaders.Add("X-Connection-Key", Key);
-                var resp = await Client.GetAsync("connected");
-                if (resp.StatusCode != System.Net.HttpStatusCode.OK)
+
+                HttpResponseMessage resp = null;
+                try
+                {
+                    resp = await devices[Key].Client.GetAsync("connected");
+                } catch (Exception ex)
+                {
+
+                }
+                if (resp != null && resp.StatusCode != System.Net.HttpStatusCode.OK)
                 {
                     if (devices.ContainsKey(Key))
                     {
@@ -123,6 +136,7 @@ namespace Edi.Core.Device.Handy
                     }
                     await Connect(Key);
                 }
+                
             }
 
         }

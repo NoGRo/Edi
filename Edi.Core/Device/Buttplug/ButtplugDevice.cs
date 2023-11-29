@@ -10,6 +10,7 @@ using PropertyChanged;
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using System.Net;
@@ -31,11 +32,13 @@ namespace Edi.Core.Device.Buttplug
 
         public IEnumerable<string> Variants => repository.GetVariants();
 
-        private  CmdLinear CurrentCmd { get;  set; }
+        public CmdLinear CurrentCmd { get;  set; }
         private DateTime SendAt { get;  set; }
         private double CurrentTime => (DateTime.Now - SyncSend).TotalMilliseconds;
+        public int ReminingTime => CurrentCmd.Millis - Convert.ToInt32((DateTime.Now - SendAt).TotalMilliseconds);
 
         private Timer timerCmdEnd = new Timer();
+
 
         public bool IsReady => true;
 
@@ -103,6 +106,8 @@ namespace Edi.Core.Device.Buttplug
             var travel = Math.Round(distanceToTravel * (passes.TotalMilliseconds / CurrentCmd.Millis), 0);
             travel = travel is double.NaN or double.PositiveInfinity or double.NegativeInfinity ? 0 : travel;
             var currVal = Math.Abs(CurrentCmd.InitialValue + Convert.ToInt16(travel));
+
+            //Debug.WriteLine($"{CurrentCmd.InitialValue}- {travel} - {currVal}");
 
             var actuadores = Device.GenericAcutatorAttributes(Actuator);
             double steps = actuadores[(int)Channel].StepCount;

@@ -105,7 +105,7 @@ namespace Edi.Core.Funscript
         public DateTime? Sent { get; set; }
         public bool Cancel { get; set; }
         public short Distance => (short)Math.Abs(Direction ? Value - InitialValue : InitialValue - Value);
-
+       
     }
     public static class CmdLinearExtend
     {
@@ -116,10 +116,13 @@ namespace Edi.Core.Funscript
             {lock (cmds)
             {
                 var at = 0;
+                CmdLinear last = cmds.LastOrDefault();
                 foreach (var cmd in cmds)
                 {
+                    cmd.Prev = last;
                     at += cmd.Millis;
                     cmd.AbsoluteTime = at;
+                    last = cmd; 
                 }
             }
             return cmds;

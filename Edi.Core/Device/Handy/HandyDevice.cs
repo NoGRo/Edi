@@ -54,7 +54,6 @@ namespace Edi.Core.Device.Handy
         
         public IEnumerable<string> Variants => repository.GetVariants();
 
-
         public HandyDevice(HttpClient Client, IndexRepository repository)
         {
             Key = Client.DefaultRequestHeaders.GetValues("X-Connection-Key").First();
@@ -64,9 +63,7 @@ namespace Edi.Core.Device.Handy
             this.repository = repository;
            
             SelectedVariant = repository.Config.DefaulVariant;
-          
         }
-
         
         private Task uploadTask { get; set; }
         private CancellationTokenSource uploadCancellationTokenSource;

@@ -15,7 +15,8 @@ namespace Edi.Core.Device.Buttplug
         private readonly DeviceManager deviceManager;
         private readonly Dictionary<ButtplugClientDevice, (ActuatorType, List<(uint, double)>)> lastCommands = new();
         private readonly ConcurrentDictionary<ButtplugClientDevice, CancellationTokenSource> customDelayDevices = new();
-
+        private readonly List<int> SignalQueue = new();
+        public int Delay => config.CommandDelay;
         public ButtplugController(ButtplugConfig config, DeviceManager deviceManager)
         {
             this.config = config;
@@ -24,6 +25,7 @@ namespace Edi.Core.Device.Buttplug
             deviceManager.OnUnloadDevice += DeviceManager_OnUnloadDevice; ;
             StartDeviceTasks();
         }
+
         private void StartDeviceTasks()
         {
             // Start a task for handling the rest of the devices with generic delay
@@ -84,6 +86,7 @@ namespace Edi.Core.Device.Buttplug
                         sendTaks.Add(SendCommandAsync(command.Key.Device, command.Key.Actuator, command.Value));
                         lastCommands[command.Key.Device] = (command.Key.Actuator, command.Value);
                         await Task.Delay(5);
+                        Console.WriteLine($"send to: {command.Key.Device.Name}, {(command.Key.Actuator, command.Value)}");
                     }
                 }
                 await Task.Delay(Delay);
@@ -105,6 +108,6 @@ namespace Edi.Core.Device.Buttplug
             }
         }
 
-        public int Delay => config.CommandDelay;
+        
     }
 }

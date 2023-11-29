@@ -51,6 +51,7 @@ namespace Edi.Core.Device.Handy
             }
         }
         public bool IsReady { get; private set; } = false;
+        
         public IEnumerable<string> Variants => repository.GetVariants();
 
 
@@ -66,8 +67,25 @@ namespace Edi.Core.Device.Handy
           
         }
 
+        
         private Task uploadTask { get; set; }
         private CancellationTokenSource uploadCancellationTokenSource;
+
+        private async Task Seek(long timeMs)
+        {
+
+            var req = new SyncPlayRequest(ServerTime, timeMs);
+
+             await Client.PutAsync("hssp/play", new StringContent(JsonConvert.SerializeObject(req), Encoding.UTF8, "application/json"));
+
+        }
+        public async Task Pause()
+        {
+
+            timerGalleryEnd.Stop();
+            await Client.PutAsync("hssp/stop", null);
+
+        }
 
         private async void upload()
         {
@@ -75,7 +93,7 @@ namespace Edi.Core.Device.Handy
             uploadCancellationTokenSource = new CancellationTokenSource();
             uploadTask = Task.Run(async () =>
             {
-                
+
                 try
                 {
                     await Task.Delay(3000, uploadCancellationTokenSource.Token);
@@ -99,27 +117,6 @@ namespace Edi.Core.Device.Handy
                 }
             });
         }
-
-        
-      
-
-        private async Task Seek(long timeMs)
-        {
-
-            var req = new SyncPlayRequest(ServerTime, timeMs);
-
-             await Client.PutAsync("hssp/play", new StringContent(JsonConvert.SerializeObject(req), Encoding.UTF8, "application/json"));
-
-        }
-        public async Task Pause()
-        {
-
-            timerGalleryEnd.Stop();
-            await Client.PutAsync("hssp/stop", null);
-
-        }
-
-
         private async Task<string> uploadBlob(FileInfo file, CancellationToken  cancellationToken)
         {
 
@@ -141,7 +138,6 @@ namespace Edi.Core.Device.Handy
         }
 
         private long ServerTime => DateTimeOffset.UtcNow.ToUnixTimeMilliseconds() + timeSyncInitialOffset + timeSyncAvrageOffset;
-
         public async Task updateServerTime()
         {
             var totalCalls = 30;
@@ -173,9 +169,6 @@ namespace Edi.Core.Device.Handy
             var estimatedServerTimeNow = resp.serverTime + (receiveTime - sendTime) / 2;
             return estimatedServerTimeNow - receiveTime;
         }
-
-        
-
         public async Task PlayGallery(string name, long seek = 0)
         {
             var gallery = repository.Get(name, selectedVariant);

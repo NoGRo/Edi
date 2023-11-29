@@ -8,6 +8,7 @@ using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Runtime.CompilerServices;
 using System.Text;
 using System.Threading.Tasks;
 using System.Timers;
@@ -29,7 +30,6 @@ namespace Edi.Core.Device.Handy
 
 
         private Timer timerReconnect = new Timer(20000);
-        private bool Connected = false;
 
         
         public HandyConfig Config { get; set; }
@@ -43,28 +43,37 @@ namespace Edi.Core.Device.Handy
             if (string.IsNullOrEmpty(Config.Key))
                 return;
 
-            
+            await Task.Delay(500);
+            RemoveAll();
+
             Keys = Config.Key.Split(',')
-                                .Where(x=> !string.IsNullOrWhiteSpace(x))
-                                .Select(x => x.Trim())  
+                                .Where(x => !string.IsNullOrWhiteSpace(x))
+                                .Select(x => x.Trim())
                                 .ToList();
             timerReconnect.Stop();
-            var tasks = new List<Task>();
-
-            Keys.AsParallel().ForAll(async key =>
-            {
-                
-                await Connect(key);
-            });
             
+
+            
+
+            ConnectAll();
+
             timerReconnect.Start();
         }
+
+        private void ConnectAll()
+        {
+            Keys.AsParallel().ForAll(async key =>
+            {
+
+                await Connect(key);
+            });
+        }
+
         private async Task Connect(string Key)
         {
-            if (devices.ContainsKey(Key))
-                return;
 
-            HttpClient Client = NewClient(Key);
+            HttpClient Client = devices.ContainsKey(Key) ? devices[Key].Client : NewClient(Key);
+                
             HttpResponseMessage resp = null;
 
             try
@@ -75,33 +84,43 @@ namespace Edi.Core.Device.Handy
 
             if (resp?.StatusCode != System.Net.HttpStatusCode.OK)
             {
+                Remove(Key);
                 return;
             }
-
-
             var status = JsonConvert.DeserializeObject<ConnectedResponse>(await resp.Content.ReadAsStringAsync());
             if (!status.connected)
             {
+                Remove(Key);
                 return;
             }
 
-            resp = await Client.PutAsync("mode", new StringContent(JsonConvert.SerializeObject(new ModeRequest(1)), Encoding.UTF8, "application/json"));
-
-
-            if (resp.StatusCode != System.Net.HttpStatusCode.OK)
-            {
-                //OnStatusChange("Server fail Response");
+            
+            if (devices.ContainsKey(Key))
                 return;
-            }
+
+            _ = await Client.PutAsync("mode", new StringContent(JsonConvert.SerializeObject(new ModeRequest(1)), Encoding.UTF8, "application/json"));
+
             var handyDevice = new HandyDevice(Client, repository);
-            handyDevice.Key = Config.Key;
-
-
-
+            
             devices.Add(Key, handyDevice);
             deviceManager.LoadDevice(handyDevice);
+
             await handyDevice.updateServerTime();
 
+        }
+
+        private void RemoveAll()
+        {
+            foreach (var key in Keys)
+                Remove(key);
+        }
+        private void Remove(string Key)
+        {
+            if (devices.ContainsKey(Key))
+            {
+                deviceManager.UnloadDevice(devices[Key]);
+                devices.Remove(Key);
+            }
         }
 
         public static HttpClient NewClient(string Key)
@@ -114,32 +133,7 @@ namespace Edi.Core.Device.Handy
 
         private async void TimerReconnect_Elapsed(object? sender, ElapsedEventArgs e)
         {
-            
-
-            foreach (var Key in Keys)
-            {
-
-                HttpResponseMessage resp = null;
-                try
-                {
-                    resp = await devices[Key].Client.GetAsync("connected");
-                } catch (Exception ex)
-                {
-
-                }
-                if (resp != null && resp.StatusCode != System.Net.HttpStatusCode.OK)
-                {
-                    if (devices.ContainsKey(Key))
-                    {
-                        deviceManager.UnloadDevice(devices[Key]);
-                        devices.Remove(Key);
-                    }
-                    await Connect(Key);
-                }
-                
-            }
-
+            ConnectAll();
         }
-       
     }
 }

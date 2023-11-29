@@ -33,11 +33,9 @@ namespace Edi.Core.Device.Buttplug
 
         private  CmdLinear CurrentCmd { get;  set; }
         private DateTime SendAt { get;  set; }
-        private static double CurrentTime => (DateTime.Now - SyncSend).TotalMilliseconds;
+        private double CurrentTime => (DateTime.Now - SyncSend).TotalMilliseconds;
 
-        private static Timer timerCmdEnd = new Timer();
-
-        private double lastSpeedSend = 0;
+        private Timer timerCmdEnd = new Timer();
 
         public bool IsReady => true;
 
@@ -116,8 +114,8 @@ namespace Edi.Core.Device.Buttplug
             return speed;
         }
 
-        private static List<CmdLinear> queue { get; set; } = new List<CmdLinear>();
-        public static DateTime SyncSend { get; private set; }
+        private  List<CmdLinear> queue { get; set; } = new List<CmdLinear>();
+        public  DateTime SyncSend { get; private set; }
         public bool IsPause { get; private set; } = true;
         private long ResumeAt { get; set; }
         
@@ -143,8 +141,6 @@ namespace Edi.Core.Device.Buttplug
         {
             timerCmdEnd.Stop();
             CmdLinear nextcmd = null;
-            lock (queue)
-            {
                 if (queue?.Any() == true)
                 {
                     IsPause = false;
@@ -152,13 +148,12 @@ namespace Edi.Core.Device.Buttplug
                     queue.RemoveAt(0);
 
                 }
-            }
             if (nextcmd != null)
             {
                 await SendCmd(nextcmd);
                 return;
             }
-            if (CurrentGallery.Loop)
+            if (CurrentGallery?.Loop == true)
             {
                 await PlayGallery(CurrentGallery.Name);
             }

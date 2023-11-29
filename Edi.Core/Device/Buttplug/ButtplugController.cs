@@ -31,7 +31,8 @@ namespace Edi.Core.Device.Buttplug
         }
         private void DeviceManager_OnUnloadDevice(IDevice Device)
         {
-            if (customDelayDevices.TryRemove((Device as ButtplugDevice)?.Device, out var cts))
+            ButtplugDevice? buttplugDevice = (Device as ButtplugDevice);
+            if (buttplugDevice != null && customDelayDevices.TryRemove(buttplugDevice.Device, out var cts))
             {
                 cts.Cancel();
             }

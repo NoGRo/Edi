@@ -77,9 +77,7 @@ namespace Edi.Core
         {
             lock (Devices)
             {
-
                 UniqueName(device);
-
                 Devices.Add(device);
             }
 
@@ -87,11 +85,11 @@ namespace Edi.Core
                 device.SelectedVariant = Config.DeviceVariant[device.Name]; 
             else
                 Config.DeviceVariant.Add(device.Name, device.SelectedVariant);
+
             configuration.Save(Config);
 
             if (OnloadDevice != null)
                 OnloadDevice(device);
-
            
             if (lastGallerySend != null)
                 await device.PlayGallery(lastGallerySend);
@@ -112,10 +110,13 @@ namespace Edi.Core
 
         public async void UnloadDevice(IDevice device)
         {
+            lock (Devices)
+            {
+                Devices.RemoveAll(x => x.Name == device.Name);
 
-            Devices.RemoveAll(x => x.Name == device.Name);
-            if (OnUnloadDevice != null)
-                OnUnloadDevice(device);
+                if (OnUnloadDevice != null)
+                    OnUnloadDevice(device);
+            }
         }
 
         public async Task Pause()

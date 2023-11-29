@@ -12,8 +12,9 @@
 
     <Grid Height="303" VerticalAlignment="Top">
         <Grid.ColumnDefinitions>
-            <ColumnDefinition Width="16*"/>
-            <ColumnDefinition Width="19*"/>
+            <ColumnDefinition Width="304*"/>
+            <ColumnDefinition Width="353*"/>
+            <ColumnDefinition Width="8*"/>
         </Grid.ColumnDefinitions>
 
         <DataGrid x:Name="DevicesGrid" ItemsSource="{Binding devices, Mode=OneWay}"  AutoGenerateColumns="False" Margin="5,78,0,72" HorizontalAlignment="Left" Width="337" Grid.Column="1">

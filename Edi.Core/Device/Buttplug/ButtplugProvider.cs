@@ -41,6 +41,7 @@ namespace Edi.Core.Device.Buttplug
         {
             timerReconnect.Elapsed += timerReconnectevent;
             timerReconnect.Start();
+            //RemoveAllDevices();
             await Connect();
         }
 

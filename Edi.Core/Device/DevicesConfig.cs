@@ -11,5 +11,7 @@ namespace Edi.Core
     public class DevicesConfig
     {
         public Dictionary<string, string> DeviceVariant { get; set; } = new Dictionary<string, string>();
+
     }
 }
+

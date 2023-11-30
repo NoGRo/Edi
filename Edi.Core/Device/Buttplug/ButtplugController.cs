@@ -80,7 +80,7 @@ namespace Edi.Core.Device.Buttplug
                         sendTaks.Add(SendCommandAsync(command.Key.Device, command.Key.Actuator, cmdValue.cmds));
                         lastCommands[command.Key.Device] = (command.Key.Actuator, cmdValue.cmds);
 
-                        Debug.WriteLine($"Enviando comando a {command.Key.Device} - Actuador: {command.Key.Actuator}, Comandos: {string.Join(", ", cmdValue.cmds)}, NextDelay: {NextDelay}, ReminingTime: {cmdValue.ReminingTime}");
+                        //Debug.WriteLine($"Enviando comando a {command.Key.Device} - Actuador: {command.Key.Actuator}, Comandos: {string.Join(", ", cmdValue.cmds)}, NextDelay: {NextDelay}, ReminingTime: {cmdValue.ReminingTime}");
 
 
                         await Task.Delay(2);
@@ -91,6 +91,18 @@ namespace Edi.Core.Device.Buttplug
             }
         }
 
+        private async Task SendCommandAsync(ButtplugClientDevice device, ActuatorType actuator, List<(uint, double)> command)
+        {
+            switch (actuator)
+            {
+                case ActuatorType.Vibrate:
+                    await device.VibrateAsync(command);
+                    break;
+                case ActuatorType.Oscillate:
+                    await device.OscillateAsync(command);
+                    break;
+            }
+        }
         private bool AreCommandsDifferent(List<(uint Channel, double Speed)> lastCmds, List<(uint Channel, double Speed)> newCmds)
         {
             if (lastCmds == null || newCmds == null)
@@ -109,18 +121,7 @@ namespace Edi.Core.Device.Buttplug
         }
 
 
-        private async Task SendCommandAsync(ButtplugClientDevice device, ActuatorType actuator, List<(uint, double)> command)
-        {
-            switch (actuator)
-            {
-                case ActuatorType.Vibrate:
-                    await device.VibrateAsync(command);
-                    break;
-                case ActuatorType.Oscillate:
-                    await device.OscillateAsync(command);
-                    break;
-            }
-        }
+     
 
         
     }

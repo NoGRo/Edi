@@ -129,7 +129,5 @@ namespace Edi.Core
             lastGallerySend = name;
             DevicesParallel.ForAll(async x => await x.PlayGallery(name, seek));
         }
-
-
     }
 }

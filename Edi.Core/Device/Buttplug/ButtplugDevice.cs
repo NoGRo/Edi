@@ -23,25 +23,27 @@ namespace Edi.Core.Device.Buttplug
     [AddINotifyPropertyChangedInterface]
     public class ButtplugDevice : IDevice
     {
-        public ButtplugClientDevice Device { get; private set; }
+        
         public ActuatorType Actuator { get; }
         public uint Channel { get; }
-        private FunscriptRepository repository { get; set; }
+        
         public string Name { get; set; } 
         public string SelectedVariant { get; set; }
-
+        public bool IsReady => true;
         public IEnumerable<string> Variants => repository.GetVariants();
-
+        public ButtplugClientDevice Device { get; private set; }
+        private FunscriptRepository repository { get; set; }
+        
+        private FunscriptGallery CurrentGallery;
         public CmdLinear CurrentCmd { get;  set; }
         private DateTime SendAt { get;  set; }
         private double CurrentTime => (DateTime.Now - SyncSend).TotalMilliseconds;
-        public int ReminingTime => CurrentCmd.Millis - Convert.ToInt32((DateTime.Now - SendAt).TotalMilliseconds);
+        public int ReminingTime => CurrentCmd is null? 0 : CurrentCmd.Millis - Convert.ToInt32((DateTime.Now - SendAt).TotalMilliseconds);
 
-        private Timer timerCmdEnd = new Timer();
+        private CancellationTokenSource cancellationTokenSource = new CancellationTokenSource();
+        private Task commandLoopTask;
 
-
-        public bool IsReady => true;
-
+        
         public ButtplugDevice(ButtplugClientDevice device, ActuatorType actuator, uint channel, FunscriptRepository repository)
         {
             this.Device = device;
@@ -52,8 +54,6 @@ namespace Edi.Core.Device.Buttplug
             Actuator = actuator;
             Channel = channel;
             this.repository = repository;
-            timerCmdEnd.Elapsed += OnCommandEnd;
-
             SelectedVariant = Variants.FirstOrDefault(x => x.Contains(Actuator.ToString(),StringComparison.OrdinalIgnoreCase))
                                 ?? repository.Config.DefaulVariant;
         }
@@ -64,38 +64,26 @@ namespace Edi.Core.Device.Buttplug
             if (Device == null)
                 return;
 
-            Task sendtask = Task.CompletedTask;
-
             CurrentCmd = cmd;
-
-            switch (Actuator)
-            {
-                case ActuatorType.Position:
-                    sendtask = Device.LinearAsync(new[] { (cmd.buttplugMillis, cmd.LinearValue) });
-                    break;
-                case ActuatorType.Rotate:
-                    sendtask = Device.RotateAsync(Math.Min(1.0, Math.Max(0, CurrentCmd.Speed / (double)450)), CurrentCmd.Direction); ;
-                    break;
-            }
-
             SendAt = DateTime.Now;
             cmd.Sent = DateTime.Now;
-            
-            var time = cmd.AbsoluteTime != 0
-                        ? cmd.AbsoluteTime - CurrentTime
-                        : cmd.Millis;
+            try
+            {
+                switch (Actuator)
+                {
+                    case ActuatorType.Position:
+                        await Device.LinearAsync(new[] { (cmd.buttplugMillis, cmd.LinearValue) });
+                        break;
+                    case ActuatorType.Rotate:
+                        await Device.RotateAsync(Math.Min(1.0, Math.Max(0, CurrentCmd.Speed / (double)450)), CurrentCmd.Direction); ;
+                        break;
+                }
+            }
+            catch (Exception ex) { 
+                Debug.WriteLine(ex);
+            }
 
-            if (time <= 0)
-                time = 1;
-
-            timerCmdEnd.Stop();
-            timerCmdEnd.Interval = time;
-            timerCmdEnd.Start();
-
-            if (sendtask != null)
-                await sendtask;
         }
-
 
         public double CalculateSpeed()
         {
@@ -124,8 +112,6 @@ namespace Edi.Core.Device.Buttplug
         public bool IsPause { get; private set; } = true;
         private long ResumeAt { get; set; }
         
-
-        private FunscriptGallery CurrentGallery;
         public async Task PlayGallery(string name,long seek = 0)
         {
             var gallery = repository.Get(name, SelectedVariant);
@@ -134,34 +120,98 @@ namespace Edi.Core.Device.Buttplug
 
             CurrentGallery = gallery;
             SyncSend = DateTime.Now;
-            queue = CurrentGallery.Commands.ToList().AddAbsoluteTime();
+            queue = CurrentGallery.Commands.AddAbsoluteTime();
             
             if (seek != 0)
                 await Seek(seek);
 
-
-            await PlayNext();
+            IsPause = false;
+            StartCommandLoop();
         }
-        private async Task PlayNext()
+        private void StartCommandLoop()
         {
-            timerCmdEnd.Stop();
-            CmdLinear nextcmd = null;
-                if (queue?.Any() == true)
-                {
-                    IsPause = false;
-                    nextcmd = queue.First();
-                    queue.RemoveAt(0);
+            cancellationTokenSource.Cancel(); // Asegurar cancelar cualquier bucle existente
+            cancellationTokenSource = new CancellationTokenSource();
+            var token = cancellationTokenSource.Token;
 
+            commandLoopTask = Task.Run(async () =>
+            {
+                    await ExecuteNextCommand(token);
+               
+            }, token);
+        }
+
+        private async Task ExecuteNextCommand(CancellationToken token)
+        {
+            DateTime lastCommandSendTime = DateTime.MinValue;
+
+            while (!token.IsCancellationRequested && !IsPause)
+            {
+                if (queue.Any())
+                {
+                    // Obtener el tiempo actual
+                    var currentTime = DateTime.Now;
+
+                    // Calcular el intervalo desde el último comando enviado
+                    var intervalSinceLastCommand = (currentTime - lastCommandSendTime).TotalMilliseconds;
+
+                    var nextcmd = queue.First();
+                    //Debug.WriteLine($"queued: {Name} at {queue.Count()}");
+                    queue.RemoveAt(0);
+                    // Si el intervalo es menor a 50 ms, descartar los comandos anteriores
+                    //if (intervalSinceLastCommand < 50)
+                    //{
+                    //    Debug.WriteLine($"Descartado: {nextcmd} at {DateTime.Now:HH:mm:ss.fff}");
+                    //    var val = nextcmd.Millis - Convert.ToInt32(intervalSinceLastCommand);
+                    //    await Task.Delay(val > 0 ? val : nextcmd.Millis);
+
+
+
+
+                    //    continue; // Continuar con el siguiente ciclo del bucle
+                    //}
+
+                    // Enviar el siguiente comando en la cola
+
+                    lastCommandSendTime = DateTime.Now;
+                    //Debug.WriteLine($"Sending command: {Name} at {DateTime.Now:HH:mm:ss.fff}");
+                    await SendCmd(nextcmd);
+                    Debug.WriteLine($"Enviado: {Name} at {DateTime.Now:HH:mm:ss.fff}");
+
+                    // Actualizar el tiempo del último comando enviado
+
+
+                    // Esperar el tiempo restante del intervalo si es necesario
+                    var remainingWaitTime = nextcmd.Millis - ((DateTime.Now - lastCommandSendTime).TotalMilliseconds);
+                    if (remainingWaitTime > 0)
+                    {
+                        await Task.Delay((int)remainingWaitTime, token);
+                    }
+                    else
+                    {
+                        Debug.WriteLine($"Descartado: {nextcmd} at {DateTime.Now:HH:mm:ss.fff}");
+                        var val = nextcmd.Millis - Convert.ToInt32(intervalSinceLastCommand);
+                        await Task.Delay(val > 0 ? val : nextcmd.Millis);
+                    }
                 }
-            if (nextcmd != null)
-            {
-                await SendCmd(nextcmd);
-                return;
+                else if (CurrentGallery?.Loop == true)
+                {
+                    lastCommandSendTime = DateTime.MinValue;
+
+                    await RestartGallery();
+                }
+                else
+                {
+                    // Si no hay comandos y no se debe hacer loop, hacer una espera corta para evitar uso excesivo de CPU
+                    await Pause();
+                }
             }
-            if (CurrentGallery?.Loop == true)
-            {
-                await PlayGallery(CurrentGallery.Name);
-            }
+        }
+        private async Task RestartGallery()
+        {
+            queue = CurrentGallery.Commands.AddAbsoluteTime();
+            SyncSend = DateTime.Now;
+            await ExecuteNextCommand(cancellationTokenSource.Token);
 
         }
 
@@ -173,16 +223,12 @@ namespace Edi.Core.Device.Buttplug
                 return;
             next.Millis = Convert.ToInt32(next.AbsoluteTime - time);
         }
-        private async void OnCommandEnd(object sender, ElapsedEventArgs e)
-        {
-            await PlayNext(); 
-        }
 
         public async Task Pause()
         {
             IsPause = true;
             ResumeAt = (long)CurrentTime;
-            timerCmdEnd.Stop();
+            cancellationTokenSource.Cancel();
             await Device.Stop();
         }
     }

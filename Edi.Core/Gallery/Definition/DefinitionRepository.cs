@@ -28,20 +28,20 @@ namespace Edi.Core.Gallery.Definition
 
             var csvFile = new FileInfo($"{GalleryPath}Definitions.csv");
 
-            if (!csvFile.Exists)
+            if (!csvFile.Exists) {
                 GenerateDefinitions(GalleryPath);
+                csvFile = new FileInfo($"{GalleryPath}Definitions_auto.csv");
+                if (!csvFile.Exists)
+                    return;
+            }
 
-            csvFile = new FileInfo($"{GalleryPath}Definitions.csv");
-            if (!csvFile.Exists)
-                return;
-
-            List<DefinitionDto> definitionsDtos;
+            List<DefinitionDtoRead> definitionsDtos;
 
             using (var reader = csvFile.OpenText())
             using (var csv = new CsvReader(reader, CultureInfo.InvariantCulture))
             {
 
-                definitionsDtos = csv.GetRecords<DefinitionDto>().ToList();
+                definitionsDtos = csv.GetRecords<DefinitionDtoRead>().ToList();
             }
             int linesCount = 0;
 
@@ -79,19 +79,19 @@ namespace Edi.Core.Gallery.Definition
         private void GenerateDefinitions(string GalleryPath)
         { 
             var dir = new DirectoryInfo(GalleryPath);
-            var funscriptsFiles = dir.EnumerateFiles("*.funscript");
+            var funscriptsFiles = dir.EnumerateFiles("*.funscript").ToList();
 
-            funscriptsFiles.Concat(dir.EnumerateDirectories().SelectMany(d => d.EnumerateFiles("*.funscript")));
+            funscriptsFiles.AddRange(dir.EnumerateDirectories().SelectMany(d => d.EnumerateFiles("*.funscript")));
 
             if (!funscriptsFiles.Any())
                 return;
             var regex = new Regex(@"^(?<nombre>.*?)(\.(?<variante>[^.]+))?$");
 
 
-            funscriptsFiles = funscriptsFiles.DistinctBy(x => x.Name);
+            funscriptsFiles = funscriptsFiles.DistinctBy(x => x.Name).ToList();
 
 
-            var newDefinitionFile = new List<DefinitionDto>();
+            var newDefinitionFile = new List<DefinitionDtoWrite>();
                 
             foreach (var file in funscriptsFiles)  
             {
@@ -102,7 +102,8 @@ namespace Edi.Core.Gallery.Definition
                 if (funscript.metadata?.chapters?.Any() == true)
                 {
                     newDefinitionFile.AddRange(
-                        funscript.metadata.chapters.Select(x => new DefinitionDto { 
+                        funscript.metadata.chapters.Select(x => new DefinitionDtoWrite
+                        { 
                             Name = x.name,
                             FileName = fileName,
                             Type = "gallery",
@@ -128,7 +129,7 @@ namespace Edi.Core.Gallery.Definition
             //Detect Variants
             newDefinitionFile = newDefinitionFile.DistinctBy(x => x.Name).ToList();
 
-            using (var csv = new CsvWriter(new FileInfo($"{GalleryPath}definitions.csv").CreateText(), CultureInfo.InvariantCulture))
+            using (var csv = new CsvWriter(new FileInfo($"{GalleryPath}Definitions_auto.csv").CreateText(), CultureInfo.InvariantCulture))
             {
                 csv.WriteRecords(newDefinitionFile);
             }

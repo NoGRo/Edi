@@ -52,6 +52,6 @@ namespace Edi.Controllers
 
         [HttpGet("Definitions")]
         public async Task<IEnumerable<DefinitionGallery>> GetDefinitions()
-        => _edi.Definitions.ToArray();
+            => _edi.Definitions.ToArray();
     }
 }

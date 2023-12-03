@@ -115,7 +115,9 @@ namespace Edi.Core.Device.Buttplug
         private async Task PlayNext()
         {
             timerCmdEnd.Stop();
+            
             Seek(CurrentTime);
+
             CmdLinear nextcmd = null;
             if (queue?.Any() == true)
             {
@@ -158,7 +160,7 @@ namespace Edi.Core.Device.Buttplug
                 }
 
                 CurrentCmd = cmd;
-                Debug.WriteLineIf(Name == "The Handy", $"{Name}: at:{cmd.AbsoluteTime} Cur:{CurrentTime}  {cmd.Millis}-{cmd.Value}");
+                //Debug.WriteLineIf(Name == "The Handy", $"{Name}: at:{cmd.AbsoluteTime} Cur:{CurrentTime}  {cmd.Millis}-{cmd.Value}");
 
                 SendAt = DateTime.Now;
                 cmd.Sent = DateTime.Now;

@@ -81,7 +81,7 @@ namespace Edi.Core.Gallery.CmdLineal
             Variants = Galleries.SelectMany(x => x.Value.Select(y => y.Variant)).Distinct().ToList();
         }
 
-        private List<FunScriptFile> GetFunscripts()
+        public List<FunScriptFile> GetFunscripts()
         {
             var GalleryDir = new DirectoryInfo(Config.GalleryPath);
             

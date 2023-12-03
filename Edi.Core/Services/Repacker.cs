@@ -119,6 +119,26 @@ namespace Edi.Core
             }
         }
 
+        private void ApplyChapterToCuurrentFunscripts()
+        {
+            var funscripts = funRepo.GetFunscripts();
+
+            foreach (var record in galleries.GroupBy(x => x.FileName))
+            {
+                foreach (var fun in funscripts.Where(x => x.name.ToLower() == record.Key))
+                {
+                    fun.metadata = new()
+                    {
+                        chapters = record.Select(x => new FunScriptChapter
+                        {
+                            name = x.Name,
+                            startTime = $"{TimeSpan.FromMilliseconds(x.StartTime):hh\\:mm\\:ss\\.fff}",
+                            endTime = $"{TimeSpan.FromMilliseconds(x.EndTime):hh\\:mm\\:ss\\.fff}"
+                        }).ToList()
+                    };
+                }
+            }
+        } 
         private void WriteFunscripts()
         {
             var variants = funRepo.GetVariants();

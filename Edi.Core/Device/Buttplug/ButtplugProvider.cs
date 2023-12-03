@@ -108,20 +108,20 @@ namespace Edi.Core.Device.Buttplug
             
             for (uint i = 0; i < Device.LinearAttributes.Count; i++)
             {
-                newdevices.Add(new ButtplugDevice(Device,ActuatorType.Position, i, repository));
+                newdevices.Add(new ButtplugDevice(Device,ActuatorType.Position, i, repository,Config));
             }
 
             for (uint i = 0; i < Device.VibrateAttributes.Count; i++)
             {
-                newdevices.Add(new ButtplugDevice(Device, ActuatorType.Vibrate, i, repository));
+                newdevices.Add(new ButtplugDevice(Device, ActuatorType.Vibrate, i, repository,Config));
             }
             for (uint i = 0; i < Device.RotateAttributes.Count; i++)
             {
-                newdevices.Add(new ButtplugDevice(Device, ActuatorType.Rotate, i, repository));
+                newdevices.Add(new ButtplugDevice(Device, ActuatorType.Rotate, i, repository,Config));
             }
             for (uint i = 0; i < Device.OscillateAttributes.Count; i++)
             {
-                newdevices.Add(new ButtplugDevice(Device, ActuatorType.Oscillate, i, repository));
+                newdevices.Add(new ButtplugDevice(Device, ActuatorType.Oscillate, i, repository,Config));
             }
 
             devices.AddRange(newdevices);

@@ -9,7 +9,7 @@ using System.Threading.Tasks;
 
 namespace Edi.Core.Gallery.Definition
 {
-    public class DefinitionDto 
+    public class DefinitionDtoRead 
     {
         [Required]
         //[Index(0)]

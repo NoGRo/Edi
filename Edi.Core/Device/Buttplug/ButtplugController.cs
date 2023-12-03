@@ -42,7 +42,7 @@ namespace Edi.Core.Device.Buttplug
         private void DeviceManager_OnloadDevice(IDevice Device)
         {
             var device = Device as ButtplugDevice;
-            if (device != null)
+            if (device != null && device.Actuator is ActuatorType.Vibrate or ActuatorType.Oscillate)
             {
                 var cts = new CancellationTokenSource();
                 if (customDelayDevices.TryAdd(device.Device, cts))

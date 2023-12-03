@@ -8,7 +8,7 @@ using System.Threading.Tasks;
 
 namespace Edi.Core.Gallery.Definition
 {
-    public class DefinitionGallery : IGallery, IValidatableObject
+    public class DefinitionGallery : IGallery
     {
         [Required]
         public string Name { get; set; }
@@ -24,15 +24,5 @@ namespace Edi.Core.Gallery.Definition
         public long EndTime { get; set; }
         public long Duration => EndTime - StartTime;
         public bool Loop { get; set; }
-
-        public IEnumerable<ValidationResult> Validate(ValidationContext validationContext)
-        {
-            var validations = new List<ValidationResult>();
-
-            if (EndTime < StartTime)
-                validations.Add(new ValidationResult("EndTime < StartTime"));
-
-            return validations;
-        }
     }
 }

@@ -172,76 +172,21 @@ namespace Edi.Core.Gallery.CmdLineal
             var gallery = variants.FirstOrDefault(x => x.Variant == variant)
                         ?? variants.FirstOrDefault(x => x.Variant == Config.SelectedVariant)
                         ?? variants.FirstOrDefault();
+
+
+            if (gallery is null) 
+                return null;
+
+            gallery = new FunscriptGallery
+            {
+                Name = gallery.Name,
+                Variant = gallery.Variant,
+                Loop = gallery.Loop,
+                Commands = gallery.Commands.Clone(),
+            };
             return gallery;
 
         }
 
-
-
-
-        /*
-        private void LoadGalleryFromCsv()
-        {
-            var GalleryPath = $"{Config.GalleryPath}\\";
-
-            if (!Directory.Exists($"{GalleryPath}"))
-                return;
-
-            var variants = Directory.GetDirectories($"{GalleryPath}");
-
-            if (!variants.Any())
-            {
-                //variants = GetVarinasFromFunscripts();
-            }
-
-            Variants.Clear();
-            Variants.AddRange(variants);
-
-            var FunscriptCache = GetGalleryFunscripts();
-            Galleries.Clear();
-            foreach (var variantPath in variants)
-            {
-                var variantDir = new DirectoryInfo(variantPath);
-                string variant = variantDir.Name;
-                foreach (var DefinitionGallery in Definition.GetAll())
-                {
-                    string filePath;
-                    if (!variantDir.Exists)
-                    {
-                        filePath = $"{Config.GalleryPath}\\{variant}\\{DefinitionGallery.FileName}.funscript";
-
-                        if (!FunscriptCache.ContainsKey(filePath))
-                            filePath = $"{Config.GalleryPath}\\{variant}\\{DefinitionGallery.FileName}.{variant}.funscript";
-                    }
-                    else
-                    {
-                        filePath = $"{Config.GalleryPath}\\{DefinitionGallery.FileName}.{variant}.funscript";
-                    }
-
-                    if (!FunscriptCache.ContainsKey(filePath))
-                        continue;
-
-                    var funscript = FunscriptCache[filePath];
-
-                    var actions = funscript.actions
-                        .Where(x => x.at > DefinitionGallery.StartTime
-                                 && x.at <= DefinitionGallery.EndTime);
-
-                    if (!actions.Any())
-                        continue;
-
-
-                    FunscriptGallery gallery = ParseActions(variant, DefinitionGallery, actions);
-
-                    if (!Galleries.ContainsKey(DefinitionGallery.Name))
-                        Galleries.Add(DefinitionGallery.Name, new List<FunscriptGallery>());
-
-                    Galleries[gallery.Name].Add(gallery);
-                }
-            }
-            Variants = Galleries.SelectMany(x => x.Value.Select(y => y.Variant)).Distinct().ToList();
-        }
-
-        */
     }
 }

@@ -168,7 +168,10 @@ namespace Edi.Core.Device.Buttplug
             timerCmdEnd.Start();
 
             if (sendtask != null)
-                await sendtask;
+                try
+                {
+                    await sendtask;
+                } catch  { }
         }
 
 
@@ -197,8 +200,14 @@ namespace Edi.Core.Device.Buttplug
 
         private void Seek(long time)
         {
-            queue = queue.Where(x => x.AbsoluteTime > time).ToList();
+            int index = queue.FindIndex(x => x.AbsoluteTime > time);
+            if (index > 0)
+                queue.RemoveRange(0, index);
+            else if (index == -1 && queue.Any())
+                queue.Clear();
+
             var next = queue.FirstOrDefault();
+
             if (next == null) 
                 return;
             next.Millis = Convert.ToInt32(next.AbsoluteTime - time);

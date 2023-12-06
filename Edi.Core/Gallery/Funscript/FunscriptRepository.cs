@@ -95,40 +95,6 @@ namespace Edi.Core.Gallery.CmdLineal
                         .ToList();
         }
 
-        private Dictionary<string, FunScriptFile> GetGalleryFunscripts()
-        {
-            var FunscriptCache = new Dictionary<string, FunScriptFile>(StringComparer.OrdinalIgnoreCase);
-            foreach (var variantPath in Variants)
-            {
-                var variant = new DirectoryInfo(variantPath).Name;
-                foreach (var DefinitionGallery in Definition.GetAll())
-                {
-                    var filePath = $"{Config.GalleryPath}\\{variant}\\{DefinitionGallery.FileName}.funscript";
-
-                    if(!File.Exists(filePath))
-                        filePath = $"{Config.GalleryPath}\\{variant}\\{DefinitionGallery.FileName}.{variant}.funscript";
-
-                    FunScriptFile funscript;
-                    if (!FunscriptCache.ContainsKey(filePath))
-                    {
-                        if (!File.Exists(filePath))
-                            continue;
-                        try
-                        {
-                            funscript = JsonSerializer.Deserialize<FunScriptFile>(File.ReadAllText(filePath));
-                            funscript.actions = funscript.actions.OrderBy(x => x.at).ToList();
-                        }
-                        catch
-                        {
-                            continue;
-                        }
-                        FunscriptCache.Add(filePath, funscript);
-                    }
-                }
-            }
-            return FunscriptCache;
-
-        }
 
         private static FunscriptGallery ParseActions(string variant, DefinitionGallery DefinitionGallery, IEnumerable<FunScriptAction> actions)
         {

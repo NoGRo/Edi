@@ -36,9 +36,12 @@ namespace Edi.Core.Device.Handy
         public HttpClient Client = null;
         private IndexRepository repository { get; set; }
         private Timer timerGalleryEnd = new Timer();
-        
-
+        private int CurrentTime => Convert.ToInt32((DateTime.Now - SyncSend).TotalMilliseconds + SeekTime);
+        public DateTime SyncSend { get; private set; } = DateTime.Now;
+        private long SeekTime { get; set; }
         private IndexGallery currentGallery;
+        public bool IsPause { get; private set; } = true;
+
         private string selectedVariant;
         public string SelectedVariant
         {
@@ -72,15 +75,16 @@ namespace Edi.Core.Device.Handy
         {
 
             var req = new SyncPlayRequest(ServerTime, timeMs);
-
-             await Client.PutAsync("hssp/play", new StringContent(JsonConvert.SerializeObject(req), Encoding.UTF8, "application/json"));
+            if (IsReady)
+                await Client.PutAsync("hssp/play", new StringContent(JsonConvert.SerializeObject(req), Encoding.UTF8, "application/json"));
 
         }
         public async Task Pause()
         {
-
+            IsPause = true;
             timerGalleryEnd.Stop();
-            await Client.PutAsync("hssp/stop", null);
+            if (IsReady)
+                await Client.PutAsync("hssp/stop", null);
 
         }
 
@@ -107,6 +111,9 @@ namespace Edi.Core.Device.Handy
                     IsReady = false;
                     var resp = await Client.PutAsync("hssp/setup", new StringContent(JsonConvert.SerializeObject(new SyncUpload(blob)), Encoding.UTF8, "application/json"), uploadCancellationTokenSource.Token);
                     IsReady = true;
+
+                    if (currentGallery != null && !IsPause)
+                        await PlayGallery(currentGallery.Name, CurrentTime);
                 }
                 catch (TaskCanceledException)
                 {
@@ -173,7 +180,11 @@ namespace Edi.Core.Device.Handy
             {
                 return ;
             }
+
+            SyncSend = DateTime.Now;
+            SeekTime = seek;
             currentGallery = gallery;
+            IsPause = false;
 
             timerGalleryEnd.Interval = gallery.Duration - seek;
             timerGalleryEnd.Start();

@@ -18,7 +18,7 @@ namespace Edi.Core
     public class DeviceManager
     {
         public List<IDevice> Devices { get; private set; } =  new List<IDevice>();    
-        private  ParallelQuery<IDevice> DevicesParallel => Devices.Where(x => x != null && x.IsReady).AsParallel();
+        private  ParallelQuery<IDevice> DevicesParallel => Devices.Where(x => x != null).AsParallel();
         private string? lastGallerySend;
 
         public delegate void OnUnloadDeviceHandler(IDevice device);

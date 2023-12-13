@@ -21,6 +21,9 @@ using Timer = System.Timers.Timer;
 
 namespace Edi.Core.Device.Buttplug
 {
+
+
+    //OSR6 I don't know if you can use this class because it is all designed for a single stream to go under bluetooth it has the rate limit other things
     [AddINotifyPropertyChangedInterface]
     public class ButtplugDevice : IDevice
     {

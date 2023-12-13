@@ -106,6 +106,10 @@ namespace Edi.Core.Device.Buttplug
         {
             var newdevices = new List<ButtplugDevice>();
             
+
+            //OSR6 detect if is Osr and create another Device class ?
+
+
             for (uint i = 0; i < Device.LinearAttributes.Count; i++)
             {
                 newdevices.Add(new ButtplugDevice(Device,ActuatorType.Position, i, repository,Config));

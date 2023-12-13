@@ -41,6 +41,8 @@ namespace Edi.Core.Gallery.CmdLineal
             if (!Directory.Exists($"{GalleryPath}"))
                 return;
 
+            
+
             var GalleryDir = new DirectoryInfo(Config.GalleryPath);
 
             var FilesSourceNames = Definition
@@ -51,6 +53,8 @@ namespace Edi.Core.Gallery.CmdLineal
                                     .Where(x=> FilesSourceNames.Contains(x.name))
                                     .ToList();
 
+
+            //OSR6 Manage Axies some where in this function
             foreach (var funscript in funscriptsFiles)
             {
                 var pathVariant = funscript.path.Replace(GalleryPath, "").Split('\\')[0];
@@ -83,6 +87,8 @@ namespace Edi.Core.Gallery.CmdLineal
 
         private List<FunScriptFile> GetFunscripts()
         {
+            //OSR6 Manage Axies some where in this function to populate diccionary in FunscriptGallery
+
             var GalleryDir = new DirectoryInfo(Config.GalleryPath);
             
 
@@ -124,6 +130,8 @@ namespace Edi.Core.Gallery.CmdLineal
             => Variants;
         public List<FunscriptGallery> GetAll()
             => Galleries.Values.SelectMany(x => x).ToList();
+
+        
 
         public FunscriptGallery? Get(string name, string variant = null)
         {

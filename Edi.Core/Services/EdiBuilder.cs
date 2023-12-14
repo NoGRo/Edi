@@ -30,7 +30,7 @@ namespace Edi.Core
 
             var definitionRepository = new DefinitionRepository(configuration);
             var funscriptRepository = new FunscriptRepository(configuration, definitionRepository);
-            var indexRepository = new IndexRepository(configuration, new GalleryBundler(configuration), funscriptRepository);
+            var indexRepository = new IndexRepository(configuration, new GalleryBundler(configuration), funscriptRepository, definitionRepository);
 
             #endregion
 

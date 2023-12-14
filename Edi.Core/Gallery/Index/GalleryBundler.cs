@@ -28,7 +28,7 @@ namespace Edi.Core.Gallery.Index
         {
             sb = new ScriptBuilder();
         }
-        public IndexGallery Add(FunscriptGallery gallery )
+        public IndexGallery Add(FunscriptGallery gallery, string bundleName )
         {
             
             var startTime = sb.TotalTime;
@@ -41,7 +41,8 @@ namespace Edi.Core.Gallery.Index
                 Loop = gallery.Loop,
                 Variant = gallery.Variant,
                 Duration = Convert.ToInt32(sb.TotalTime - startTime),
-                StartTime = startTime
+                StartTime = startTime,
+                Bundle = bundleName
             };
 
             //6 seconds repear in script bundle for loop msg delay

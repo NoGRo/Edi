@@ -20,6 +20,7 @@ using Edi.Core.Device.Interfaces;
 using System.Runtime.CompilerServices;
 using System.Threading;
 using PropertyChanged;
+using System.ComponentModel.DataAnnotations;
 
 namespace Edi.Core.Device.Handy
 {
@@ -88,35 +89,55 @@ namespace Edi.Core.Device.Handy
 
         }
 
-        private async void upload()
+        private async void upload(string bundle = null, bool delay = true)
         {
             uploadCancellationTokenSource?.Cancel();
+            await Task.Delay(100);
             uploadCancellationTokenSource = new CancellationTokenSource();
             uploadTask = Task.Run(async () =>
             {
-
+                if (delay)
+                { 
+                    try
+                    {
+                        await Task.Delay(3000, uploadCancellationTokenSource.Token);
+                    }
+                    catch (TaskCanceledException)
+                    {
+                        return;
+                    }
+                }
                 try
                 {
-                    await Task.Delay(3000, uploadCancellationTokenSource.Token);
+                    Task pause =  Client.PutAsync("hssp/stop",null, uploadCancellationTokenSource.Token);
+                    IsReady = false;
+
+                    bundle = bundle ?? currentGallery?.Bundle ?? "default";
+
+                    var blob = await uploadBlob(repository.GetBundle($"{bundle}.{selectedVariant}", "csv"), uploadCancellationTokenSource.Token);
+                    
+                    await pause;
+
+                    
+                    var resp = await Client.PutAsync("hssp/setup", new StringContent(JsonConvert.SerializeObject(new SyncUpload(blob)), Encoding.UTF8, "application/json"), uploadCancellationTokenSource.Token);
+                    var result = await resp.Content.ReadAsStringAsync();
+
+                    if(result.Contains("timeout") )
+                    {
+                        //when ends the divice re adquiere seek command
+                    }
+                    IsReady = true;
+
+                    if (currentGallery != null && !IsPause)
+                    {
+                        await PlayGallery(currentGallery?.Name, CurrentTime);
+                    }
                 }
                 catch (TaskCanceledException)
                 {
                     return;
                 }
-
-                try
-                {
-                    var blob = await uploadBlob(repository.GetBundle(selectedVariant, "csv"), uploadCancellationTokenSource.Token);
-
-                    IsReady = false;
-                    var resp = await Client.PutAsync("hssp/setup", new StringContent(JsonConvert.SerializeObject(new SyncUpload(blob)), Encoding.UTF8, "application/json"), uploadCancellationTokenSource.Token);
-                    IsReady = true;
-
-                    if (currentGallery != null && !IsPause)
-                        await PlayGallery(currentGallery.Name, CurrentTime);
-                }
-                catch (TaskCanceledException)
-                {
+                catch (Exception ex) {
                     return;
                 }
             });
@@ -126,6 +147,7 @@ namespace Edi.Core.Device.Handy
 
             using (var blobClient = new HttpClient())
             {
+                blobClient.Timeout = TimeSpan.FromMinutes(3);
                 var request = new HttpRequestMessage(HttpMethod.Post, "https://www.handyfeeling.com/api/sync/upload");
 
                 var content = new MultipartFormDataContent
@@ -175,10 +197,16 @@ namespace Edi.Core.Device.Handy
         }
         public async Task PlayGallery(string name, long seek = 0)
         {
-            var gallery = repository.Get(name, selectedVariant);
+            var gallery = repository.Get(name, selectedVariant, currentGallery?.Bundle);
             if (gallery == null)
             {
                 return ;
+            }
+            if(currentGallery?.Bundle != null  && gallery.Bundle != currentGallery.Bundle )
+            {
+
+                IsReady= false;
+                upload(currentGallery.Bundle, false);
             }
 
             SyncSend = DateTime.Now;
@@ -217,4 +245,7 @@ namespace Edi.Core.Device.Handy
     public record SyncUpload(string url);
     public record ConnectedResponse(bool connected);
     public record ModeRequest(int mode);
+    public record ErrorDetails(int Code, string Name, string Message, bool Connected);
+    public record ErrorResponse(ErrorDetails Error);
+
 }

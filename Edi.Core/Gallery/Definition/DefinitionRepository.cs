@@ -35,13 +35,13 @@ namespace Edi.Core.Gallery.Definition
                     return;
             }
 
-            List<DefinitionDtoRead> definitionsDtos;
+            List<DefinitionReadDto> definitionsDtos;
 
             using (var reader = csvFile.OpenText())
             using (var csv = new CsvReader(reader, CultureInfo.InvariantCulture))
             {
 
-                definitionsDtos = csv.GetRecords<DefinitionDtoRead>().ToList();
+                definitionsDtos = csv.GetRecords<DefinitionReadDto>().ToList();
             }
             int linesCount = 0;
 
@@ -91,7 +91,7 @@ namespace Edi.Core.Gallery.Definition
             funscriptsFiles = funscriptsFiles.DistinctBy(x => x.Name).ToList();
 
 
-            var newDefinitionFile = new List<DefinitionDtoWrite>();
+            var newDefinitionFile = new List<DefinitionWriteDto>();
                 
             foreach (var file in funscriptsFiles)  
             {
@@ -102,7 +102,7 @@ namespace Edi.Core.Gallery.Definition
                 if (funscript.metadata?.chapters?.Any() == true)
                 {
                     newDefinitionFile.AddRange(
-                        funscript.metadata.chapters.Select(x => new DefinitionDtoWrite
+                        funscript.metadata.chapters.Select(x => new DefinitionWriteDto
                         { 
                             Name = x.name,
                             FileName = fileName,

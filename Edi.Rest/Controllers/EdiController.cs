@@ -45,9 +45,9 @@ namespace Edi.Controllers
         /// Resumes the playback of the current gallery of multimedia content.
         /// </summary>
         [HttpPost("Resume")]
-        public async Task Resume()
+        public async Task Resume([FromQuery] bool AtCurrentTime = false)
         {
-            await _edi.Resume();
+            await _edi.Resume(AtCurrentTime);
         }
 
         [HttpGet("Definitions")]

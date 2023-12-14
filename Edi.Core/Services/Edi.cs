@@ -20,6 +20,7 @@ namespace Edi.Core
         private readonly DefinitionRepository _repository;
         private readonly IEnumerable<IRepository> repos;
         private long resumePauseAt;
+        private long seekTime;
 
         public static string OutputDir => Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData) + "/Edi";
 
@@ -200,11 +201,19 @@ namespace Edi.Core
                 resumePauseAt = -1;
         }
 
-        public async Task Resume()
+        public async Task Resume(bool atCurrentTime = false)
         {
-            changeStatus("Device Resume");
-            if(resumePauseAt >= 0)
-                await SendGallery(LastGallery, resumePauseAt);
+            //changeStatus("Device Resume");
+             if (resumePauseAt >= 0)
+            {
+                if(atCurrentTime)
+                {
+                    var timeFromSent = Convert.ToInt64((DateTime.Now - GallerySendTime.Value).TotalMilliseconds) + seekTime;
+                    await SendGallery(LastGallery, timeFromSent);
+                }
+                else
+                    await SendGallery(LastGallery, resumePauseAt);
+            }
         }
         private async Task SendGallery(string name, long seek = 0)
         {
@@ -236,6 +245,7 @@ namespace Edi.Core
             GallerySendTime = DateTime.Now;
             LastGallery = gallery;
             resumePauseAt = seek;
+            seekTime = seek;
             // If the gallery does not repeat, then start a timer to stop the gallery after its duration.
             if (!gallery.Loop)
             {

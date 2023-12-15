@@ -33,26 +33,50 @@ namespace Edi.Core.Funscript
     /// </summary>
     public class FunScriptFile
     {
-
         public string version { get; set; }
         public bool inverted { get; set; }
         public int range { get; set; }
         public string path { get; set; }
-
-        //OSR6 add property Axie modifiing regular exprexeion with Chat Gpt 
-        [JsonIgnore]
-        private Regex regex = new Regex(@"^(?<name>.*?)(\.(?<variant>[^.]+))?$");
+        public string filename { get; set; }
 
         [JsonIgnore]
-        public string name => regex.Match(Path.GetFileNameWithoutExtension(path)).Groups["name"].Value;
+        public string name => filename.Split('.').First();
 
         private string _variant;
         [JsonIgnore]
         public string variant
         {
-            get => _variant ??( path is null ? "" :  regex.Match(Path.GetFileNameWithoutExtension(path)).Groups["variant"].Value);
+            get
+            {
+                if (_variant != null)
+                    return _variant;
+                if (filename is null)
+                    return "";
+
+                var nameSplit = filename.Split('.');
+                if (nameSplit.Length == 3)
+                    return nameSplit[1];
+                else if (nameSplit.Length == 2)
+                    return axis == Axis.Default ? nameSplit[1] : "";
+
+                return "";
+            }
             set => _variant = value;
         }
+
+        [JsonIgnore]
+        public Axis axis
+        {
+            get
+            {
+                var axis = filename is null ? null : filename.Split('.').Last();
+
+                Axis parsedAxis;
+                var parsed = Enum.TryParse(axis, true, out parsedAxis);
+                return parsed ? parsedAxis : Axis.Default;
+            }
+        }
+
 
         public List<FunScriptAction> actions { get; set; }
         public FunScriptMetadata metadata { get; set; }
@@ -82,7 +106,8 @@ namespace Edi.Core.Funscript
         {
             path = Path.GetFullPath(path);
             var result = JsonConvert.DeserializeObject<FunScriptFile>(File.ReadAllText(path));
-            result.path  = path;
+            result.path = path;
+            result.filename = Path.GetFileNameWithoutExtension(path);
             return result;
         }
 

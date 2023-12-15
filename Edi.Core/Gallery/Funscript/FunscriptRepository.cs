@@ -24,7 +24,7 @@ namespace Edi.Core.Gallery.CmdLineal
 
 
         private List<string> Variants { get; set; } = new List<string>();
-        public  GalleryConfig Config { get; set; }
+        public GalleryConfig Config { get; set; }
         public DefinitionRepository Definition { get; }
 
         public async Task Init()
@@ -41,7 +41,7 @@ namespace Edi.Core.Gallery.CmdLineal
             if (!Directory.Exists($"{GalleryPath}"))
                 return;
 
-            
+
 
             var GalleryDir = new DirectoryInfo(Config.GalleryPath);
 
@@ -50,34 +50,32 @@ namespace Edi.Core.Gallery.CmdLineal
                                     .Distinct().ToHashSet(StringComparer.InvariantCultureIgnoreCase);
 
             var funscriptsFiles = GetFunscripts()
-                                    .Where(x=> FilesSourceNames.Contains(x.name))
+                                    .Where(x => FilesSourceNames.Contains(x.name))
                                     .ToList();
 
-
-            //OSR6 Manage Axies some where in this function
             foreach (var funscript in funscriptsFiles)
             {
-                var pathVariant = funscript.path.Replace(GalleryPath, "").Split('\\')[0];
+                var pathVariant = funscript.path.Replace(GalleryDir.FullName, "").Split('\\')[0];
                 funscript.variant = !string.IsNullOrEmpty(funscript.variant)
                                         ? funscript.variant
                                         : pathVariant ?? Config.DefaulVariant;
             }
-            
+
             foreach (var DefinitionGallery in Definition.GetAll())
             {
                 Galleries.Add(DefinitionGallery.Name, new List<FunscriptGallery>());
 
                 var funscripts = funscriptsFiles
                                         .Where(x => x.name == DefinitionGallery.FileName)
-                                        .DistinctBy(x=> x.variant);
+                                        .DistinctBy(x => x.variant);
 
                 foreach (var funscript in funscripts)
                 {
-                    var actions = funscript.actions
-                        .Where(x => x.at > DefinitionGallery.StartTime
-                                 && x.at <= DefinitionGallery.EndTime);
+                    var funscriptAxis = funscriptsFiles
+                                        .Where(x => x.name == funscript.name && x.variant == funscript.variant)
+                                        .ToList();
 
-                    FunscriptGallery gallery = ParseActions(funscript.variant, DefinitionGallery, actions);
+                    FunscriptGallery gallery = ParseScripts(funscriptAxis, funscript.variant, DefinitionGallery);
 
                     Galleries[DefinitionGallery.Name].Add(gallery);
                 }
@@ -87,22 +85,41 @@ namespace Edi.Core.Gallery.CmdLineal
 
         private List<FunScriptFile> GetFunscripts()
         {
-            //OSR6 Manage Axies some where in this function to populate diccionary in FunscriptGallery
-
             var GalleryDir = new DirectoryInfo(Config.GalleryPath);
-            
+
 
             var funscriptsFiles = GalleryDir.EnumerateFiles("*.funscript").ToList();
             funscriptsFiles.AddRange(GalleryDir.EnumerateDirectories().SelectMany(d => d.EnumerateFiles("*.funscript")));
 
-            return  funscriptsFiles
+            return funscriptsFiles
                         .Select(x => FunScriptFile.TryRead(x.FullName))
-                        .Where(x=> x != null && x.actions?.Any() == true) 
+                        .Where(x => x != null && x.actions?.Any() == true)
                         .ToList();
         }
 
+        private static FunscriptGallery ParseScripts(List<FunScriptFile> funscripts, string variant, DefinitionGallery DefinitionGallery)
+        {
+            var gallery = new FunscriptGallery
+            {
+                Name = DefinitionGallery.Name,
+                Variant = variant,
+                Loop = DefinitionGallery.Loop
+            };
 
-        private static FunscriptGallery ParseActions(string variant, DefinitionGallery DefinitionGallery, IEnumerable<FunScriptAction> actions)
+            foreach (var funscript in funscripts)
+            {
+                var actions = funscript.actions
+                    .Where(x => x.at > DefinitionGallery.StartTime
+                             && x.at <= DefinitionGallery.EndTime);
+
+                gallery.AxisCommands[funscript.axis] = ParseActions(funscript, DefinitionGallery, actions);
+            }
+
+            return gallery;
+        }
+
+
+        private static List<CmdLinear> ParseActions(FunScriptFile funscript, DefinitionGallery DefinitionGallery, IEnumerable<FunScriptAction> actions)
         {
             var sb = new ScriptBuilder();
             foreach (var action in actions)
@@ -111,19 +128,9 @@ namespace Edi.Core.Gallery.CmdLineal
                     millis: Convert.ToInt32(action.at - DefinitionGallery.StartTime - sb.TotalTime),
                     value: action.pos);
             }
-            var gallery = new FunscriptGallery
-            {
-                Name = DefinitionGallery.Name,
-                Variant = variant,
-                Loop = DefinitionGallery.Loop,
-                //Duration = DefinitionGallery.Duration,
-
-            };
             sb.TrimTimeTo(DefinitionGallery.Duration);
 
-            gallery.Commands = sb.Generate();
-
-            return gallery;
+            return sb.Generate();
         }
 
         public List<string> GetVariants()
@@ -131,7 +138,7 @@ namespace Edi.Core.Gallery.CmdLineal
         public List<FunscriptGallery> GetAll()
             => Galleries.Values.SelectMany(x => x).ToList();
 
-        
+
 
         public FunscriptGallery? Get(string name, string variant = null)
         {
@@ -148,18 +155,10 @@ namespace Edi.Core.Gallery.CmdLineal
                         ?? variants.FirstOrDefault();
 
 
-            if (gallery is null) 
+            if (gallery is null)
                 return null;
 
-            gallery = new FunscriptGallery
-            {
-                Name = gallery.Name,
-                Variant = gallery.Variant,
-                Loop = gallery.Loop,
-                Commands = gallery.Commands.Clone(),
-            };
-            return gallery;
-
+            return gallery.Clone();
         }
 
     }

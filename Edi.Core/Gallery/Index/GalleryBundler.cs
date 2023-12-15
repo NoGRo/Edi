@@ -72,7 +72,7 @@ namespace Edi.Core.Gallery.Index
             var final = new Dictionary<string, FileInfo>();
 
             var funscript = new FunScriptFile();
-            funscript.actions = cmds.Select(x => new FunScriptAction { at = x.AbsoluteTime, pos = x.Value }).ToList();
+            funscript.actions = cmds.Select(x => new FunScriptAction { at = x.AbsoluteTime, pos = (int)Math.Round(x.Value) }).ToList();
 
             var filePath = Edi.OutputDir + $"\\bundle.{variant}.funscript";
             funscript.Save(filePath);

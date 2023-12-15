@@ -17,7 +17,7 @@ namespace Edi.Core.Funscript
             Clear();
             return resul;
         }
-        public int lastValue => Sequence.LastOrDefault()?.Value ?? 0;
+        public double lastValue => Sequence.LastOrDefault()?.Value ?? 0;
         public CmdLinear lastCmd => Sequence.LastOrDefault();
         public long TotalTime { get; private set; }
         public void Clear()
@@ -47,7 +47,7 @@ namespace Edi.Core.Funscript
             addCommand(cmd);
         }
         //go to a value in Milliseconds 
-        public void AddCommandMillis(int millis, int value)
+        public void AddCommandMillis(int millis, double value)
         {
             var cmd = CmdLinear.GetCommandMillis(millis, value);
             addCommand(cmd);

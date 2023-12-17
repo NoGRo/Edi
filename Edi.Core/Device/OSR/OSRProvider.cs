@@ -58,7 +58,7 @@ namespace Edi.Core.Device.OSR
                 port.Open();
 
                 device = new OSRDevice(port, repository, Config);
-                device.ReturnToHome();
+                _ = device.ReturnToHome();
 
                 deviceManager.LoadDevice(device);
             }

@@ -42,7 +42,7 @@ namespace Edi.Core.Device.OSR
 
         public IEnumerable<string> Variants => repository.GetVariants();
         public DateTime GalleryStart { get; private set; } = DateTime.Now;
-        public bool IsPause { get; private set; } = true;
+        public bool IsPause { get; private set; } = false;
         public bool IsReady => DevicePort?.IsOpen == true;
 
 
@@ -53,6 +53,7 @@ namespace Edi.Core.Device.OSR
         }
 
         private readonly string[] channelCodes = new string[] { "L0", "L1", "L2", "R0", "R1", "R2", "V0", "A0", "A1" };
+        private readonly Axis[] supportedAxis = new Axis[] { Axis.Default, Axis.Surge, Axis.Sway, Axis.Twist, Axis.Roll, Axis.Pitch, Axis.Vibrate, Axis.Valve, Axis.Suction };
         private FunscriptRepository repository { get; set; }
         private OSRConfig config { get; set; }
 
@@ -65,7 +66,7 @@ namespace Edi.Core.Device.OSR
         private bool isNewScript { get; set; } = false;
         private bool speedRampUp { get; set; } = false;
         private DateTime? speedRampUpTime { get; set; }
-        private Dictionary<long, MakimaCoefficient> makimaCoefficients { get; set; }
+        private Dictionary<Axis, Dictionary<long, MakimaCoefficient>> makimaCoefficients { get; set; }
         private long seekTime { get; set; } = 0;
         private Dictionary<Axis, CmdLinear> lastCommandSent { get; set; } = new Dictionary<Axis, CmdLinear>();
         private volatile CancellationTokenSource cancellationTokenSource = new CancellationTokenSource();
@@ -93,11 +94,10 @@ namespace Edi.Core.Device.OSR
             if (gallery == null)
                 return;
 
-
-
             isNewScript = currentGallery?.Name != gallery.Name;
             currentGallery = gallery;
             seekTime = seek;
+            GalleryStart = DateTime.Now;
 
             _ = SendCommands(currentGallery.AxisCommands);
         }
@@ -111,18 +111,18 @@ namespace Edi.Core.Device.OSR
                 cancellationTokenSource = newCancellationTokenSource;
             }
 
-            GalleryStart = DateTime.Now;
             playbackCommands = ProcessCommands(cmds);
+            commandIndex = new();
 
-            await Task.Run(() => PlayCommands(newCancellationTokenSource.Token));
+            _ = Task.Run(() => PlayCommands(newCancellationTokenSource.Token));
         }
 
         private async Task PlayCommands(CancellationToken token)
         {
-            if (currentGallery == null)
+            if (playbackCommands == null)
                 return;
 
-            Axis[] scriptCommandTypes = currentGallery.AxisCommands.Keys.ToArray();
+            Axis[] scriptCommandTypes = playbackCommands.Keys.ToArray();
             HashSet<Axis> finishedCommandTypes = new HashSet<Axis>();
 
             CmdLinear? nextCmd;
@@ -149,9 +149,8 @@ namespace Edi.Core.Device.OSR
                         if (currentGallery?.Loop == true && !token.IsCancellationRequested)
                         {
                             GalleryStart = GalleryStart.AddMilliseconds(currentGallery.AxisCommands[axis].Last().AbsoluteTime);
-                            finishedCommandTypes.Clear();
-                            commandEndTime.Clear();
-                            break;
+                            _ = SendCommands(currentGallery.AxisCommands);
+                            return;
                         }
 
                         return;
@@ -213,14 +212,17 @@ namespace Edi.Core.Device.OSR
             return name.Replace("\r\n", "");
         }
 
-        public void ReturnToHome()
+        public async Task ReturnToHome()
         {
             var cmds = ReturnToHomeCommands();
 
             isNewScript = false;
             currentGallery = null;
             seekTime = 0;
-            _ = SendCommands(cmds);
+            foreach (var axis in cmds.Keys)
+            {
+                _ = SendCmd(cmds[axis].First(), axis);
+            }
         }
 
         private Dictionary<Axis, List<CmdLinear>> ReturnToHomeCommands()
@@ -229,8 +231,6 @@ namespace Edi.Core.Device.OSR
 
             var sb = new ScriptBuilder();
             sb.AddCommandMillis(1000, 0);
-            sb.AddCommandMillis(2000, 0);
-            sb.AddCommandMillis(3000, 0);
 
             var zeroedScript = sb.Generate();
 
@@ -238,8 +238,6 @@ namespace Edi.Core.Device.OSR
             cmds[Axis.Vibrate] = zeroedScript;
 
             sb.AddCommandMillis(1000, 50);
-            sb.AddCommandMillis(2000, 50);
-            sb.AddCommandMillis(3000, 50);
 
             var halvedScript = sb.Generate();
 
@@ -253,23 +251,22 @@ namespace Edi.Core.Device.OSR
             return cmds;
         }
 
-
         private async Task SendCmd(CmdLinear cmd, Axis axis)
         {
             if (DevicePort == null)
                 return;
 
+            var updatedCmd = GetUpdatedCommandRange(cmd, axis);
+            var value = (int)(updatedCmd.Value * 99.99);
+            var tCode = $"{ChannelCode(axis)}{value.ToString().PadLeft(4, '0')}I{updatedCmd.Millis}";
 
-
-            var value = (int)(cmd.Value * 99.99);
-            var tCode = $"{ChannelCode(axis)}{value.ToString().PadLeft(4, '0')}I{cmd.Millis}";
-
-            DevicePort.Write(tCode);
+            DevicePort.WriteLine(tCode);
+            lastCommandSent[axis] = cmd;
         }
 
         public async Task Pause()
         {
-            IsPause = true;
+            //IsPause = true;
         }
 
         private CmdLinear GetUpdatedCommandRange(CmdLinear command, Axis axis)
@@ -318,74 +315,68 @@ namespace Edi.Core.Device.OSR
 
             var nextMillis = CurrentTime + millisDelta;
 
-            while (command.Next.AbsoluteTime <= nextMillis)
+            while (command.Next == null || command.Next.AbsoluteTime <= nextMillis)
             {
-                commandIndex[axis]++;
-                if (commandIndex[axis] > playbackCommands[axis].Count)
+                index++;
+                if (command.Next == null || index > playbackCommands[axis].Count)
                 {
-                    cmd = null;
                     return true;
                 }
 
                 command = command.Next;
             }
 
-            var coefficients = makimaCoefficients[command.AbsoluteTime];
+            var coefficients = makimaCoefficients[axis][command.AbsoluteTime];
             var value = Math.Max(0, Math.Min(100, CubicHermite(command.AbsoluteTime, command.Value, command.Next.AbsoluteTime, command.Next.Value, coefficients.s1, coefficients.s2, nextMillis)));
             cmd = CmdLinear.GetCommandMillis(millisDelta, value);
+            commandIndex[axis] = index;
             return true;
         }
 
         private Dictionary<Axis, List<CmdLinear>> ProcessCommands(Dictionary<Axis, List<CmdLinear>> commands)
         {
+            makimaCoefficients = new();
             var processedCommands = new Dictionary<Axis, List<CmdLinear>>();
-            var commandsDuration = 0;
-            foreach (var axis in commands.Keys)
-            {
-                var lastCmd = commands[axis].Last();
-                if (lastCmd != null && lastCmd.Millis > commandsDuration)
-                {
-                    commandsDuration = lastCmd.Millis;
-                }
-            }
 
-            foreach (var axis in (Axis[])Enum.GetValues(typeof(Axis)))
+            var sb = new ScriptBuilder();
+
+            foreach (var axis in supportedAxis)
             {
-                if (!commands.ContainsKey(axis) && commandsDuration > 500)
+                if (!commands.ContainsKey(axis))
                 {
                     var value = axis != Axis.Default && axis != Axis.Vibrate ? 50 : 0;
-                    processedCommands[axis] = new List<CmdLinear>
-                    {
-                        CmdLinear.GetCommandMillis(500, value)
-                    };
-                    continue;
+                    sb.AddCommandMillis(500, value);
+                    commands[axis] = sb.Generate();
                 }
 
                 if (!config.EnableMultiAxis && axis != Axis.Default)
                 {
                     var value = axis == Axis.Vibrate ? 0 : 50;
-                    processedCommands[axis] = new List<CmdLinear>
-                    {
-                        CmdLinear.GetCommandMillis(500, value)
-                    };
+                    sb.AddCommandMillis(500, value);
+                    commands[axis] = sb.Generate();
                     continue;
                 }
 
-                if (!commands.ContainsKey(axis))
-                    continue;
+                processedCommands[axis] = commands[axis].Prepend(CmdLinear.GetCommandMillis(0, LastCommandSent(axis)?.Value ?? 50)).ToList();
 
-                var prependedCommands = commands[axis].Prepend(CmdLinear.GetCommandMillis(0, LastCommandSent(axis)?.Value ?? 0)).ToList();
-                CreateCoefficients(prependedCommands);
-                processedCommands[axis] = prependedCommands;
+                CmdLinear? prevCmd = null;
+                foreach (var cmd in processedCommands[axis])
+                {
+                    if (prevCmd != null)
+                        prevCmd.Next = cmd;
+                    prevCmd = cmd;
+                }
+
+                CreateCoefficients(processedCommands[axis], axis);
             }
 
             return processedCommands;
         }
 
 
-        private void CreateCoefficients(List<CmdLinear> commands)
+        private void CreateCoefficients(List<CmdLinear> commands, Axis axis)
         {
-            var interpolatedCommands = new List<CmdLinear>();
+            makimaCoefficients[axis] = new();
             var loopedCommands = commands.GetRange(1, commands.Count - 1);
 
             var firstCommand = commands.First();
@@ -393,38 +384,32 @@ namespace Edi.Core.Device.OSR
 
             var lastCommand = commands.Last();
 
-            lastCommand.Next = commands[1];
-
-            interpolatedCommands.Add(firstCommand);
-
             for (var i = 0; i < commands.Count - 1; i++)
             {
                 var currentCommand = commands[i];
-                var previousCommand = loopedCommands[LoopIndex(i - 1, loopedCommands.Count)];
+                var previousCommand = loopedCommands[LoopIndex(i - 1, loopedCommands.Count)].Clone();
                 while (previousCommand.AbsoluteTime > currentCommand.AbsoluteTime)
                     previousCommand.AbsoluteTime -= lastCommand.AbsoluteTime;
 
-                var previous2Command = loopedCommands[LoopIndex(i - 2, loopedCommands.Count)];
+                var previous2Command = loopedCommands[LoopIndex(i - 2, loopedCommands.Count)].Clone();
                 while (previous2Command.AbsoluteTime > previousCommand.AbsoluteTime)
                     previous2Command.AbsoluteTime -= lastCommand.AbsoluteTime;
 
-                var nextCommand = loopedCommands[(i) % loopedCommands.Count];
+                var nextCommand = loopedCommands[(i) % loopedCommands.Count].Clone();
                 while (nextCommand.AbsoluteTime < currentCommand.AbsoluteTime)
                     nextCommand.AbsoluteTime += lastCommand.AbsoluteTime;
 
-                var next2Command = loopedCommands[(i + 1) % loopedCommands.Count];
+                var next2Command = loopedCommands[(i + 1) % loopedCommands.Count].Clone();
                 while (next2Command.AbsoluteTime < nextCommand.AbsoluteTime)
                     next2Command.AbsoluteTime += lastCommand.AbsoluteTime;
 
-                var next3Command = loopedCommands[(i + 2) % loopedCommands.Count];
+                var next3Command = loopedCommands[(i + 2) % loopedCommands.Count].Clone();
                 while (next3Command.AbsoluteTime < next2Command.AbsoluteTime)
                     next3Command.AbsoluteTime += lastCommand.AbsoluteTime;
 
-                currentCommand.Next = nextCommand;
-
                 MakimaSlopes(previous2Command.AbsoluteTime, previous2Command.Value, previousCommand.AbsoluteTime, previousCommand.Value, currentCommand.AbsoluteTime, currentCommand.Value, nextCommand.AbsoluteTime, nextCommand.Value, next2Command.AbsoluteTime, next2Command.Value, next3Command.AbsoluteTime, next3Command.Value, out var s1, out var s2);
 
-                makimaCoefficients[currentCommand.AbsoluteTime] = new MakimaCoefficient
+                makimaCoefficients[axis][currentCommand.AbsoluteTime] = new MakimaCoefficient
                 {
                     s1 = s1,
                     s2 = s2

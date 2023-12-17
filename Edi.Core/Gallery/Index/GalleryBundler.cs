@@ -33,7 +33,7 @@ namespace Edi.Core.Gallery.Index
             
             var startTime = sb.TotalTime;
 
-            sb.addCommands(gallery.Commands);
+            sb.addCommands(gallery.Commands.Clone());
 
             var indexGallery = new IndexGallery
             {

@@ -69,7 +69,7 @@ namespace Edi.Core.Funscript
         {
             get
             {
-                var axis = filename is null ? null : filename.Split('.').Last();
+                var axis = filename?.Split('.').Last();
 
                 Axis parsedAxis;
                 var parsed = Enum.TryParse(axis, true, out parsedAxis);

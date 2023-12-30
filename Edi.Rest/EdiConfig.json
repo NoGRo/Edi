@@ -2,7 +2,7 @@
   "Gallery": {
     "DefaulVariant": "BF",
     "SelectedVariant": null,
-    "GalleryPath": "D:\\Juegos\\Agent_mirai-v3\\EdiDemo\\Gallery"
+    "GalleryPath": "Gallery"
   },
   "GalleryBundler": {
     "RepearDuration": 5000,
@@ -19,6 +19,36 @@
     "Filler": true,
     "Gallery": true,
     "Reactive": true
+  },
+  "OSR": {
+    "COMPort": "COM5",
+    "EnableMultiAxis": true,
+    "RangeLimits": {
+      "Linear": {
+        "LowerLimit": 0,
+        "UpperLimit": 100
+      },
+      "Roll": {
+        "LowerLimit": 0,
+        "UpperLimit": 100
+      },
+      "Pitch": {
+        "LowerLimit": 0,
+        "UpperLimit": 100
+      },
+      "Twist": {
+        "LowerLimit": 0,
+        "UpperLimit": 100
+      },
+      "Sway": {
+        "LowerLimit": 0,
+        "UpperLimit": 100
+      },
+      "Surge": {
+        "LowerLimit": 0,
+        "UpperLimit": 100
+      }
+    }
   },
   "Devices": {
     "DeviceVariant": {

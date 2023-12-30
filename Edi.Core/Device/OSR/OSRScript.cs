@@ -50,21 +50,32 @@ namespace FunscriptIntegrationService.Connector.Shared
                 if (!unprocessedCommands.ContainsKey(axis))
                 {
                     var value = axis != Axis.Default && axis != Axis.Vibrate ? 50 : 0;
-                    sb.AddCommandMillis(500, value);
+                    sb.AddCommandMillis(500 + (int)seekTime, value);
                     unprocessedCommands[axis] = sb.Generate();
                 }
 
                 if (!device.Config.EnableMultiAxis && axis != Axis.Default)
                 {
                     var value = axis == Axis.Vibrate ? 0 : 50;
-                    sb.AddCommandMillis(500, value);
+                    sb.AddCommandMillis(500 + (int)seekTime, value);
                     unprocessedCommands[axis] = sb.Generate();
                     continue;
                 }
 
                 var commands = unprocessedCommands[axis].Clone();
 
-                processedCommands[axis] = commands.Prepend(CmdLinear.GetCommandMillis(0, device.LastCommandSent(axis)?.Value ?? 50)).ToList();
+                var seekIdx = commands.FindLastIndex(c => c.AbsoluteTime < seekTime);
+                var currentPositionCommand = CmdLinear.GetCommandMillis((int)seekTime, device.LastCommandSent(axis)?.Value ?? 50);
+                currentPositionCommand.AbsoluteTime = seekTime;
+
+                if (seekIdx >= 0)
+                {
+                    commands.Insert(seekIdx + 1, currentPositionCommand);
+                }
+
+                commands.Insert(0, CmdLinear.GetCommandMillis(0, device.LastCommandSent(axis)?.Value ?? 50));
+
+                processedCommands[axis] = commands;
 
                 CmdLinear? prevCmd = null;
                 foreach (var cmd in processedCommands[axis])
@@ -90,7 +101,7 @@ namespace FunscriptIntegrationService.Connector.Shared
                 return true;
             }
 
-            var index = commandIndex[axis];
+            var index = commandIndex.GetValueOrDefault(axis, 0);
             var command = playbackCommands[axis].ElementAt(index);
 
             var nextMillis = CurrentTime + millisDelta;
@@ -116,8 +127,8 @@ namespace FunscriptIntegrationService.Connector.Shared
         public void Loop()
         {
             ResetIndices();
+            playbackStartTime = playbackStartTime.AddMilliseconds(scriptLength).AddMilliseconds(-seekTime);
             seekTime = 0;
-            playbackStartTime = playbackStartTime.AddMilliseconds(scriptLength);
         }
 
         private void ResetIndices()

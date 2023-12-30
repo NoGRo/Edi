@@ -22,6 +22,7 @@ using Timer = System.Timers.Timer;
 using System.Data;
 using NAudio.CoreAudioApi;
 using FunscriptIntegrationService.Connector.Shared;
+using System.Collections.Concurrent;
 
 namespace Edi.Core.Device.OSR
 {
@@ -58,7 +59,7 @@ namespace Edi.Core.Device.OSR
         private bool isNewScript { get; set; } = false;
         private bool speedRampUp { get; set; } = false;
         private DateTime? speedRampUpTime { get; set; }
-        private Dictionary<Axis, CmdLinear> lastCommandSent { get; set; } = new();
+        private ConcurrentDictionary<Axis, CmdLinear> lastCommandSent { get; set; } = new();
         private volatile CancellationTokenSource playbackCancellationTokenSource = new();
 
         private SemaphoreSlim semaphore = new(1, 1);

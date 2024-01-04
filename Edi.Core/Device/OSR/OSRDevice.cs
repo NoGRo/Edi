@@ -190,7 +190,7 @@ namespace Edi.Core.Device.OSR
                             }
                         }
 
-                        _ = SendCmd(nextCmd, axis);
+                        SendCmd(nextCmd, axis);
                     }
                 }
             }
@@ -217,7 +217,7 @@ namespace Edi.Core.Device.OSR
             {
                 cmds.Keys
                     .AsParallel()
-                    .ForAll(axis => { _ = SendCmd(cmds[axis].First(), axis); });
+                    .ForAll(axis => { SendCmd(cmds[axis].First(), axis); });
                 await Task.Delay(1000);
             }
             finally
@@ -252,7 +252,7 @@ namespace Edi.Core.Device.OSR
             return cmds;
         }
 
-        private async Task SendCmd(CmdLinear cmd, Axis axis)
+        private void SendCmd(CmdLinear cmd, Axis axis)
         {
             if (DevicePort == null)
                 return;

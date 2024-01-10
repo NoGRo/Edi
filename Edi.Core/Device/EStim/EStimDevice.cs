@@ -27,7 +27,7 @@ namespace Edi.Core.Device.EStim
         public string SelectedVariant { get => selectedVariant ?? _repository.Config.DefaulVariant; set => selectedVariant = value; }
         public IEnumerable<string> Variants => _repository.GetVariants();
 
-        public bool IsReady => throw new NotImplementedException();
+        public bool IsReady => true;
 
         
 
@@ -73,7 +73,7 @@ namespace Edi.Core.Device.EStim
             _wavePlayer.Stop();
         }
 
-        public async Task Pause()
+        public async Task Stop()
         {
             // Pausar la reproducción del archivo de audio
             _wavePlayer.Pause();

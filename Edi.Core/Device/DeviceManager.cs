@@ -91,8 +91,7 @@ namespace Edi.Core
             if (OnloadDevice != null)
                 OnloadDevice(device);
            
-            if (lastGallerySend != null)
-                await device.PlayGallery(lastGallerySend);
+
 
         }
 
@@ -119,9 +118,10 @@ namespace Edi.Core
             }
         }
 
-        public async Task Pause()
+        public async Task Stop()
         {
-            DevicesParallel.ForAll(async x => await x.Pause());
+            lastGallerySend = null;
+            DevicesParallel.ForAll(async x => await x.Stop());
         }
 
         public async Task PlayGallery(string name, long seek = 0)

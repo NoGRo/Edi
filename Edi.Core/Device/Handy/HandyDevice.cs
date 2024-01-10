@@ -77,15 +77,24 @@ namespace Edi.Core.Device.Handy
 
             var req = new SyncPlayRequest(ServerTime, timeMs);
             if (IsReady)
+            {
+                Debug.WriteLine($"Handy: {Client.DefaultRequestHeaders.GetValues("X-Connection-Key").FirstOrDefault()} PLay [{timeMs}] ({currentGallery?.Name ?? ""}))");
                 await Client.PutAsync("hssp/play", new StringContent(JsonConvert.SerializeObject(req), Encoding.UTF8, "application/json"));
+            }
+                
 
         }
-        public async Task Pause()
+        public async Task Stop()
         {
             IsPause = true;
             timerGalleryEnd.Stop();
+            currentGallery = null;
             if (IsReady)
+            {
+                Debug.WriteLine($"Handy: {Key} Stop");
                 await Client.PutAsync("hssp/stop", null);
+                
+            }
 
         }
 
@@ -130,7 +139,7 @@ namespace Edi.Core.Device.Handy
 
                     if (currentGallery != null && !IsPause)
                     {
-                        await PlayGallery(currentGallery?.Name, CurrentTime);
+                        await PlayGallery(currentGallery.Name, CurrentTime);
                     }
                 }
                 catch (TaskCanceledException)
@@ -214,18 +223,19 @@ namespace Edi.Core.Device.Handy
             currentGallery = gallery;
             IsPause = false;
 
-            timerGalleryEnd.Interval = gallery.Duration - seek;
+            timerGalleryEnd.Interval = gallery.Duration - seek ;
             timerGalleryEnd.Start();
 
             await Seek(gallery.StartTime + seek);
         }
         private async void TimerGalleryEnd_Elapsed(object? sender, ElapsedEventArgs e)
         {
+            Debug.WriteLine($"Handy: {Key} PLay Timer Elapse ({currentGallery?.Name ?? ""}))");
             timerGalleryEnd.Stop();
-            if (currentGallery.Loop)
+            if (currentGallery.Loop && !IsPause)
                 await PlayGallery(currentGallery.Name);
             else
-                await Pause();
+                await Stop();
 
         }
 

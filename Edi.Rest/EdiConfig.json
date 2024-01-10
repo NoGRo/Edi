@@ -2,11 +2,11 @@
   "Gallery": {
     "DefaulVariant": "BF",
     "SelectedVariant": null,
-    "GalleryPath": "D:\\Juegos\\Agent_mirai-v3\\EdiDemo\\Gallery"
+    "GalleryPath": "D:\\Juegos\\メルブレキトゥンズv1.22\\Edi\\Gallery"
   },
   "GalleryBundler": {
-    "RepearDuration": 5000,
-    "SpacerDuration": 5000
+    "RepearDuration": 2000,
+    "SpacerDuration": 4000
   },
   "Buttplug": {
     "Url": "ws://localhost:12345",
@@ -22,15 +22,16 @@
   },
   "Devices": {
     "DeviceVariant": {
-      "The Handy [PiBnz]": "lineal-anal",
-      "The Handy [92H0Y]": "lineal-anal",
+      "The Handy [PiBnz]": "Linear",
+      "The Handy [92H0Y]": "Linear",
       "Lovense Dolce Vibrate: 1": "vibro-breast-Ch1",
       "Lovense Dolce Vibrate: 2": "vibro-breast-Ch2",
       "The Handy": "lineal-vaginal",
       "The Handy (1)": "lineal-anal",
       "The Handy [ppJdVv3V]": "lineal-anal",
       "Lovense Hush": "vibro-breast-Ch1",
-      "The Handy (2)": "lineal-anal"
+      "The Handy (2)": "lineal-anal",
+      "The Handy [PiBnz] (1)": "BF"
     }
   }
 }

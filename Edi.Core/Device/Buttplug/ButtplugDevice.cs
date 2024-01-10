@@ -219,7 +219,7 @@ namespace Edi.Core.Device.Buttplug
         }
 
 
-        public async Task Pause()
+        public async Task Stop()
         {
             IsPause = true;
             ResumeAt = (long)CurrentTime;

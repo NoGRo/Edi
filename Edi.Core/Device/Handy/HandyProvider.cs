@@ -29,7 +29,7 @@ namespace Edi.Core.Device.Handy
         private HandyDevice handyDevice;
 
 
-        private Timer timerReconnect = new Timer(20000);
+        private Timer timerReconnect = new Timer(40000);
 
         
         public HandyConfig Config { get; set; }
@@ -64,12 +64,11 @@ namespace Edi.Core.Device.Handy
         {
             Keys.AsParallel().ForAll(async key =>
             {
-
                 await Connect(key);
             });
         }
 
-        private async Task Connect(string Key)
+        private async Task Connect( string  Key)
         {
 
             HttpClient Client = devices.ContainsKey(Key) ? devices[Key].Client : NewClient(Key);
@@ -84,6 +83,7 @@ namespace Edi.Core.Device.Handy
 
             if (resp?.StatusCode != System.Net.HttpStatusCode.OK)
             {
+                
                 Remove(Key);
                 return;
             }
@@ -101,9 +101,10 @@ namespace Edi.Core.Device.Handy
             _ = await Client.PutAsync("mode", new StringContent(JsonConvert.SerializeObject(new ModeRequest(1)), Encoding.UTF8, "application/json"));
 
             var handyDevice = new HandyDevice(Client, repository);
-            
-            devices.Add(Key, handyDevice);
-            deviceManager.LoadDevice(handyDevice);
+            lock (devices) {
+                devices.Add(Key, handyDevice);
+                deviceManager.LoadDevice(handyDevice);
+            }
 
             await handyDevice.updateServerTime();
 

@@ -5,7 +5,7 @@
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:local="clr-namespace:Edi.Forms"
         mc:Ignorable="d"
-        Title="Edi Launcher" Height="321" Width="665" ResizeMode="NoResize">
+        Title="Edi Launcher" Height="328" Width="665" ResizeMode="NoResize">
     <Grid Height="311" VerticalAlignment="Top">
         <Grid.ColumnDefinitions>
             <ColumnDefinition Width="16*"/>
@@ -36,10 +36,10 @@
         <Label Content="Intiface Url:" HorizontalAlignment="Left" Margin="10,41,0,0" VerticalAlignment="Top"/>
         <Button Content="Reconnect" HorizontalAlignment="Left" Margin="222,98,0,0" VerticalAlignment="Top" x:Name="ReconnectButton" Click="ReconnectButton_ClickAsync" Height="22" Width="72"/>
         <Button Content="Reload Galleries" HorizontalAlignment="Left" Margin="10,98,0,0" VerticalAlignment="Top" x:Name="ReloadButton"  Height="22" Width="103" Click="ReloadButton_Click"/>
-        <Label Grid.Column="1"  Foreground="Blue" Content="http://localhost:5000/swagger/index.html" HorizontalAlignment="Left" MouseDoubleClick="Label_MouseDoubleClick" Margin="5,234,0,0" VerticalAlignment="Top" Width="337" Grid.RowSpan="2"/>
+        <Label Grid.Column="1"  Foreground="Blue" Content="http://localhost:5000/swagger/index.html" HorizontalAlignment="Left" MouseDoubleClick="Label_MouseDoubleClick" Margin="10,263,0,0" VerticalAlignment="Top" Width="337"/>
         <Label Grid.Column="1" Content="Devices:" HorizontalAlignment="Left" Margin="5,66,0,0" VerticalAlignment="Top" Width="200"/>
         <Label Content="EStim Audio:" HorizontalAlignment="Left" Margin="9,67,0,0" VerticalAlignment="Top"/>
-        <Label Content="Status:" HorizontalAlignment="Left" Margin="5,9,0,0" x:Name="lblStatus" Width="650" Height="26" VerticalAlignment="Top" Grid.ColumnSpan="2" Grid.Row="1" />
+        <Label Content="Status:" HorizontalAlignment="Left" Margin="5,285,0,0" x:Name="lblStatus" Width="650" Height="26" VerticalAlignment="Top" Grid.ColumnSpan="2" />
         <Button Visibility="Hidden" Content="RePackButton" HorizontalAlignment="Left" Margin="10,125,0,0" VerticalAlignment="Top" x:Name="RePackButton"  Height="22" Width="103" Click="RePackButton_Click"/>
     </Grid>
 </Window>

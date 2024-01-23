@@ -57,7 +57,8 @@ namespace Edi.Core.Gallery.CmdLineal
             //OSR6 Manage Axies some where in this function
             foreach (var funscript in funscriptsFiles)
             {
-                var pathVariant = funscript.path.Replace(GalleryPath, "").Split('\\')[0];
+                var pathSplit = funscript.path.Replace(GalleryDir.FullName + "\\", "").Split('\\');
+                var pathVariant = pathSplit.Length > 1 ? pathSplit[0] : null;
                 funscript.variant = !string.IsNullOrEmpty(funscript.variant)
                                         ? funscript.variant
                                         : pathVariant ?? Config.DefaulVariant;

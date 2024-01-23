@@ -232,7 +232,7 @@ namespace Edi.Core.Device.Handy
         {
             Debug.WriteLine($"Handy: {Key} PLay Timer Elapse ({currentGallery?.Name ?? ""}))");
             timerGalleryEnd.Stop();
-            if (currentGallery.Loop && !IsPause)
+            if (currentGallery?.Loop == true && !IsPause)
                 await PlayGallery(currentGallery.Name);
             else
                 await Stop();

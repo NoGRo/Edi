@@ -40,8 +40,8 @@ namespace Edi.Core.Gallery.Index
                 Name = gallery.Name,
                 Loop = gallery.Loop,
                 Variant = gallery.Variant,
-                Duration = Convert.ToInt32(sb.TotalTime - startTime),
                 StartTime = startTime,
+                Duration = Convert.ToInt32(sb.TotalTime - startTime),
                 Bundle = bundleName
             };
 

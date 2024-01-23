@@ -1,10 +1,10 @@
 using Microsoft.AspNetCore.Mvc;
 using Edi.Core;
 using Edi.Core.Device.Interfaces;
-using Edi.Forms;
 using Edi.Core.Gallery.Definition;
 using Edi.Core.Gallery;
 using System.IO;
+using webapi;
 
 namespace Edi.Controllers
 {
@@ -12,7 +12,7 @@ namespace Edi.Controllers
     [Route("[controller]")]
     public class EdiController : ControllerBase
     {
-        private readonly IEdi _edi = App.Edi;
+        private readonly IEdi _edi = AppStatic.Edi;
 
         public EdiController()
         {

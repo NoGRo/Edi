@@ -22,10 +22,13 @@ namespace Edi.Core.Gallery.Definition
         public async Task Init()
         {
             var GalleryPath = $"{Config.GalleryPath}\\";
+            
+
 
             if (!Directory.Exists($"{GalleryPath}"))
                 return;
 
+            
             var csvFile = new FileInfo($"{GalleryPath}Definitions.csv");
 
             if (!csvFile.Exists) {
@@ -76,6 +79,35 @@ namespace Edi.Core.Gallery.Definition
             }
         }
         
+        public void LoadFile(string path)
+        {
+
+
+            if (!File.Exists(path))
+                return;
+
+
+            var file = new FileInfo(path);
+            var regex = new Regex(@"^(?<nombre>.*?)(\.(?<variante>[^.]+))?$");
+
+            var fileName = regex.Match(Path.GetFileNameWithoutExtension(file.FullName)).Groups["nombre"].Value;
+            var funscriptsFiles = file.Directory.EnumerateFiles($"{fileName}*.funscript").ToList();
+           
+
+            var EndTime = funscriptsFiles.Select(f => FunScriptFile.Read(f.FullName))
+                            .Where(x => x != null).Max(x => x.actions.Max(x => x.at));
+            dicDefinitions.Clear();
+            dicDefinitions.Add(fileName,new()
+                {
+                    Name = fileName,
+                    FileName = fileName,
+                    Type = "gallery",
+                    Loop = false,
+                    StartTime = 0,
+                    EndTime = EndTime,
+                });
+            
+        }
         private void GenerateDefinitions(string GalleryPath)
         { 
             var dir = new DirectoryInfo(GalleryPath);

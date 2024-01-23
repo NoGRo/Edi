@@ -18,6 +18,7 @@ namespace Edi.Core
         public Task Pause();
         public Task Resume(bool atCurrentTime);
         public Task Repack();
+        public Task LoadFile(string path);
 
         public delegate void ChangeStatusHandler(string message);
         public event ChangeStatusHandler OnChangeStatus;

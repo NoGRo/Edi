@@ -7,6 +7,10 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Edi", "Edi.Rest\Edi.csproj"
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Edi.Core", "Edi.Core\Edi.Core.csproj", "{E4046236-6153-4D91-A546-B440CA95C4A9}"
 EndProject
+Project("{54A90642-561A-4BB1-A94E-469ADEE60C69}") = "vueapp", "EdiPlayer\vueapp\vueapp.esproj", "{C582D52F-4633-4A72-AC88-8FEDA0880136}"
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "webapi", "EdiPlayer\webapi\webapi.csproj", "{D511C522-E6C0-478B-B2F8-578FDE1702C0}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -21,6 +25,16 @@ Global
 		{E4046236-6153-4D91-A546-B440CA95C4A9}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{E4046236-6153-4D91-A546-B440CA95C4A9}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{E4046236-6153-4D91-A546-B440CA95C4A9}.Release|Any CPU.Build.0 = Release|Any CPU
+		{C582D52F-4633-4A72-AC88-8FEDA0880136}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{C582D52F-4633-4A72-AC88-8FEDA0880136}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{C582D52F-4633-4A72-AC88-8FEDA0880136}.Debug|Any CPU.Deploy.0 = Debug|Any CPU
+		{C582D52F-4633-4A72-AC88-8FEDA0880136}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{C582D52F-4633-4A72-AC88-8FEDA0880136}.Release|Any CPU.Build.0 = Release|Any CPU
+		{C582D52F-4633-4A72-AC88-8FEDA0880136}.Release|Any CPU.Deploy.0 = Release|Any CPU
+		{D511C522-E6C0-478B-B2F8-578FDE1702C0}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{D511C522-E6C0-478B-B2F8-578FDE1702C0}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{D511C522-E6C0-478B-B2F8-578FDE1702C0}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{D511C522-E6C0-478B-B2F8-578FDE1702C0}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

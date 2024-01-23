@@ -102,7 +102,7 @@ namespace Edi.Forms
         {
             await Dispatcher.Invoke(async () =>
             {
-                await edi.Init();
+                await edi.LoadFile("D:/pp/playeables/MultiDevice/Tantric Pixels/Tantric Pixels [CGI PMV].mp4");
             });
            
         }    

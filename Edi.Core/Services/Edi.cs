@@ -13,7 +13,7 @@ using Edi.Core.Funscript;
 
 namespace Edi.Core
 {
-    public class Edi :  IEdi
+    public class Edi : IEdi
     {
         public  ConfigurationManager ConfigurationManager { get; set; }
         public DeviceManager DeviceManager { get; private set; }
@@ -284,6 +284,12 @@ namespace Edi.Core
         public Task Repack()
         {
             throw new NotImplementedException();
+        }
+
+        public Task LoadFile(string path)
+        {
+            _repository.LoadFile(path);
+            return Task.CompletedTask;
         }
     }
 }

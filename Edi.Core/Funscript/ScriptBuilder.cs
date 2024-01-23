@@ -18,6 +18,7 @@ namespace Edi.Core.Funscript
             return resul;
         }
         public int lastValue => Sequence.LastOrDefault()?.Value ?? 0;
+        public CmdLinear lastCmd => Sequence.LastOrDefault();
         public long TotalTime { get; private set; }
         public void Clear()
         {
@@ -87,18 +88,17 @@ namespace Edi.Core.Funscript
 
         public void TrimTimeTo(long maxTime)
         {
+            if(lastCmd is null) return;
+            Sequence.RemoveAll(x => x.AbsoluteTime > maxTime);
+            TotalTime = lastCmd.AbsoluteTime;
 
-            var final = Sequence.Where(x => x.AbsoluteTime <= maxTime);
-
-            if (!final.Any())
+            if (!Sequence.Any())
                 return;
 
-            var last = final.Last();
-            if (last.AbsoluteTime != maxTime)
-                last.Millis += Convert.ToInt32(maxTime - last.AbsoluteTime);
-
-            Sequence = final.ToList();
-            TotalTime = last.AbsoluteTime; 
+            if (lastCmd.AbsoluteTime != maxTime)
+                AddCommandMillis(Convert.ToInt32(maxTime - TotalTime), lastCmd.Value);
+                        
+            TotalTime = lastCmd.AbsoluteTime; 
         }
 
     }

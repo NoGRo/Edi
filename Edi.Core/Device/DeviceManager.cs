@@ -18,7 +18,7 @@ namespace Edi.Core
     public class DeviceManager
     {
         public List<IDevice> Devices { get; private set; } =  new List<IDevice>();    
-        private  ParallelQuery<IDevice> DevicesParallel => Devices.Where(x => x != null && x.IsReady).AsParallel();
+        private  ParallelQuery<IDevice> DevicesParallel => Devices.Where(x => x != null).AsParallel();
         private string? lastGallerySend;
 
         public delegate void OnUnloadDeviceHandler(IDevice device);
@@ -75,22 +75,23 @@ namespace Edi.Core
         
         public async void LoadDevice(IDevice device)
         {
-            UniqueName(device);
-
-            Devices.Add(device);
+            lock (Devices)
+            {
+                UniqueName(device);
+                Devices.Add(device);
+            }
 
             if(Config.DeviceVariant.ContainsKey(device.Name))
                 device.SelectedVariant = Config.DeviceVariant[device.Name]; 
             else
                 Config.DeviceVariant.Add(device.Name, device.SelectedVariant);
+
             configuration.Save(Config);
 
             if (OnloadDevice != null)
                 OnloadDevice(device);
-
            
-            if (lastGallerySend != null)
-                await device.PlayGallery(lastGallerySend);
+
 
         }
 
@@ -108,20 +109,19 @@ namespace Edi.Core
 
         public async void UnloadDevice(IDevice device)
         {
+            lock (Devices)
+            {
+                Devices.RemoveAll(x => x.Name == device.Name);
 
-            Devices.RemoveAll(x => x.Name == device.Name);
-            if (OnUnloadDevice != null)
-                OnUnloadDevice(device);
+                if (OnUnloadDevice != null)
+                    OnUnloadDevice(device);
+            }
         }
 
-        public async Task Pause()
+        public async Task Stop()
         {
-            DevicesParallel.ForAll(async x => await x.Pause());
-        }
-
-        public async Task Resume()
-        {
-            DevicesParallel.ForAll(async x => await x.Resume());
+            lastGallerySend = null;
+            DevicesParallel.ForAll(async x => await x.Stop());
         }
 
         public async Task PlayGallery(string name, long seek = 0)

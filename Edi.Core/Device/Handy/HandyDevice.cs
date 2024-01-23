@@ -19,25 +19,30 @@ using Edi.Core.Gallery.Definition;
 using Edi.Core.Device.Interfaces;
 using System.Runtime.CompilerServices;
 using System.Threading;
+using PropertyChanged;
+using System.ComponentModel.DataAnnotations;
 
 namespace Edi.Core.Device.Handy
 {
+    [AddINotifyPropertyChangedInterface]
     internal class HandyDevice : IDevice, IEqualityComparer<HandyDevice>
     {
 
         public string Key { get; set; }
 
         public string Name { get; set; }
-        private long CurrentTime { get; set; }
         
         private static long timeSyncAvrageOffset;
         private static long timeSyncInitialOffset;
-        private HttpClient Client = null;
+        public HttpClient Client = null;
         private IndexRepository repository { get; set; }
         private Timer timerGalleryEnd = new Timer();
-        
-
+        private int CurrentTime => Convert.ToInt32((DateTime.Now - SyncSend).TotalMilliseconds + SeekTime);
+        public DateTime SyncSend { get; private set; } = DateTime.Now;
+        private long SeekTime { get; set; }
         private IndexGallery currentGallery;
+        public bool IsPause { get; private set; } = true;
+
         private string selectedVariant;
         public string SelectedVariant
         {
@@ -50,8 +55,8 @@ namespace Edi.Core.Device.Handy
             }
         }
         public bool IsReady { get; private set; } = false;
+        
         public IEnumerable<string> Variants => repository.GetVariants();
-
 
         public HandyDevice(HttpClient Client, IndexRepository repository)
         {
@@ -62,57 +67,96 @@ namespace Edi.Core.Device.Handy
             this.repository = repository;
            
             SelectedVariant = repository.Config.DefaulVariant;
-          
         }
-
+        
         private Task uploadTask { get; set; }
         private CancellationTokenSource uploadCancellationTokenSource;
 
-        private async void upload()
+        private async Task Seek(long timeMs)
+        {
+
+            var req = new SyncPlayRequest(ServerTime, timeMs);
+            if (IsReady)
+            {
+                Debug.WriteLine($"Handy: {Client.DefaultRequestHeaders.GetValues("X-Connection-Key").FirstOrDefault()} PLay [{timeMs}] ({currentGallery?.Name ?? ""}))");
+                await Client.PutAsync("hssp/play", new StringContent(JsonConvert.SerializeObject(req), Encoding.UTF8, "application/json"));
+            }
+                
+
+        }
+        public async Task Stop()
+        {
+            IsPause = true;
+            timerGalleryEnd.Stop();
+            currentGallery = null;
+            if (IsReady)
+            {
+                Debug.WriteLine($"Handy: {Key} Stop");
+                await Client.PutAsync("hssp/stop", null);
+                
+            }
+
+        }
+
+        private async void upload(string bundle = null, bool delay = true)
         {
             uploadCancellationTokenSource?.Cancel();
+            await Task.Delay(100);
             uploadCancellationTokenSource = new CancellationTokenSource();
             uploadTask = Task.Run(async () =>
             {
-                
+                if (delay)
+                { 
+                    try
+                    {
+                        await Task.Delay(3000, uploadCancellationTokenSource.Token);
+                    }
+                    catch (TaskCanceledException)
+                    {
+                        return;
+                    }
+                }
                 try
                 {
-                    await Task.Delay(3000, uploadCancellationTokenSource.Token);
+                    Task pause =  Client.PutAsync("hssp/stop",null, uploadCancellationTokenSource.Token);
+                    IsReady = false;
+
+                    bundle = bundle ?? currentGallery?.Bundle ?? "default";
+
+                    var blob = await uploadBlob(repository.GetBundle($"{bundle}.{selectedVariant}", "csv"), uploadCancellationTokenSource.Token);
+                    
+                    await pause;
+
+                    
+                    var resp = await Client.PutAsync("hssp/setup", new StringContent(JsonConvert.SerializeObject(new SyncUpload(blob)), Encoding.UTF8, "application/json"), uploadCancellationTokenSource.Token);
+                    var result = await resp.Content.ReadAsStringAsync();
+
+                    if(result.Contains("timeout") )
+                    {
+                        //when ends the divice re adquiere seek command
+                    }
+                    IsReady = true;
+
+                    if (currentGallery != null && !IsPause)
+                    {
+                        await PlayGallery(currentGallery.Name, CurrentTime);
+                    }
                 }
                 catch (TaskCanceledException)
                 {
                     return;
                 }
-
-                try
-                {
-                    var blob = await uploadBlob(repository.GetBundle(selectedVariant, "csv"), uploadCancellationTokenSource.Token);
-
-                    IsReady = false;
-                    var resp = await Client.PutAsync("hssp/setup", new StringContent(JsonConvert.SerializeObject(new SyncUpload(blob)), Encoding.UTF8, "application/json"), uploadCancellationTokenSource.Token);
-                    IsReady = true;
-                }
-                catch (TaskCanceledException)
-                {
+                catch (Exception ex) {
                     return;
                 }
             });
         }
-
-      
-
-        private async Task Seek(long timeMs)
-        {
-            var req = new SyncPlayRequest(ServerTime, timeMs);
-            var resp = await Client.PutAsync("hssp/play", new StringContent(JsonConvert.SerializeObject(req), Encoding.UTF8, "application/json"));
-        }
-
-
         private async Task<string> uploadBlob(FileInfo file, CancellationToken  cancellationToken)
         {
 
             using (var blobClient = new HttpClient())
             {
+                blobClient.Timeout = TimeSpan.FromMinutes(3);
                 var request = new HttpRequestMessage(HttpMethod.Post, "https://www.handyfeeling.com/api/sync/upload");
 
                 var content = new MultipartFormDataContent
@@ -129,10 +173,6 @@ namespace Edi.Core.Device.Handy
         }
 
         private long ServerTime => DateTimeOffset.UtcNow.ToUnixTimeMilliseconds() + timeSyncInitialOffset + timeSyncAvrageOffset;
-
-        private long ResumeAt { get; set; }
-
-
         public async Task updateServerTime()
         {
             var totalCalls = 30;
@@ -164,43 +204,41 @@ namespace Edi.Core.Device.Handy
             var estimatedServerTimeNow = resp.serverTime + (receiveTime - sendTime) / 2;
             return estimatedServerTimeNow - receiveTime;
         }
-
-        
-
         public async Task PlayGallery(string name, long seek = 0)
         {
-            var gallery = repository.Get(name, selectedVariant);
+            var gallery = repository.Get(name, selectedVariant, currentGallery?.Bundle);
             if (gallery == null)
             {
                 return ;
             }
-            currentGallery = gallery;
+            if(currentGallery?.Bundle != null  && gallery.Bundle != currentGallery.Bundle )
+            {
 
-            timerGalleryEnd.Interval = gallery.Duration - seek;
+                IsReady= false;
+                upload(currentGallery.Bundle, false);
+            }
+
+            SyncSend = DateTime.Now;
+            SeekTime = seek;
+            currentGallery = gallery;
+            IsPause = false;
+
+            timerGalleryEnd.Interval = gallery.Duration - seek ;
             timerGalleryEnd.Start();
+
             await Seek(gallery.StartTime + seek);
         }
         private async void TimerGalleryEnd_Elapsed(object? sender, ElapsedEventArgs e)
         {
+            Debug.WriteLine($"Handy: {Key} PLay Timer Elapse ({currentGallery?.Name ?? ""}))");
             timerGalleryEnd.Stop();
-            if (currentGallery.Loop)
+            if (currentGallery?.Loop == true && !IsPause)
                 await PlayGallery(currentGallery.Name);
             else
-                await Pause();
+                await Stop();
 
         }
 
-        public async Task Pause()
-        {
-            timerGalleryEnd.Stop();
-            ResumeAt = CurrentTime;
-            await Client.PutAsync("hssp/stop",null);
-        }
-
-        public async Task Resume()
-        {
-            await Seek(ResumeAt);
-        }
 
         public bool Equals(HandyDevice? x, HandyDevice? y)
             => x.Key == y.Key;
@@ -217,4 +255,7 @@ namespace Edi.Core.Device.Handy
     public record SyncUpload(string url);
     public record ConnectedResponse(bool connected);
     public record ModeRequest(int mode);
+    public record ErrorDetails(int Code, string Name, string Message, bool Connected);
+    public record ErrorResponse(ErrorDetails Error);
+
 }

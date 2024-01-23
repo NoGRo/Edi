@@ -4,8 +4,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Text;
 using System.Text.Json;
-
-
+using System.Text.RegularExpressions;
 
 namespace Edi.Core.Funscript
 {
@@ -40,8 +39,23 @@ namespace Edi.Core.Funscript
         public int range { get; set; }
         public string path { get; set; }
 
-        public List<FunScriptAction> actions { get; set; }
+        //OSR6 add property Axie modifiing regular exprexeion with Chat Gpt 
+        [JsonIgnore]
+        private Regex regex = new Regex(@"^(?<name>.*?)(\.(?<variant>[^.]+))?$");
 
+        [JsonIgnore]
+        public string name => regex.Match(Path.GetFileNameWithoutExtension(path)).Groups["name"].Value;
+
+        private string _variant;
+        [JsonIgnore]
+        public string variant
+        {
+            get => _variant ??( path is null ? "" :  regex.Match(Path.GetFileNameWithoutExtension(path)).Groups["variant"].Value);
+            set => _variant = value;
+        }
+
+        public List<FunScriptAction> actions { get; set; }
+        public FunScriptMetadata metadata { get; set; }
 
         public FunScriptFile()
         {
@@ -51,10 +65,25 @@ namespace Edi.Core.Funscript
             actions = new List<FunScriptAction>();
         }
 
-        public static FunScriptFile Load(string path)
+        public static FunScriptFile TryRead(string path)
+        {
+            try
+            {
+                return Read(path);
+            }
+            catch {
+                return null;
+            } 
+        }
+
+
+
+        public static FunScriptFile Read(string path)
         {
             path = Path.GetFullPath(path);
-            return JsonConvert.DeserializeObject<FunScriptFile>(File.ReadAllText(path));
+            var result = JsonConvert.DeserializeObject<FunScriptFile>(File.ReadAllText(path));
+            result.path  = path;
+            return result;
         }
 
         public void Save(string filename)

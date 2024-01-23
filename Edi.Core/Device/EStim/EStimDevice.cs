@@ -10,11 +10,13 @@ using System.Timers;
 using Timer = System.Timers.Timer;
 using System.Threading;
 using Edi.Core.Device.Interfaces;
+using PropertyChanged;
 using System.Xml.Linq;
 
 namespace Edi.Core.Device.EStim
 {
 
+    [AddINotifyPropertyChangedInterface]
     public class EStimDevice : IDevice
     {
         private readonly AudioRepository _repository;
@@ -39,8 +41,6 @@ namespace Edi.Core.Device.EStim
             _timerGalleryEnds = new Timer();
             _timerGalleryEnds.Elapsed += OnTimerElapsed;
             _wavePlayer.PlaybackStopped += OnPlaybackStoppedAsync;
-
-            Name = "EStim";
 
             _inMemoryMp3 = _repository.GetAll().Select(x=> x.AudioPath).Distinct().ToDictionary(x=> x, y => new Mp3FileReader(y));
         }
@@ -76,18 +76,11 @@ namespace Edi.Core.Device.EStim
             
         }
 
-        public async Task Pause()
+        public async Task Stop()
         {
             // Pausar la reproducción del archivo de audio
             _wavePlayer.Pause();
             _timerGalleryEnds.Stop();
-        }
-
-        public async Task Resume()
-        {
-            // Reanudar la reproducción del archivo de audio
-            _wavePlayer.Play();
-            _timerGalleryEnds.Start();
         }
 
         private async void OnPlaybackStoppedAsync(object sender, StoppedEventArgs e)

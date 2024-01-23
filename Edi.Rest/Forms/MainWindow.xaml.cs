@@ -7,6 +7,7 @@ using Edi.Core.Device.Interfaces;
 using NAudio.Wave;
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Linq;
 using System.Security.Policy;
 using System.Text;
@@ -84,7 +85,7 @@ namespace Edi.Forms
 
         private void DeviceManager_OnUnloadDevice(Core.Device.Interfaces.IDevice device)
         {
-            Thread.Sleep(500);
+            Thread.Sleep(1000);
             Dispatcher.Invoke(() =>
             {
                 DevicesGrid.ItemsSource = ((dynamic)this.DataContext).devices; ;
@@ -121,6 +122,14 @@ namespace Edi.Forms
                 await edi.Init();
             });
            
+        }    
+        private async void RePackButton_Click(object sender, RoutedEventArgs e)
+        {
+            await Dispatcher.Invoke(async () =>
+            {
+                await edi.Repack();
+            });
+           
         }
 
         private async void ReconnectButton_ClickAsync(object sender, RoutedEventArgs e)
@@ -135,6 +144,27 @@ namespace Edi.Forms
         {
             System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo("cmd", $"/c start http://localhost:5000/swagger/index.html") { CreateNoWindow = true });
            
+        }
+        public override async void EndInit()
+        {
+            await Dispatcher.Invoke(async () =>
+            {
+                await edi.Pause();
+            });
+            await Task.Delay(1000); 
+            base.EndInit();
+        }
+    }
+    public class BoolToReadyIconConverter : IValueConverter
+    {
+        public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
+        {
+            return (value is bool && (bool)value) ? "✅" : "🚫";
+        }
+
+        public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)
+        {
+            throw new NotImplementedException();
         }
     }
 }

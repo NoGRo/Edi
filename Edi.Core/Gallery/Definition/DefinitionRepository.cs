@@ -4,6 +4,8 @@ using System.Globalization;
 using CsvHelper;
 using System.Reflection.Metadata.Ecma335;
 using Edi.Core.Device.Handy;
+using Edi.Core.Funscript;
+using System.Text.RegularExpressions;
 
 namespace Edi.Core.Gallery.Definition
 {
@@ -12,11 +14,7 @@ namespace Edi.Core.Gallery.Definition
         public DefinitionRepository(ConfigurationManager configuration)
         {
             Config = configuration.Get<GalleryConfig>(); 
-
-
         }
-
-
         private List<string> Variants { get; set; } = new List<string>();
         private GalleryConfig Config { get; set; }
         private Dictionary<string, DefinitionGallery> dicDefinitions { get; set; } = new Dictionary<string, DefinitionGallery>(StringComparer.OrdinalIgnoreCase);
@@ -29,15 +27,21 @@ namespace Edi.Core.Gallery.Definition
                 return;
 
             var csvFile = new FileInfo($"{GalleryPath}Definitions.csv");
-            if (!csvFile.Exists)
-                return;
 
-            List<DefinitionDto> definitionsDtos;
+            if (!csvFile.Exists) {
+                GenerateDefinitions(GalleryPath);
+                csvFile = new FileInfo($"{GalleryPath}Definitions_auto.csv");
+                if (!csvFile.Exists)
+                    return;
+            }
+
+            List<DefinitionReadDto> definitionsDtos;
 
             using (var reader = csvFile.OpenText())
             using (var csv = new CsvReader(reader, CultureInfo.InvariantCulture))
             {
-                definitionsDtos = csv.GetRecords<DefinitionDto>().ToList();
+
+                definitionsDtos = csv.GetRecords<DefinitionReadDto>().ToList();
             }
             int linesCount = 0;
 
@@ -49,9 +53,9 @@ namespace Edi.Core.Gallery.Definition
                 var def = new DefinitionGallery
                 {
                     Name = definitionDto.Name,
-                    FileName = definitionDto.FileName,
-                    Type = definitionDto.Type,
-                    Loop = definitionDto.Loop.ToLower() == "true",
+                    FileName = definitionDto.FileName.Trim(),
+                    Type = definitionDto.Type.ToLower().Trim(),
+                    Loop = definitionDto.Loop.ToLower().Trim() == "true",
                 };
 
                 long time;
@@ -72,7 +76,64 @@ namespace Edi.Core.Gallery.Definition
             }
         }
         
+        private void GenerateDefinitions(string GalleryPath)
+        { 
+            var dir = new DirectoryInfo(GalleryPath);
+            var funscriptsFiles = dir.EnumerateFiles("*.funscript").ToList();
 
+            funscriptsFiles.AddRange(dir.EnumerateDirectories().SelectMany(d => d.EnumerateFiles("*.funscript")));
+
+            if (!funscriptsFiles.Any())
+                return;
+            var regex = new Regex(@"^(?<nombre>.*?)(\.(?<variante>[^.]+))?$");
+
+
+            funscriptsFiles = funscriptsFiles.DistinctBy(x => x.Name).ToList();
+
+
+            var newDefinitionFile = new List<DefinitionWriteDto>();
+                
+            foreach (var file in funscriptsFiles)  
+            {
+
+                var fileName = regex.Match(Path.GetFileNameWithoutExtension(file.FullName)).Groups["nombre"].Value;
+
+                var funscript = FunScriptFile.Read(file.FullName);
+                if (funscript.metadata?.chapters?.Any() == true)
+                {
+                    newDefinitionFile.AddRange(
+                        funscript.metadata.chapters.Select(x => new DefinitionWriteDto
+                        { 
+                            Name = x.name,
+                            FileName = fileName,
+                            Type = "gallery",
+                            Loop = "true",
+                            StartTime = x.startTime,
+                            EndTime = x.endTime
+                        }).ToArray()
+                    );
+                }
+                else
+                {
+                    newDefinitionFile.Add( new() {
+                            Name = fileName,
+                            FileName = fileName,
+                            Type = "gallery",
+                            Loop = "true",
+                            StartTime = "0",
+                            EndTime = (funscript?.actions.Max(x => x.at) ?? 0).ToString(),
+                    });
+                }
+            }
+
+            //Detect Variants
+            newDefinitionFile = newDefinitionFile.DistinctBy(x => x.Name).ToList();
+
+            using (var csv = new CsvWriter(new FileInfo($"{GalleryPath}Definitions_auto.csv").CreateText(), CultureInfo.InvariantCulture))
+            {
+                csv.WriteRecords(newDefinitionFile);
+            }
+        }
         private bool parseTimeField(string field, out long millis)
         {
             millis = 0;

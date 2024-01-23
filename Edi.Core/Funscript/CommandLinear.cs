@@ -105,21 +105,25 @@ namespace Edi.Core.Funscript
         public DateTime? Sent { get; set; }
         public bool Cancel { get; set; }
         public short Distance => (short)Math.Abs(Direction ? Value - InitialValue : InitialValue - Value);
-
+       
     }
     public static class CmdLinearExtend
     {
         public static List<CmdLinear> Clone(this IEnumerable<CmdLinear> cmds)
             => cmds.Select(x => CmdLinear.GetCommandMillis(x.Millis, x.Value)).ToList();
 
-        public static void AddAbsoluteTime(this List<CmdLinear> cmds)
-        {
+        public static List<CmdLinear> AddAbsoluteTime(this List<CmdLinear> cmds)
+        { 
             var at = 0;
+            CmdLinear last = cmds.LastOrDefault();
             foreach (var cmd in cmds)
             {
+                cmd.Prev = last;
                 at += cmd.Millis;
                 cmd.AbsoluteTime = at;
+                last = cmd; 
             }
+            return cmds;
         }
     }
 }

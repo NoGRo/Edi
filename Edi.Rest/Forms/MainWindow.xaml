@@ -6,8 +6,6 @@
         xmlns:local="clr-namespace:Edi.Forms"
         mc:Ignorable="d"
         Title="Edi Launcher" Height="321" Width="665" ResizeMode="NoResize">
-
-
     <Grid Height="311" VerticalAlignment="Top">
         <Grid.ColumnDefinitions>
             <ColumnDefinition Width="16*"/>
@@ -25,21 +23,23 @@
                         </DataTemplate>
                     </DataGridTemplateColumn.CellTemplate>
                 </DataGridTemplateColumn>
+                <DataGridTextColumn Header="Ready"  FontFamily="Segoe UI Emoji" FontSize="14" Binding="{Binding IsReady, Converter={StaticResource BoolToReadyIconConverter}}" />
             </DataGrid.Columns>
         </DataGrid>
         <ComboBox Name="audioDevicesComboBox" DisplayMemberPath="name" Margin="84,73,10,219" SelectedValuePath="id" SelectedValue="{Binding estimConfig.DeviceId}"/>
         <CheckBox Content="Filler" HorizontalAlignment="Left" Margin="5,11,0,0" VerticalAlignment="Top" RenderTransformOrigin="-0.063,-0.829" x:Name="chkFiller" IsChecked="{Binding config.Filler, Mode=TwoWay}" Grid.Column="1" />
         <CheckBox Content="Gallery" HorizontalAlignment="Left" Margin="5,31,0,0" VerticalAlignment="Top" RenderTransformOrigin="-0.063,-0.829" x:Name="chkGallery" IsChecked="{Binding config.Gallery, Mode=TwoWay}" Grid.Column="1"/>
         <CheckBox Content="Reaction" HorizontalAlignment="Left" Margin="5,51,0,0" VerticalAlignment="Top" RenderTransformOrigin="-0.063,-0.829" x:Name="chkReaction" IsChecked="{Binding config.Reactive, Mode=TwoWay}" Grid.Column="1" />
-        <Label Content="Status:" HorizontalAlignment="Left" Margin="10,275,0,0" x:Name="lblStatus" Width="598" Height="26" VerticalAlignment="Top" Grid.ColumnSpan="2"/>
         <TextBox HorizontalAlignment="Left" Margin="84,19,0,0" TextWrapping="Wrap" ToolTip="Handy Key" Text="{Binding handyConfig.Key}" VerticalAlignment="Top" Width="210"/>
         <Label Content="Handy Keys:" HorizontalAlignment="Left" Margin="5,15,0,0" VerticalAlignment="Top"/>
         <TextBox HorizontalAlignment="Left" Margin="84,45,0,0" TextWrapping="Wrap" Text="{Binding buttplugConfig.Url}" ToolTip="Buttplug Url" VerticalAlignment="Top" Width="210"/>
         <Label Content="Intiface Url:" HorizontalAlignment="Left" Margin="10,41,0,0" VerticalAlignment="Top"/>
-        <Button Content="Reconnect" HorizontalAlignment="Left" Margin="222,134,0,0" VerticalAlignment="Top" x:Name="ReconnectButton" Click="ReconnectButton_ClickAsync" Height="22" Width="72"/>
-        <Button Content="Reload Galleries" HorizontalAlignment="Left" Margin="10,134,0,0" VerticalAlignment="Top" x:Name="ReloadButton"  Height="22" Width="103" Click="ReloadButton_Click"/>
-        <Label Grid.Column="1"  Foreground="Blue" Content="http://localhost:5000/swagger/index.html" HorizontalAlignment="Left" MouseDoubleClick="Label_MouseDoubleClick" Margin="5,257,0,0" VerticalAlignment="Top" Width="337"/>
+        <Button Content="Reconnect" HorizontalAlignment="Left" Margin="222,98,0,0" VerticalAlignment="Top" x:Name="ReconnectButton" Click="ReconnectButton_ClickAsync" Height="22" Width="72"/>
+        <Button Content="Reload Galleries" HorizontalAlignment="Left" Margin="10,98,0,0" VerticalAlignment="Top" x:Name="ReloadButton"  Height="22" Width="103" Click="ReloadButton_Click"/>
+        <Label Grid.Column="1"  Foreground="Blue" Content="http://localhost:5000/swagger/index.html" HorizontalAlignment="Left" MouseDoubleClick="Label_MouseDoubleClick" Margin="5,234,0,0" VerticalAlignment="Top" Width="337" Grid.RowSpan="2"/>
         <Label Grid.Column="1" Content="Devices:" HorizontalAlignment="Left" Margin="5,66,0,0" VerticalAlignment="Top" Width="200"/>
         <Label Content="EStim Audio:" HorizontalAlignment="Left" Margin="9,67,0,0" VerticalAlignment="Top"/>
+        <Label Content="Status:" HorizontalAlignment="Left" Margin="5,9,0,0" x:Name="lblStatus" Width="650" Height="26" VerticalAlignment="Top" Grid.ColumnSpan="2" Grid.Row="1" />
+        <Button Visibility="Hidden" Content="RePackButton" HorizontalAlignment="Left" Margin="10,125,0,0" VerticalAlignment="Top" x:Name="RePackButton"  Height="22" Width="103" Click="RePackButton_Click"/>
     </Grid>
 </Window>

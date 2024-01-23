@@ -17,8 +17,8 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="Buttplug" Version="3.0.0" />
-    <PackageReference Include="Buttplug.Client.Connectors.WebsocketConnector" Version="3.0.0" />
+    <PackageReference Include="Buttplug" Version="3.0.1" />
+    <PackageReference Include="Buttplug.Client.Connectors.WebsocketConnector" Version="3.0.1" />
     <PackageReference Include="CsvHelper" Version="30.0.1" />
     <PackageReference Include="Fody" Version="6.7.0">
       <PrivateAssets>all</PrivateAssets>

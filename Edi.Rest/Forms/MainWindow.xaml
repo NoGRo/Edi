@@ -6,6 +6,12 @@
         xmlns:local="clr-namespace:Edi.Forms"
         mc:Ignorable="d"
         Title="Edi Launcher" Height="328" Width="665" ResizeMode="NoResize">
+
+        <Window.Resources>
+            <local:BoolToReadyIconConverter x:Key="BoolToReadyIconConverter"/>
+        </Window.Resources>
+
+
     <Grid Height="311" VerticalAlignment="Top">
         <Grid.ColumnDefinitions>
             <ColumnDefinition Width="16*"/>

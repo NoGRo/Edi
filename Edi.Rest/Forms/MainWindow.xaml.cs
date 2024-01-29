@@ -1,8 +1,10 @@
 ﻿using Edi.Core;
 using Edi.Core.Device;
 using Edi.Core.Device.Buttplug;
+using Edi.Core.Device.EStim;
 using Edi.Core.Device.Handy;
 using Edi.Core.Device.Interfaces;
+using NAudio.Wave;
 using System;
 using System.Collections.Generic;
 using System.Globalization;
@@ -31,16 +33,22 @@ namespace Edi.Forms
         public EdiConfig config;
         public HandyConfig handyConfig;
         public ButtplugConfig buttplugConfig;
+        public EStimConfig estimConfig;
+
+        private record AudioDevice(int id, string name);
         public MainWindow()
         {
             config = edi.ConfigurationManager.Get<EdiConfig>();
             handyConfig = edi.ConfigurationManager.Get<HandyConfig>();
             buttplugConfig = edi.ConfigurationManager.Get<ButtplugConfig>();
+            estimConfig = edi.ConfigurationManager.Get<EStimConfig>(); 
             this.DataContext = new
             {
                 config = config,
                 handyConfig = handyConfig,
                 buttplugConfig = buttplugConfig,
+                estimConfig = estimConfig,
+
                 devices = edi.DeviceManager.Devices,
 
 
@@ -49,10 +57,24 @@ namespace Edi.Forms
 
             edi.DeviceManager.OnloadDevice += DeviceManager_OnloadDeviceAsync;
             edi.DeviceManager.OnUnloadDevice += DeviceManager_OnUnloadDevice;
-            edi.OnChangeStatus += Edi_OnChangeStatus    ;
+            edi.OnChangeStatus += Edi_OnChangeStatus;
+
+
+
+
             LoadForm();
         }
 
+        private void LoadForm()
+        {
+            var audios = new List<AudioDevice>() { new AudioDevice(-1, "None") };
+            for (int i = 0; i < WaveOut.DeviceCount; i++)
+            {
+                audios.Add(new AudioDevice(i, WaveOut.GetCapabilities(i).ProductName));
+            }
+            audioDevicesComboBox.ItemsSource = audios;
+            DevicesGrid.ItemsSource = edi.DeviceManager.Devices;
+        }
         private void Edi_OnChangeStatus(string message)
         {
             Dispatcher.Invoke(() =>
@@ -79,15 +101,10 @@ namespace Edi.Forms
 
             await Dispatcher.InvokeAsync(async () =>
             {
-                
                 DevicesGrid.Items.Refresh();
             });
         }
 
-        private void LoadForm()
-        {
-            DevicesGrid.ItemsSource = edi.DeviceManager.Devices;
-        }
 
         private void Variants_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {

@@ -61,8 +61,12 @@ namespace Edi.Core.Device.Handy
         public HandyDevice(HttpClient Client, IndexRepository repository)
         {
             Key = Client.DefaultRequestHeaders.GetValues("X-Connection-Key").First();
+            //timer elapse for loop galleries 
             timerGalleryEnd.Elapsed += TimerGalleryEnd_Elapsed;
+
+            //make unique nane 
             Name = $"The Handy [{Key}]";
+            
             this.Client = Client;
             this.repository = repository;
            
@@ -103,6 +107,7 @@ namespace Edi.Core.Device.Handy
             uploadCancellationTokenSource?.Cancel();
             await Task.Delay(100);
             uploadCancellationTokenSource = new CancellationTokenSource();
+            
             uploadTask = Task.Run(async () =>
             {
                 if (delay)
@@ -213,8 +218,8 @@ namespace Edi.Core.Device.Handy
             }
             if(currentGallery?.Bundle != null  && gallery.Bundle != currentGallery.Bundle )
             {
-
-                IsReady= false;
+                
+                IsReady = false;
                 upload(currentGallery.Bundle, false);
             }
 

@@ -45,9 +45,6 @@ namespace Edi.Core
 
         private IServiceProvider ServiceProvider { get; }
         
-
-        public IEnumerable<string> Variants => throw new NotImplementedException();
-
         public async Task Init()
         {
             if (!Providers.Any() && ServiceProvider != null)
@@ -69,8 +66,6 @@ namespace Edi.Core
             else
                 Config.DeviceVariant.Add(deviceName, variant);
             configuration.Save(Config);
-
-
         }
         
         public async void LoadDevice(IDevice device)
@@ -90,9 +85,6 @@ namespace Edi.Core
 
             if (OnloadDevice != null)
                 OnloadDevice(device);
-           
-
-
         }
 
         private void UniqueName(IDevice device)

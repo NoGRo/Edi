@@ -34,8 +34,9 @@ namespace Edi.Core.Device.EStim
         private bool _isPlaying;
         private Dictionary<string, Mp3FileReader> _inMemoryMp3;
 
-        public EStimDevice(AudioRepository repository, IWavePlayer wavePlayer)
+        public EStimDevice(AudioRepository repository, WaveOutEvent wavePlayer)
         {
+            Name = $"SEstim ({wavePlayer.DeviceNumber})";
             _repository = repository;
             _wavePlayer = wavePlayer;
             _timerGalleryEnds = new Timer();

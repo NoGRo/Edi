@@ -99,15 +99,18 @@ namespace Edi.Core
             device.Name = NewName;
         }
 
-        public async void UnloadDevice(IDevice device)
+        public async Task UnloadDevice(IDevice device)
         {
+
             lock (Devices)
             {
                 Devices.RemoveAll(x => x.Name == device.Name);
 
-                if (OnUnloadDevice != null)
-                    OnUnloadDevice(device);
             }
+            if (OnUnloadDevice != null)
+                OnUnloadDevice(device);
+
+          
         }
 
         public async Task Stop()

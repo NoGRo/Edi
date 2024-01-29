@@ -83,10 +83,10 @@ namespace Edi.Forms
             });
         }
 
-        private void DeviceManager_OnUnloadDevice(Core.Device.Interfaces.IDevice device)
+        private async void DeviceManager_OnUnloadDevice(Core.Device.Interfaces.IDevice device)
         {
             Thread.Sleep(1000);
-            Dispatcher.Invoke(() =>
+            await Dispatcher.InvokeAsync(async () =>
             {
                 DevicesGrid.ItemsSource = ((dynamic)this.DataContext).devices; ;
                 

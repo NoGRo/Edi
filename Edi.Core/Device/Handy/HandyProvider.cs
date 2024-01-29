@@ -44,7 +44,7 @@ namespace Edi.Core.Device.Handy
                 return;
 
             await Task.Delay(500);
-            RemoveAll();
+            await RemoveAll();
 
             Keys = Config.Key.Split(',')
                                 .Where(x => !string.IsNullOrWhiteSpace(x))
@@ -84,24 +84,22 @@ namespace Edi.Core.Device.Handy
             if (resp?.StatusCode != System.Net.HttpStatusCode.OK)
             {
                 
-                Remove(Key);
+                await Remove(Key);
                 return;
             }
             var status = JsonConvert.DeserializeObject<ConnectedResponse>(await resp.Content.ReadAsStringAsync());
             if (!status.connected)
             {
-                Remove(Key);
+                await Remove(Key);
                 return;
             }
-
-            
-            if (devices.ContainsKey(Key))
-                return;
 
             _ = await Client.PutAsync("mode", new StringContent(JsonConvert.SerializeObject(new ModeRequest(1)), Encoding.UTF8, "application/json"));
 
             var handyDevice = new HandyDevice(Client, repository);
             lock (devices) {
+                if (devices.ContainsKey(Key))
+                    return;
                 devices.Add(Key, handyDevice);
                 deviceManager.LoadDevice(handyDevice);
             }
@@ -110,16 +108,16 @@ namespace Edi.Core.Device.Handy
 
         }
 
-        private void RemoveAll()
+        private async Task RemoveAll()
         {
             foreach (var key in Keys)
-                Remove(key);
+                await Remove(key);
         }
-        private void Remove(string Key)
+        private async Task Remove(string Key)
         {
             if (devices.ContainsKey(Key))
             {
-                deviceManager.UnloadDevice(devices[Key]);
+                await deviceManager.UnloadDevice(devices[Key]);
                 devices.Remove(Key);
             }
         }

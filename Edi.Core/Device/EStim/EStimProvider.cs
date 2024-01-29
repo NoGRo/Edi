@@ -12,6 +12,7 @@ namespace Edi.Core.Device.EStim
 {
     public class EStimProvider : IDeviceProvider
     {
+        private List<EStimDevice> _devices =  new List<EStimDevice>(); 
         public EStimProvider(AudioRepository audioRepository, ConfigurationManager config, DeviceManager deviceManager)
         {
             Config = config.Get<EStimConfig>();
@@ -23,17 +24,24 @@ namespace Edi.Core.Device.EStim
         public DeviceManager DeviceManager { get; }
         public AudioRepository AudioRepository { get; }
 
-        public Task Init()
-        {
+        public async Task Init()
+        { 
+            foreach (var eStimDevice in _devices)
+            {
+                await DeviceManager.UnloadDevice(eStimDevice);
+            }
+            _devices.Clear();
+
+
             if (Config.DeviceId == -1)
-                return Task.CompletedTask;
+                return;
 
             var outputDevice = new WaveOutEvent() { DeviceNumber = (Config.DeviceId) };
             var device = new EStimDevice(AudioRepository, outputDevice);
-            
+
             DeviceManager.LoadDevice(device);
+            _devices.Add(device);
             
-            return Task.CompletedTask;
         }
         //private int DescriptonToDeviceNumber(string deviceId)
         //{

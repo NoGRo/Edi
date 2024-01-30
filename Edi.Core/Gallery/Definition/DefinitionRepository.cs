@@ -11,6 +11,8 @@ namespace Edi.Core.Gallery.Definition
 {
     public class DefinitionRepository : IGalleryRepository<DefinitionGallery>
     {
+
+
         public DefinitionRepository(ConfigurationManager configuration)
         {
             Config = configuration.Get<GalleryConfig>(); 
@@ -18,6 +20,8 @@ namespace Edi.Core.Gallery.Definition
         private List<string> Variants { get; set; } = new List<string>();
         private GalleryConfig Config { get; set; }
         private Dictionary<string, DefinitionGallery> dicDefinitions { get; set; } = new Dictionary<string, DefinitionGallery>(StringComparer.OrdinalIgnoreCase);
+
+        public IEnumerable<string> Accept => new[] { "Definitions.csv", "Definitions_auto.csv" };
 
         public async Task Init()
         {

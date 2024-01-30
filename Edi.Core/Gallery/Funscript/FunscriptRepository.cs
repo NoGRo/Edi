@@ -22,7 +22,7 @@ namespace Edi.Core.Gallery.CmdLineal
         }
         private Dictionary<string, List<FunscriptGallery>> Galleries { get; set; } = new Dictionary<string, List<FunscriptGallery>>(StringComparer.OrdinalIgnoreCase);
 
-
+        public IEnumerable<string> Accept => new[] { "funscript" };
         private List<string> Variants { get; set; } = new List<string>();
         public  GalleryConfig Config { get; set; }
         public DefinitionRepository Definition { get; }

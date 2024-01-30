@@ -24,7 +24,7 @@ namespace Edi.Core.Gallery.Index
             this.funRepo = Cmdlineals;
             DefinitionRepository = definitionRepository;
         }
-
+        public IEnumerable<string> Accept => new[] { "BundleDefinition*.txt" };
         private Dictionary<string, Dictionary<string, List<IndexGallery>>> Galleries { get; set; } = new Dictionary<string, Dictionary<string, List<IndexGallery>>>(StringComparer.OrdinalIgnoreCase);
 
         public GalleryConfig Config { get; set; }
@@ -88,10 +88,10 @@ namespace Edi.Core.Gallery.Index
         private List<BundleDefinition> GetBundleDefinition(string variant)
         {
             var bundlesDefault = new BundleDefinition() { Galleries = DefinitionRepository.GetAll().Select(x => x.Name).Distinct().ToList() };
-            BundleDefinition currentBundle = null;
+
 
             var GalleryDir = new DirectoryInfo(Config.GalleryPath);
-            
+
 
             var BundleDefinition = GalleryDir.EnumerateFiles("BundleDefinition*.txt").ToList();
             BundleDefinition.AddRange(GalleryDir.EnumerateDirectories().SelectMany(d => d.EnumerateFiles("BundleDefinition*.txt")));
@@ -105,9 +105,29 @@ namespace Edi.Core.Gallery.Index
             if (Default is null && Variant is null)
                 return new List<BundleDefinition>() { bundlesDefault };
 
-            var bundles = new List<BundleDefinition>();
-
+            
             var definitionPath = Variant?.FullName ?? Default.FullName;
+
+            List<BundleDefinition> bundles = ReadBundleConfig(definitionPath);
+
+
+            var inBundles = bundles.Where(x => x.BundleName != "default").SelectMany(x => x.Galleries).ToHashSet();
+            var inDefualt = bundles.Where(x => x.BundleName == "default").SelectMany(x => x.Galleries).ToHashSet();
+
+            bundlesDefault.Galleries = bundlesDefault.Galleries.Where(x => inDefualt.Contains(x) || !inBundles.Contains(x)).ToList();
+
+            bundles.RemoveAll(x => x.BundleName == "default");
+            bundles.Add(bundlesDefault);
+
+            return bundles;
+
+
+        }
+
+        private static List<BundleDefinition> ReadBundleConfig(string definitionPath)
+        {
+            var bundles = new List<BundleDefinition>();
+            BundleDefinition currentBundle = null;
             foreach (var line in File.ReadLines(definitionPath))
             {
                 if (string.IsNullOrWhiteSpace(line) || line.TrimStart().StartsWith("#"))
@@ -135,20 +155,9 @@ namespace Edi.Core.Gallery.Index
             // Add the last bundle
             if (currentBundle != null)
                 bundles.Add(currentBundle);
-
-
-            var inBundles = bundles.Where(x => x.BundleName != "default").SelectMany(x => x.Galleries).ToHashSet();
-            var inDefualt = bundles.Where(x => x.BundleName == "default").SelectMany(x => x.Galleries).ToHashSet();
-
-            bundlesDefault.Galleries = bundlesDefault.Galleries.Where(x=> inDefualt.Contains(x) || !inBundles.Contains(x)).ToList();
-
-            bundles.RemoveAll(x=> x.BundleName == "default");
-            bundles.Add(bundlesDefault);
-
             return bundles;
-
-
         }
+
         public List<string> GetVariants()
             => funRepo.GetVariants();
         public List<IndexGallery> GetAll()

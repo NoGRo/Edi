@@ -23,7 +23,7 @@ namespace Edi.Core.Gallery.EStimAudio
             Config = configuration.Get<GalleryConfig>();
             Definitions = definitions;
         }
-
+        public IEnumerable<string> Accept => new[] { "mp3" };
         private List<string> Variants { get; set; } = new List<string>();
         public GalleryConfig Config { get; set; }
         private IGalleryRepository<DefinitionGallery> Definitions { get; }

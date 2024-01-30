@@ -90,9 +90,11 @@ namespace Edi.Core.Device.Handy
         }
         public async Task Stop()
         {
+
+            currentGallery = null;
             IsPause = true;
             timerGalleryEnd.Stop();
-            currentGallery = null;
+            
             if (IsReady)
             {
                 Debug.WriteLine($"Handy: {Key} Stop");
@@ -211,6 +213,8 @@ namespace Edi.Core.Device.Handy
         }
         public async Task PlayGallery(string name, long seek = 0)
         {
+
+            timerGalleryEnd.Stop();
             var gallery = repository.Get(name, selectedVariant, currentGallery?.Bundle);
             if (gallery == null)
             {

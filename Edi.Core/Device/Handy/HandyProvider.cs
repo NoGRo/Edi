@@ -94,6 +94,10 @@ namespace Edi.Core.Device.Handy
                 return;
             }
 
+            
+            if (devices.ContainsKey(Key))
+                return;
+
             _ = await Client.PutAsync("mode", new StringContent(JsonConvert.SerializeObject(new ModeRequest(1)), Encoding.UTF8, "application/json"));
 
             var handyDevice = new HandyDevice(Client, repository);

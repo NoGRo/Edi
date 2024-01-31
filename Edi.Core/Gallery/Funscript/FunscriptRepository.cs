@@ -10,6 +10,7 @@ using Edi.Core.Gallery.Definition;
 using System.Text.RegularExpressions;
 using System.Linq;
 using System.Collections.Generic;
+using System.Diagnostics;
 
 namespace Edi.Core.Gallery.CmdLineal
 {
@@ -77,7 +78,12 @@ namespace Edi.Core.Gallery.CmdLineal
                     var actions = funscript.actions
                         .Where(x => x.at > DefinitionGallery.StartTime
                                  && x.at <= DefinitionGallery.EndTime);
-
+                    if (!actions.Any())
+                    {
+                        Debug.WriteLine($"FunscriptRepository Empty ignored: {DefinitionGallery.Name}");
+                        continue;
+                    }
+                        
                     FunscriptGallery gallery = ParseActions(funscript.variant, DefinitionGallery, actions);
 
                     Galleries[DefinitionGallery.Name].Add(gallery);

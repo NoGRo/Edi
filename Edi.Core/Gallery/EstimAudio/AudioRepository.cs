@@ -65,7 +65,7 @@ namespace Edi.Core.Gallery.EStimAudio
 
                 variant = !string.IsNullOrEmpty(variant)
                                         ? variant
-                                        : pathVariant ?? Config.DefaulVariant;
+                                        : pathVariant ?? "default";
 
                 Mp3FileReader reader;
                 try

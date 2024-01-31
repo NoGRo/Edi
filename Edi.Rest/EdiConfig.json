@@ -2,7 +2,7 @@
   "Gallery": {
     "DefaulVariant": "BF",
     "SelectedVariant": null,
-    "GalleryPath": "D:\\Juegos\\STEP1_V1.3\\Gallery"
+    "GalleryPath": "C:\\Program Files (x86)\\Steam\\steamapps\\common\\Succubus Farm\\Gallery"
   },
   "GalleryBundler": {
     "RepearDuration": 2000,
@@ -36,6 +36,7 @@
       "SEstim (0)": "BF",
       "SEstim (3)": "BF",
       "SEstim (2)": "BF"
+      "The Handy [ppJdVv3V]": "detail"
     }
   },
   "EStim": {

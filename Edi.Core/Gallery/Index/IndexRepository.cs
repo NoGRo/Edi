@@ -47,12 +47,8 @@ namespace Edi.Core.Gallery.Index
             {
                 var bundleConfigs = GetBundleDefinition(variant);
 
-                foreach (var bundle in bundleConfigs)
-                {
-
-                    var finalGallery = funRepo.GetAll().Where(x => x.Variant == Config.DefaulVariant
-                                                                && bundle.Galleries.Contains(x.Name))
-                                                       .ToDictionary(x => x.Name, x => x);
+            
+                var finalGallery = Cmdlineals.GetAll().Where(x => x.Variant == "default").ToDictionary(x => x.Name, x => x);
 
                     var variantGalleries = funRepo.GetAll().Where(x => x.Variant == variant);
 
@@ -157,8 +153,8 @@ namespace Edi.Core.Gallery.Index
             => Get(name, variant,"default");
         public IndexGallery? Get(string name, string variant, string bundle = "default")
         {
+
             //TODO: asset ovverride order priority similar minecraft texture packt 
-            variant = variant ?? Config.SelectedVariant ?? Config.DefaulVariant;
 
             var galls = Galleries.GetValueOrDefault(variant)?.GetValueOrDefault(name);
             

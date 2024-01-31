@@ -61,7 +61,7 @@ namespace Edi.Core.Gallery.CmdLineal
                 var pathVariant = pathSplit.Length > 1 ? pathSplit[0] : null;
                 funscript.variant = !string.IsNullOrEmpty(funscript.variant)
                                         ? funscript.variant
-                                        : pathVariant ?? Config.DefaulVariant;
+                                        : pathVariant ?? "default";
             }
             
             foreach (var DefinitionGallery in Definition.GetAll())
@@ -137,7 +137,6 @@ namespace Edi.Core.Gallery.CmdLineal
         public FunscriptGallery? Get(string name, string variant = null)
         {
             //TODO: asset ovverride order priority similar minecraft texture packt 
-            variant = variant ?? Config.SelectedVariant ?? Config.DefaulVariant;
 
             var variants = Galleries.GetValueOrDefault(name);
 
@@ -145,7 +144,6 @@ namespace Edi.Core.Gallery.CmdLineal
                 return null;
 
             var gallery = variants.FirstOrDefault(x => x.Variant == variant)
-                        ?? variants.FirstOrDefault(x => x.Variant == Config.SelectedVariant)
                         ?? variants.FirstOrDefault();
 
 

@@ -41,7 +41,10 @@ namespace Edi.Forms
             config = edi.ConfigurationManager.Get<EdiConfig>();
             handyConfig = edi.ConfigurationManager.Get<HandyConfig>();
             buttplugConfig = edi.ConfigurationManager.Get<ButtplugConfig>();
-            estimConfig = edi.ConfigurationManager.Get<EStimConfig>(); 
+            estimConfig = edi.ConfigurationManager.Get<EStimConfig>();
+
+            var galleries = edi.Definitions.ToList();
+            galleries.Insert(0, new Core.Gallery.Definition.DefinitionGallery { Name = ""});
             this.DataContext = new
             {
                 config = config,
@@ -50,6 +53,8 @@ namespace Edi.Forms
                 estimConfig = estimConfig,
 
                 devices = edi.DeviceManager.Devices,
+                
+                galleries = galleries,
 
 
             };
@@ -61,9 +66,11 @@ namespace Edi.Forms
 
 
 
-
+            Closing += MainWindow_Closing;
             LoadForm();
         }
+
+  
 
         private void LoadForm()
         {
@@ -145,6 +152,41 @@ namespace Edi.Forms
             System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo("cmd", $"/c start http://localhost:5000/swagger/index.html") { CreateNoWindow = true });
            
         }
+
+        private async void btnPlay_Click(object sender, RoutedEventArgs e)
+        {
+            await Dispatcher.Invoke(async () =>
+            {
+                await edi.Play(cmbGallerie.Text, 0);
+            });
+        }
+
+        private async void btnStop_Click(object sender, RoutedEventArgs e)
+        {
+            await Dispatcher.Invoke(async () =>
+            {
+                await edi.Stop();
+            });
+        }
+
+        private async void btnPause_Click(object sender, RoutedEventArgs e)
+        {
+            await Dispatcher.Invoke(async () =>
+            {
+                await edi.Pause();
+            });
+        }
+
+        private async void btnResume_Click(object sender, RoutedEventArgs e)
+        {
+            await Dispatcher.Invoke(async () =>
+            {
+                await edi.Resume(false);
+            });
+        }
+
+        
+        
         public override async void EndInit()
         {
             await Dispatcher.Invoke(async () =>
@@ -153,6 +195,14 @@ namespace Edi.Forms
             });
             await Task.Delay(1000); 
             base.EndInit();
+        }
+        private async void MainWindow_Closing(object? sender, System.ComponentModel.CancelEventArgs e)
+        {
+            await Dispatcher.Invoke(async () =>
+            {
+                await edi.Pause();
+            });
+            await Task.Delay(1000);  
         }
     }
     public class BoolToReadyIconConverter : IValueConverter

@@ -124,7 +124,7 @@ namespace Edi.Core.Gallery.CmdLineal
 
             }
         }
-        private List<FunScriptFile> GetFunscripts()
+        public List<FunScriptFile> GetFunscripts()
         {
             //OSR6 Manage Axies some where in this function to populate diccionary in FunscriptGallery
 

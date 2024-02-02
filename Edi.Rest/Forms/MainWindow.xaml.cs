@@ -45,6 +45,7 @@ namespace Edi.Forms
 
             var galleries = edi.Definitions.ToList();
             galleries.Insert(0, new Core.Gallery.Definition.DefinitionGallery { Name = ""});
+            galleries.Insert(1, new Core.Gallery.Definition.DefinitionGallery { Name = "(Random)"});
             this.DataContext = new
             {
                 config = config,
@@ -155,9 +156,16 @@ namespace Edi.Forms
 
         private async void btnPlay_Click(object sender, RoutedEventArgs e)
         {
+            
+
+
             await Dispatcher.Invoke(async () =>
             {
-                await edi.Play(cmbGallerie.Text, 0);
+                var selected = cmbGallerie.Text;
+                if (selected == "(Random)")
+                    selected = edi.Definitions.OrderBy(x => Guid.NewGuid()).FirstOrDefault()?.Name ?? "";
+
+                await edi.Play(selected, 0);
             });
         }
 

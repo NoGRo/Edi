@@ -199,7 +199,7 @@ namespace Edi.Core
 
         public async Task Pause()
         {
-            changeStatus("Device Pause");
+            changeStatus("Device Stop");
 
             await DeviceManager.Stop();
 
@@ -266,7 +266,7 @@ namespace Edi.Core
                 TimerGalleryStop.Interval = Math.Abs(gallery.Duration);
                 TimerGalleryStop.Start();
             }
-            changeStatus($"Device Play [{gallery.Name}] at {seek}, loop:[{gallery.Loop}]");
+            changeStatus($"Device Play [{gallery.Name}] at {seek}, Type:[{gallery.Type}], Loop:[{gallery.Loop}]");
             await DeviceManager.PlayGallery(gallery.Name, seek);
         }
 

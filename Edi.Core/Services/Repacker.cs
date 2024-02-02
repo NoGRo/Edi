@@ -26,12 +26,9 @@ namespace Edi.Core
         public async Task Repack(string videoName = "", List<DefinitionGallery>? _galleries = null)
         {
             galleries = _galleries ?? edi.Definitions.ToList();
-            outputVideoName = videoName;
-            //outputFilePath = $"{basePath}/{outputVideoName}";
-           // await CutVideosAsync();
-
-            
-
+           
+          /*
+            await CutVideosAsync();
             foreach (var key in galleries.Select(x => x.FileName.Substring(0, 1)).Distinct().ToList())
             {
                 _galleries = galleries.Where(x => x.FileName.StartsWith(key)).ToList();
@@ -41,7 +38,7 @@ namespace Edi.Core
                 WriteFunscripts(key, _galleries);
             }
             WriteDefinitionsCsv();
-            
+            */
 
             //;
             // Crear una lista para FFmpeg

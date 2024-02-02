@@ -33,11 +33,12 @@ namespace Edi.Core.Gallery.CmdLineal
             LoadFromFunscripts();
         }
 
-
+        private List<FunScriptFile> ToSave = new List<FunScriptFile>();
         private void LoadFromFunscripts()
         {
             var GalleryPath = $"{Config.GalleryPath}\\";
             Galleries.Clear();
+            ToSave.Clear();
             Variants.Clear();
             if (!Directory.Exists($"{GalleryPath}"))
                 return;
@@ -76,22 +77,53 @@ namespace Edi.Core.Gallery.CmdLineal
                 foreach (var funscript in funscripts)
                 {
                     var actions = funscript.actions
-                        .Where(x => x.at > DefinitionGallery.StartTime
+                        .Where(x => x.at >= DefinitionGallery.StartTime
                                  && x.at <= DefinitionGallery.EndTime);
                     if (!actions.Any())
                     {
                         Debug.WriteLine($"FunscriptRepository Empty ignored: {DefinitionGallery.Name}");
                         continue;
                     }
-                        
-                    FunscriptGallery gallery = ParseActions(funscript.variant, DefinitionGallery, actions);
 
+                    SyncChapterInfo(DefinitionGallery, funscript);
+
+                    FunscriptGallery gallery = ParseActions(funscript.variant, DefinitionGallery, actions);
                     Galleries[DefinitionGallery.Name].Add(gallery);
                 }
             }
+
+            //SyncChapterInfo
+            ToSave.Distinct().ToList().ForEach(x => x.Save(x.path));
+
             Variants = Galleries.SelectMany(x => x.Value.Select(y => y.Variant)).Distinct().ToList();
         }
 
+        private void SyncChapterInfo(DefinitionGallery DefinitionGallery, FunScriptFile? funscript)
+        {
+            var chapter = funscript.metadata.chapters.FirstOrDefault(x => x.name == DefinitionGallery.Name);
+            if (chapter == null)
+            {
+                funscript.metadata.chapters.Add(new()
+                {
+                    name = DefinitionGallery.Name,
+                    StartTimeMilis = DefinitionGallery.StartTime,
+                    EndTimeMilis = DefinitionGallery.EndTime
+                });
+                ToSave.Add(funscript);
+            }
+            else
+            {
+                if (DefinitionGallery.StartTime != chapter.StartTimeMilis
+                 && DefinitionGallery.EndTime != chapter.EndTimeMilis)
+                {
+                    chapter.StartTimeMilis = DefinitionGallery.StartTime;
+                    chapter.EndTimeMilis = DefinitionGallery.EndTime;
+                    ToSave.Add(funscript);
+
+                }
+
+            }
+        }
         private List<FunScriptFile> GetFunscripts()
         {
             //OSR6 Manage Axies some where in this function to populate diccionary in FunscriptGallery

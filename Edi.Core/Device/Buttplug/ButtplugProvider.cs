@@ -62,7 +62,7 @@ namespace Edi.Core.Device.Buttplug
 
                 client.Dispose();
                 client = null;
-                RemoveAllDevices();
+                await RemoveAllDevices();
 
             }
             client = new ButtplugClient("Edi");
@@ -93,11 +93,11 @@ namespace Edi.Core.Device.Buttplug
 
         }
 
-        private void RemoveAllDevices()
+        private async Task RemoveAllDevices()
         {
             foreach (ButtplugDevice devicerm in devices)
             {
-                DeviceManager.UnloadDevice(devicerm);
+               await DeviceManager.UnloadDevice(devicerm);
             }
             devices.Clear();
         }
@@ -106,6 +106,10 @@ namespace Edi.Core.Device.Buttplug
         {
             var newdevices = new List<ButtplugDevice>();
             
+
+            //OSR6 detect if is Osr and create another Device class ?
+
+
             for (uint i = 0; i < Device.LinearAttributes.Count; i++)
             {
                 newdevices.Add(new ButtplugDevice(Device,ActuatorType.Position, i, repository,Config));

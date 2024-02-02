@@ -1,10 +1,12 @@
 ﻿using Edi.Core.Device;
 using Edi.Core.Device.Buttplug;
+using Edi.Core.Device.EStim;
 using Edi.Core.Device.Handy;
 using Edi.Core.Device.Interfaces;
 using Edi.Core.Gallery;
 using Edi.Core.Gallery.CmdLineal;
 using Edi.Core.Gallery.Definition;
+using Edi.Core.Gallery.EStimAudio;
 using Edi.Core.Gallery.Index;
 
 using System;
@@ -30,7 +32,8 @@ namespace Edi.Core
 
             var definitionRepository = new DefinitionRepository(configuration);
             var funscriptRepository = new FunscriptRepository(configuration, definitionRepository);
-            var indexRepository = new IndexRepository(configuration, new GalleryBundler(configuration), funscriptRepository);
+            var indexRepository = new IndexRepository(configuration, new GalleryBundler(configuration), funscriptRepository, definitionRepository);
+            var audioRepository = new AudioRepository(configuration, definitionRepository);
 
             #endregion
 
@@ -40,10 +43,11 @@ namespace Edi.Core
 
             deviceManager.Providers.Add(new ButtplugProvider(funscriptRepository, configuration, deviceManager));
             deviceManager.Providers.Add(new HandyProvider(indexRepository, configuration, deviceManager));
+            deviceManager.Providers.Add(new EStimProvider(audioRepository, configuration, deviceManager));
 
             #endregion
-            
-            return new Edi(deviceManager, definitionRepository,new IRepository[] { definitionRepository, funscriptRepository, indexRepository }, configuration);
+
+            return new Edi(deviceManager, definitionRepository,new IRepository[] { definitionRepository, funscriptRepository, indexRepository, audioRepository }, configuration);
 
         }
 

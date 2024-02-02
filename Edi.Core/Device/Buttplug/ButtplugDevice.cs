@@ -21,6 +21,9 @@ using Timer = System.Timers.Timer;
 
 namespace Edi.Core.Device.Buttplug
 {
+
+
+    //OSR6 I don't know if you can use this class because it is all designed for a single stream to go under bluetooth it has the rate limit other things
     [AddINotifyPropertyChangedInterface]
     public class ButtplugDevice : IDevice
     {
@@ -36,7 +39,7 @@ namespace Edi.Core.Device.Buttplug
             set { 
                 selectedVariant = value;
                 if(CurrentGallery != null && !IsPause )
-                PlayGallery(CurrentGallery.Name, CurrentTime).GetAwaiter();
+                    PlayGallery(CurrentGallery.Name, CurrentTime).GetAwaiter();
             } 
         }
 
@@ -44,9 +47,9 @@ namespace Edi.Core.Device.Buttplug
 
         private List<CmdLinear> queue { get; set; } = new List<CmdLinear>();
         public CmdLinear CurrentCmd { get;  set; }
-        private DateTime SendAt { get;  set; }
+        private DateTime CmdSendAt { get;  set; }
         private int CurrentTime => Convert.ToInt32((DateTime.Now - SyncSend).TotalMilliseconds + SeekTime);
-        public int ReminingTime => CurrentCmd.Millis - Convert.ToInt32((DateTime.Now - SendAt).TotalMilliseconds);
+        public int ReminingTime => CurrentCmd.Millis - Convert.ToInt32((DateTime.Now - CmdSendAt).TotalMilliseconds);
         
         public DateTime SyncSend { get; private set; } = DateTime.Now;
         public bool IsPause { get; private set; } = true;
@@ -71,7 +74,7 @@ namespace Edi.Core.Device.Buttplug
             timerCmdEnd.Elapsed += OnCommandEnd;
 
             SelectedVariant = Variants.FirstOrDefault(x => x.Contains(Actuator.ToString(),StringComparison.OrdinalIgnoreCase))
-                                ?? repository.Config.DefaulVariant;
+                                ?? repository.GetVariants().FirstOrDefault();
         }
 
         private FunscriptGallery CurrentGallery;
@@ -147,7 +150,7 @@ namespace Edi.Core.Device.Buttplug
             Task sendtask = Task.CompletedTask;
 
 
-            if (cmd.Millis >= config.CommandDelay || (DateTime.Now - SendAt).TotalMilliseconds >= config.CommandDelay)
+            if (cmd.Millis >= config.CommandDelay || (DateTime.Now - CmdSendAt).TotalMilliseconds >= config.CommandDelay)
             {
                 switch (Actuator)
                 {
@@ -162,7 +165,7 @@ namespace Edi.Core.Device.Buttplug
                 CurrentCmd = cmd;
                 //Debug.WriteLineIf(Name == "The Handy", $"{Name}: at:{cmd.AbsoluteTime} Cur:{CurrentTime}  {cmd.Millis}-{cmd.Value}");
 
-                SendAt = DateTime.Now;
+                CmdSendAt = DateTime.Now;
                 cmd.Sent = DateTime.Now;
             }
 
@@ -179,7 +182,7 @@ namespace Edi.Core.Device.Buttplug
 
         public double CalculateSpeed()
         {
-            var passes = DateTime.Now - SendAt;
+            var passes = DateTime.Now - CmdSendAt;
             if(CurrentCmd == null)
                 return 0;
             var distanceToTravel = CurrentCmd.Value - CurrentCmd.InitialValue;
@@ -216,7 +219,7 @@ namespace Edi.Core.Device.Buttplug
         }
 
 
-        public async Task Pause()
+        public async Task Stop()
         {
             IsPause = true;
             ResumeAt = (long)CurrentTime;

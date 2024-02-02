@@ -10,6 +10,7 @@ using Edi.Core.Gallery.Index;
 using Edi.Core.Gallery.CmdLineal;
 using NAudio.Wave;
 using Edi.Core.Gallery.Definition;
+using System.Text.RegularExpressions;
 
 namespace Edi.Core.Gallery.EStimAudio
 {
@@ -40,63 +41,79 @@ namespace Edi.Core.Gallery.EStimAudio
             if (!Directory.Exists($"{GalleryPath}"))
                 return;
 
-
-            var variants = Directory.GetDirectories($"{GalleryPath}");
-            Variants.AddRange(variants);
-
-
             var definitions = Definitions.GetAll();
 
-            foreach (var variant in variants)
+            var dir = new DirectoryInfo(GalleryPath);
+            var mp3Files = dir.EnumerateFiles("*.mp3").ToList();
+
+            mp3Files.AddRange(dir.EnumerateDirectories().SelectMany(d => d.EnumerateFiles("*.mp3")));
+
+            if (!mp3Files.Any())
+                return;
+
+            var regex = new Regex(@"^(?<nombre>.*?)(\.(?<variante>[^.]+))?$");
+
+            mp3Files = mp3Files.DistinctBy(x => x.Name).ToList();
+
+            foreach (var file in mp3Files)
             {
+                var fileName = regex.Match(Path.GetFileNameWithoutExtension(file.Name)).Groups["nombre"].Value;
+                var variant = regex.Match(Path.GetFileNameWithoutExtension(file.Name)).Groups["variante"].Value;
 
-                // Obtener las definiciones de fragmentos de audio
+                var pathSplit = file.FullName.Replace(GalleryPath + "\\", "").Split('\\');
+                var pathVariant = pathSplit.Length > 1 ? pathSplit[0] : null;
 
+                variant = !string.IsNullOrEmpty(variant)
+                                        ? variant
+                                        : pathVariant ?? "default";
 
-                // Recorrer cada una de las definiciones de fragmentos de audio
-                foreach (var definition in definitions)
+                Mp3FileReader reader;
+                try
                 {
-                    // Abrir el archivo de audio original
-                    
-                    var filePath = $"{Config.GalleryPath}\\{variant}\\{definition.FileName}.Mp3";
-                    // Crear un nuevo archivo de audio para almacenar el fragmento
-                    
+                    reader = new Mp3FileReader(file.FullName);
+                }
+                catch 
+                {
+                    continue;
+                }
+                
+                if (!reader.CanSeek)
+                {
+                    reader.Close();
+                    continue;
+                }
+                
 
-                    var file = new FileInfo(filePath);
-
-                    if (filePath is null || !file.Exists)
-                        continue;
-
-                    var reader = new Mp3FileReader(file.FullName);
-
-                    if (!reader.CanSeek)
+                foreach (var DefinitionGallery in definitions.Where(x => x.FileName == fileName))
+                {
+                    try
                     {
-                        reader.Close();
+                        reader.CurrentTime = TimeSpan.FromMilliseconds(DefinitionGallery.StartTime);
+                    }
+                    catch 
+                    {
                         continue;
                     }
 
-                    reader.CurrentTime = TimeSpan.FromMilliseconds(definition.StartTime);
-                    reader.Close();
-
-
-                    // Crear una nueva galería para almacenar el fragmento de audio
                     AudioGallery gallery = new AudioGallery
                     {
-                        Name = definition.Name,
+                        Name = DefinitionGallery.Name,
                         Variant = variant,
-                        AudioPath = filePath,
-                        Loop = definition.Loop,
-                        Duration = definition.Duration,
-                        StartTime = definition.StartTime
+                        AudioPath = file.FullName,
+                        Loop = DefinitionGallery.Loop,
+                        Duration = DefinitionGallery.Duration,
+                        StartTime = DefinitionGallery.StartTime
                     };
 
-                    // Añadir la galería a la lista de galerías
-                    if (!Galleries.ContainsKey(definition.Name))
-                        Galleries.Add(definition.Name, new List<AudioGallery>());
+                    if (!Galleries.ContainsKey(DefinitionGallery.Name))
+                        Galleries.Add(DefinitionGallery.Name, new List<AudioGallery>());
 
-                    Galleries[definition.Name].Add(gallery);
+                    Galleries[DefinitionGallery.Name].Add(gallery);
                 }
+                reader.Close();
             }
+
+            Variants = Galleries.SelectMany(x => x.Value.Select(y => y.Variant)).Distinct().ToList();
         }
         public List<string> GetVariants()
             => Variants;
@@ -106,7 +123,6 @@ namespace Edi.Core.Gallery.EStimAudio
         public AudioGallery? Get(string name, string variant = null)
         {
             //TODO: asset ovverride order priority similar minecraft texture packt 
-            variant = variant ?? Config.SelectedVariant ?? Config.DefaulVariant;
 
             var variants = Galleries.GetValueOrDefault(name);
 
@@ -114,7 +130,6 @@ namespace Edi.Core.Gallery.EStimAudio
                 return null;
 
             var gallery = variants.FirstOrDefault(x => x.Variant == variant)
-                        ?? variants.FirstOrDefault(x => x.Variant == Config.SelectedVariant)
                         ?? variants.FirstOrDefault();
             return gallery;
 

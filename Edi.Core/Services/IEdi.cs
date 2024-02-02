@@ -16,7 +16,7 @@ namespace Edi.Core
         public Task Play(string Name, long Seek = 0);
         public Task Stop();
         public Task Pause();
-        public Task Resume();
+        public Task Resume(bool atCurrentTime);
         public Task Repack();
 
         public delegate void ChangeStatusHandler(string message);

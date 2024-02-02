@@ -28,7 +28,7 @@ namespace Edi.Core.Gallery.Index
         {
             sb = new ScriptBuilder();
         }
-        public IndexGallery Add(FunscriptGallery gallery )
+        public IndexGallery Add(FunscriptGallery gallery, string bundleName )
         {
             
             var startTime = sb.TotalTime;
@@ -40,15 +40,19 @@ namespace Edi.Core.Gallery.Index
                 Name = gallery.Name,
                 Loop = gallery.Loop,
                 Variant = gallery.Variant,
+                StartTime = startTime,
                 Duration = Convert.ToInt32(sb.TotalTime - startTime),
-                StartTime = startTime
+                Bundle = bundleName
             };
 
-            //6 seconds repear in script bundle for loop msg delay
-            if (gallery.Loop && gallery.Commands.Any())
+            if (indexGallery.Duration == 0)
             {
-                
-                var NewTotalTime = sb.TotalTime + Config.RepearDuration;
+                sb.AddCommandMillis(gallery.Loop ? Config.MinRepearDuration : Config.SpacerDuration, sb.lastValue);
+                indexGallery.Duration = Convert.ToInt32(sb.TotalTime - startTime);
+            }
+            else if (gallery.Loop)
+            {
+                var NewTotalTime = startTime + Math.Max(indexGallery.Duration , Config.MinRepearDuration) + Config.RepearDuration;
 
                 sb.addCommands(gallery.Commands.Clone());
                 while (sb.TotalTime <= NewTotalTime)
@@ -56,6 +60,8 @@ namespace Edi.Core.Gallery.Index
                     sb.addCommands(gallery.Commands.Clone());
                 }
                 sb.TrimTimeTo(NewTotalTime);
+
+                indexGallery.Duration = Convert.ToInt32(NewTotalTime - startTime - Config.RepearDuration);
             }
             else if (Config.SpacerDuration > 0) // extra, no movement
                 sb.AddCommandMillis(Config.SpacerDuration, sb.lastValue);

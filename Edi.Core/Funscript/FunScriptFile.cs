@@ -39,7 +39,7 @@ namespace Edi.Core.Funscript
         public int range { get; set; }
         public string path { get; set; }
 
-
+        //OSR6 add property Axie modifiing regular exprexeion with Chat Gpt 
         [JsonIgnore]
         private Regex regex = new Regex(@"^(?<name>.*?)(\.(?<variant>[^.]+))?$");
 

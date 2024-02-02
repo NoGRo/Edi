@@ -281,9 +281,9 @@ namespace Edi.Core
         public Trepo? GetRepo<Trepo>() where Trepo : class, IRepository 
             => repos?.FirstOrDefault(x => x is Trepo) as Trepo;
 
-        public Task Repack()
+        public async Task Repack()
         {
-            throw new NotImplementedException();
+            await new Repacker(this).Repack();
         }
     }
 }

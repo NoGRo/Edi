@@ -43,9 +43,12 @@ namespace Edi.Forms
             buttplugConfig = edi.ConfigurationManager.Get<ButtplugConfig>();
             estimConfig = edi.ConfigurationManager.Get<EStimConfig>();
 
-            var galleries = edi.Definitions.ToList();
-            galleries.Insert(0, new Core.Gallery.Definition.DefinitionGallery { Name = ""});
-            galleries.Insert(1, new Core.Gallery.Definition.DefinitionGallery { Name = "(Random)"});
+            var galleries = edi.Definitions.Where(x=> x.Type != "filler" ).ToList();
+
+            galleries.Insert(0, new Core.Gallery.Definition.DefinitionGallery { Name = "" });
+            galleries.Insert(1, new Core.Gallery.Definition.DefinitionGallery { Name = "(Random)" });
+            galleries.InsertRange(2, edi.Definitions.Where(x=> x.Type == "filler" ));
+            
             this.DataContext = new
             {
                 config = config,

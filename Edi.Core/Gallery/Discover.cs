@@ -29,7 +29,6 @@ namespace Edi.Core.Gallery
             var assetEdis = new List<AssetEdi>();
             foreach (var file in files)
             {
-
                 var fileName = variantRegex.Match(Path.GetFileNameWithoutExtension(file.Name)).Groups["name"].Value;
                 var variant = variantRegex.Match(Path.GetFileNameWithoutExtension(file.Name)).Groups["variant"].Value;
 
@@ -40,11 +39,11 @@ namespace Edi.Core.Gallery
                                         : pathVariant ?? defualtVariant;
 
                 assetEdis.Add(new(file, fileName, variant));
-
             }
+
             return assetEdis;
         }
-        public record AssetEdi(FileInfo File, string FileName, string Variant);
+        public record AssetEdi(FileInfo File, string Name, string Variant);
  
     }
 }

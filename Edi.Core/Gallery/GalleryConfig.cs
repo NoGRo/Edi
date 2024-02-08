@@ -11,8 +11,6 @@ namespace Edi.Core.Gallery
     [AddINotifyPropertyChangedInterface]
     public class GalleryConfig
     {
-        public string DefaulVariant { get; set; }
-        public string SelectedVariant { get; set; }
         public string GalleryPath { get; set; }
     }
 }

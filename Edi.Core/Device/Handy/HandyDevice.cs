@@ -46,7 +46,7 @@ namespace Edi.Core.Device.Handy
         private string selectedVariant;
         public string SelectedVariant
         {
-            get => selectedVariant ?? repository.Config.DefaulVariant;
+            get => selectedVariant;
             set
             {
                 selectedVariant = value;
@@ -69,8 +69,8 @@ namespace Edi.Core.Device.Handy
             
             this.Client = Client;
             this.repository = repository;
-           
-            SelectedVariant = repository.Config.DefaulVariant;
+
+            SelectedVariant = repository.GetVariants().FirstOrDefault(); ;
         }
         
         private Task uploadTask { get; set; }

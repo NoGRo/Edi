@@ -17,7 +17,7 @@ namespace Edi.Core.Gallery.Index
 {
     public class IndexRepository : IGalleryRepository<IndexGallery>
     {
-        public IndexRepository(ConfigurationManager configuration, GalleryBundler bundler, FunscriptRepository Cmdlineals,DefinitionRepository definitionRepository)
+        public IndexRepository(ConfigurationManager configuration, GalleryBundler bundler, FunscriptRepository Cmdlineals, DefinitionRepository definitionRepository)
         {
             Config = configuration.Get<GalleryConfig>();
             Bundler = bundler;
@@ -28,7 +28,7 @@ namespace Edi.Core.Gallery.Index
         private Dictionary<string, Dictionary<string, List<IndexGallery>>> Galleries { get; set; } = new Dictionary<string, Dictionary<string, List<IndexGallery>>>(StringComparer.OrdinalIgnoreCase);
 
         public GalleryConfig Config { get; set; }
-        private GalleryBundler Bundler { get; set; } 
+        private GalleryBundler Bundler { get; set; }
         public FunscriptRepository funRepo { get; }
         public DefinitionRepository DefinitionRepository { get; }
 
@@ -37,7 +37,7 @@ namespace Edi.Core.Gallery.Index
             LoadGallery();
         }
 
-        public FileInfo GetBundle(string variant, string format) 
+        public FileInfo GetBundle(string variant, string format)
             => new FileInfo($"{Edi.OutputDir}/bundle.{variant}.{format}");
 
         private void LoadGallery()
@@ -50,7 +50,7 @@ namespace Edi.Core.Gallery.Index
                 foreach (var bundle in bundleConfigs)
                 {
 
-                    var finalGallery = funRepo.GetAll().Where(x => x.Variant == Config.DefaulVariant
+                    var finalGallery = funRepo.GetAll().Where(x => x.Variant == "default"
                                                                 && bundle.Galleries.Contains(x.Name))
                                                        .ToDictionary(x => x.Name, x => x);
 
@@ -155,22 +155,31 @@ namespace Edi.Core.Gallery.Index
             // Add the last bundle
             if (currentBundle != null)
                 bundles.Add(currentBundle);
+
+
+            var inBundles = bundles.Where(x => x.BundleName != "default").SelectMany(x => x.Galleries).ToHashSet();
+            var inDefualt = bundles.Where(x => x.BundleName == "default").SelectMany(x => x.Galleries).ToHashSet();
+
+            bundlesDefault.Galleries = bundlesDefault.Galleries.Where(x => inDefualt.Contains(x) || !inBundles.Contains(x)).ToList();
+
+            bundles.RemoveAll(x => x.BundleName == "default");
+            bundles.Add(bundlesDefault);
+
             return bundles;
         }
 
         public List<string> GetVariants()
             => funRepo.GetVariants();
         public List<IndexGallery> GetAll()
-            => Galleries.Values.SelectMany(x => x.Values.SelectMany(y=> y)).ToList();
-        public  IndexGallery? Get(string name, string variant = null)
-            => Get(name, variant,"default");
+            => Galleries.Values.SelectMany(x => x.Values.SelectMany(y => y)).ToList();
+        public IndexGallery? Get(string name, string variant = null)
+            => Get(name, variant, "default");
         public IndexGallery? Get(string name, string variant, string bundle = "default")
         {
             //TODO: asset ovverride order priority similar minecraft texture packt 
-            variant = variant ?? Config.SelectedVariant ?? Config.DefaulVariant;
-
-            var galls = Galleries.GetValueOrDefault(variant)?.GetValueOrDefault(name);
             
+            var galls = Galleries.GetValueOrDefault(variant)?.GetValueOrDefault(name);
+
             return galls?.Find(x => x.Bundle == bundle) ?? galls?.FirstOrDefault();
 
 

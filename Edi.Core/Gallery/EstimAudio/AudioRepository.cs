@@ -21,12 +21,12 @@ namespace Edi.Core.Gallery.EStimAudio
         public AudioRepository(ConfigurationManager configuration, IGalleryRepository<DefinitionGallery> definitions)
         {
             Config = configuration.Get<GalleryConfig>();
-            Definitions = definitions;
+            Definitios = definitions;
         }
         public IEnumerable<string> Accept => new[] { "mp3" };
         private List<string> Variants { get; set; } = new List<string>();
         public GalleryConfig Config { get; set; }
-        private IGalleryRepository<DefinitionGallery> Definitions { get; }
+        private IGalleryRepository<DefinitionGallery> Definition { get; }
         private Dictionary<string, List<AudioGallery>> Galleries { get; set; } = new Dictionary<string, List<AudioGallery>>(StringComparer.OrdinalIgnoreCase);
 
         public async Task Init()
@@ -36,40 +36,23 @@ namespace Edi.Core.Gallery.EStimAudio
 
         private void LoadGalleryFromDefinitions()
         {
-            var GalleryPath = $"{Config.GalleryPath}\\";
+            var GalleryPath = Config.GalleryPath;
 
-            if (!Directory.Exists($"{GalleryPath}"))
-                return;
+            Galleries.Clear();
+            Variants.Clear();
 
-            var definitions = Definitions.GetAll();
 
-            var dir = new DirectoryInfo(GalleryPath);
-            var mp3Files = dir.EnumerateFiles("*.mp3").ToList();
+            var Assets = this.Discover(GalleryPath);
 
-            mp3Files.AddRange(dir.EnumerateDirectories().SelectMany(d => d.EnumerateFiles("*.mp3")));
-
-            if (!mp3Files.Any())
-                return;
-
-            var regex = new Regex(@"^(?<nombre>.*?)(\.(?<variante>[^.]+))?$");
-
-            mp3Files = mp3Files.DistinctBy(x => x.Name).ToList();
-
-            foreach (var file in mp3Files)
+            foreach (var DefinitionGallery in Definition.GetAll())
             {
-                var fileName = regex.Match(Path.GetFileNameWithoutExtension(file.Name)).Groups["nombre"].Value;
-                var variant = regex.Match(Path.GetFileNameWithoutExtension(file.Name)).Groups["variante"].Value;
+                Galleries.Add(DefinitionGallery.Name, new());
 
-                var pathSplit = file.FullName.Replace(GalleryPath + "\\", "").Split('\\');
-                var pathVariant = pathSplit.Length > 1 ? pathSplit[0] : null;
-
-                variant = !string.IsNullOrEmpty(variant)
-                                        ? variant
-                                        : pathVariant ?? "default";
-
-                Mp3FileReader reader;
-                try
+                var assets = Assets.Where(x => x.Name == DefinitionGallery.FileName)
+                        ;
+                foreach (var asset in assets)
                 {
+                    {
                     reader = new Mp3FileReader(file.FullName);
                 }
                 catch 

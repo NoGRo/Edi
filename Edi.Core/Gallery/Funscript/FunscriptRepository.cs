@@ -36,49 +36,33 @@ namespace Edi.Core.Gallery.CmdLineal
         private List<FunScriptFile> ToSave = new List<FunScriptFile>();
         private void LoadFromFunscripts()
         {
-            var GalleryPath = $"{Config.GalleryPath}\\";
+            var GalleryPath = Config.GalleryPath;
+
             Galleries.Clear();
             ToSave.Clear();
             Variants.Clear();
-            if (!Directory.Exists($"{GalleryPath}"))
-                return;
-
-            
-
-            var GalleryDir = new DirectoryInfo(Config.GalleryPath);
-
-            var FilesSourceNames = Definition
-                                    .GetAll().Select(x => x.FileName)
-                                    .Distinct().ToHashSet(StringComparer.InvariantCultureIgnoreCase);
-
-            var funscriptsFiles = GetFunscripts()
-                                    .Where(x=> FilesSourceNames.Contains(x.name))
-                                    .ToList();
 
 
-            //OSR6 Manage Axies some where in this function
-            foreach (var funscript in funscriptsFiles)
-            {
-                var pathSplit = funscript.path.Replace(GalleryDir.FullName + "\\", "").Split('\\');
-                var pathVariant = pathSplit.Length > 1 ? pathSplit[0] : null;
-                funscript.variant = !string.IsNullOrEmpty(funscript.variant)
-                                        ? funscript.variant
-                                        : pathVariant ?? "default";
-            }
+            var Assets  = this.Discover(GalleryPath);
             
             foreach (var DefinitionGallery in Definition.GetAll())
             {
-                Galleries.Add(DefinitionGallery.Name, new List<FunscriptGallery>());
+                Galleries.Add(DefinitionGallery.Name, new());
 
-                var funscripts = funscriptsFiles
-                                        .Where(x => x.name == DefinitionGallery.FileName)
-                                        .DistinctBy(x=> x.variant);
-
-                foreach (var funscript in funscripts)
+                var assets = Assets.Where(x => x.Name == DefinitionGallery.FileName)
+                                        ;
+                foreach (var asset in assets)
                 {
+
+                    var funscript = FunScriptFile.TryRead(asset.File.FullName);
+                    
+                    if (funscript == null || funscript.actions?.Any() != true)
+                        continue;
+
                     var actions = funscript.actions
                         .Where(x => x.at >= DefinitionGallery.StartTime
                                  && x.at <= DefinitionGallery.EndTime);
+
                     if (!actions.Any())
                     {
                         Debug.WriteLine($"FunscriptRepository Empty ignored: {DefinitionGallery.Name}");
@@ -87,7 +71,8 @@ namespace Edi.Core.Gallery.CmdLineal
 
                     SyncChapterInfo(DefinitionGallery, funscript);
 
-                    FunscriptGallery gallery = ParseActions(funscript.variant, DefinitionGallery, actions);
+                    FunscriptGallery gallery = ParseActions(asset.Variant, DefinitionGallery, actions);
+                    
                     Galleries[DefinitionGallery.Name].Add(gallery);
                 }
             }
@@ -123,21 +108,6 @@ namespace Edi.Core.Gallery.CmdLineal
                 }
 
             }
-        }
-        public List<FunScriptFile> GetFunscripts()
-        {
-            //OSR6 Manage Axies some where in this function to populate diccionary in FunscriptGallery
-
-            var GalleryDir = new DirectoryInfo(Config.GalleryPath);
-            
-
-            var funscriptsFiles = GalleryDir.EnumerateFiles("*.funscript").ToList();
-            funscriptsFiles.AddRange(GalleryDir.EnumerateDirectories().SelectMany(d => d.EnumerateFiles("*.funscript")));
-
-            return  funscriptsFiles
-                        .Select(x => FunScriptFile.TryRead(x.FullName))
-                        .Where(x=> x != null && x.actions?.Any() == true) 
-                        .ToList();
         }
 
 

@@ -41,8 +41,40 @@ namespace Edi.Core.Gallery
                 assetEdis.Add(new(file, fileName, variant));
             }
 
-            return assetEdis;
+            return assetEdis.DistinctBy(x => x.Variant).ToList();
         }
+
+
+        public static List<AssetEdi> Discover<tGallery>(this IGalleryRepository<tGallery> Repository, )
+             where tGallery : class, IGallery
+        {
+            var GalleryDir = new DirectoryInfo(path);
+            var files = new List<FileInfo>();
+            foreach (var item in Repository.Accept)
+            {
+                var mask = item.Contains("*.") ? item : $"*.{item}";
+                files.AddRange(GalleryDir.EnumerateFiles(mask));
+                files.AddRange(GalleryDir.EnumerateDirectories().SelectMany(d => d.EnumerateFiles(mask)));
+            }
+
+            var assetEdis = new List<AssetEdi>();
+            foreach (var file in files)
+            {
+                var fileName = variantRegex.Match(Path.GetFileNameWithoutExtension(file.Name)).Groups["name"].Value;
+                var variant = variantRegex.Match(Path.GetFileNameWithoutExtension(file.Name)).Groups["variant"].Value;
+
+                var pathSplit = file.FullName.Replace(GalleryDir.FullName + "\\", "").Split('\\');
+                var pathVariant = pathSplit.Length > 1 ? pathSplit[0] : null;
+                variant = !string.IsNullOrEmpty(variant)
+                                        ? variant
+                                        : pathVariant ?? defualtVariant;
+
+                assetEdis.Add(new(file, fileName, variant));
+            }
+
+            return assetEdis.DistinctBy(x => x.Variant).ToList();
+        }
+
         public record AssetEdi(FileInfo File, string Name, string Variant);
  
     }

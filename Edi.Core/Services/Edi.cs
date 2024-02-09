@@ -34,6 +34,9 @@ namespace Edi.Core
                 Directory.CreateDirectory(OutputDir);
                 
             DeviceManager = deviceManager;
+
+            deviceManager.OnloadDevice += DeviceManager_OnloadDevice;
+
             _repository = repository;
             this.repos = repos;
             
@@ -46,6 +49,17 @@ namespace Edi.Core
             ConfigurationManager = configuration;
             Config = configuration.Get<EdiConfig>();
 
+        }
+
+        private void DeviceManager_OnloadDevice(IDevice device)
+        {
+            if (LastGallery == null || GallerySendTime == null)
+                return;
+
+            var seek = Convert.ToInt64((DateTime.Now - GallerySendTime.Value).TotalMilliseconds) + seekTime;
+            seek = Convert.ToInt64(seek % LastGallery.Duration);
+
+            device.PlayGallery(LastGallery.Name, seek);
         }
 
         public EdiConfig Config { get; set; }
@@ -187,7 +201,7 @@ namespace Edi.Core
         {
             changeStatus("Device Pause");
 
-            await DeviceManager.Pause();
+            await DeviceManager.Stop();
 
             if (GallerySendTime is null || LastGallery is null)
             {

@@ -61,8 +61,12 @@ namespace Edi.Core.Device.Handy
         public HandyDevice(HttpClient Client, IndexRepository repository)
         {
             Key = Client.DefaultRequestHeaders.GetValues("X-Connection-Key").First();
+            //timer elapse for loop galleries 
             timerGalleryEnd.Elapsed += TimerGalleryEnd_Elapsed;
+
+            //make unique nane 
             Name = $"The Handy [{Key}]";
+            
             this.Client = Client;
             this.repository = repository;
            
@@ -77,15 +81,26 @@ namespace Edi.Core.Device.Handy
 
             var req = new SyncPlayRequest(ServerTime, timeMs);
             if (IsReady)
+            {
+                Debug.WriteLine($"Handy: {Client.DefaultRequestHeaders.GetValues("X-Connection-Key").FirstOrDefault()} PLay [{timeMs}] ({currentGallery?.Name ?? ""}))");
                 await Client.PutAsync("hssp/play", new StringContent(JsonConvert.SerializeObject(req), Encoding.UTF8, "application/json"));
+            }
+                
 
         }
-        public async Task Pause()
+        public async Task Stop()
         {
+
+            currentGallery = null;
             IsPause = true;
             timerGalleryEnd.Stop();
+            
             if (IsReady)
+            {
+                Debug.WriteLine($"Handy: {Key} Stop");
                 await Client.PutAsync("hssp/stop", null);
+                
+            }
 
         }
 
@@ -94,6 +109,7 @@ namespace Edi.Core.Device.Handy
             uploadCancellationTokenSource?.Cancel();
             await Task.Delay(100);
             uploadCancellationTokenSource = new CancellationTokenSource();
+            
             uploadTask = Task.Run(async () =>
             {
                 if (delay)
@@ -130,7 +146,7 @@ namespace Edi.Core.Device.Handy
 
                     if (currentGallery != null && !IsPause)
                     {
-                        await PlayGallery(currentGallery?.Name, CurrentTime);
+                        await PlayGallery(currentGallery.Name, CurrentTime);
                     }
                 }
                 catch (TaskCanceledException)
@@ -197,6 +213,8 @@ namespace Edi.Core.Device.Handy
         }
         public async Task PlayGallery(string name, long seek = 0)
         {
+
+            timerGalleryEnd.Stop();
             var gallery = repository.Get(name, selectedVariant, currentGallery?.Bundle);
             if (gallery == null)
             {
@@ -204,8 +222,8 @@ namespace Edi.Core.Device.Handy
             }
             if(currentGallery?.Bundle != null  && gallery.Bundle != currentGallery.Bundle )
             {
-
-                IsReady= false;
+                
+                IsReady = false;
                 upload(currentGallery.Bundle, false);
             }
 
@@ -214,18 +232,19 @@ namespace Edi.Core.Device.Handy
             currentGallery = gallery;
             IsPause = false;
 
-            timerGalleryEnd.Interval = gallery.Duration - seek;
+            timerGalleryEnd.Interval = gallery.Duration - seek ;
             timerGalleryEnd.Start();
 
             await Seek(gallery.StartTime + seek);
         }
         private async void TimerGalleryEnd_Elapsed(object? sender, ElapsedEventArgs e)
         {
+            Debug.WriteLine($"Handy: {Key} PLay Timer Elapse ({currentGallery?.Name ?? ""}))");
             timerGalleryEnd.Stop();
-            if (currentGallery.Loop)
+            if (currentGallery?.Loop == true && !IsPause)
                 await PlayGallery(currentGallery.Name);
             else
-                await Pause();
+                await Stop();
 
         }
 

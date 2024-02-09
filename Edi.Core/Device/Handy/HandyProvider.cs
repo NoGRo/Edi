@@ -29,7 +29,7 @@ namespace Edi.Core.Device.Handy
         private HandyDevice handyDevice;
 
 
-        private Timer timerReconnect = new Timer(20000);
+        private Timer timerReconnect = new Timer(40000);
 
         
         public HandyConfig Config { get; set; }
@@ -44,7 +44,7 @@ namespace Edi.Core.Device.Handy
                 return;
 
             await Task.Delay(500);
-            RemoveAll();
+            await RemoveAll();
 
             Keys = Config.Key.Split(',')
                                 .Where(x => !string.IsNullOrWhiteSpace(x))
@@ -64,12 +64,11 @@ namespace Edi.Core.Device.Handy
         {
             Keys.AsParallel().ForAll(async key =>
             {
-
                 await Connect(key);
             });
         }
 
-        private async Task Connect(string Key)
+        private async Task Connect( string  Key)
         {
 
             HttpClient Client = devices.ContainsKey(Key) ? devices[Key].Client : NewClient(Key);
@@ -84,13 +83,14 @@ namespace Edi.Core.Device.Handy
 
             if (resp?.StatusCode != System.Net.HttpStatusCode.OK)
             {
-                Remove(Key);
+                
+                await Remove(Key);
                 return;
             }
             var status = JsonConvert.DeserializeObject<ConnectedResponse>(await resp.Content.ReadAsStringAsync());
             if (!status.connected)
             {
-                Remove(Key);
+                await Remove(Key);
                 return;
             }
 
@@ -101,24 +101,27 @@ namespace Edi.Core.Device.Handy
             _ = await Client.PutAsync("mode", new StringContent(JsonConvert.SerializeObject(new ModeRequest(1)), Encoding.UTF8, "application/json"));
 
             var handyDevice = new HandyDevice(Client, repository);
-            
-            devices.Add(Key, handyDevice);
-            deviceManager.LoadDevice(handyDevice);
+            lock (devices) {
+                if (devices.ContainsKey(Key))
+                    return;
+                devices.Add(Key, handyDevice);
+                deviceManager.LoadDevice(handyDevice);
+            }
 
             await handyDevice.updateServerTime();
 
         }
 
-        private void RemoveAll()
+        private async Task RemoveAll()
         {
             foreach (var key in Keys)
-                Remove(key);
+                await Remove(key);
         }
-        private void Remove(string Key)
+        private async Task Remove(string Key)
         {
             if (devices.ContainsKey(Key))
             {
-                deviceManager.UnloadDevice(devices[Key]);
+                await deviceManager.UnloadDevice(devices[Key]);
                 devices.Remove(Key);
             }
         }

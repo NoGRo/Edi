@@ -62,7 +62,7 @@ namespace Edi.Core.Device.Buttplug
 
                 client.Dispose();
                 client = null;
-                RemoveAllDevices();
+                await RemoveAllDevices();
 
             }
             client = new ButtplugClient("Edi");
@@ -93,11 +93,11 @@ namespace Edi.Core.Device.Buttplug
 
         }
 
-        private void RemoveAllDevices()
+        private async Task RemoveAllDevices()
         {
             foreach (ButtplugDevice devicerm in devices)
             {
-                DeviceManager.UnloadDevice(devicerm);
+               await DeviceManager.UnloadDevice(devicerm);
             }
             devices.Clear();
         }

@@ -40,8 +40,8 @@ namespace Edi.Core.Gallery.Index
                 Name = gallery.Name,
                 Loop = gallery.Loop,
                 Variant = gallery.Variant,
-                Duration = Convert.ToInt32(sb.TotalTime - startTime),
                 StartTime = startTime,
+                Duration = Convert.ToInt32(sb.TotalTime - startTime),
                 Bundle = bundleName
             };
 
@@ -49,7 +49,7 @@ namespace Edi.Core.Gallery.Index
             if (gallery.Loop && gallery.Commands.Any())
             {
                 
-                var NewTotalTime = sb.TotalTime + Config.RepearDuration;
+                var NewTotalTime = startTime + Math.Max(indexGallery.Duration , Config.MinRepearDuration) + Config.RepearDuration;
 
                 sb.addCommands(gallery.Commands.Clone());
                 while (sb.TotalTime <= NewTotalTime)
@@ -57,6 +57,8 @@ namespace Edi.Core.Gallery.Index
                     sb.addCommands(gallery.Commands.Clone());
                 }
                 sb.TrimTimeTo(NewTotalTime);
+
+                indexGallery.Duration = Convert.ToInt32(NewTotalTime - startTime - Config.RepearDuration);
             }
             else if (Config.SpacerDuration > 0) // extra, no movement
                 sb.AddCommandMillis(Config.SpacerDuration, sb.lastValue);

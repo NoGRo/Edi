@@ -5,23 +5,20 @@
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:local="clr-namespace:Edi.Forms"
         mc:Ignorable="d"
-        Title="Edi Launcher" Height="321" Width="665" ResizeMode="NoResize">
+        Title="Edi Launcher" Height="346" Width="662" ResizeMode="NoResize">
+
     <Window.Resources>
         <local:BoolToReadyIconConverter x:Key="BoolToReadyIconConverter"/>
     </Window.Resources>
 
-    <Grid Height="303" VerticalAlignment="Top">
-        <Grid.RowDefinitions>
-            <RowDefinition Height="81*"/>
-            <RowDefinition Height="20*"/>
-        </Grid.RowDefinitions>
+
+    <Grid Height="311" VerticalAlignment="Top">
         <Grid.ColumnDefinitions>
-            <ColumnDefinition Width="304*"/>
-            <ColumnDefinition Width="353*"/>
-            <ColumnDefinition Width="8*"/>
+            <ColumnDefinition Width="16*"/>
+            <ColumnDefinition Width="19*"/>
         </Grid.ColumnDefinitions>
 
-        <DataGrid x:Name="DevicesGrid" ItemsSource="{Binding devices, Mode=OneWay}"  AutoGenerateColumns="False" Margin="5,78,0,12" HorizontalAlignment="Left" Width="337" Grid.Column="1">
+        <DataGrid x:Name="DevicesGrid" ItemsSource="{Binding devices, Mode=OneWay}"  AutoGenerateColumns="False" Margin="10,97,0,53" HorizontalAlignment="Left" Width="337" Grid.Column="1">
             <DataGrid.Columns>
 
                 <DataGridTextColumn Header="Name" Binding="{Binding Name}" />
@@ -35,18 +32,25 @@
                 <DataGridTextColumn Header="Ready"  FontFamily="Segoe UI Emoji" FontSize="14" Binding="{Binding IsReady, Converter={StaticResource BoolToReadyIconConverter}}" />
             </DataGrid.Columns>
         </DataGrid>
-
+        
         <CheckBox Content="Filler" HorizontalAlignment="Left" Margin="5,11,0,0" VerticalAlignment="Top" RenderTransformOrigin="-0.063,-0.829" x:Name="chkFiller" IsChecked="{Binding config.Filler, Mode=TwoWay}" Grid.Column="1" />
         <CheckBox Content="Gallery" HorizontalAlignment="Left" Margin="5,31,0,0" VerticalAlignment="Top" RenderTransformOrigin="-0.063,-0.829" x:Name="chkGallery" IsChecked="{Binding config.Gallery, Mode=TwoWay}" Grid.Column="1"/>
         <CheckBox Content="Reaction" HorizontalAlignment="Left" Margin="5,51,0,0" VerticalAlignment="Top" RenderTransformOrigin="-0.063,-0.829" x:Name="chkReaction" IsChecked="{Binding config.Reactive, Mode=TwoWay}" Grid.Column="1" />
-        <TextBox HorizontalAlignment="Left" Margin="84,19,0,0" TextWrapping="Wrap" ToolTip="Handy Key" Text="{Binding handyConfig.Key}" VerticalAlignment="Top" Width="210"/>
+
+        
         <Label Content="Handy Keys:" HorizontalAlignment="Left" Margin="5,15,0,0" VerticalAlignment="Top"/>
+        <TextBox HorizontalAlignment="Left" Margin="84,19,0,0" TextWrapping="Wrap" ToolTip="Handy Key" Text="{Binding handyConfig.Key}" VerticalAlignment="Top" Width="210"/>
+        <Label Content="Intiface Url:" HorizontalAlignment="Left" Margin="5,41,0,0" VerticalAlignment="Top"/>
         <TextBox HorizontalAlignment="Left" Margin="84,45,0,0" TextWrapping="Wrap" Text="{Binding buttplugConfig.Url}" ToolTip="Buttplug Url" VerticalAlignment="Top" Width="210"/>
-        <Label Content="Intiface Url:" HorizontalAlignment="Left" Margin="10,41,0,0" VerticalAlignment="Top"/>
-        <Button Content="Reconnect" HorizontalAlignment="Left" Margin="222,98,0,0" VerticalAlignment="Top" x:Name="ReconnectButton" Click="ReconnectButton_ClickAsync" Height="22" Width="72"/>
-        <Button Content="Reload Galleries" HorizontalAlignment="Left" Margin="10,98,0,0" VerticalAlignment="Top" x:Name="ReloadButton"  Height="22" Width="103" Click="ReloadButton_Click"/>
-        <Label Grid.Column="1"  Foreground="Blue" Content="http://localhost:5000/swagger/index.html" HorizontalAlignment="Left" MouseDoubleClick="Label_MouseDoubleClick" Margin="5,234,0,0" VerticalAlignment="Top" Width="337" Grid.RowSpan="2"/>
-        <Label Content="Status:" HorizontalAlignment="Left" Margin="5,9,0,0" x:Name="lblStatus" Width="650" Height="26" VerticalAlignment="Top" Grid.ColumnSpan="2" Grid.Row="1" />
+        <Label Content="EStim Audio:" HorizontalAlignment="Left" Margin="5,69,0,0" VerticalAlignment="Top"/>
+        <ComboBox Name="audioDevicesComboBox" HorizontalAlignment="Left" DisplayMemberPath="name" Margin="84,73,0,0" VerticalAlignment="Top" SelectedValuePath="id" SelectedValue="{Binding estimConfig.DeviceId}" Width="210"/>
+        
+        <Label Grid.Column="1"  Foreground="Blue" Content="http://localhost:5000/swagger/index.html" HorizontalAlignment="Left" MouseDoubleClick="Label_MouseDoubleClick" Margin="10,255,0,0" VerticalAlignment="Top" Width="337"/>
+        <Label Grid.Column="1" Content="Devices:" HorizontalAlignment="Left" Margin="5,66,0,0" VerticalAlignment="Top" Width="200"/>
+        <Label Content="Status:" HorizontalAlignment="Left" Margin="5,270,0,0" x:Name="lblStatus" Width="650" Height="26" VerticalAlignment="Top" Grid.ColumnSpan="2" />
+        
+        <Button Content="Reconnect" HorizontalAlignment="Left" Margin="222,106,0,0" VerticalAlignment="Top" x:Name="ReconnectButton" Click="ReconnectButton_ClickAsync" Height="22" Width="72"/>
+        <Button Content="Reload Galleries" HorizontalAlignment="Left" Margin="10,106,0,0" VerticalAlignment="Top" x:Name="ReloadButton"  Height="22" Width="103" Click="ReloadButton_Click"/>
         <Button Visibility="Hidden" Content="RePackButton" HorizontalAlignment="Left" Margin="10,125,0,0" VerticalAlignment="Top" x:Name="RePackButton"  Height="22" Width="103" Click="RePackButton_Click"/>
     </Grid>
 </Window>

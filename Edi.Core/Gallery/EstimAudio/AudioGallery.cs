@@ -13,5 +13,6 @@ namespace Edi.Core.Gallery.EStimAudio
         public long StartTime { get; set; }
         public long Duration { get; set; }
         public bool Loop { get; set; }
+        public object AudioFile { get; internal set; }
     }
 }

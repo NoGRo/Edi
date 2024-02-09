@@ -1,0 +1,21 @@
+﻿<Window x:Class="Edi.Forms.SimulateGame"
+               xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Video Player" Height="465" Width="611">
+    <Grid>
+        <MediaElement x:Name="mediaElement" LoadedBehavior="Manual" UnloadedBehavior="Stop" Stretch="Uniform" Margin="0,0,0,70"/>
+
+        <StackPanel Orientation="Horizontal" VerticalAlignment="Top" Height="81" Margin="10,340,10,0">
+            <Button x:Name="playButton" Content="Play" Height="20" Margin="10,0" Click="PlayButton_Click"/>
+            <Button x:Name="playRandomButton" Content="Play Random" Height="20" Margin="10,0" Click="PlayRandomButton_Click" RenderTransformOrigin="0.436,-4.068"/>
+            <Button x:Name="stopButton" Content="Stop" Height="20" Margin="10,0" Click="StopButton_Click"/>
+            <Button x:Name="pauseButton" Content="Pause" Height="20" Margin="10,0" Click="PauseButton_Click"/>
+            
+            <Slider x:Name="volumeSlider" Maximum="1" Value="0.5" Height="20" Width="81"/>
+        </StackPanel>
+        <!--<StackPanel Orientation="Horizontal" VerticalAlignment="Bottom" Height="0" Margin="10">
+            <Slider x:Name="SeekSlider" Maximum="1" Value="0.5" Width="588" Height="20"/>
+        </StackPanel>-->
+
+    </Grid>
+</Window>

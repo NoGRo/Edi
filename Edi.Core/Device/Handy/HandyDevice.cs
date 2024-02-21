@@ -82,8 +82,15 @@ namespace Edi.Core.Device.Handy
             var req = new SyncPlayRequest(ServerTime, timeMs);
             if (IsReady)
             {
-                Debug.WriteLine($"Handy: {Client.DefaultRequestHeaders.GetValues("X-Connection-Key").FirstOrDefault()} PLay [{timeMs}] ({currentGallery?.Name ?? ""}))");
-                await Client.PutAsync("hssp/play", new StringContent(JsonConvert.SerializeObject(req), Encoding.UTF8, "application/json"));
+                Debug.WriteLine($"Handy: {Key} PLay [{timeMs}] ({currentGallery?.Name ?? ""}))");
+                try
+                {
+                    await Client.PutAsync("hssp/play", new StringContent(JsonConvert.SerializeObject(req), Encoding.UTF8, "application/json"));
+                }
+                catch (Exception ex)
+                {
+                    Debug.WriteLine($"Handy: {Key} Error: {ex.Message}");   
+                }
             }
                 
 
@@ -98,8 +105,16 @@ namespace Edi.Core.Device.Handy
             if (IsReady)
             {
                 Debug.WriteLine($"Handy: {Key} Stop");
-                await Client.PutAsync("hssp/stop", null);
-                
+                try 
+                { 
+                    
+                    await Client.PutAsync("hssp/stop", null);
+                }
+                catch (Exception ex)
+                {
+                    Debug.WriteLine($"Handy: {Key} Error: {ex.Message}");
+                }
+
             }
 
         }

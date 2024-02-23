@@ -94,7 +94,7 @@ namespace Edi.Core.Device.OSR
             PlayScript(script);
         }
 
-        public async Task Pause()
+        public async Task Stop()
         {
             IsPause = true;
             playbackCancellationTokenSource.Cancel();
@@ -202,7 +202,7 @@ namespace Edi.Core.Device.OSR
             DevicePort.Write("d1\n");
             while (DevicePort.BytesToRead == 0)
             {
-                Thread.Sleep(25);
+                Thread.Sleep(100);
             }
             var name = DevicePort.ReadExisting();
             return name.Replace("\r\n", "");

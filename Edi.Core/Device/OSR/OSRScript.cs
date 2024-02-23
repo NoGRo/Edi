@@ -71,6 +71,13 @@ namespace FunscriptIntegrationService.Connector.Shared
                 if (seekIdx >= 0)
                 {
                     commands.Insert(seekIdx + 1, currentPositionCommand);
+
+                    var nextCommand = commands[seekIdx + 2];
+                    nextCommand.InitialValue = currentPositionCommand.Value;
+                    if (nextCommand.Speed > 350)
+                    {
+                        commands[seekIdx + 2] = CmdLinear.GetCommandSpeed(300, nextCommand.Value, currentPositionCommand.Value);
+                    }
                 }
 
                 commands.Insert(0, CmdLinear.GetCommandMillis(0, device.LastCommandSent(axis)?.Value ?? 50));

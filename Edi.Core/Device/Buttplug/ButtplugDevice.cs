@@ -74,7 +74,7 @@ namespace Edi.Core.Device.Buttplug
             timerCmdEnd.Elapsed += OnCommandEnd;
 
             SelectedVariant = Variants.FirstOrDefault(x => x.Contains(Actuator.ToString(),StringComparison.OrdinalIgnoreCase))
-                                ?? repository.Config.DefaulVariant;
+                                ?? repository.GetVariants().FirstOrDefault();
         }
 
         private FunscriptGallery CurrentGallery;

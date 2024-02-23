@@ -25,7 +25,7 @@ namespace Edi.Core.Device.EStim
         public string Name { get; set; }
         private Mp3FileReader _curentAudioFile { get; set; }
         private string selectedVariant;
-        public string SelectedVariant { get => selectedVariant ?? _repository.Config.DefaulVariant; set => selectedVariant = value; }
+        public string SelectedVariant { get => selectedVariant ; set => selectedVariant = value; }
         public IEnumerable<string> Variants => _repository.GetVariants();
 
         public bool IsReady => true;
@@ -44,6 +44,8 @@ namespace Edi.Core.Device.EStim
             _wavePlayer.PlaybackStopped += OnPlaybackStoppedAsync;
 
             _inMemoryMp3 = _repository.GetAll().Select(x=> x.AudioPath).Distinct().ToDictionary(x=> x, y => new Mp3FileReader(y));
+
+            selectedVariant = _repository.GetVariants().FirstOrDefault();
         }
 
         public async Task PlayGallery(string name, long seek = 0)

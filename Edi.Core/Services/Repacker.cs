@@ -4,6 +4,10 @@ using Edi.Core.Funscript;
 using Edi.Core.Gallery;
 using Edi.Core.Gallery.CmdLineal;
 using Edi.Core.Gallery.Definition;
+using NAudio.Midi;
+using System.Diagnostics;
+using System.Globalization;
+using System.Xml.Serialization;
 
 namespace Edi.Core
 {
@@ -14,33 +18,119 @@ namespace Edi.Core
         private string outputFilePath;
         private string outputVideoName;
         private List<DefinitionGallery> galleries =  new();
-
-        public Repacker (IEdi edi)
-        {
-            this.edi = edi;
-        }
+        
+        private string targetFolderPath;
         private DefinitionRepository defRepo => edi.GetRepo<DefinitionRepository>();
         private FunscriptRepository funRepo => edi.GetRepo<FunscriptRepository>();
 
         public async Task Repack(string videoName = "", List<DefinitionGallery>? _galleries = null)
         {
             galleries = _galleries ?? edi.Definitions.ToList();
-            outputVideoName = videoName;
-            outputFilePath = $"{basePath}/{outputVideoName}";
-
-            // Crear una lista para FFmpeg
-
-            var videoTask = GenerateVideo();
-            await ApplyDurationFromVideos();
-
-            WriteFunscripts();
+           
+          /*
+            await CutVideosAsync();
+            foreach (var key in galleries.Select(x => x.FileName.Substring(0, 1)).Distinct().ToList())
+            {
+                _galleries = galleries.Where(x => x.FileName.StartsWith(key)).ToList();
+                await GenerateFileListForConcatenation(key, _galleries);
+                await GenerateVideo(key);
+                await ApplyDurationFromVideos(key, _galleries);
+                WriteFunscripts(key, _galleries);
+            }
             WriteDefinitionsCsv();
+            */
 
-            await videoTask;
+            //;
+            // Crear una lista para FFmpeg
+            /*
+                        var videoTask = CutVideosAsync();
+
+                        await ApplyDurationFromVideos();
+
+                        WriteFunscripts();
+                        WriteDefinitionsCsv();
+            */
+            //await videoTask;
 
         }
 
+       
+        public Repacker (IEdi edi)
+        {
+            this.edi = edi;
+        }
 
+        public async Task CutVideosAsync()
+        {
+            foreach (var gallery in galleries)
+            {
+                string inputFile = Path.Combine(basePath, $"videos\\{gallery.FileName}.mp4");
+                string outputFile = Path.Combine(basePath, $"{gallery.Name}.mp4");
+
+                await CutVideoSegment(inputFile, outputFile, gallery.StartTime, gallery.EndTime);
+            }
+        }
+
+
+        private async Task CutVideoSegment(string inputPath, string outputPath, long startTime, long endTime)
+        {
+            string startTimeFormatted = TimeSpan.FromMilliseconds(startTime).ToString(@"hh\:mm\:ss\.fff", CultureInfo.InvariantCulture);
+            string durationFormatted = TimeSpan.FromMilliseconds(endTime - startTime).ToString(@"hh\:mm\:ss\.fff", CultureInfo.InvariantCulture);
+
+            string ffmpegCmd = $"-y -ss {startTimeFormatted} -i \"{inputPath}\" -t {durationFormatted}  -c:v libx264 -c:a aac \"{outputPath}\"";
+
+            var process = new Process
+            {
+                StartInfo = new ProcessStartInfo
+                {
+                    FileName = "ffmpeg",
+                    Arguments = ffmpegCmd,
+                    RedirectStandardOutput = true,
+                    UseShellExecute = false,
+                    CreateNoWindow = true,
+                }
+            };
+
+            process.Start();
+            await process.WaitForExitAsync();
+        }
+
+        private async Task GenerateFileListForConcatenation(string key, List<DefinitionGallery> _galleries)
+        {
+            string fileListPath = Path.Combine(basePath, $"{key}-filelist.txt");
+            using (var writer = new StreamWriter(fileListPath, false))
+            {
+                foreach (var gallery in _galleries.Where(x => x.FileName.StartsWith(key)))
+                {
+                    string videoFilePath = Path.Combine(basePath, $"{gallery.Name}.mp4").Replace("\\", "/");
+                    await writer.WriteLineAsync($"file '{videoFilePath}'");
+                }
+            }
+
+        }
+
+        private async Task GenerateVideo(string key)
+        {
+            string fileListPath = Path.Combine(basePath + $"\\{key}-filelist.txt").Replace("\\", "/");
+
+            // Asegúrate de que las rutas estén correctamente escapadas para el comando.
+            string outputPath = Path.Combine(basePath, $"{key}.mp4").Replace("\\", "/");
+
+            var ffmpegCmd = $"-y -f concat -safe 0 -i \"{fileListPath}\" -c copy \"{outputPath}\"";
+            var process = new Process
+            {
+                StartInfo = new ProcessStartInfo
+                {
+                    FileName = "ffmpeg",
+                    Arguments = ffmpegCmd,
+                    RedirectStandardOutput = true,
+                    UseShellExecute = false,
+                    CreateNoWindow = true,
+                }
+            };
+            process.Start();
+            await process.WaitForExitAsync();
+        }
         public async Task<int> GetVideoDuration(string videoPath)
         {
             var process = new System.Diagnostics.Process
@@ -48,7 +138,7 @@ namespace Edi.Core
                 StartInfo = new System.Diagnostics.ProcessStartInfo
                 {
                     FileName = "ffmpeg",
-                    Arguments = $"-i {videoPath}",
+                    Arguments = $"-i \"{videoPath.Replace("\\", "/")}\"",
                     RedirectStandardError = true,
                     UseShellExecute = false,
                     CreateNoWindow = true,
@@ -68,70 +158,58 @@ namespace Edi.Core
             }
             return 0;
         }
-        private async Task GenerateVideo()
-        {
-            var fileListPath = $"{basePath}/filelist.txt";
-            using (var writer = new StreamWriter(fileListPath))
-            {
-                foreach (var record in galleries)
-                {
-                    writer.WriteLine($"file '{record.Name}.mp4'");
-                }
-            }
 
-            // Utilizar FFmpeg para concatenar los videos
-            var ffmpegCmd = $"-f concat -safe 0 -i {fileListPath} -c copy {outputFilePath}.mp4";
-            var process = new System.Diagnostics.Process
-            {
-                StartInfo = new System.Diagnostics.ProcessStartInfo
-                {
-                    FileName = "ffmpeg",
-                    Arguments = ffmpegCmd,
-                    RedirectStandardOutput = true,
-                    UseShellExecute = false,
-                    CreateNoWindow = false,
-                }
-            };
-            process.Start();
-            await process.WaitForExitAsync();
-        }
-        private async Task ApplyDurationFromVideos()
+
+
+        private async Task ApplyDurationFromVideos(string key,List<DefinitionGallery> _galleries)
         {
             long accumulatedTime = 0;
 
-            foreach (var record in galleries)
+            foreach (var gallery in _galleries)
             {
-                var duration = await GetVideoDuration($"{basePath}/{record.Name}.mp4");  // Obtener la duración en milisegundos
-
-                record.StartTime = accumulatedTime;
+                var originalDuration = gallery.Duration;
+                var duration = await GetVideoDuration(Path.Combine(basePath, $"{gallery.Name}.mp4"));  // Obtener la duración en milisegundos
+                gallery.StartTime = accumulatedTime;
                 accumulatedTime += duration;
-                record.EndTime = accumulatedTime;
-                record.FileName = outputVideoName;
+                gallery.EndTime = gallery.StartTime + originalDuration;
+                gallery.FileName = key;
             }
         }
 
         private void WriteDefinitionsCsv()
         {
-            using (var writer = new StreamWriter($"{outputFilePath}.csv"))
-            using (var csv = new CsvWriter(writer, new CsvConfiguration(System.Globalization.CultureInfo.InvariantCulture)))
+            using (var writer = new StreamWriter(Path.Combine(basePath, "definitions.csv")))
+            using (var csv = new CsvWriter(writer, new CsvConfiguration(CultureInfo.InvariantCulture)))
             {
-                csv.WriteRecords(galleries);
+                csv.WriteRecords(
+                    galleries
+                    .Select(x => new DefinitionWriteDto 
+                    { 
+                        Name = x.Name,
+                        FileName = x.FileName,
+                        StartTime = TimeSpan.FromMilliseconds(x.StartTime).ToString(@"hh\:mm\:ss\.fff", CultureInfo.InvariantCulture),
+                        EndTime = TimeSpan.FromMilliseconds(x.EndTime).ToString(@"hh\:mm\:ss\.fff", CultureInfo.InvariantCulture),
+                        Type = x.Type,
+                        Loop = x.Loop.ToString()
+                    })
+                );
             }
         }
 
-        private void WriteFunscripts()
+
+        private void WriteFunscripts(string Key, List<DefinitionGallery> _galleries)
         {
+            var isFirst = true;
             var variants = funRepo.GetVariants();
             foreach (var varian in variants)
             {
                 var sb = new ScriptBuilder();
 
-
-                foreach (var record in galleries)
+                foreach (var gallery in _galleries)
                 {
-                    var funscipt = funRepo.Get(record.Name, varian);
+                    var funscipt = funRepo.Get(gallery.Name, varian);
                     sb.addCommands(funscipt?.Commands);
-                    sb.TrimTimeTo(record.EndTime);
+                    sb.TrimTimeTo(gallery.EndTime);
                 }
                 var actions = sb.Generate();
                 new FunScriptFile()
@@ -139,14 +217,15 @@ namespace Edi.Core
                     actions = actions.Select(x => new FunScriptAction { at = x.AbsoluteTime, pos = (int)Math.Round(x.Value) }).ToList(),
                     metadata = new()
                     {
-                        chapters = galleries.Select(x => new FunScriptChapter
+                        chapters = _galleries.Select(x => new FunScriptChapter
                         {
                             name = x.Name,
-                            startTime = $"{TimeSpan.FromMilliseconds(x.StartTime):hh\\:mm\\:ss\\.fff}",
-                            endTime = $"{TimeSpan.FromMilliseconds(x.EndTime):hh\\:mm\\:ss\\.fff}"
+                            StartTimeMilis = x.StartTime,
+                            EndTimeMilis = x.EndTime
                         }).ToList()
                     }
-                }.Save($"{outputFilePath}.{varian}.funscript");
+                }.Save(Path.Combine(basePath, $"{Key}{(isFirst ? "" : $".{varian}")}.funscript"));
+                isFirst = false;
             }
         }
 

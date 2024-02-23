@@ -10,6 +10,7 @@ using Edi.Core.Gallery.Definition;
 using System.Text.RegularExpressions;
 using System.Linq;
 using System.Collections.Generic;
+using System.Diagnostics;
 
 namespace Edi.Core.Gallery.CmdLineal
 {
@@ -32,11 +33,12 @@ namespace Edi.Core.Gallery.CmdLineal
             LoadFromFunscripts();
         }
 
-
+        private List<FunScriptFile> ToSave = new List<FunScriptFile>();
         private void LoadFromFunscripts()
         {
             var GalleryPath = $"{Config.GalleryPath}\\";
             Galleries.Clear();
+            ToSave.Clear();
             Variants.Clear();
             if (!Directory.Exists($"{GalleryPath}"))
                 return;
@@ -59,7 +61,7 @@ namespace Edi.Core.Gallery.CmdLineal
                 var pathVariant = pathSplit.Length > 1 ? pathSplit[0] : null;
                 funscript.variant = !string.IsNullOrEmpty(funscript.variant)
                                         ? funscript.variant
-                                        : pathVariant ?? Config.DefaulVariant;
+                                        : pathVariant ?? "default";
             }
 
             foreach (var DefinitionGallery in Definition.GetAll())
@@ -72,19 +74,56 @@ namespace Edi.Core.Gallery.CmdLineal
 
                 foreach (var funscript in funscripts)
                 {
-                    var funscriptAxis = funscriptsFiles
-                                        .Where(x => x.name == funscript.name && x.variant == funscript.variant)
-                                        .ToList();
+                    var actions = funscript.actions
+                        .Where(x => x.at >= DefinitionGallery.StartTime
+                                 && x.at <= DefinitionGallery.EndTime);
+                    if (!actions.Any())
+                    {
+                        Debug.WriteLine($"FunscriptRepository Empty ignored: {DefinitionGallery.Name}");
+                        continue;
+                    }
+
+                    SyncChapterInfo(DefinitionGallery, funscript);
 
                     FunscriptGallery gallery = ParseScripts(funscriptAxis, funscript.variant, DefinitionGallery);
 
                     Galleries[DefinitionGallery.Name].Add(gallery);
                 }
             }
+
+            //SyncChapterInfo
+            ToSave.Distinct().ToList().ForEach(x => x.Save(x.path));
+
             Variants = Galleries.SelectMany(x => x.Value.Select(y => y.Variant)).Distinct().ToList();
         }
 
-        private List<FunScriptFile> GetFunscripts()
+        private void SyncChapterInfo(DefinitionGallery DefinitionGallery, FunScriptFile? funscript)
+        {
+            var chapter = funscript.metadata.chapters.FirstOrDefault(x => x.name == DefinitionGallery.Name);
+            if (chapter == null)
+            {
+                funscript.metadata.chapters.Add(new()
+                {
+                    name = DefinitionGallery.Name,
+                    StartTimeMilis = DefinitionGallery.StartTime,
+                    EndTimeMilis = DefinitionGallery.EndTime
+                });
+                ToSave.Add(funscript);
+            }
+            else
+            {
+                if (DefinitionGallery.StartTime != chapter.StartTimeMilis
+                 && DefinitionGallery.EndTime != chapter.EndTimeMilis)
+                {
+                    chapter.StartTimeMilis = DefinitionGallery.StartTime;
+                    chapter.EndTimeMilis = DefinitionGallery.EndTime;
+                    ToSave.Add(funscript);
+
+                }
+
+            }
+        }
+        public List<FunScriptFile> GetFunscripts()
         {
             var GalleryDir = new DirectoryInfo(Config.GalleryPath);
 
@@ -144,7 +183,6 @@ namespace Edi.Core.Gallery.CmdLineal
         public FunscriptGallery? Get(string name, string variant = null)
         {
             //TODO: asset ovverride order priority similar minecraft texture packt 
-            variant = variant ?? Config.SelectedVariant ?? Config.DefaulVariant;
 
             var variants = Galleries.GetValueOrDefault(name);
 
@@ -152,7 +190,6 @@ namespace Edi.Core.Gallery.CmdLineal
                 return null;
 
             var gallery = variants.FirstOrDefault(x => x.Variant == variant)
-                        ?? variants.FirstOrDefault(x => x.Variant == Config.SelectedVariant)
                         ?? variants.FirstOrDefault();
 
 

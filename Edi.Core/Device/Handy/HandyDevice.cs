@@ -11,8 +11,8 @@ using Edi.Core.Funscript;
 using CsvHelper.Configuration;
 using Edi.Core.Gallery;
 using System.Diagnostics;
-using System.Timers;
-using Timer = System.Timers.Timer;
+using System.Threading;
+using System.Threading.Tasks;
 using System.Diagnostics.CodeAnalysis;
 using Edi.Core.Gallery.Index;
 using Edi.Core.Gallery.Definition;
@@ -21,30 +21,23 @@ using System.Runtime.CompilerServices;
 using System.Threading;
 using PropertyChanged;
 using System.ComponentModel.DataAnnotations;
+using System.Xml.Linq;
 
 namespace Edi.Core.Device.Handy
 {
     [AddINotifyPropertyChangedInterface]
-    internal class HandyDevice : IDevice, IEqualityComparer<HandyDevice>
+    internal class HandyDevice : DeviceBase<IndexRepository,IndexGallery>
     {
 
         public string Key { get; set; }
 
-        public string Name { get; set; }
         
         private static long timeSyncAvrageOffset;
         private static long timeSyncInitialOffset;
         public HttpClient Client = null;
-        private IndexRepository repository { get; set; }
-        private Timer timerGalleryEnd = new Timer();
-        private int CurrentTime => Convert.ToInt32((DateTime.Now - SyncSend).TotalMilliseconds + SeekTime);
-        public DateTime SyncSend { get; private set; } = DateTime.Now;
-        private long SeekTime { get; set; }
-        private IndexGallery currentGallery;
-        public bool IsPause { get; private set; } = true;
 
-        private string selectedVariant;
-        public string SelectedVariant
+
+        public override string SelectedVariant
         {
             get => selectedVariant;
             set
@@ -54,27 +47,32 @@ namespace Edi.Core.Device.Handy
                 
             }
         }
-        public bool IsReady { get; private set; } = false;
-        
-        public IEnumerable<string> Variants => repository.GetVariants();
-
-        public HandyDevice(HttpClient Client, IndexRepository repository)
+        private string CurrentBundle = "default";
+        public HandyDevice(HttpClient Client, IndexRepository repository): base(repository) 
         {
             Key = Client.DefaultRequestHeaders.GetValues("X-Connection-Key").First();
-            //timer elapse for loop galleries 
-            timerGalleryEnd.Elapsed += TimerGalleryEnd_Elapsed;
-
             //make unique nane 
             Name = $"The Handy [{Key}]";
-            
-            this.Client = Client;
-            this.repository = repository;
 
-            SelectedVariant = repository.GetVariants().FirstOrDefault(); ;
+            IsReady = false;
+            this.Client = Client;
+
+            SelectedVariant = repository.GetVariants().FirstOrDefault("");
         }
         
-        private Task uploadTask { get; set; }
-        private CancellationTokenSource uploadCancellationTokenSource;
+        public override async Task PlayGallery(IndexGallery gallery, long seek = 0)
+        {
+            if (gallery.Bundle != CurrentBundle)
+            {
+                gallery = repository.Get(gallery.Name, SelectedVariant, CurrentBundle);//find in current bundle 
+
+                if (gallery.Bundle != CurrentBundle)//not in the current uploaded bundle 
+                {
+                    upload(gallery.Bundle, false);
+                }
+            }
+            await Seek(gallery.StartTime + seek);
+        }
 
         private async Task Seek(long timeMs)
         {
@@ -82,32 +80,46 @@ namespace Edi.Core.Device.Handy
             var req = new SyncPlayRequest(ServerTime, timeMs);
             if (IsReady)
             {
-                Debug.WriteLine($"Handy: {Client.DefaultRequestHeaders.GetValues("X-Connection-Key").FirstOrDefault()} PLay [{timeMs}] ({currentGallery?.Name ?? ""}))");
-                await Client.PutAsync("hssp/play", new StringContent(JsonConvert.SerializeObject(req), Encoding.UTF8, "application/json"));
+                Debug.WriteLine($"Handy: {Key} PLay [{timeMs}] ({currentGallery?.Name ?? ""}))");
+                try
+                {
+                    await Client.PutAsync("hssp/play", new StringContent(JsonConvert.SerializeObject(req), Encoding.UTF8, "application/json"));
+                }
+                catch (Exception ex)
+                {
+                    Debug.WriteLine($"Handy: {Key} Error: {ex.Message}");
+                }
             }
-                
+
 
         }
-        public async Task Stop()
+        public override async Task StopGallery()
         {
-
-            currentGallery = null;
-            IsPause = true;
-            timerGalleryEnd.Stop();
-            
             if (IsReady)
             {
                 Debug.WriteLine($"Handy: {Key} Stop");
-                await Client.PutAsync("hssp/stop", null);
-                
-            }
+                try
+                {
 
+                    await Client.PutAsync("hssp/stop", null);
+                }
+                catch (Exception ex)
+                {
+                    Debug.WriteLine($"Handy: {Key} Error: {ex.Message}");
+                }
+            }
         }
+
+
+
+        private Task uploadTask { get; set; }
+        private CancellationTokenSource uploadCancellationTokenSource;
 
         private async void upload(string bundle = null, bool delay = true)
         {
+
             uploadCancellationTokenSource?.Cancel();
-            await Task.Delay(100);
+            await Task.Delay(50);
             uploadCancellationTokenSource = new CancellationTokenSource();
             
             uploadTask = Task.Run(async () =>
@@ -128,9 +140,9 @@ namespace Edi.Core.Device.Handy
                     Task pause =  Client.PutAsync("hssp/stop",null, uploadCancellationTokenSource.Token);
                     IsReady = false;
 
-                    bundle = bundle ?? currentGallery?.Bundle ?? "default";
+                    CurrentBundle = bundle ?? CurrentBundle;
 
-                    var blob = await uploadBlob(repository.GetBundle($"{bundle}.{selectedVariant}", "csv"), uploadCancellationTokenSource.Token);
+                    var blob = await uploadBlob(repository.GetBundle($"{CurrentBundle}.{selectedVariant}", "csv"), uploadCancellationTokenSource.Token);
                     
                     await pause;
 
@@ -140,7 +152,7 @@ namespace Edi.Core.Device.Handy
 
                     if(result.Contains("timeout") )
                     {
-                        //when ends the divice re adquiere seek command
+                        //when the divice ends, re adquiere seek command
                     }
                     IsReady = true;
 
@@ -211,53 +223,8 @@ namespace Edi.Core.Device.Handy
             var estimatedServerTimeNow = resp.serverTime + (receiveTime - sendTime) / 2;
             return estimatedServerTimeNow - receiveTime;
         }
-        public async Task PlayGallery(string name, long seek = 0)
-        {
+     
 
-            timerGalleryEnd.Stop();
-            var gallery = repository.Get(name, selectedVariant, currentGallery?.Bundle);
-            if (gallery == null)
-            {
-                return ;
-            }
-            if(currentGallery?.Bundle != null  && gallery.Bundle != currentGallery.Bundle )
-            {
-                
-                IsReady = false;
-                upload(currentGallery.Bundle, false);
-            }
-
-            SyncSend = DateTime.Now;
-            SeekTime = seek;
-            currentGallery = gallery;
-            IsPause = false;
-
-            timerGalleryEnd.Interval = gallery.Duration - seek ;
-            timerGalleryEnd.Start();
-
-            await Seek(gallery.StartTime + seek);
-        }
-        private async void TimerGalleryEnd_Elapsed(object? sender, ElapsedEventArgs e)
-        {
-            Debug.WriteLine($"Handy: {Key} PLay Timer Elapse ({currentGallery?.Name ?? ""}))");
-            timerGalleryEnd.Stop();
-            if (currentGallery?.Loop == true && !IsPause)
-                await PlayGallery(currentGallery.Name);
-            else
-                await Stop();
-
-        }
-
-
-        public bool Equals(HandyDevice? x, HandyDevice? y)
-            => x.Key == y.Key;
-
-        public int GetHashCode([DisallowNull] HandyDevice obj)
-        {
-            var hash = new HashCode();
-            hash.Add(obj.Key);
-            return hash.ToHashCode();
-        }
     }
     public record ServerTimeResponse(long serverTime);
     public record SyncPlayRequest(long estimatedServerTime, long startTime);

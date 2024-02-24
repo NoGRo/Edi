@@ -74,10 +74,13 @@ namespace Edi.Core.Gallery.Index
 
                     foreach (var gallery in sortedGalleries)
                     {
+                        IndexGallery indexGallery = Bundler.Add(gallery, bundle.BundleName);
+
                         if (!Galleries[variant].ContainsKey(gallery.Name))
-                            Galleries[variant].Add(gallery.Name, new() { Bundler.Add(gallery, bundle.BundleName) });
+                            Galleries[variant].Add(gallery.Name, new() { indexGallery });
                         else
-                            Galleries[variant][gallery.Name].Add(Bundler.Add(gallery, bundle.BundleName));
+                            Galleries[variant][gallery.Name].Add(indexGallery);
+                        
                     }
                     Bundler.GenerateBundle($"{bundle.BundleName}.{variant}");
                 }
@@ -174,7 +177,7 @@ namespace Edi.Core.Gallery.Index
             => Galleries.Values.SelectMany(x => x.Values.SelectMany(y => y)).ToList();
         public IndexGallery? Get(string name, string variant = null)
             => Get(name, variant, "default");
-        public IndexGallery? Get(string name, string variant, string bundle = "default")
+        public IndexGallery? Get(string name, string variant, string bundle)
         {
             //TODO: asset ovverride order priority similar minecraft texture packt 
             

@@ -120,12 +120,13 @@ namespace Edi.Core.Gallery.CmdLineal
                     millis: Convert.ToInt32(action.at - DefinitionGallery.StartTime - sb.TotalTime),
                     value: action.pos);
             }
+
             var gallery = new FunscriptGallery
             {
                 Name = DefinitionGallery.Name,
                 Variant = variant,
                 Loop = DefinitionGallery.Loop,
-                //Duration = DefinitionGallery.Duration,
+                Duration = DefinitionGallery.Duration,
 
             };
             sb.TrimTimeTo(DefinitionGallery.Duration);

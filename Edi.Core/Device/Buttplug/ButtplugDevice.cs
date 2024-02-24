@@ -25,42 +25,23 @@ namespace Edi.Core.Device.Buttplug
 
     //OSR6 I don't know if you can use this class because it is all designed for a single stream to go under bluetooth it has the rate limit other things
     [AddINotifyPropertyChangedInterface]
-    public class ButtplugDevice : IDevice
+    public class ButtplugDevice : DeviceBase<FunscriptRepository, FunscriptGallery>
     {
         public ButtplugClientDevice Device { get; private set; }
         private ButtplugConfig config { get;  set; }
         public ActuatorType Actuator { get; }
         public uint Channel { get; }
-        private FunscriptRepository repository { get; set; }
-        public string Name { get; set; }
-        public string SelectedVariant 
-        { 
-            get => selectedVariant; 
-            set { 
-                selectedVariant = value;
-                if(CurrentGallery != null && !IsPause )
-                    PlayGallery(CurrentGallery.Name, CurrentTime).GetAwaiter();
-            } 
-        }
-
-        public IEnumerable<string> Variants => repository.GetVariants();
 
         private List<CmdLinear> queue { get; set; } = new List<CmdLinear>();
         public CmdLinear CurrentCmd { get;  set; }
         private DateTime CmdSendAt { get;  set; }
-        private int CurrentTime => Convert.ToInt32((DateTime.Now - SyncSend).TotalMilliseconds + SeekTime);
         public int ReminingTime => CurrentCmd.Millis - Convert.ToInt32((DateTime.Now - CmdSendAt).TotalMilliseconds);
-        
-        public DateTime SyncSend { get; private set; } = DateTime.Now;
-        public bool IsPause { get; private set; } = true;
-        private long ResumeAt { get; set; }
-        private long SeekTime { get; set; }
 
         private Timer timerCmdEnd = new Timer();
 
-        public bool IsReady => true;
 
         public ButtplugDevice(ButtplugClientDevice device, ActuatorType actuator, uint channel, FunscriptRepository repository, ButtplugConfig config)
+            : base(repository)
         {
             this.Device = device;
             Name = device.Name + (device.GenericAcutatorAttributes(actuator).Count() > 1 
@@ -70,35 +51,23 @@ namespace Edi.Core.Device.Buttplug
             Actuator = actuator;
             Channel = channel;
             this.config = config;
-            this.repository = repository;
             timerCmdEnd.Elapsed += OnCommandEnd;
-
+            
             SelectedVariant = Variants.FirstOrDefault(x => x.Contains(Actuator.ToString(),StringComparison.OrdinalIgnoreCase))
-                                ?? repository.GetVariants().FirstOrDefault();
+                                ?? Variants.FirstOrDefault("");
         }
 
-        private FunscriptGallery CurrentGallery;
-        private string selectedVariant;
 
-        public async Task PlayGallery(string name, long seek = 0)
+        public override async Task PlayGallery(FunscriptGallery gallery, long seek = 0)
         {
-            var gallery = repository.Get(name, SelectedVariant);
-            if (gallery == null)
-                return;
-
-            SyncSend = DateTime.Now;
-            CurrentGallery = gallery;
-            PrepareQueue();
-
-            SeekTime = seek;
-
+            PrepareQueue(gallery);
             await PlayNext();
         }
 
-        public void PrepareQueue()
+        public void PrepareQueue(FunscriptGallery gallery)
         {
-            var cmds = CurrentGallery.Commands.ToList();
-            CmdLinear last = CurrentGallery.Loop ? cmds.LastOrDefault() : null;
+            var cmds = gallery.Commands.ToList();
+            CmdLinear last = gallery.Loop ? cmds.LastOrDefault() : null;
             var at = 0;
             foreach (var cmd in cmds)
             {
@@ -133,12 +102,6 @@ namespace Edi.Core.Device.Buttplug
                 await SendCmd(nextcmd);
                 return;
             }
-
-            if (CurrentGallery?.Loop == true)
-            {
-                await PlayGallery(CurrentGallery.Name);
-            }
-
         }
 
         public async Task SendCmd(CmdLinear cmd)
@@ -163,7 +126,6 @@ namespace Edi.Core.Device.Buttplug
                 }
 
                 CurrentCmd = cmd;
-                //Debug.WriteLineIf(Name == "The Handy", $"{Name}: at:{cmd.AbsoluteTime} Cur:{CurrentTime}  {cmd.Millis}-{cmd.Value}");
 
                 CmdSendAt = DateTime.Now;
                 cmd.Sent = DateTime.Now;
@@ -173,10 +135,13 @@ namespace Edi.Core.Device.Buttplug
             timerCmdEnd.Start();
 
             if (sendtask != null)
+            {
                 try
                 {
                     await sendtask;
-                } catch  { }
+                }
+                catch { }
+            }
         }
 
 
@@ -218,11 +183,8 @@ namespace Edi.Core.Device.Buttplug
             next.Millis = Convert.ToInt32(next.AbsoluteTime - time);
         }
 
-
-        public async Task Stop()
+        public override async Task StopGallery()
         {
-            IsPause = true;
-            ResumeAt = (long)CurrentTime;
             timerCmdEnd.Stop();
             await Device.Stop();
         }

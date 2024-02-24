@@ -17,79 +17,38 @@ namespace Edi.Core.Device.EStim
 {
 
     [AddINotifyPropertyChangedInterface]
-    public class EStimDevice : IDevice
+    public class EStimDevice : DeviceBase<AudioRepository, AudioGallery>
     {
         private readonly AudioRepository _repository;
         private readonly IWavePlayer _wavePlayer;
         private AudioGallery _currentGallery;
-        public string Name { get; set; }
         private Mp3FileReader _curentAudioFile { get; set; }
-        private string selectedVariant;
-        public string SelectedVariant { get => selectedVariant ; set => selectedVariant = value; }
-        public IEnumerable<string> Variants => _repository.GetVariants();
 
-        public bool IsReady => true;
-
-        private Timer _timerGalleryEnds;
-        private bool _isPlaying;
         private Dictionary<string, Mp3FileReader> _inMemoryMp3;
-
-        public EStimDevice(AudioRepository repository, WaveOutEvent wavePlayer)
+        public EStimDevice(AudioRepository repository, WaveOutEvent wavePlayer) : base(repository)
         {
             Name = $"SEstim ({wavePlayer.DeviceNumber})";
             _repository = repository;
             _wavePlayer = wavePlayer;
-            _timerGalleryEnds = new Timer();
-            _timerGalleryEnds.Elapsed += OnTimerElapsed;
-            _wavePlayer.PlaybackStopped += OnPlaybackStoppedAsync;
 
             _inMemoryMp3 = _repository.GetAll().Select(x=> x.AudioPath).Distinct().ToDictionary(x=> x, y => new Mp3FileReader(y));
-
-            selectedVariant = _repository.GetVariants().FirstOrDefault();
+            SelectedVariant = _repository.GetVariants().FirstOrDefault();
+            
         }
 
-        public async Task PlayGallery(string name, long seek = 0)
+        public override async Task PlayGallery(AudioGallery gallery, long seek = 0)
         {
-            // Obtener la galería del repositorio
-            var gallery = _repository.Get(name);
-            if (gallery == null)
-            {
-                return;
-            }
-
-            _currentGallery = gallery;
             _curentAudioFile = _inMemoryMp3[gallery.AudioPath];
-
-
             _curentAudioFile.CurrentTime = TimeSpan.FromMilliseconds(gallery.StartTime + seek);
-            _timerGalleryEnds.Interval = gallery.Duration - seek;
-            _timerGalleryEnds.Start();
+
             _wavePlayer.Stop();
             _wavePlayer.Init(_curentAudioFile);
             _wavePlayer.Play();
         }
 
-
-        private async void OnTimerElapsed(object sender, ElapsedEventArgs e)
+        public override async Task StopGallery()
         {
-            if (_currentGallery.Loop)
-                await PlayGallery(_currentGallery.Name);
-            else
-                _wavePlayer.Stop();
-            
-        }
-
-        public async Task Stop()
-        {
-            // Pausar la reproducción del archivo de audio
             _wavePlayer.Pause();
-            _timerGalleryEnds.Stop();
         }
-
-        private async void OnPlaybackStoppedAsync(object sender, StoppedEventArgs e)
-        {
-            _timerGalleryEnds.Stop();
-        }
-
     }
 }

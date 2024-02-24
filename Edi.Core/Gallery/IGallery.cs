@@ -9,5 +9,7 @@ namespace Edi.Core.Gallery
     public interface IGallery
     {
         public string Name { get; set; }
+        public bool Loop { get; set; }
+        public int Duration{ get; }
     }
 }

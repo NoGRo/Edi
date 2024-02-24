@@ -11,8 +11,8 @@ using Edi.Core.Funscript;
 using CsvHelper.Configuration;
 using Edi.Core.Gallery;
 using System.Diagnostics;
-using System.Timers;
-using Timer = System.Timers.Timer;
+using System.Threading;
+using System.Threading.Tasks;
 using System.Diagnostics.CodeAnalysis;
 using Edi.Core.Gallery.Index;
 using Edi.Core.Gallery.Definition;
@@ -36,7 +36,7 @@ namespace Edi.Core.Device.Handy
         private static long timeSyncInitialOffset;
         public HttpClient Client = null;
         private IndexRepository repository { get; set; }
-        private Timer timerGalleryEnd = new Timer();
+        private Timer timerGalleryEnd ;
         private int CurrentTime => Convert.ToInt32((DateTime.Now - SyncSend).TotalMilliseconds + SeekTime);
         public DateTime SyncSend { get; private set; } = DateTime.Now;
         private long SeekTime { get; set; }
@@ -62,8 +62,7 @@ namespace Edi.Core.Device.Handy
         {
             Key = Client.DefaultRequestHeaders.GetValues("X-Connection-Key").First();
             //timer elapse for loop galleries 
-            timerGalleryEnd.Elapsed += TimerGalleryEnd_Elapsed;
-
+            timerGalleryEnd = new Timer(TimerGalleryEndCallback, null, Timeout.Infinite, Timeout.Infinite);
             //make unique nane 
             Name = $"The Handy [{Key}]";
             
@@ -71,6 +70,8 @@ namespace Edi.Core.Device.Handy
             this.repository = repository;
 
             SelectedVariant = repository.GetVariants().FirstOrDefault(); ;
+
+
         }
         
         private Task uploadTask { get; set; }
@@ -100,7 +101,7 @@ namespace Edi.Core.Device.Handy
 
             currentGallery = null;
             IsPause = true;
-            timerGalleryEnd.Stop();
+            timerGalleryEnd.Change(Timeout.Infinite, Timeout.Infinite);
             
             if (IsReady)
             {
@@ -229,10 +230,10 @@ namespace Edi.Core.Device.Handy
         public async Task PlayGallery(string name, long seek = 0)
         {
 
-            timerGalleryEnd.Stop();
             var gallery = repository.Get(name, selectedVariant, currentGallery?.Bundle);
             if (gallery == null)
             {
+                await Stop();
                 return ;
             }
             if(currentGallery?.Bundle != null  && gallery.Bundle != currentGallery.Bundle )
@@ -247,22 +248,28 @@ namespace Edi.Core.Device.Handy
             currentGallery = gallery;
             IsPause = false;
 
-            timerGalleryEnd.Interval = gallery.Duration - seek ;
-            timerGalleryEnd.Start();
+            long interval = gallery.Duration - seek;
+            timerGalleryEnd.Change(interval, Timeout.Infinite);
 
             await Seek(gallery.StartTime + seek);
         }
-        private async void TimerGalleryEnd_Elapsed(object? sender, ElapsedEventArgs e)
+
+
+        private void TimerGalleryEndCallback(object state)
         {
-            Debug.WriteLine($"Handy: {Key} PLay Timer Elapse ({currentGallery?.Name ?? ""}))");
-            timerGalleryEnd.Stop();
-            if (currentGallery?.Loop == true && !IsPause)
-                await PlayGallery(currentGallery.Name);
-            else
-                await Stop();
-
+            // Ejecuta lógica de finalización en una tarea para permitir operaciones asíncronas
+            Task.Run(async () => {
+                Debug.WriteLine($"Handy: {Key} Play Timer Elapse ({currentGallery?.Name ?? ""}))");
+                if (currentGallery?.Loop == true && !IsPause)
+                {
+                    await PlayGallery(currentGallery.Name);
+                }
+                else
+                {
+                    await Stop();
+                }
+            }).ConfigureAwait(false);
         }
-
 
         public bool Equals(HandyDevice? x, HandyDevice? y)
             => x.Key == y.Key;

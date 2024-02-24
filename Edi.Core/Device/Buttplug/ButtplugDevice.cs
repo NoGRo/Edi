@@ -84,7 +84,10 @@ namespace Edi.Core.Device.Buttplug
         {
             var gallery = repository.Get(name, SelectedVariant);
             if (gallery == null)
+            {
+                await Stop();
                 return;
+            }
 
             SyncSend = DateTime.Now;
             CurrentGallery = gallery;

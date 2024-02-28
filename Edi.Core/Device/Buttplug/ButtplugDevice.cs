@@ -45,7 +45,7 @@ namespace Edi.Core.Device.Buttplug
         {
             this.Device = device;
             Name = device.Name + (device.GenericAcutatorAttributes(actuator).Count() > 1 
-                                    ? $" {actuator.ToString()}: {channel+1}" 
+                                    ? $" {actuator}: {channel+1}" 
                                     : "" );
             
             Actuator = actuator;

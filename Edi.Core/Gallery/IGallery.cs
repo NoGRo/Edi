@@ -10,7 +10,7 @@ namespace Edi.Core.Gallery
     {
         public string Name { get; set; }
         public bool Loop { get; set; }
-        public int Duration{ get; }
+        public int Duration { get; }
         public string Variant { get; set; }
     }
 }

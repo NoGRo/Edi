@@ -65,7 +65,7 @@ namespace Edi.Core.Device.Interfaces
             long interval = gallery.Duration - seek;
             timerGalleryEnd.Change(interval, Timeout.Infinite);
 
-            await PlayGallery(name, seek);
+            await PlayGallery(gallery, seek);
         }
 
         public abstract Task PlayGallery(TGallery gallery, long seek = 0);

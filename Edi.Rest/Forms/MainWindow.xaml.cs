@@ -99,7 +99,7 @@ namespace Edi.Forms
             Thread.Sleep(1000);
             await Dispatcher.InvokeAsync(async () =>
             {
-                DevicesGrid.ItemsSource = ((dynamic)this.DataContext).devices; ;
+                //DevicesGrid.ItemsSource =  ((dynamic)this.DataContext).devices;
                 
                 DevicesGrid.Items.Refresh();
             });

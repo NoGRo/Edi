@@ -2,7 +2,7 @@
   "Gallery": {
     "DefaulVariant": "BF",
     "SelectedVariant": null,
-    "GalleryPath": "D:\\Juegos\\[English] Mira And The Mysteries Of Alchemy-EDI-Mod_v1.0\\Gallery"
+    "GalleryPath": "D:\\Programacion\\CockHeroPlatform"
   },
   "GalleryBundler": {
     "RepearDuration": 2000,
@@ -22,7 +22,9 @@
   },
   "Devices": {
     "DeviceVariant": {
-      "The Handy [ppJdVv3V]": "detail"
+      "The Handy [ppJdVv3V]": "Gallery",
+      "The Handy [92H0Y]": "Gallery",
+      "The Handy [PiBnz]": "Gallery"
     }
   },
   "EStim": {

@@ -1,13 +1,9 @@
 ﻿using Edi.Core;
-using System;
-using System.Collections.Generic;
-using System.Configuration;
-using System.Data;
-using System.Linq;
-using System.Threading.Tasks;
-using Microsoft.Extensions.Configuration;
-using System.Windows;
+using Edi.Core.Gallery;
+using Microsoft.AspNetCore.StaticFiles;
+using Microsoft.Extensions.FileProviders;
 using Microsoft.OpenApi.Models;
+using System.Windows;
 
 namespace Edi.Forms
 {
@@ -21,7 +17,8 @@ namespace Edi.Forms
         public static IEdi Edi;
         public App()
         {
-            
+            Edi = EdiBuilder.Create("EdiConfig.json");
+
             var webAppBuilder = WebApplication.CreateBuilder();
             
             webAppBuilder.WebHost.UseUrls("http://localhost:5000");
@@ -35,14 +32,20 @@ namespace Edi.Forms
             });
 
             services.AddSingleton<MainWindow>();
-
+            services.AddCors(options =>
+            {
+                options.AddPolicy("AllowSpecificOrigin",
+                    builder => builder.WithOrigins("http://localhost:1234") // Permite solicitudes desde este origen
+                                      .AllowAnyMethod()
+                                      .AllowAnyHeader());
+            });
             webApp = webAppBuilder.Build();
 
             // Configure the HTTP request pipeline.
            webApp.UseSwagger();
            webApp.UseSwaggerUI();
            
-
+            webApp.UseCors("AllowSpecificOrigin");
             webApp.MapControllers();
 
             serviceProvider  = services.BuildServiceProvider();
@@ -52,10 +55,24 @@ namespace Edi.Forms
         protected override async void OnStartup(StartupEventArgs e)
         {
 
-            var Edi = EdiBuilder.Create("EdiConfig.json");
             await Edi.Init();
-            App.Edi = Edi;
             var mainWindos = serviceProvider.GetRequiredService<MainWindow>();
+            webApp.UseStaticFiles(new StaticFileOptions
+            {
+                FileProvider = new PhysicalFileProvider(
+                    Edi.ConfigurationManager.Get<GalleryConfig>().GalleryPath),
+                RequestPath = "/Edi/Assets",
+                ServeUnknownFileTypes = true, // Advertencia: esto podría ser un riesgo de seguridad.
+                DefaultContentType = "application/octet-stream", // Tipo MIME por defecto para tipos de archivos desconocidos.
+                ContentTypeProvider = new FileExtensionContentTypeProvider(
+                    new Dictionary<string, string>
+                    {
+            // Añade aquí los tipos MIME personalizados.
+            { ".funscript", "application/json" }
+                    })
+            });
+
+            webApp.MapControllers();
             mainWindos.Show();
 
             base.OnStartup(e);

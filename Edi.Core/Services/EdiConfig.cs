@@ -13,6 +13,7 @@ namespace Edi.Core
         public bool Filler { get; set; } = true;
         public bool Gallery { get; set; } = true;
         public bool Reactive { get; set; } = true;
+        public string ExecuteOnReady { get; set; } = "";
 
     }
 }

@@ -56,27 +56,20 @@ namespace Edi.Controllers
         public async Task<IEnumerable<DefinitionGallery>> GetDefinitions()
             => _edi.Definitions.ToArray();
 
-        [HttpGet("Assets/{*path}")]
-        public IActionResult Get(string path)
+        [HttpGet("Assets")]
+        public IActionResult Get()
         {
             // Aquí debes poner la ruta base de tu directorio
             var basePath = _edi.ConfigurationManager.Get<GalleryConfig>().GalleryPath.Trim();
 
-            var fullPath = Path.Combine(basePath, path);
+            var fullPath =basePath;
 
             // Verificar si la ruta es un directorio.
             if (Directory.Exists(fullPath))
             {
                 var allFiles = Directory.EnumerateFiles(fullPath, "*.*", SearchOption.AllDirectories)
-                                        .Select(x => x.Replace(basePath, ""));
+                                        .Select(x => x.Replace(basePath, "").Replace("\\","/"));
                 return Ok(allFiles);
-            }
-
-            // Si es un archivo, puedes devolver el archivo o su contenido
-            if (System.IO.File.Exists(fullPath))
-            {
-                var fileContent = System.IO.File.ReadAllBytes(fullPath);
-                return File(fileContent, "application/octet-stream", Path.GetFileName(fullPath));
             }
 
             return NotFound();

@@ -10,9 +10,12 @@ using CsvHelper;
 using CsvHelper.Configuration;
 using Edi.Core.Gallery.CmdLineal;
 using Edi.Core.Funscript;
+using PropertyChanged;
+using System.ComponentModel;
 
 namespace Edi.Core
 {
+    [AddINotifyPropertyChangedInterface]
     public class Edi :  IEdi
     {
         public  ConfigurationManager ConfigurationManager { get; set; }
@@ -48,6 +51,7 @@ namespace Edi.Core
             TimerReactStop.Elapsed += TimerReactStop_ElapsedAsync;
             ConfigurationManager = configuration;
             Config = configuration.Get<EdiConfig>();
+
 
         }
 

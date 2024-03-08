@@ -100,7 +100,9 @@ namespace Edi.Core.Gallery.CmdLineal
 
         private void SyncChapterInfo(DefinitionGallery DefinitionGallery, FunScriptFile? funscript)
         {
-            var chapter = funscript.metadata.chapters.FirstOrDefault(x => x.name == DefinitionGallery.Name);
+            if (funscript.metadata == null)
+                funscript.metadata = new FunScriptMetadata();
+            var chapter = funscript.metadata?.chapters?.FirstOrDefault(x => x.name == DefinitionGallery.Name);
             if (chapter == null)
             {
                 funscript.metadata.chapters.Add(new()
@@ -194,6 +196,7 @@ namespace Edi.Core.Gallery.CmdLineal
                 Name = gallery.Name,
                 Variant = gallery.Variant,
                 Loop = gallery.Loop,
+                Duration = gallery.Duration,
                 Commands = gallery.Commands.Clone(),
             };
             return gallery;

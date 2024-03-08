@@ -106,13 +106,19 @@ namespace Edi.Core.Device.Buttplug
 
         public async Task SendCmd(CmdLinear cmd)
         {
-
+            
             if (Device == null)
                 return;
 
+
+
+            if(cmd.Millis == 0)
+            {
+                Thread.Sleep(1);
+                await PlayNext();
+                return;
+            }
             Task sendtask = Task.CompletedTask;
-
-
             if (cmd.Millis >= config.CommandDelay || (DateTime.Now - CmdSendAt).TotalMilliseconds >= config.CommandDelay)
             {
                 switch (Actuator)

@@ -60,7 +60,7 @@ namespace Edi.Core.Device.Buttplug
             {
                 var commands = deviceManager.Devices
                                                 .OfType<ButtplugDevice>()
-                                                .Where(x => x != null && x.Device == device.Device && !x.IsPause)
+                                                .Where(x => x != null && x.Device == device.Device && !x.IsPause  && x.CurrentCmd != null)
                                                 .Select(x => new { x.Device, x.Actuator, Cmd = (x.Channel, x.CalculateSpeed()), x.ReminingTime })
                                                 .GroupBy(x => new { x.Device, x.Actuator })
                                                 .ToDictionary(g => g.Key, g => new { cmds = g.Select(x => x.Cmd).ToList(), ReminingTime = g.Select(x => x.ReminingTime).Distinct().Min() });

@@ -35,10 +35,11 @@ namespace Edi.Core.Device.Buttplug
         private List<CmdLinear> queue { get; set; } = new List<CmdLinear>();
         public CmdLinear CurrentCmd { get;  set; }
         private DateTime CmdSendAt { get;  set; }
-        public int ReminingTime => CmdSendAt == DateTime.MinValue  || CurrentCmd  == null ? 0  :  CurrentCmd.Millis - Convert.ToInt32((DateTime.Now - CmdSendAt).TotalMilliseconds);
-
+        public int CurrentCmdTime => CurrentCmd == null ? 0 : Convert.ToInt32(this.CurrentTime - (CurrentCmd.AbsoluteTime - CurrentCmd.Millis));
+        public int ReminingTime => CurrentCmd == null ? 0 : Math.Max(0, Convert.ToInt32((CurrentCmd.AbsoluteTime) - this.CurrentTime));
+        
         private Timer timerCmdEnd = new Timer();
-
+        private double vibroSteps;
 
         public ButtplugDevice(ButtplugClientDevice device, ActuatorType actuator, uint channel, FunscriptRepository repository, ButtplugConfig config)
             : base(repository)
@@ -50,6 +51,15 @@ namespace Edi.Core.Device.Buttplug
             
             Actuator = actuator;
             Channel = channel;
+            var acutators = Device.GenericAcutatorAttributes(Actuator);
+
+            if (acutators.Any())
+                vibroSteps = Device.GenericAcutatorAttributes(Actuator)[(int)Channel].StepCount;
+
+            if (vibroSteps == 0)
+                vibroSteps = 1;
+            vibroSteps = (100.0 / vibroSteps);
+
             this.config = config;
             timerCmdEnd.Elapsed += OnCommandEnd;
             
@@ -85,6 +95,14 @@ namespace Edi.Core.Device.Buttplug
 
         private async void OnCommandEnd(object sender, ElapsedEventArgs e)
         {
+            /*
+            // Calcular el tiempo esperado para que el comando actual finalice.
+            var expectedEndTime = CmdSendAt.AddMilliseconds(CurrentCmd?.Millis ?? 0);
+            var delay = e.SignalTime - expectedEndTime;
+
+            // Imprimir en la consola la información del retraso.
+            Debug.WriteLine($"Timer Command End: SignalTime={e.SignalTime}, ExpectedEndTime={expectedEndTime}, Delay={delay.TotalMilliseconds} ms");
+            */
             await PlayNext();
         }
         private async Task PlayNext()
@@ -109,21 +127,24 @@ namespace Edi.Core.Device.Buttplug
 
         public async Task SendCmd(CmdLinear cmd)
         {
-            
+
             if (Device == null)
                 return;
 
-
-
-            if(cmd.Millis == 0)
+            if(cmd.Millis <= 0)
             {
-                Thread.Sleep(1);
+                await Task.Delay(1);
                 await PlayNext();
                 return;
             }
             Task sendtask = Task.CompletedTask;
             if (cmd.Millis >= config.CommandDelay || (DateTime.Now - CmdSendAt).TotalMilliseconds >= config.CommandDelay)
             {
+             
+                CurrentCmd = cmd;
+                CmdSendAt = DateTime.Now;
+                cmd.Sent = DateTime.Now;
+
                 switch (Actuator)
                 {
                     case ActuatorType.Position:
@@ -133,14 +154,9 @@ namespace Edi.Core.Device.Buttplug
                         sendtask = Device.RotateAsync(Math.Min(1.0, Math.Max(0, CurrentCmd.Speed / (double)450)), CurrentCmd.Direction); ;
                         break;
                 }
-
-                CurrentCmd = cmd;
-
-                CmdSendAt = DateTime.Now;
-                cmd.Sent = DateTime.Now;
             }
 
-            timerCmdEnd.Interval = cmd.Millis;
+            timerCmdEnd.Interval = Math.Max(1, cmd.Millis); ;
             timerCmdEnd.Start();
 
             if (sendtask != null)
@@ -160,22 +176,17 @@ namespace Edi.Core.Device.Buttplug
             if(CurrentCmd == null)
                 return 0;
             
-            var passes = DateTime.Now - CmdSendAt;
+
 
             var distanceToTravel = CurrentCmd.Value - CurrentCmd.InitialValue;
-            var travel = Math.Round(distanceToTravel * (passes.TotalMilliseconds / CurrentCmd.Millis), 0);
+            var travel = Math.Round(distanceToTravel * ((double)CurrentCmdTime / CurrentCmd.Millis), 0);
             travel = travel is double.NaN or double.PositiveInfinity or double.NegativeInfinity ? 0 : travel;
             var currVal = Math.Abs(CurrentCmd.InitialValue + Convert.ToInt16(travel));
 
             //Debug.WriteLine($"{CurrentCmd.InitialValue}- {travel} - {currVal}");
 
-            var actuadores = Device.GenericAcutatorAttributes(Actuator);
-            double steps = actuadores[(int)Channel].StepCount;
-            if (steps == 0)
-                steps = 1;
-            steps = (100.0 / steps);
-            var speed = (int)Math.Round(currVal / (double)steps) * steps;
-            speed = (Math.Min(1.0, Math.Max(0, speed / (double)100)));
+            var speed = (int)Math.Round(currVal / vibroSteps) * vibroSteps;
+            speed = Math.Min(1.0, Math.Max(0, speed / (double)100));
             return speed;
         }
 
@@ -204,3 +215,4 @@ namespace Edi.Core.Device.Buttplug
         }
     }
 }
+

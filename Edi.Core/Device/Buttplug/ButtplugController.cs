@@ -62,7 +62,7 @@ namespace Edi.Core.Device.Buttplug
                 var commands = deviceManager.Devices
                                                 .OfType<ButtplugDevice>()
                                                 .Where(x => x != null && x.Device == device.Device && !x.IsPause  && x.CurrentCmd != null)
-                                                .Select(x => new { x.Device, x.Actuator, x.ReminingTime, Cmd = (x.Channel, x.CalculateSpeed())})
+                                                .Select(x => new { x.Device, x.Actuator, ReminingTime = x.ReminingTime, Cmd = (x.Channel, x.CalculateSpeed())})
                                                 .GroupBy(x => new { x.Device, x.Actuator })
                                                 .ToImmutableDictionary(g => g.Key, g => new { cmds = g.Select(x => x.Cmd).ToImmutableArray(), ReminingTime = g.Min(x => x.ReminingTime) });
 
@@ -87,47 +87,48 @@ namespace Edi.Core.Device.Buttplug
                         Debug.WriteLine($"Enviando comando a {command.Key.Device} - Actuador: {command.Key.Actuator}, Comandos: {string.Join(", ", cmdValue.cmds)}, NextDelay: {NextDelay}, ReminingTime: {cmdValue.ReminingTime}");
                     }
                 }
-                await Task.Delay(NextDelay);
+                await Task.Delay(NextDelay, cancellationToken);
             }
-            }
-            private bool AreCommandsDifferent(ICollection<(uint Channel, double Speed)> lastCmds, ICollection<(uint Channel, double Speed)> newCmds)
+        }
+        private bool AreCommandsDifferent(ICollection<(uint Channel, double Speed)> lastCmds, ICollection<(uint Channel, double Speed)> newCmds)
+        {
+
+            if (lastCmds == null || newCmds == null || lastCmds.Count != newCmds.Count)
+                return true;
+
+            return !lastCmds.SequenceEqual(newCmds, new CmdComparer());
+        }
+
+        class CmdComparer : IEqualityComparer<(uint Channel, double Speed)>
+        {
+            public bool Equals((uint Channel, double Speed) x, (uint Channel, double Speed) y)
             {
-                // Early exit para casos básicos
-                if (lastCmds == null || newCmds == null || lastCmds.Count != newCmds.Count)
-                    return true;
-
-                // Usa SequenceEqual con un comparador personalizado para verificar si las secuencias son diferentes
-                return !lastCmds.SequenceEqual(newCmds, new CmdComparer());
+                return x.Channel == y.Channel && x.Speed == y.Speed;
             }
 
-            // Comparador personalizado para (uint Channel, double Speed)
-            class CmdComparer : IEqualityComparer<(uint Channel, double Speed)>
+            public int GetHashCode((uint Channel, double Speed) obj)
             {
-                public bool Equals((uint Channel, double Speed) x, (uint Channel, double Speed) y)
-                {
-                    // Considera dos comandos iguales si tanto el Channel como el Speed son iguales
-                    return x.Channel == y.Channel && x.Speed == y.Speed;
-                }
-
-                public int GetHashCode((uint Channel, double Speed) obj)
-                {
-                    // Calcula un hash code basado en Channel y Speed
-                    return obj.Channel.GetHashCode() ^ obj.Speed.GetHashCode();
-                }
+                return obj.Channel.GetHashCode() ^ obj.Speed.GetHashCode();
             }
+        }
 
 
         private async Task SendCommandAsync(ButtplugClientDevice device, ActuatorType actuator, IEnumerable<(uint, double)> command)
         {
-            switch (actuator)
+            try
             {
-                case ActuatorType.Vibrate:
-                    await device.VibrateAsync(command);
-                    break;
-                case ActuatorType.Oscillate:
-                    await device.OscillateAsync(command);
-                    break;
+                switch (actuator)
+                {
+
+                    case ActuatorType.Vibrate:
+                        await device.VibrateAsync(command);
+                        break;
+                    case ActuatorType.Oscillate:
+                        await device.OscillateAsync(command);
+                        break;
+                }
             }
+            catch { }
         }
 
         

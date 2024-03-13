@@ -2,7 +2,7 @@
   "Gallery": {
     "DefaulVariant": "BF",
     "SelectedVariant": null,
-    "GalleryPath": "C:\\Program Files (x86)\\Steam\\steamapps\\common\\Succubus Farm\\Gallery"
+    "GalleryPath": "D:\\Programacion\\CockHeroPlatform"
   },
   "GalleryBundler": {
     "RepearDuration": 2000,
@@ -22,9 +22,10 @@
   },
   "Devices": {
     "DeviceVariant": {
-      "Lovense Dolce Vibrate: 1": "detail",
-      "Lovense Dolce Vibrate: 2": "detail",
-      "The Handy [ppJdVv3V]": "detail"
+      "Lovense Dolce Vibrate: 1": "vib",
+      "Lovense Dolce Vibrate: 2": "vib2",
+      "The Handy [ppJdVv3V]": "detail",
+      "The Handy": "Sleeve"
     }
   },
   "EStim": {

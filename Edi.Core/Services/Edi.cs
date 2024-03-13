@@ -16,7 +16,7 @@ using System.ComponentModel;
 namespace Edi.Core
 {
     [AddINotifyPropertyChangedInterface]
-    public class Edi :  IEdi
+    public class Edi : IEdi
     {
         public  ConfigurationManager ConfigurationManager { get; set; }
         public DeviceManager DeviceManager { get; private set; }
@@ -76,12 +76,12 @@ namespace Edi.Core
 
         public IEnumerable<DefinitionGallery> Definitions => _repository.GetAll();
 
-        public async Task Init()
+        public async Task Init(string path)
         {
             //await _repository.Init();
             foreach (var repo in repos)
             {
-                await repo.Init();
+                await repo.Init(path);
             }
 
             await DeviceManager.Init();

@@ -20,10 +20,10 @@ namespace Edi.Core.Gallery
         }
 
         public abstract IEnumerable<string> Accept { get; }
-        private List<string> Variants { get; set; } = new List<string>();
-        private string defualtVariant => "default";
-        private Dictionary<string, List<T>> Galleries { get; set; } = new Dictionary<string, List<T>>(StringComparer.OrdinalIgnoreCase);
-        private DefinitionRepository Definition { get; }
+        protected List<string> Variants { get; set; } = new List<string>();
+        protected string defualtVariant => "default";
+        protected Dictionary<string, List<T>> Galleries { get; set; } = new Dictionary<string, List<T>>(StringComparer.OrdinalIgnoreCase);
+        protected DefinitionRepository Definition { get; }
 
 
         public virtual T Get(string name, string? variant = null)
@@ -51,9 +51,9 @@ namespace Edi.Core.Gallery
             return Variants;
         }
 
-        public Task Init()
+        public async Task Init(string path)
         {
-            var Assets = Discover("");
+            var Assets = Discover(path);
             Read(Assets);
         }
 
@@ -87,7 +87,6 @@ namespace Edi.Core.Gallery
             return assetEdis.DistinctBy(x => x.Variant).ToList();
         }
         protected virtual void Read(List<AssetEdi> Assets)
-             
         {
             Galleries.Clear();
             Variants.Clear();

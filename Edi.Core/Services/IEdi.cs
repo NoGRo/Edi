@@ -7,7 +7,7 @@ namespace Edi.Core
 {
     public interface IEdi
     {
-        public Task Init();
+        public Task Init(string path = null);
         public DeviceManager DeviceManager { get; }
         public Trepo GetRepo<Trepo>()
         where Trepo : class , IRepository;

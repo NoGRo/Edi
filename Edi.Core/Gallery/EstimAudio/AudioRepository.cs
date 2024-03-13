@@ -16,106 +16,53 @@ namespace Edi.Core.Gallery.EStimAudio
 {
 
 
-    public class AudioRepository : IGalleryRepository<AudioGallery>
+    public class AudioRepository : RepositoryBase<AudioGallery>
     {
-        public AudioRepository(ConfigurationManager configuration, IGalleryRepository<DefinitionGallery> definitions)
+        public AudioRepository(DefinitionRepository definitions) : base(definitions)
         {
-            Config = configuration.Get<GalleryConfig>();
-            Definitios = definitions;
+
         }
-        public IEnumerable<string> Accept => new[] { "mp3" };
-        private List<string> Variants { get; set; } = new List<string>();
-        public GalleryConfig Config { get; set; }
-        private IGalleryRepository<DefinitionGallery> Definition { get; }
-        private Dictionary<string, List<AudioGallery>> Galleries { get; set; } = new Dictionary<string, List<AudioGallery>>(StringComparer.OrdinalIgnoreCase);
+        public override IEnumerable<string> Accept => new[] { "mp3" };
 
-        public async Task Init()
+        public override AudioGallery ReadGallery(AssetEdi asset, DefinitionGallery definition)
         {
-            LoadGalleryFromDefinitions();
-        }
+            Mp3FileReader reader;
 
-        private void LoadGalleryFromDefinitions()
-        {
-            var GalleryPath = Config.GalleryPath;
-
-            Galleries.Clear();
-            Variants.Clear();
-
-
-            var Assets = this.Discover(GalleryPath);
-
-            foreach (var DefinitionGallery in Definition.GetAll())
+            try
             {
-                Galleries.Add(DefinitionGallery.Name, new());
-
-                var assets = Assets.Where(x => x.Name == DefinitionGallery.FileName)
-                        ;
-                foreach (var asset in assets)
-                {
-                    {
-                    reader = new Mp3FileReader(file.FullName);
-                }
-                catch 
-                {
-                    continue;
-                }
-                
-                if (!reader.CanSeek)
-                {
-                    reader.Close();
-                    continue;
-                }
-                
-
-                foreach (var DefinitionGallery in definitions.Where(x => x.FileName == fileName))
-                {
-                    try
-                    {
-                        reader.CurrentTime = TimeSpan.FromMilliseconds(DefinitionGallery.StartTime);
-                    }
-                    catch 
-                    {
-                        continue;
-                    }
-
-                    AudioGallery gallery = new AudioGallery
-                    {
-                        Name = DefinitionGallery.Name,
-                        Variant = variant,
-                        AudioPath = file.FullName,
-                        Loop = DefinitionGallery.Loop,
-                        Duration = DefinitionGallery.Duration,
-                        StartTime = DefinitionGallery.StartTime
-                    };
-
-                    if (!Galleries.ContainsKey(DefinitionGallery.Name))
-                        Galleries.Add(DefinitionGallery.Name, new List<AudioGallery>());
-
-                    Galleries[DefinitionGallery.Name].Add(gallery);
-                }
-                reader.Close();
+                reader = new Mp3FileReader(asset.File.FullName);
+            }
+            catch
+            {
+                return null;
             }
 
-            Variants = Galleries.SelectMany(x => x.Value.Select(y => y.Variant)).Distinct().ToList();
-        }
-        public List<string> GetVariants()
-            => Variants;
-        public List<AudioGallery> GetAll()
-            => Galleries.Values.SelectMany(x=>x).ToList();
-
-        public AudioGallery? Get(string name, string variant = null)
-        {
-            //TODO: asset ovverride order priority similar minecraft texture packt 
-
-            var variants = Galleries.GetValueOrDefault(name);
-
-            if (variants is null)
+            if (!reader.CanSeek)
+            {
+                reader.Close();
                 return null;
+            }
 
-            var gallery = variants.FirstOrDefault(x => x.Variant == variant)
-                        ?? variants.FirstOrDefault();
-            return gallery;
+            try
+            {
+                reader.CurrentTime = TimeSpan.FromMilliseconds(definition.StartTime);
+            }
+            catch
+            {
+                return null;
+            }
+
+            return new AudioGallery
+            {
+                Name = definition.Name,
+                Variant =  asset.Variant,
+                AudioPath = asset.File.FullName,
+                Loop = definition.Loop,
+                Duration = definition.Duration,
+                StartTime = definition.StartTime
+            };
 
         }
+
     }
 }

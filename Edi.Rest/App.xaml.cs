@@ -57,12 +57,14 @@ namespace Edi.Forms
         protected override async void OnStartup(StartupEventArgs e)
         {
 
-            await Edi.Init();
+            var galleryPath = Edi.ConfigurationManager.Get<GalleryConfig>().GalleryPath;
+
+            await Edi.Init(galleryPath);
             var mainWindos = serviceProvider.GetRequiredService<MainWindow>();
             webApp.UseStaticFiles(new StaticFileOptions
             {
                 FileProvider = new PhysicalFileProvider(
-                    Edi.ConfigurationManager.Get<GalleryConfig>().GalleryPath),
+                   galleryPath),
                 RequestPath = "/Edi/Assets",
                 ServeUnknownFileTypes = true, // Advertencia: esto podría ser un riesgo de seguridad.
                 ContentTypeProvider = new FileExtensionContentTypeProvider(
@@ -73,7 +75,8 @@ namespace Edi.Forms
                     })
             });
 
-            var distPath = Edi.ConfigurationManager.Get<GalleryConfig>().GalleryPath + "/dist";
+            
+            var distPath = galleryPath + "/dist";
             if (Directory.Exists(distPath))
             {
                 webApp.UseStaticFiles(new StaticFileOptions

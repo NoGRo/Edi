@@ -2,7 +2,7 @@
 {
     public interface IRepository
     {
-        Task Init();
+        Task Init(string path);
         IEnumerable<string> Accept { get; }
         
         

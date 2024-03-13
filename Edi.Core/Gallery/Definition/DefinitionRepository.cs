@@ -23,9 +23,9 @@ namespace Edi.Core.Gallery.Definition
 
         public IEnumerable<string> Accept => new[] { "Definitions.csv", "Definitions_auto.csv" };
 
-        public async Task Init()
+        public async Task Init(string path)
         {
-            var GalleryPath = $"{Config.GalleryPath}\\";
+            var GalleryPath = $"{path}\\";
 
             if (!Directory.Exists($"{GalleryPath}"))
                 return;

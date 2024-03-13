@@ -12,6 +12,7 @@ using Edi.Core.Gallery.Definition;
 using System.Xml.Linq;
 using NAudio.Dmo;
 using System.Security.Cryptography.X509Certificates;
+using System.IO;
 
 namespace Edi.Core.Gallery.Index
 {
@@ -32,20 +33,20 @@ namespace Edi.Core.Gallery.Index
         public FunscriptRepository funRepo { get; }
         public DefinitionRepository DefinitionRepository { get; }
 
-        public async Task Init()
+        public async Task Init(string path)
         {
-            LoadGallery();
+            LoadGallery(path);
         }
 
         public FileInfo GetBundle(string variant, string format)
             => new FileInfo($"{Edi.OutputDir}/bundle.{variant}.{format}");
 
-        private void LoadGallery()
+        private void LoadGallery(string path)
         {
             Galleries.Clear();
             foreach (var variant in GetVariants())
             {
-                var bundleConfigs = GetBundleDefinition(variant);
+                var bundleConfigs = GetBundleDefinition(variant, path);
 
                 foreach (var bundle in bundleConfigs)
                 {
@@ -88,12 +89,12 @@ namespace Edi.Core.Gallery.Index
 
 
         }
-        private List<BundleDefinition> GetBundleDefinition(string variant)
+        private List<BundleDefinition> GetBundleDefinition(string variant,string path)
         {
             var bundlesDefault = new BundleDefinition() { Galleries = DefinitionRepository.GetAll().Select(x => x.Name).Distinct().ToList() };
 
 
-            var GalleryDir = new DirectoryInfo(Config.GalleryPath);
+            var GalleryDir = new DirectoryInfo(path);
 
 
             var BundleDefinition = GalleryDir.EnumerateFiles("BundleDefinition*.txt").ToList();
@@ -159,14 +160,6 @@ namespace Edi.Core.Gallery.Index
             if (currentBundle != null)
                 bundles.Add(currentBundle);
 
-
-            var inBundles = bundles.Where(x => x.BundleName != "default").SelectMany(x => x.Galleries).ToHashSet();
-            var inDefualt = bundles.Where(x => x.BundleName == "default").SelectMany(x => x.Galleries).ToHashSet();
-
-            bundlesDefault.Galleries = bundlesDefault.Galleries.Where(x => inDefualt.Contains(x) || !inBundles.Contains(x)).ToList();
-
-            bundles.RemoveAll(x => x.BundleName == "default");
-            bundles.Add(bundlesDefault);
 
             return bundles;
         }

@@ -45,7 +45,7 @@ namespace Edi.Core.Gallery
         }
 
 
-        public static List<AssetEdi> Discover<tGallery>(this IGalleryRepository<tGallery> Repository, )
+        public static List<AssetEdi> Discover<tGallery>(this IGalleryRepository<tGallery> Repository,string path)
              where tGallery : class, IGallery
         {
             var GalleryDir = new DirectoryInfo(path);

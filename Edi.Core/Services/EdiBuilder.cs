@@ -31,9 +31,9 @@ namespace Edi.Core
             #region Repositories
 
             var definitionRepository = new DefinitionRepository(configuration);
-            var funscriptRepository = new FunscriptRepository(configuration, definitionRepository);
+            var funscriptRepository = new FunscriptRepository(definitionRepository);
             var indexRepository = new IndexRepository(configuration, new GalleryBundler(configuration), funscriptRepository, definitionRepository);
-            var audioRepository = new AudioRepository(configuration, definitionRepository);
+            var audioRepository = new AudioRepository( definitionRepository);
 
             #endregion
 

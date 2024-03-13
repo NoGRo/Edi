@@ -11,6 +11,7 @@ using System.Text.RegularExpressions;
 using System.Linq;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Collections.Immutable;
 
 namespace Edi.Core.Gallery.CmdLineal
 {
@@ -53,7 +54,7 @@ namespace Edi.Core.Gallery.CmdLineal
 
             var funscriptsFiles = GetFunscripts()
                                     .Where(x=> FilesSourceNames.Contains(x.name))
-                                    .ToList();
+                                    .ToImmutableArray();
 
 
             //OSR6 Manage Axies some where in this function
@@ -87,11 +88,12 @@ namespace Edi.Core.Gallery.CmdLineal
 
                     SyncChapterInfo(DefinitionGallery, funscript);
 
-                    FunscriptGallery gallery = ParseActions(funscript.variant, DefinitionGallery, actions);
+                    FunscriptGallery gallery = ParseActions(funscript.variant, DefinitionGallery, ref actions);
                     Galleries[DefinitionGallery.Name].Add(gallery);
                 }
             }
 
+            funscriptsFiles.Clear();
             //SyncChapterInfo
             ToSave.Distinct().ToList().ForEach(x => x.Save(x.path));
 
@@ -143,7 +145,7 @@ namespace Edi.Core.Gallery.CmdLineal
         }
 
 
-        private static FunscriptGallery ParseActions(string variant, DefinitionGallery DefinitionGallery, IEnumerable<FunScriptAction> actions)
+        private static FunscriptGallery ParseActions(string variant, DefinitionGallery DefinitionGallery,ref IEnumerable<FunScriptAction> actions)
         {
             var sb = new ScriptBuilder();
             foreach (var action in actions)

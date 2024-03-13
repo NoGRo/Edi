@@ -23,6 +23,8 @@ namespace Edi.Core.Funscript
         public void Clear()
         {
             Sequence.Clear();
+            Sequence = null;
+            Sequence = new List<CmdLinear>();
             TotalTime = 0;
         }
 

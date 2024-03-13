@@ -3,6 +3,7 @@ using Edi.Core.Gallery;
 using Microsoft.AspNetCore.StaticFiles;
 using Microsoft.Extensions.FileProviders;
 using Microsoft.OpenApi.Models;
+using System.IO;
 using System.Windows;
 
 namespace Edi.Forms
@@ -72,15 +73,16 @@ namespace Edi.Forms
                     })
             });
 
-
-            webApp.UseStaticFiles(new StaticFileOptions
+            var distPath = Edi.ConfigurationManager.Get<GalleryConfig>().GalleryPath + "/dist";
+            if (Directory.Exists(distPath))
             {
-                FileProvider = new PhysicalFileProvider(
-                    Edi.ConfigurationManager.Get<GalleryConfig>().GalleryPath + "/dist"),
-                RequestPath = "",
-                ServeUnknownFileTypes = true, // Advertencia: esto podría ser un riesgo de seguridad.
-            });
-
+                webApp.UseStaticFiles(new StaticFileOptions
+                {
+                    FileProvider = new PhysicalFileProvider(distPath),
+                    RequestPath = "",
+                    ServeUnknownFileTypes = true, // Advertencia: esto podría ser un riesgo de seguridad.
+                });
+            }
             webApp.MapControllers();
             mainWindos.Show();
 

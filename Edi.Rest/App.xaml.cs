@@ -3,6 +3,7 @@ using Edi.Core.Gallery;
 using Microsoft.AspNetCore.StaticFiles;
 using Microsoft.Extensions.FileProviders;
 using Microsoft.OpenApi.Models;
+using System.IO;
 using System.Windows;
 
 namespace Edi.Forms
@@ -21,7 +22,7 @@ namespace Edi.Forms
 
             var webAppBuilder = WebApplication.CreateBuilder();
             
-            webAppBuilder.WebHost.UseUrls("http://localhost:5000");
+            webAppBuilder.WebHost.UseUrls("http://localhost:5000/");
 
             IServiceCollection services = webAppBuilder.Services;
 
@@ -35,8 +36,9 @@ namespace Edi.Forms
             services.AddCors(options =>
             {
                 options.AddPolicy("AllowSpecificOrigin",
-                    builder => builder.WithOrigins("http://localhost:1234") // Permite solicitudes desde este origen
+                    builder => builder.WithOrigins("http://localhost:1234", "http://localhost:5000/") // Permite solicitudes desde este origen
                                       .AllowAnyMethod()
+                                      .AllowAnyOrigin()
                                       .AllowAnyHeader());
             });
             webApp = webAppBuilder.Build();
@@ -63,7 +65,6 @@ namespace Edi.Forms
                     Edi.ConfigurationManager.Get<GalleryConfig>().GalleryPath),
                 RequestPath = "/Edi/Assets",
                 ServeUnknownFileTypes = true, // Advertencia: esto podría ser un riesgo de seguridad.
-                DefaultContentType = "application/octet-stream", // Tipo MIME por defecto para tipos de archivos desconocidos.
                 ContentTypeProvider = new FileExtensionContentTypeProvider(
                     new Dictionary<string, string>
                     {
@@ -72,6 +73,16 @@ namespace Edi.Forms
                     })
             });
 
+            var distPath = Edi.ConfigurationManager.Get<GalleryConfig>().GalleryPath + "/dist";
+            if (Directory.Exists(distPath))
+            {
+                webApp.UseStaticFiles(new StaticFileOptions
+                {
+                    FileProvider = new PhysicalFileProvider(distPath),
+                    RequestPath = "",
+                    ServeUnknownFileTypes = true, // Advertencia: esto podría ser un riesgo de seguridad.
+                });
+            }
             webApp.MapControllers();
             mainWindos.Show();
 

@@ -11,6 +11,7 @@ using System.Text.RegularExpressions;
 using System.Linq;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Collections.Immutable;
 
 namespace Edi.Core.Gallery.CmdLineal
 {
@@ -77,6 +78,7 @@ namespace Edi.Core.Gallery.CmdLineal
                 }
             }
 
+            funscriptsFiles.Clear();
             //SyncChapterInfo
             ToSave.Distinct().ToList().ForEach(x => x.Save(x.path));
 
@@ -85,7 +87,9 @@ namespace Edi.Core.Gallery.CmdLineal
 
         private void SyncChapterInfo(DefinitionGallery DefinitionGallery, FunScriptFile? funscript)
         {
-            var chapter = funscript.metadata.chapters.FirstOrDefault(x => x.name == DefinitionGallery.Name);
+            if (funscript.metadata == null)
+                funscript.metadata = new FunScriptMetadata();
+            var chapter = funscript.metadata?.chapters?.FirstOrDefault(x => x.name == DefinitionGallery.Name);
             if (chapter == null)
             {
                 funscript.metadata.chapters.Add(new()
@@ -111,7 +115,7 @@ namespace Edi.Core.Gallery.CmdLineal
         }
 
 
-        private static FunscriptGallery ParseActions(string variant, DefinitionGallery DefinitionGallery, IEnumerable<FunScriptAction> actions)
+        private static FunscriptGallery ParseActions(string variant, DefinitionGallery DefinitionGallery,ref IEnumerable<FunScriptAction> actions)
         {
             var sb = new ScriptBuilder();
             foreach (var action in actions)
@@ -164,6 +168,7 @@ namespace Edi.Core.Gallery.CmdLineal
                 Name = gallery.Name,
                 Variant = gallery.Variant,
                 Loop = gallery.Loop,
+                Duration = gallery.Duration,
                 Commands = gallery.Commands.Clone(),
             };
             return gallery;

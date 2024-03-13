@@ -62,8 +62,13 @@ namespace Edi.Core.Device.Interfaces
             currentGallery = gallery;
             IsPause = false;
 
+
+            if(timerGalleryEnd != null)
+                await timerGalleryEnd.DisposeAsync();
+            
             long interval = gallery.Duration - seek;
-            timerGalleryEnd.Change(interval, Timeout.Infinite);
+
+            timerGalleryEnd = new Timer(TimerGalleryEndCallback, null, interval, Timeout.Infinite);
 
             await PlayGallery(gallery, seek);
         }
@@ -85,9 +90,11 @@ namespace Edi.Core.Device.Interfaces
 
         public virtual async Task  Stop()
         {
+
             currentGallery = null;
             IsPause = true;
-            timerGalleryEnd.Change(Timeout.Infinite, Timeout.Infinite);
+
+            await timerGalleryEnd.DisposeAsync();
             await StopGallery();
 
 

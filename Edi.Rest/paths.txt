@@ -1,0 +1,5 @@
+﻿   GalleryPath": "D:\\Programacion\\CockHeroPlatform"
+   GalleryPath": "D:\\Juegos\\Agent_mirai-v3\\EdiDemo\\Gallery"
+   GalleryPath": "D:\\Juegos\\[English] Mira And The Mysteries Of Alchemy-EDI-Mod_v1.0\\Gallery"
+   GalleryPath": "D:\\Programacion\\Mage Kanade’s Futanari Dungeon Quest\\BepInEx\\plugins\\Gallery"
+   GalleryPath": "C:\\Program Files (x86)\\Steam\\steamapps\\common\\Succubus Farm\\Gallery"

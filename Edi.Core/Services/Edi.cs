@@ -78,7 +78,6 @@ namespace Edi.Core
 
         public async Task Init(string path)
         {
-            //await _repository.Init();
             foreach (var repo in repos)
             {
                 await repo.Init(path);
@@ -86,7 +85,15 @@ namespace Edi.Core
 
             await DeviceManager.Init();
         }
-
+        public void CleanDirectory()
+        {
+            if(Directory.Exists(OutputDir))
+            {
+                Directory.Delete(OutputDir, true);
+            }
+            Directory.CreateDirectory(Path.Combine(OutputDir));
+            Directory.CreateDirectory(Path.Combine(OutputDir, "Upload"));
+        }
         private void changeStatus(string message)
         {
             if (OnChangeStatus is null) return;

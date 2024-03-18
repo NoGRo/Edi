@@ -84,7 +84,7 @@ namespace Edi.Core.Gallery
                 assetEdis.Add(new(file, fileName, variant));
             }
 
-            return assetEdis.DistinctBy(x => x.Variant).ToList();
+            return assetEdis.ToList();
         }
         protected virtual void Read(List<AssetEdi> Assets)
         {

@@ -46,7 +46,7 @@ namespace Edi.Core.Device.Interfaces
         public  string Name { get; set; }
         public DateTime SyncSend { get; private set; }
         public long SeekTime { get; private set; }
-        public int CurrentTime => Convert.ToInt32(((DateTime.Now - SyncSend).TotalMilliseconds + SeekTime) % currentGallery.Duration) ;
+        public int CurrentTime => currentGallery == null ? 0 : Convert.ToInt32(((DateTime.Now - SyncSend).TotalMilliseconds + SeekTime) % currentGallery.Duration) ;
         
         public virtual async Task PlayGallery(string name, long seek = 0)
         {

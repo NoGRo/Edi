@@ -62,7 +62,7 @@ namespace Edi.Core.Device.Buttplug
                 var commands = deviceManager.Devices
                                                 .OfType<ButtplugDevice>()
                                                 .Where(x => x != null && x.Device == device.Device && !x.IsPause  && x.CurrentCmd != null)
-                                                .Select(x => new { x.Device, x.Actuator, ReminingTime = x.ReminingTime, Cmd = (x.Channel, x.CalculateSpeed())})
+                                                .Select(x => new { x.Device, x.Actuator, ReminingTime = x.CalculateSpeed().TimeUntilNextChange, Cmd = (x.Channel, x.CalculateSpeed().Speed )})
                                                 .GroupBy(x => new { x.Device, x.Actuator })
                                                 .ToImmutableDictionary(g => g.Key, g => new { cmds = g.Select(x => x.Cmd).ToImmutableArray(), ReminingTime = g.Min(x => x.ReminingTime) });
 
@@ -81,7 +81,7 @@ namespace Edi.Core.Device.Buttplug
 
                     if (cmdValue.ReminingTime / DelayMin < 2)
                         NextDelay = Math.Max(DelayMin, cmdValue.ReminingTime);
-
+                    
                     if (sendTaks.Count > 0)
                     {
                         Debug.WriteLine($"Enviando comando a {command.Key.Device} - Actuador: {command.Key.Actuator}, Comandos: {string.Join(", ", cmdValue.cmds)}, NextDelay: {NextDelay}, ReminingTime: {cmdValue.ReminingTime}");

@@ -96,14 +96,6 @@ namespace Edi.Core.Gallery.CmdLineal
             if (gallery is null) 
                 return null;
 
-            gallery = new FunscriptGallery
-            {
-                Name = gallery.Name,
-                Variant = gallery.Variant,
-                Loop = gallery.Loop,
-                Duration = gallery.Duration,
-                Commands = gallery.Commands.Clone(),
-            };
 
             return gallery;
         }

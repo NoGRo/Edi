@@ -85,6 +85,10 @@ namespace Edi.Core.Gallery.CmdLineal
 
                     SyncChapterInfo(DefinitionGallery, funscript);
 
+                    var funscriptAxis = funscriptsFiles
+                                        .Where(x => x.name == funscript.name && x.variant == funscript.variant)
+                                        .ToList();
+
                     FunscriptGallery gallery = ParseScripts(funscriptAxis, funscript.variant, DefinitionGallery);
 
                     Galleries[DefinitionGallery.Name].Add(gallery);

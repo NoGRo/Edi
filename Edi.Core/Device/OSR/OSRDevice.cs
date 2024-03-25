@@ -74,7 +74,7 @@ namespace Edi.Core.Device.OSR
             Config = config;
             this.repository = repository;
 
-            selectedVariant = repository.Config.DefaulVariant;
+            selectedVariant = repository.GetVariants().FirstOrDefault();
         }
 
         public async Task PlayGallery(string name, long seek = 0)
@@ -260,6 +260,9 @@ namespace Edi.Core.Device.OSR
             var updatedCmd = GetUpdatedCommandRange(cmd, axis);
             var value = (int)(updatedCmd.Value * 99.99);
             var tCode = $"{ChannelCode(axis)}{value.ToString().PadLeft(4, '0')}I{updatedCmd.Millis}";
+
+            if (axis == Axis.Sway)
+                Debug.WriteLine(tCode);
 
             DevicePort.WriteLine(tCode);
             lastCommandSent[axis] = cmd;

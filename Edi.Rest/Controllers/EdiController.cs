@@ -16,7 +16,7 @@ namespace Edi.Controllers
 
         public EdiController()
         {
-        
+
         }
 
         [HttpPost("Play/{name}")]
@@ -47,7 +47,7 @@ namespace Edi.Controllers
         /// Resumes the playback of the current gallery of multimedia content.
         /// </summary>
         [HttpPost("Resume")]
-        public async Task Resume([FromQuery]bool AtCurrentTime = false)
+        public async Task Resume([FromQuery] bool AtCurrentTime = false)
         {
             await _edi.Resume(AtCurrentTime);
         }
@@ -56,30 +56,77 @@ namespace Edi.Controllers
         public async Task<IEnumerable<DefinitionGallery>> GetDefinitions()
             => _edi.Definitions.ToArray();
 
-        [HttpGet("Assets/{*path}")]
-        public IActionResult Get(string path)
+        [HttpGet("Assets")]
+        public IActionResult Get()
         {
-            // Aquí debes poner la ruta base de tu directorio
-            var basePath = _edi.ConfigurationManager.Get<GalleryConfig>().GalleryPath.Trim();
 
-            var fullPath = Path.Combine(basePath, path);
+            var galleryPath = _edi.ConfigurationManager.Get<GalleryConfig>().GalleryPath.Trim();
 
-            // Verificar si la ruta es un directorio.
-            if (Directory.Exists(fullPath))
+            var uploadPath = Path.Combine(Core.Edi.OutputDir, "Upload");
+
+            var allFiles  =  new List<string>();
+
+            if (Directory.Exists(galleryPath))
             {
-                var allFiles = Directory.EnumerateFiles(fullPath, "*.*", SearchOption.AllDirectories)
-                                        .Select(x => x.Replace(basePath, ""));
-                return Ok(allFiles);
+                allFiles.AddRange(Directory.EnumerateFiles(galleryPath, "*.*", SearchOption.AllDirectories)
+                                        .Select(x => x.Replace(galleryPath, "/Edi/Assets/").Replace("\\", "/")));
+   
+            }
+            if (Directory.Exists(uploadPath))
+            {
+                allFiles.AddRange(Directory.EnumerateFiles(uploadPath, "*.*", SearchOption.AllDirectories)
+                                        .Select(x => x.Replace(uploadPath, "/Edi/Upload/").Replace("\\", "/")));
+
             }
 
-            // Si es un archivo, puedes devolver el archivo o su contenido
-            if (System.IO.File.Exists(fullPath))
-            {
-                var fileContent = System.IO.File.ReadAllBytes(fullPath);
-                return File(fileContent, "application/octet-stream", Path.GetFileName(fullPath));
-            }
+            return Ok(allFiles);
 
-            return NotFound();
         }
+
+        [HttpPost("Assets")]
+        public async Task<ActionResult<IEnumerable<DefinitionGallery>>> CreateAssets([FromForm] List<IFormFile> files)
+        {
+            if (files == null || files.Count == 0)
+            {
+                return NotFound();
+            }
+
+            var folderPath = Path.Combine(Core.Edi.OutputDir, "Upload");
+            var uploadedFiles = new List<string>();
+            foreach (var file in files)
+            {
+
+                var filePath = Path.Combine(folderPath, file.FileName);
+
+                if (Directory.Exists(filePath))
+                    Directory.Delete(filePath, true);
+
+                Directory.CreateDirectory(folderPath);
+
+                if (System.IO.File.Exists(filePath))
+                {
+                    System.IO.File.Delete(filePath);
+                }
+
+                try
+                {
+                    using (var stream = new FileStream(filePath, FileMode.Create))
+                    {
+                        await file.CopyToAsync(stream);
+                    }
+                    uploadedFiles.Add(file.FileName);
+                }
+                catch (Exception ex)
+                {
+                    // Podrías manejar de manera diferente los errores de cada archivo.
+                }
+                // Proceso con _edi.LoadFile si es necesario
+               
+            }
+            await _edi.Init(folderPath);
+
+            return Ok(_edi.Definitions);
+        }
+    
     }
 }

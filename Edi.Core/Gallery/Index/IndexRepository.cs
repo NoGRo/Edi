@@ -12,6 +12,7 @@ using Edi.Core.Gallery.Definition;
 using System.Xml.Linq;
 using NAudio.Dmo;
 using System.Security.Cryptography.X509Certificates;
+using System.IO;
 
 namespace Edi.Core.Gallery.Index
 {
@@ -24,7 +25,7 @@ namespace Edi.Core.Gallery.Index
             this.funRepo = Cmdlineals;
             DefinitionRepository = definitionRepository;
         }
-
+        public IEnumerable<string> Accept => new[] { "BundleDefinition*.txt" };
         private Dictionary<string, Dictionary<string, List<IndexGallery>>> Galleries { get; set; } = new Dictionary<string, Dictionary<string, List<IndexGallery>>>(StringComparer.OrdinalIgnoreCase);
 
         public GalleryConfig Config { get; set; }
@@ -32,20 +33,20 @@ namespace Edi.Core.Gallery.Index
         public FunscriptRepository funRepo { get; }
         public DefinitionRepository DefinitionRepository { get; }
 
-        public async Task Init()
+        public async Task Init(string path)
         {
-            LoadGallery();
+            LoadGallery(path);
         }
 
         public FileInfo GetBundle(string variant, string format)
             => new FileInfo($"{Edi.OutputDir}/bundle.{variant}.{format}");
 
-        private void LoadGallery()
+        private void LoadGallery(string path)
         {
             Galleries.Clear();
             foreach (var variant in GetVariants())
             {
-                var bundleConfigs = GetBundleDefinition(variant);
+                var bundleConfigs = GetBundleDefinition(variant, path);
 
                 foreach (var bundle in bundleConfigs)
                 {
@@ -54,9 +55,9 @@ namespace Edi.Core.Gallery.Index
                                                                 && bundle.Galleries.Contains(x.Name))
                                                        .ToDictionary(x => x.Name, x => x);
 
-                    var variantGalleries = funRepo.GetAll().Where(x => x.Variant == variant);
+                    var variantGalleries = funRepo.GetAll().Where(x => x.Variant == variant).ToList();
 
-                    variantGalleries = variantGalleries.Where(x => bundle.Galleries.Contains(x.Name));
+                    variantGalleries = variantGalleries.Where(x => bundle.Galleries.Contains(x.Name)).ToList();
 
                     foreach (var funscriptGallery in variantGalleries)
                     {
@@ -74,10 +75,13 @@ namespace Edi.Core.Gallery.Index
 
                     foreach (var gallery in sortedGalleries)
                     {
+                        IndexGallery indexGallery = Bundler.Add(gallery, bundle.BundleName);
+
                         if (!Galleries[variant].ContainsKey(gallery.Name))
-                            Galleries[variant].Add(gallery.Name, new() { Bundler.Add(gallery, bundle.BundleName) });
+                            Galleries[variant].Add(gallery.Name, new() { indexGallery });
                         else
-                            Galleries[variant][gallery.Name].Add(Bundler.Add(gallery, bundle.BundleName));
+                            Galleries[variant][gallery.Name].Add(indexGallery);
+                        
                     }
                     Bundler.GenerateBundle($"{bundle.BundleName}.{variant}");
                 }
@@ -85,12 +89,12 @@ namespace Edi.Core.Gallery.Index
 
 
         }
-        private List<BundleDefinition> GetBundleDefinition(string variant)
+        private List<BundleDefinition> GetBundleDefinition(string variant,string path)
         {
             var bundlesDefault = new BundleDefinition() { Galleries = DefinitionRepository.GetAll().Select(x => x.Name).Distinct().ToList() };
-            BundleDefinition currentBundle = null;
 
-            var GalleryDir = new DirectoryInfo(Config.GalleryPath);
+
+            var GalleryDir = new DirectoryInfo(path);
 
 
             var BundleDefinition = GalleryDir.EnumerateFiles("BundleDefinition*.txt").ToList();
@@ -105,9 +109,29 @@ namespace Edi.Core.Gallery.Index
             if (Default is null && Variant is null)
                 return new List<BundleDefinition>() { bundlesDefault };
 
-            var bundles = new List<BundleDefinition>();
-
+            
             var definitionPath = Variant?.FullName ?? Default.FullName;
+
+            List<BundleDefinition> bundles = ReadBundleConfig(definitionPath);
+
+
+            var inBundles = bundles.Where(x => x.BundleName != "default").SelectMany(x => x.Galleries).ToHashSet();
+            var inDefualt = bundles.Where(x => x.BundleName == "default").SelectMany(x => x.Galleries).ToHashSet();
+
+            bundlesDefault.Galleries = bundlesDefault.Galleries.Where(x => inDefualt.Contains(x) || !inBundles.Contains(x)).ToList();
+
+            bundles.RemoveAll(x => x.BundleName == "default");
+            bundles.Add(bundlesDefault);
+
+            return bundles;
+
+
+        }
+
+        private static List<BundleDefinition> ReadBundleConfig(string definitionPath)
+        {
+            var bundles = new List<BundleDefinition>();
+            BundleDefinition currentBundle = null;
             foreach (var line in File.ReadLines(definitionPath))
             {
                 if (string.IsNullOrWhiteSpace(line) || line.TrimStart().StartsWith("#"))
@@ -137,25 +161,16 @@ namespace Edi.Core.Gallery.Index
                 bundles.Add(currentBundle);
 
 
-            var inBundles = bundles.Where(x => x.BundleName != "default").SelectMany(x => x.Galleries).ToHashSet();
-            var inDefualt = bundles.Where(x => x.BundleName == "default").SelectMany(x => x.Galleries).ToHashSet();
-
-            bundlesDefault.Galleries = bundlesDefault.Galleries.Where(x => inDefualt.Contains(x) || !inBundles.Contains(x)).ToList();
-
-            bundles.RemoveAll(x => x.BundleName == "default");
-            bundles.Add(bundlesDefault);
-
             return bundles;
-
-
         }
+
         public List<string> GetVariants()
             => funRepo.GetVariants();
         public List<IndexGallery> GetAll()
             => Galleries.Values.SelectMany(x => x.Values.SelectMany(y => y)).ToList();
         public IndexGallery? Get(string name, string variant = null)
             => Get(name, variant, "default");
-        public IndexGallery? Get(string name, string variant, string bundle = "default")
+        public IndexGallery? Get(string name, string variant, string bundle)
         {
             //TODO: asset ovverride order priority similar minecraft texture packt 
             

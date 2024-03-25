@@ -10,10 +10,13 @@ using CsvHelper;
 using CsvHelper.Configuration;
 using Edi.Core.Gallery.CmdLineal;
 using Edi.Core.Funscript;
+using PropertyChanged;
+using System.ComponentModel;
 
 namespace Edi.Core
 {
-    public class Edi :  IEdi
+    [AddINotifyPropertyChangedInterface]
+    public class Edi : IEdi
     {
         public  ConfigurationManager ConfigurationManager { get; set; }
         public DeviceManager DeviceManager { get; private set; }
@@ -49,6 +52,7 @@ namespace Edi.Core
             ConfigurationManager = configuration;
             Config = configuration.Get<EdiConfig>();
 
+
         }
 
         private void DeviceManager_OnloadDevice(IDevice device)
@@ -72,17 +76,24 @@ namespace Edi.Core
 
         public IEnumerable<DefinitionGallery> Definitions => _repository.GetAll();
 
-        public async Task Init()
+        public async Task Init(string path)
         {
-            //await _repository.Init();
             foreach (var repo in repos)
             {
-                await repo.Init();
+                await repo.Init(path);
             }
 
             await DeviceManager.Init();
         }
-
+        public void CleanDirectory()
+        {
+            if(Directory.Exists(OutputDir))
+            {
+                Directory.Delete(OutputDir, true);
+            }
+            Directory.CreateDirectory(Path.Combine(OutputDir));
+            Directory.CreateDirectory(Path.Combine(OutputDir, "Upload"));
+        }
         private void changeStatus(string message)
         {
             if (OnChangeStatus is null) return;

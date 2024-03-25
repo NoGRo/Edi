@@ -1,23 +1,17 @@
-﻿using Buttplug;
-using Buttplug.Client;
-using Buttplug.Core;
+﻿using Buttplug.Client;
 using Buttplug.Core.Messages;
 using Edi.Core.Device.Interfaces;
 using Edi.Core.Funscript;
 using Edi.Core.Gallery;
 using Edi.Core.Gallery.CmdLineal;
 using PropertyChanged;
-using System;
-using System.Collections;
-using System.Collections.Generic;
-using System.Diagnostics;
-using System.Diagnostics.CodeAnalysis;
-using System.Linq;
-using System.Net;
-using System.Text;
+using System.Runtime.InteropServices;
 using System.Timers;
-using System.Xml.Linq;
 using Timer = System.Timers.Timer;
+using System;
+using System.Diagnostics;
+
+
 
 namespace Edi.Core.Device.Buttplug
 {
@@ -25,206 +19,172 @@ namespace Edi.Core.Device.Buttplug
 
     //OSR6 I don't know if you can use this class because it is all designed for a single stream to go under bluetooth it has the rate limit other things
     [AddINotifyPropertyChangedInterface]
-    public class ButtplugDevice : IDevice
+    public class ButtplugDevice : DeviceBase<FunscriptRepository, FunscriptGallery>
     {
         public ButtplugClientDevice Device { get; private set; }
         private ButtplugConfig config { get;  set; }
         public ActuatorType Actuator { get; }
         public uint Channel { get; }
-        private FunscriptRepository repository { get; set; }
-        public string Name { get; set; }
-        public string SelectedVariant 
-        { 
-            get => selectedVariant; 
-            set { 
-                selectedVariant = value;
-                if(CurrentGallery != null && !IsPause )
-                    PlayGallery(CurrentGallery.Name, CurrentTime).GetAwaiter();
-            } 
-        }
 
-        public IEnumerable<string> Variants => repository.GetVariants();
-
-        private List<CmdLinear> queue { get; set; } = new List<CmdLinear>();
-        public CmdLinear CurrentCmd { get;  set; }
-        private DateTime CmdSendAt { get;  set; }
-        private int CurrentTime => Convert.ToInt32((DateTime.Now - SyncSend).TotalMilliseconds + SeekTime);
-        public int ReminingTime => CurrentCmd.Millis - Convert.ToInt32((DateTime.Now - CmdSendAt).TotalMilliseconds);
         
-        public DateTime SyncSend { get; private set; } = DateTime.Now;
-        public bool IsPause { get; private set; } = true;
-        private long ResumeAt { get; set; }
-        private long SeekTime { get; set; }
-
-        private Timer timerCmdEnd = new Timer();
-
-        public bool IsReady => true;
+        public CmdLinear CurrentCmd { get; set; }
+        public int currentCmdIndex { get; set; }
+        private DateTime lastCmdSendAt { get;  set; }
+        public int CurrentCmdTime => CurrentCmd == null ? 0 : Math.Min(CurrentCmd.Millis, Convert.ToInt32(this.CurrentTime - (CurrentCmd.AbsoluteTime - CurrentCmd.Millis)) );
+        public int ReminingCmdTime => CurrentCmd == null ? 0 : Math.Max(0, Convert.ToInt32((CurrentCmd.AbsoluteTime) - this.CurrentTime));
+        
+        private double vibroSteps;
+        private CancellationTokenSource cancelTokenSource = new CancellationTokenSource();
 
         public ButtplugDevice(ButtplugClientDevice device, ActuatorType actuator, uint channel, FunscriptRepository repository, ButtplugConfig config)
+            : base(repository)
         {
             this.Device = device;
             Name = device.Name + (device.GenericAcutatorAttributes(actuator).Count() > 1 
-                                    ? $" {actuator.ToString()}: {channel+1}" 
+                                    ? $" {actuator}: {channel+1}" 
                                     : "" );
             
             Actuator = actuator;
             Channel = channel;
+            var acutators = Device.GenericAcutatorAttributes(Actuator);
+
+            if (acutators.Any())
+                vibroSteps = Device.GenericAcutatorAttributes(Actuator)[(int)Channel].StepCount;
+
+            if (vibroSteps == 0)
+                vibroSteps = 1;
+            vibroSteps = (100.0 / vibroSteps);
+
             this.config = config;
-            this.repository = repository;
-            timerCmdEnd.Elapsed += OnCommandEnd;
-
-            SelectedVariant = Variants.FirstOrDefault(x => x.Contains(Actuator.ToString(),StringComparison.OrdinalIgnoreCase))
-                                ?? repository.GetVariants().FirstOrDefault();
-        }
-
-        private FunscriptGallery CurrentGallery;
-        private string selectedVariant;
-
-        public async Task PlayGallery(string name, long seek = 0)
-        {
-            var gallery = repository.Get(name, SelectedVariant);
-            if (gallery == null)
-                return;
-
-            SyncSend = DateTime.Now;
-            CurrentGallery = gallery;
-            PrepareQueue();
-
-            SeekTime = seek;
-
-            await PlayNext();
-        }
-
-        public void PrepareQueue()
-        {
-            var cmds = CurrentGallery.Commands.ToList();
-            CmdLinear last = CurrentGallery.Loop ? cmds.LastOrDefault() : null;
-            var at = 0;
-            foreach (var cmd in cmds)
-            {
-                cmd.Prev = last;
-                at += cmd.Millis;
-                cmd.AbsoluteTime = at;
-                last = cmd;
-            }
-            queue = cmds;
-        }
-
-
-        private async void OnCommandEnd(object sender, ElapsedEventArgs e)
-        {
-            await PlayNext();
-        }
-        private async Task PlayNext()
-        {
-            timerCmdEnd.Stop();
             
-            Seek(CurrentTime);
-
-            CmdLinear nextcmd = null;
-            if (queue?.Any() == true)
-            {
-                IsPause = false;
-                nextcmd = queue.First();
-                queue.RemoveAt(0);
-            }
-            if (nextcmd != null)
-            {
-                await SendCmd(nextcmd);
-                return;
-            }
-
-            if (CurrentGallery?.Loop == true)
-            {
-                await PlayGallery(CurrentGallery.Name);
-            }
-
+            SelectedVariant = Variants.FirstOrDefault(x => x.Contains(Actuator.ToString(),StringComparison.OrdinalIgnoreCase))
+                                ?? Variants.FirstOrDefault("");
         }
 
-        public async Task SendCmd(CmdLinear cmd)
+        public override async Task PlayGallery(FunscriptGallery gallery, long seek = 0)
         {
+            var cmds = gallery?.Commands;
+            if (cmds == null) return;
 
+            currentCmdIndex = Math.Max(0, cmds.FindIndex(x => x.AbsoluteTime > CurrentTime));
+
+            while (currentCmdIndex >= 0 && currentCmdIndex < cmds.Count)
+            {
+                CurrentCmd = cmds[currentCmdIndex];
+                //CurrentCmd.Sent = DateTime.Now;
+
+                var sendtask = SendCmd();
+
+
+                try
+                {
+                    await WaitAsync(Math.Max(0, (int)ReminingCmdTime), cancelTokenSource.Token);
+                }
+                catch (TaskCanceledException)
+                {
+                    break; 
+                }
+
+                currentCmdIndex = cmds.FindIndex(currentCmdIndex, x => x.AbsoluteTime > CurrentTime);
+
+
+                if (currentCmdIndex < 0)
+                {
+
+                    currentCmdIndex = cmds.FindIndex(x => x.AbsoluteTime > CurrentTime);
+                    if (currentCmdIndex < 0) 
+                        break; // Si aún así no hay más comandos, sale del bucle.
+                }
+            }
+        }
+
+        public async Task SendCmd()
+        {
             if (Device == null)
                 return;
 
-            Task sendtask = Task.CompletedTask;
-
-
-            if (cmd.Millis >= config.CommandDelay || (DateTime.Now - CmdSendAt).TotalMilliseconds >= config.CommandDelay)
+            if(CurrentCmd.Millis <= 0)
             {
+                await Task.Delay(1);
+                return;
+            }
+            Task sendtask = Task.CompletedTask;
+            if (CurrentCmd.Millis >= config.CommandDelay 
+                || (DateTime.Now - lastCmdSendAt).TotalMilliseconds >= config.CommandDelay)
+            {
+                lastCmdSendAt = DateTime.Now;
                 switch (Actuator)
                 {
                     case ActuatorType.Position:
-                        sendtask = Device.LinearAsync(new[] { (cmd.buttplugMillis, cmd.LinearValue) });
+                        sendtask = Device.LinearAsync(new[] { ((uint)(ReminingCmdTime), CurrentCmd.LinearValue) });
                         break;
                     case ActuatorType.Rotate:
                         sendtask = Device.RotateAsync(Math.Min(1.0, Math.Max(0, CurrentCmd.Speed / (double)450)), CurrentCmd.Direction); ;
                         break;
                 }
-
-                CurrentCmd = cmd;
-                //Debug.WriteLineIf(Name == "The Handy", $"{Name}: at:{cmd.AbsoluteTime} Cur:{CurrentTime}  {cmd.Millis}-{cmd.Value}");
-
-                CmdSendAt = DateTime.Now;
-                cmd.Sent = DateTime.Now;
             }
 
-            timerCmdEnd.Interval = cmd.Millis;
-            timerCmdEnd.Start();
+            await sendtask.ConfigureAwait(false);
 
-            if (sendtask != null)
-                try
-                {
-                    await sendtask;
-                } catch  { }
         }
 
-
-        public double CalculateSpeed()
+        public override async Task StopGallery()
         {
-            var passes = DateTime.Now - CmdSendAt;
-            if(CurrentCmd == null)
-                return 0;
-            var distanceToTravel = CurrentCmd.Value - CurrentCmd.InitialValue;
-            var travel = Math.Round(distanceToTravel * (passes.TotalMilliseconds / CurrentCmd.Millis), 0);
-            travel = travel is double.NaN or double.PositiveInfinity or double.NegativeInfinity ? 0 : travel;
-            var currVal = Math.Abs(CurrentCmd.InitialValue + Convert.ToInt16(travel));
+            cancelTokenSource.Cancel();
+            cancelTokenSource = new CancellationTokenSource();
 
-            //Debug.WriteLine($"{CurrentCmd.InitialValue}- {travel} - {currVal}");
-
-            var actuadores = Device.GenericAcutatorAttributes(Actuator);
-            double steps = actuadores[(int)Channel].StepCount;
-            if (steps == 0)
-                steps = 1;
-            steps = (100.0 / steps);
-            var speed = (int)Math.Round(currVal / (double)steps) * steps;
-            speed = (Math.Min(1.0, Math.Max(0, speed / (double)100)));
-            return speed;
-        }
-
-
-        private void Seek(long time)
-        {
-            int index = queue.FindIndex(x => x.AbsoluteTime > time);
-            if (index > 0)
-                queue.RemoveRange(0, index);
-            else if (index == -1 && queue.Any())
-                queue.Clear();
-
-            var next = queue.FirstOrDefault();
-
-            if (next == null) 
-                return;
-            next.Millis = Convert.ToInt32(next.AbsoluteTime - time);
-        }
-
-
-        public async Task Stop()
-        {
-            IsPause = true;
-            ResumeAt = (long)CurrentTime;
-            timerCmdEnd.Stop();
             await Device.Stop();
         }
+
+        public (double Speed, int TimeUntilNextChange) CalculateSpeed()
+        {
+            if (CurrentCmd == null)
+                return (0, 0); // Si no hay comando actual, no hay velocidad ni cambio.
+
+            var distanceToTravel = CurrentCmd.Value - CurrentCmd.InitialValue;
+            var elapsedFraction = (double)CurrentCmdTime / CurrentCmd.Millis;
+            var travel = Math.Round(distanceToTravel * elapsedFraction, 0);
+            travel = travel is double.NaN or double.PositiveInfinity or double.NegativeInfinity ? 0 : travel;
+            var currVal = Math.Abs(Math.Max(0, Math.Min(100,CurrentCmd.InitialValue + Convert.ToInt16(travel))));
+
+            var speed = (int)Math.Round(currVal / vibroSteps) * vibroSteps;
+            speed = Math.Min(1.0, Math.Max(0, speed / (double)100));
+
+            // Calculamos el tiempo hasta el próximo cambio. 
+            // Suponemos que el tiempo hasta el próximo cambio es proporcional a la distancia hasta el próximo vibroStep.
+            var nextStepDistance = vibroSteps - (currVal % vibroSteps);
+            var nextStepFraction = nextStepDistance / distanceToTravel;
+            var timeUntilNextChange = (elapsedFraction + nextStepFraction) * CurrentCmd.Millis - CurrentCmdTime;
+
+            // Ajustamos el tiempo para asegurarnos de que no sea negativo ni infinito.
+            timeUntilNextChange = timeUntilNextChange < 0 ? ReminingCmdTime : timeUntilNextChange;
+            timeUntilNextChange = Math.Min(ReminingCmdTime, timeUntilNextChange);
+            return (speed, Convert.ToInt32(timeUntilNextChange));
+        }
+
+        private const int FinalWaitThreshold = 20; // Threshold for precise final wait.
+
+        public async Task WaitAsync(double milliseconds, CancellationToken cancellationToken = default)
+        {
+            if (milliseconds <= 0) return;
+
+            var stopwatch = Stopwatch.StartNew();
+            var initialWaitTime = Math.Max(0, milliseconds - FinalWaitThreshold);
+
+            if (initialWaitTime > 0)
+            {
+                await Task.Delay(TimeSpan.FromMilliseconds(initialWaitTime), cancellationToken);
+            }
+
+            while (stopwatch.ElapsedMilliseconds < milliseconds)
+            {
+                await Task.Yield();
+                cancellationToken.ThrowIfCancellationRequested();
+            }
+        }
+
+
     }
+
 }
+

@@ -10,7 +10,7 @@ namespace Edi.Core.Gallery.CmdLineal
         public string Variant { get; set; }
         public List<CmdLinear> Commands { get => AxisCommands[Axis.Default]; }
         public virtual Dictionary<Axis, List<CmdLinear>> AxisCommands { get; set; } = new Dictionary<Axis, List<CmdLinear>>();
-
+        public int Duration { get; set; }
         public bool Loop { get; set; }
 
         public FunscriptGallery Clone()

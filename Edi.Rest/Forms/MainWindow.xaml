@@ -5,14 +5,14 @@
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:local="clr-namespace:Edi.Forms"
         mc:Ignorable="d"
-        Title="Edi Launcher" Height="360" Width="667" ResizeMode="NoResize">
+        Title="Edi Launcher" Height="345" Width="667" ResizeMode="NoResize">
 
     <Window.Resources>
         <local:BoolToReadyIconConverter x:Key="BoolToReadyIconConverter"/>
     </Window.Resources>
 
 
-    <Grid Margin="0,0,0,10">
+    <Grid Margin="0,0,0,-16">
         <Grid.ColumnDefinitions>
             <ColumnDefinition Width="16*"/>
             <ColumnDefinition Width="19*"/>
@@ -47,7 +47,8 @@
 
 
         <Label Grid.Column="1" Content="Devices:" HorizontalAlignment="Left" Margin="5,66,0,0" VerticalAlignment="Top" Width="200"/>
-        <Label Grid.Column="0" Content="Status:" Margin="5,0,0,0" x:Name="lblStatus" Width="647" Height="26" VerticalAlignment="Bottom" HorizontalAlignment="Left" Grid.ColumnSpan="2" />
+        <Label  Foreground="Blue" Content="http://localhost:5000/swagger/index.html" HorizontalAlignment="Left" MouseDoubleClick="Label_MouseDoubleClick"  Margin="5,0,0,79" VerticalAlignment="Bottom" Width="230"/>
+        <Label Grid.Column="0" Content="Status:" Margin="10,0,0,25" x:Name="lblStatus" Width="652" Height="26" VerticalAlignment="Bottom" HorizontalAlignment="Left" Grid.ColumnSpan="2" />
 
         <Button Content="Reconnect" HorizontalAlignment="Left" Margin="222,112,0,0" VerticalAlignment="Top" x:Name="ReconnectButton" Click="ReconnectButton_ClickAsync" Height="22" Width="72" RenderTransformOrigin="5.083,-1.983"/>
         <Button Content="Reload Galleries" HorizontalAlignment="Left" Margin="10,112,0,0" VerticalAlignment="Top" x:Name="ReloadButton"  Height="22" Width="103" Click="ReloadButton_Click"/>
@@ -55,22 +56,22 @@
         <Button Visibility="Hidden" Content="RePackButton" HorizontalAlignment="Left" Margin="10,125,0,0" VerticalAlignment="Top" x:Name="RePackButton"  Height="22" Width="103" Click="RePackButton_Click"/>
 
 
-        <Label Grid.Column="1"  Foreground="Blue" Content="http://localhost:5000/swagger/index.html" HorizontalAlignment="Left" MouseDoubleClick="Label_MouseDoubleClick"  Margin="11,0,0,25" VerticalAlignment="Bottom" Width="230"/>
+        
         <!-- ComboBox para las galerías -->
-        <ComboBox x:Name="cmbGallerie" HorizontalAlignment="Left" VerticalAlignment="Bottom" Width="144" Height="22" Margin="10,0,0,27" Grid.Column="0" DisplayMemberPath="Name" ItemsSource="{Binding galleries}">
+        <ComboBox x:Name="cmbGallerie" HorizontalAlignment="Left" VerticalAlignment="Bottom" Width="144" Height="22" Margin="10,0,0,56" Grid.Column="0" DisplayMemberPath="Name" ItemsSource="{Binding galleries}">
         </ComboBox>
 
         <!-- Botones Play, Stop, Pause, Resume -->
-        <Button HorizontalAlignment="Left" VerticalAlignment="Bottom" Margin="159,0,0,28" Width="30" Height="22" Grid.Column="0" ToolTip="Play" x:Name="btnPlay" Click="btnPlay_Click">
+        <Button HorizontalAlignment="Left" VerticalAlignment="Bottom" Margin="159,0,0,57" Width="30" Height="22" Grid.Column="0" ToolTip="Play" x:Name="btnPlay" Click="btnPlay_Click">
             <TextBlock Text="▶" FontSize="14"/>
         </Button>
-        <Button HorizontalAlignment="Left" VerticalAlignment="Bottom" Margin="194,0,0,28" Width="30" Height="22" Grid.Column="0" ToolTip="Stop" x:Name="btnStop" Click="btnStop_Click">
+        <Button HorizontalAlignment="Left" VerticalAlignment="Bottom" Margin="194,0,0,57" Width="30" Height="22" Grid.Column="0" ToolTip="Stop" x:Name="btnStop" Click="btnStop_Click">
             <TextBlock Text="■" FontSize="14"/>
         </Button>
-        <Button HorizontalAlignment="Left" VerticalAlignment="Bottom" Margin="229,0,0,28" Width="30" Height="22" Grid.Column="0" ToolTip="Pause" x:Name="btnPause" Click="btnPause_Click">
+        <Button HorizontalAlignment="Left" VerticalAlignment="Bottom" Margin="229,0,0,57" Width="30" Height="22" Grid.Column="0" ToolTip="Pause" x:Name="btnPause" Click="btnPause_Click">
             <TextBlock Text="❚❚" FontSize="14"/>
         </Button>
-        <Button HorizontalAlignment="Left" VerticalAlignment="Bottom" Margin="264,0,0,28" Width="30" Height="22" ToolTip="Resume" x:Name="btnResume" Click="btnResume_Click">
+        <Button HorizontalAlignment="Left" VerticalAlignment="Bottom" Margin="264,0,0,57" Width="30" Height="22" ToolTip="Resume" x:Name="btnResume" Click="btnResume_Click">
             <TextBlock Text="►❚❚" FontSize="14"/>
         </Button>
 

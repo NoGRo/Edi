@@ -23,21 +23,34 @@ namespace Edi.Core.Funscript
         public void Clear()
         {
             Sequence.Clear();
+            Sequence = null;
+            Sequence = new List<CmdLinear>();
             TotalTime = 0;
         }
 
-        //go to a value at speed (Use starting point to calculate speed)
-        public void addCommand(CmdLinear cmd)
+
+        private void addCommand(CmdLinear cmd)
         {
+
+            cmd.Prev = Sequence.LastOrDefault();
+            if (cmd.Prev != null)
+                cmd.Prev.Next = cmd;
+
             TotalTime += cmd.Millis;
             cmd.AbsoluteTime = TotalTime;
             Sequence.Add(cmd);
+        }
+
+            //go to a value at speed (Use starting point to calculate speed)
+        public void AddCommand(CmdLinear cmd)
+        {
+            addCommand(CmdLinear.GetCommandMillis(cmd.Millis, cmd.Value));
         }
         public void addCommands(IEnumerable<CmdLinear> cmds)
         {
             foreach (var cmd in cmds)
             {
-                addCommand(cmd);
+                addCommand(CmdLinear.GetCommandMillis(cmd.Millis, cmd.Value));
             }
         }
 

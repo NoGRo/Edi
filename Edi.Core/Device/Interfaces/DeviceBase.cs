@@ -48,7 +48,10 @@ namespace Edi.Core.Device.Interfaces
         private CancellationTokenSource cancelTokenSource = new CancellationTokenSource();
         public virtual async Task PlayGallery(string name, long seek = 0)
         {
+
+            SyncSend = DateTime.Now;
             var localCts = new CancellationTokenSource(); // Crear un nuevo CTS para esta ejecución específica
+            
             var previousCts = Interlocked.Exchange(ref cancelTokenSource, localCts); // Intercambia el CTS global con el nuevo, de forma atómica
             previousCts.Cancel(); // Cancela cualquier tarea anterior
 
@@ -59,7 +62,7 @@ namespace Edi.Core.Device.Interfaces
                 return;
             }
 
-            SyncSend = DateTime.Now;
+
             SeekTime = seek;
             currentGallery = gallery;
             IsPause = false;
@@ -77,7 +80,8 @@ namespace Edi.Core.Device.Interfaces
             }
 
             // Verifica que el token no haya sido cancelado por otra invocación
-            if (localCts.Token.IsCancellationRequested) return;
+            if (localCts.Token.IsCancellationRequested) 
+                return;
 
             if (currentGallery?.Loop == true && !IsPause)
             {

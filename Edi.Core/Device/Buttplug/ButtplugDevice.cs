@@ -66,9 +66,12 @@ namespace Edi.Core.Device.Buttplug
 
             var cmds = gallery?.Commands;
             if (cmds == null) return;
-
-            cancelTokenSource.Cancel(true);
-            cancelTokenSource = new CancellationTokenSource();
+            var previousCts = Interlocked.Exchange(ref cancelTokenSource, new CancellationTokenSource());
+            if (previousCts != null)
+            {
+                previousCts.Cancel();
+                previousCts.Dispose(); // Asegúrate de disponer el CTS anterior para liberar recursos.
+            }
 
             currentCmdIndex = Math.Max(0, cmds.FindIndex(x => x.AbsoluteTime > CurrentTime));
 
@@ -79,17 +82,16 @@ namespace Edi.Core.Device.Buttplug
 
                 var sendtask = SendCmd();
 
-
                 try
                 {
+                    // Usa el nuevo token de cancelación aquí
                     await Task.Delay(Math.Max(0, (int)ReminingCmdTime), cancelTokenSource.Token);
                 }
                 catch (TaskCanceledException)
                 {
-                    return;
+                    return; // Salimos de la función si la tarea fue cancelada.
                 }
-                if (cancelTokenSource.IsCancellationRequested)
-                    return;
+
 
                 currentCmdIndex = cmds.FindIndex(currentCmdIndex, x => x.AbsoluteTime > CurrentTime);
                 if (currentCmdIndex < 0)
@@ -134,8 +136,12 @@ namespace Edi.Core.Device.Buttplug
 
         public override async Task StopGallery()
         {
-            cancelTokenSource.Cancel(true);
-            cancelTokenSource = new CancellationTokenSource();
+            var previousCts = Interlocked.Exchange(ref cancelTokenSource, new CancellationTokenSource());
+            if (previousCts != null)
+            {
+                previousCts.Cancel();
+                previousCts.Dispose(); // Es importante disponer el CTS antiguo para liberar recursos.
+            }
             lock (Device)
             {
                 if (Device == null) return;

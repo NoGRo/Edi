@@ -2,7 +2,7 @@
   "Gallery": {
     "DefaulVariant": "BF",
     "SelectedVariant": null,
-    "GalleryPath": "D:\\Programacion\\CockHeroPlatform"
+    "GalleryPath": "C:\\Program Files (x86)\\Steam\\steamapps\\common\\Succubus Farm\\Gallery"
   },
   "GalleryBundler": {
     "RepearDuration": 2000,
@@ -10,7 +10,7 @@
   },
   "Buttplug": {
     "Url": "ws://localhost:12345",
-    "CommandDelay": 40
+    "CommandDelay": 50
   },
   "Handy": {
     "Key": "PiBnz, 92H0Y, ppJdVv3V"
@@ -18,14 +18,15 @@
   "Edi": {
     "Filler": true,
     "Gallery": true,
-    "Reactive": true
+    "Reactive": true,
+    "ExecuteOnReady": ""
   },
   "Devices": {
     "DeviceVariant": {
-      "Lovense Dolce Vibrate: 1": "vib2",
-      "Lovense Dolce Vibrate: 2": "vib",
-      "The Handy [ppJdVv3V]": "Sleeve",
-      "The Handy": "Sleeve",
+      "Lovense Dolce Vibrate: 1": "balls",
+      "Lovense Dolce Vibrate: 2": "ass",
+      "The Handy [ppJdVv3V]": "detail",
+      "The Handy": "dildo",
       "The Handy [PiBnz]": "dildo",
       "The Handy (1)": "dildo",
       "The Handy (2)": "dildo",

@@ -76,13 +76,12 @@ namespace Edi.Core.Device.Handy
 
         private async Task Seek(long timeMs)
         {
-
-            var req = new SyncPlayRequest(ServerTime, timeMs);
             if (IsReady)
             {
-                Debug.WriteLine($"Handy: {Key} PLay [{timeMs}] ({currentGallery?.Name ?? ""}))");
+                Debug.WriteLine($"Handy: [{DateTimeOffset.UtcNow.ToUnixTimeMilliseconds()}] {ServerTime} {Key} PLay [{timeMs}] ({currentGallery?.Name ?? ""}))");
                 try
                 {
+                    var req = new SyncPlayRequest(ServerTime, timeMs);
                     await Client.PutAsync("hssp/play", new StringContent(JsonConvert.SerializeObject(req), Encoding.UTF8, "application/json"));
                 }
                 catch (Exception ex)
@@ -100,7 +99,6 @@ namespace Edi.Core.Device.Handy
                 Debug.WriteLine($"Handy: {Key} Stop");
                 try
                 {
-
                     await Client.PutAsync("hssp/stop", null);
                 }
                 catch (Exception ex)
@@ -118,7 +116,7 @@ namespace Edi.Core.Device.Handy
         private async void upload(string bundle = null, bool delay = true)
         {
 
-            uploadCancellationTokenSource?.Cancel();
+            uploadCancellationTokenSource?.Cancel(true);
             await Task.Delay(50);
             uploadCancellationTokenSource = new CancellationTokenSource();
             
@@ -134,6 +132,7 @@ namespace Edi.Core.Device.Handy
                     {
                         return;
                     }
+
                 }
                 try
                 {

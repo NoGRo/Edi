@@ -17,12 +17,10 @@ namespace Edi.Core.Device.Interfaces
         protected TGallery currentGallery;
 
         public bool IsPause { get; set; }
-        public Timer timerGalleryEnd;
         protected DeviceBase(TRepository repository) 
         {
             this.repository = repository;
 
-            timerGalleryEnd = new Timer(TimerGalleryEndCallback, null, Timeout.Infinite, Timeout.Infinite);
         }
 
         public virtual bool IsReady { get; set; } = true;
@@ -47,9 +45,13 @@ namespace Edi.Core.Device.Interfaces
         public DateTime SyncSend { get; private set; }
         public long SeekTime { get; private set; }
         public int CurrentTime => currentGallery == null ? 0 : Convert.ToInt32(((DateTime.Now - SyncSend).TotalMilliseconds + SeekTime) % currentGallery.Duration) ;
-        
+        private CancellationTokenSource cancelTokenSource = new CancellationTokenSource();
         public virtual async Task PlayGallery(string name, long seek = 0)
         {
+            var localCts = new CancellationTokenSource(); // Crear un nuevo CTS para esta ejecución específica
+            var previousCts = Interlocked.Exchange(ref cancelTokenSource, localCts); // Intercambia el CTS global con el nuevo, de forma atómica
+            previousCts.Cancel(); // Cancela cualquier tarea anterior
+
             var gallery = repository.Get(name, SelectedVariant);
             if (gallery == null)
             {
@@ -62,22 +64,21 @@ namespace Edi.Core.Device.Interfaces
             currentGallery = gallery;
             IsPause = false;
 
-
-            if(timerGalleryEnd != null)
-                await timerGalleryEnd.DisposeAsync();
-            
-            long interval = gallery.Duration - seek;
-
-            timerGalleryEnd = new Timer(TimerGalleryEndCallback, null, interval, Timeout.Infinite);
-
+            var interval = gallery.Duration - seek;
             await PlayGallery(gallery, seek);
-        }
+            try
+            {
+                await Task.Delay(TimeSpan.FromMilliseconds(interval), localCts.Token);
+            }
+            catch (TaskCanceledException)
+            {
+                // Lógica después de la cancelación, si es necesario
+                return;
+            }
 
-        public abstract Task PlayGallery(TGallery gallery, long seek = 0);
-        private async void TimerGalleryEndCallback(object state)
-        {
-            // Ejecuta lógica de finalización en una tarea para permitir operaciones asíncronas
-                
+            // Verifica que el token no haya sido cancelado por otra invocación
+            if (localCts.Token.IsCancellationRequested) return;
+
             if (currentGallery?.Loop == true && !IsPause)
             {
                 await PlayGallery(currentGallery.Name);
@@ -88,13 +89,21 @@ namespace Edi.Core.Device.Interfaces
             }
         }
 
+        public abstract Task PlayGallery(TGallery gallery, long seek = 0);
+ 
         public virtual async Task  Stop()
         {
+            var previousCts = Interlocked.Exchange(ref cancelTokenSource, new CancellationTokenSource());
+            if (previousCts != null)
+            {
+                previousCts.Cancel();
+                previousCts.Dispose(); // Es importante disponer el CTS antiguo para liberar recursos.
+            }
 
             currentGallery = null;
             IsPause = true;
 
-            await timerGalleryEnd.DisposeAsync();
+            // Llama al método abstracto StopGallery, que debe ser implementado por las clases derivadas.
             await StopGallery();
 
 

@@ -9,10 +9,12 @@ namespace Edi.Core.Device.Interfaces
 
     public interface IDevice
     {
-        public bool IsReady { get; }
+        
         string SelectedVariant { get; set; }
         IEnumerable<string> Variants { get; }
+
         string Name { get; set; }
+        public bool IsReady { get; }
         public Task PlayGallery(string name, long seek = 0);
         public Task Stop();
     }

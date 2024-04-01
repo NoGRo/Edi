@@ -63,8 +63,12 @@ namespace Edi.Core.Device.Buttplug
 
         public override async Task PlayGallery(FunscriptGallery gallery, long seek = 0)
         {
+
             var cmds = gallery?.Commands;
             if (cmds == null) return;
+
+            cancelTokenSource.Cancel(true);
+            cancelTokenSource = new CancellationTokenSource();
 
             currentCmdIndex = Math.Max(0, cmds.FindIndex(x => x.AbsoluteTime > CurrentTime));
 
@@ -78,16 +82,16 @@ namespace Edi.Core.Device.Buttplug
 
                 try
                 {
-                    await WaitAsync(Math.Max(0, (int)ReminingCmdTime), cancelTokenSource.Token);
+                    await Task.Delay(Math.Max(0, (int)ReminingCmdTime), cancelTokenSource.Token);
                 }
                 catch (TaskCanceledException)
                 {
-                    break; 
+                    return;
                 }
+                if (cancelTokenSource.IsCancellationRequested)
+                    return;
 
                 currentCmdIndex = cmds.FindIndex(currentCmdIndex, x => x.AbsoluteTime > CurrentTime);
-
-
                 if (currentCmdIndex < 0)
                 {
 
@@ -130,10 +134,20 @@ namespace Edi.Core.Device.Buttplug
 
         public override async Task StopGallery()
         {
-            cancelTokenSource.Cancel();
+            cancelTokenSource.Cancel(true);
             cancelTokenSource = new CancellationTokenSource();
-
-            await Device.Stop();
+            lock (Device)
+            {
+                if (Device == null) return;
+                try
+                {
+                    Device.Stop().GetAwaiter().GetResult();
+                }
+                catch (Exception ex) 
+                {
+                    return;
+                }
+            }
         }
 
         public (double Speed, int TimeUntilNextChange) CalculateSpeed()
@@ -161,28 +175,6 @@ namespace Edi.Core.Device.Buttplug
             timeUntilNextChange = Math.Min(ReminingCmdTime, timeUntilNextChange);
             return (speed, Convert.ToInt32(timeUntilNextChange));
         }
-
-        private const int FinalWaitThreshold = 20; // Threshold for precise final wait.
-
-        public async Task WaitAsync(double milliseconds, CancellationToken cancellationToken = default)
-        {
-            if (milliseconds <= 0) return;
-
-            var stopwatch = Stopwatch.StartNew();
-            var initialWaitTime = Math.Max(0, milliseconds - FinalWaitThreshold);
-
-            if (initialWaitTime > 0)
-            {
-                await Task.Delay(TimeSpan.FromMilliseconds(initialWaitTime), cancellationToken);
-            }
-
-            while (stopwatch.ElapsedMilliseconds < milliseconds)
-            {
-                await Task.Yield();
-                cancellationToken.ThrowIfCancellationRequested();
-            }
-        }
-
 
     }
 

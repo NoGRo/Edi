@@ -20,6 +20,7 @@ using Edi.Core.Device.Interfaces;
 using System.Runtime.CompilerServices;
 using System.Threading;
 using PropertyChanged;
+using System.Timers;
 using System.ComponentModel.DataAnnotations;
 using System.Xml.Linq;
 
@@ -59,7 +60,15 @@ namespace Edi.Core.Device.Handy
 
             SelectedVariant = repository.GetVariants().FirstOrDefault("");
         }
-        
+
+    
+        internal override async Task applyRange()
+        {
+            Debug.WriteLine($"Handy: {Key} Slide {Min}-{Max}");
+            var request = new SlideRequest(Min, Max);
+            await Client.PutAsync("Slide", new StringContent(JsonConvert.SerializeObject(request), Encoding.UTF8, "application/json"));
+        }
+
         public override async Task PlayGallery(IndexGallery gallery, long seek = 0)
         {
             if (gallery.Bundle != CurrentBundle)
@@ -231,6 +240,7 @@ namespace Edi.Core.Device.Handy
     public record ConnectedResponse(bool connected);
     public record ModeRequest(int mode);
     public record ErrorDetails(int Code, string Name, string Message, bool Connected);
+    public record SlideRequest(int min, int max);
     public record ErrorResponse(ErrorDetails Error);
 
 }

@@ -19,7 +19,7 @@ namespace Edi.Core.Device.Buttplug
 
     //OSR6 I don't know if you can use this class because it is all designed for a single stream to go under bluetooth it has the rate limit other things
     [AddINotifyPropertyChangedInterface]
-    public class ButtplugDevice : DeviceBase<FunscriptRepository, FunscriptGallery>
+    public class ButtplugDevice : DeviceBase<FunscriptRepository, FunscriptGallery>, IRange
     {
         public ButtplugClientDevice Device { get; private set; }
         private ButtplugConfig config { get;  set; }
@@ -28,11 +28,14 @@ namespace Edi.Core.Device.Buttplug
 
         
         public CmdLinear CurrentCmd { get; set; }
-        public int currentCmdIndex { get; set; }
         private DateTime lastCmdSendAt { get;  set; }
+        public int currentCmdIndex { get; set; }
         public int CurrentCmdTime => CurrentCmd == null ? 0 : Math.Min(CurrentCmd.Millis, Convert.ToInt32(this.CurrentTime - (CurrentCmd.AbsoluteTime - CurrentCmd.Millis)) );
         public int ReminingCmdTime => CurrentCmd == null ? 0 : Math.Max(0, Convert.ToInt32((CurrentCmd.AbsoluteTime) - this.CurrentTime));
-        
+
+        public int Min { get; set; }
+        public int Max { get; set; } = 100;
+
         private double vibroSteps;
         private CancellationTokenSource cancelTokenSource = new CancellationTokenSource();
 
@@ -77,7 +80,7 @@ namespace Edi.Core.Device.Buttplug
 
             while (currentCmdIndex >= 0 && currentCmdIndex < cmds.Count)
             {
-                CurrentCmd = cmds[currentCmdIndex];
+                CurrentCmd =  cmds[currentCmdIndex];
                 //CurrentCmd.Sent = DateTime.Now;
 
                 var sendtask = SendCmd();
@@ -85,55 +88,22 @@ namespace Edi.Core.Device.Buttplug
                 try
                 {
                     // Usa el nuevo token de cancelación aquí
-                    await Task.Delay(Math.Max(0, (int)ReminingCmdTime), cancelTokenSource.Token);
+                    await Task.Delay(Math.Max(0, ReminingCmdTime), cancelTokenSource.Token);
                 }
                 catch (TaskCanceledException)
                 {
                     return; // Salimos de la función si la tarea fue cancelada.
                 }
 
-
                 currentCmdIndex = cmds.FindIndex(currentCmdIndex, x => x.AbsoluteTime > CurrentTime);
                 if (currentCmdIndex < 0)
                 {
-
                     currentCmdIndex = cmds.FindIndex(x => x.AbsoluteTime > CurrentTime);
                     if (currentCmdIndex < 0) 
                         break; // Si aún así no hay más comandos, sale del bucle.
                 }
             }
         }
-
-        public async Task SendCmd()
-        {
-            if (Device == null)
-                return;
-
-            if(CurrentCmd.Millis <= 0)
-            {
-                await Task.Delay(1);
-                return;
-            }
-            Task sendtask = Task.CompletedTask;
-            if (CurrentCmd.Millis >= config.CommandDelay 
-                || (DateTime.Now - lastCmdSendAt).TotalMilliseconds >= config.CommandDelay)
-            {
-                lastCmdSendAt = DateTime.Now;
-                switch (Actuator)
-                {
-                    case ActuatorType.Position:
-                        sendtask = Device.LinearAsync(new[] { ((uint)(ReminingCmdTime), CurrentCmd.LinearValue) });
-                        break;
-                    case ActuatorType.Rotate:
-                        sendtask = Device.RotateAsync(Math.Min(1.0, Math.Max(0, CurrentCmd.Speed / (double)450)), CurrentCmd.Direction); ;
-                        break;
-                }
-            }
-
-            await sendtask.ConfigureAwait(false);
-
-        }
-
         public override async Task StopGallery()
         {
             var previousCts = Interlocked.Exchange(ref cancelTokenSource, new CancellationTokenSource());
@@ -156,12 +126,57 @@ namespace Edi.Core.Device.Buttplug
             }
         }
 
+        public async Task SendCmd()
+        {
+            if (Device == null)
+                return;
+
+            if (CurrentCmd.Millis <= 0)
+            {
+                await Task.Delay(1);
+                return;
+            }
+            Task sendtask = Task.CompletedTask;
+            if (CurrentCmd.Millis >= config.CommandDelay
+                || (DateTime.Now - lastCmdSendAt).TotalMilliseconds >= config.CommandDelay)
+            {
+                lastCmdSendAt = DateTime.Now;
+                switch (Actuator)
+                {
+                    case ActuatorType.Position:
+
+                         
+
+                        sendtask = Device.LinearAsync(new[] { ((uint)(ReminingCmdTime), Math.Min(1.0, Math.Max(0, GetValueInRangue() / (double)100))) });
+                        break;
+                    case ActuatorType.Rotate:
+                        sendtask = Device.RotateAsync(Math.Min(1.0, Math.Max(0, CurrentCmd.Speed / (double)450)), CurrentCmd.Direction); ;
+                        break;
+                }
+            }
+
+            await sendtask.ConfigureAwait(false);
+
+        }
+
+        private int GetValueInRangue()
+        {
+            return  Convert.ToInt32(Min + ((Max - Min) / ((double)100) * CurrentCmd.Value));
+/*
+            if (CurrentCmd.Value == Min && CurrentCmd.Value == Max && CurrentCmd.Prev?.Value == Min)
+                CurrentCmd.Cancel = true;
+*/
+
+        }
+
         public (double Speed, int TimeUntilNextChange) CalculateSpeed()
         {
             if (CurrentCmd == null)
                 return (0, 0); // Si no hay comando actual, no hay velocidad ni cambio.
 
-            var distanceToTravel = CurrentCmd.Value - CurrentCmd.InitialValue;
+            var distanceToTravel = GetValueInRangue() - CurrentCmd.InitialValue;
+
+
             var elapsedFraction = (double)CurrentCmdTime / CurrentCmd.Millis;
             var travel = Math.Round(distanceToTravel * elapsedFraction, 0);
             travel = travel is double.NaN or double.PositiveInfinity or double.NegativeInfinity ? 0 : travel;

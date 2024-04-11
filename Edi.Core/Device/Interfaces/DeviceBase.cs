@@ -6,6 +6,8 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using System.Threading;
+using Newtonsoft.Json;
+using System.Timers;
 
 namespace Edi.Core.Device.Interfaces
 {
@@ -20,6 +22,7 @@ namespace Edi.Core.Device.Interfaces
         protected DeviceBase(TRepository repository) 
         {
             this.repository = repository;
+            timerRange.Elapsed += TimerRange_Elapsed;
 
         }
 
@@ -37,14 +40,68 @@ namespace Edi.Core.Device.Interfaces
             }
         }
 
-
         public virtual IEnumerable<string> Variants => repository.GetVariants();
-
-        
+                
         public  string Name { get; set; }
         public DateTime SyncSend { get; private set; }
         public long SeekTime { get; private set; }
         public int CurrentTime => currentGallery == null ? 0 : Convert.ToInt32(((DateTime.Now - SyncSend).TotalMilliseconds + SeekTime) % currentGallery.Duration) ;
+
+        private System.Timers.Timer timerRange = new System.Timers.Timer(100);
+        private Task TimerRangeTask;
+        private int lastMin;
+        private int lastMax;
+
+        internal virtual async Task applyRange()
+        {
+
+        }
+
+        private async void TimerRange_Elapsed(object sender, ElapsedEventArgs e)
+        {
+            if (TimerRangeTask != null && !TimerRangeTask.IsCompleted)
+                return;
+
+            if (min == lastMin && max == lastMax)
+            {
+                timerRange.Stop();
+                return;
+            }
+            lastMax = max;
+            lastMin = min;
+
+            if (TimerRangeTask != null && !TimerRangeTask.IsCompleted)
+                await TimerRangeTask;
+
+            TimerRangeTask = applyRange();
+
+            await TimerRangeTask;
+        }
+        public record SlideRequest(int min, int max);
+        private int max;
+        private int min;
+        public int Min
+        {
+            get => min;
+            set
+            {
+                min = value;
+                if (!timerRange.Enabled)
+                    timerRange.Start();
+            }
+        }
+        public int Max
+        {
+            get => max;
+            set
+            {
+                max = value;
+                if (!timerRange.Enabled)
+                    timerRange.Start();
+            }
+        }
+
+
         private CancellationTokenSource cancelTokenSource = new CancellationTokenSource();
         public virtual async Task PlayGallery(string name, long seek = 0)
         {
@@ -71,16 +128,15 @@ namespace Edi.Core.Device.Interfaces
             await PlayGallery(gallery, seek);
             try
             {
-                await Task.Delay(TimeSpan.FromMilliseconds(interval), localCts.Token);
+                await Task.Delay(TimeSpan.FromMilliseconds(interval), cancelTokenSource.Token);
             }
             catch (TaskCanceledException)
             {
-                // Lógica después de la cancelación, si es necesario
                 return;
             }
 
             // Verifica que el token no haya sido cancelado por otra invocación
-            if (localCts.Token.IsCancellationRequested) 
+            if (cancelTokenSource.Token.IsCancellationRequested) 
                 return;
 
             if (currentGallery?.Loop == true && !IsPause)

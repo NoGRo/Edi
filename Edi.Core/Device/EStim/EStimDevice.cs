@@ -35,6 +35,11 @@ namespace Edi.Core.Device.EStim
             SelectedVariant = _repository.GetVariants().FirstOrDefault();
             
         }
+        internal override Task applyRange()
+        {
+            _wavePlayer.Volume = Max / 100;
+            return Task.CompletedTask;
+        }
 
         public override async Task PlayGallery(AudioGallery gallery, long seek = 0)
         {

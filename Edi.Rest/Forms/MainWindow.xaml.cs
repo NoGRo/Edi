@@ -4,10 +4,12 @@ using Edi.Core.Device.Buttplug;
 using Edi.Core.Device.EStim;
 using Edi.Core.Device.Handy;
 using Edi.Core.Device.Interfaces;
+using Edi.Core.Device.OSR;
 using NAudio.Wave;
 using System;
 using System.Collections.Generic;
 using System.Globalization;
+using System.IO.Ports;
 using System.Linq;
 using System.Security.Policy;
 using System.Text;
@@ -34,14 +36,17 @@ namespace Edi.Forms
         public HandyConfig handyConfig;
         public ButtplugConfig buttplugConfig;
         public EStimConfig estimConfig;
+        public OSRConfig osrConfig;
 
         private record AudioDevice(int id, string name);
+        private record ComPort(string name, string? value);
         public MainWindow()
         {
             config = edi.ConfigurationManager.Get<EdiConfig>();
             handyConfig = edi.ConfigurationManager.Get<HandyConfig>();
             buttplugConfig = edi.ConfigurationManager.Get<ButtplugConfig>();
             estimConfig = edi.ConfigurationManager.Get<EStimConfig>();
+            osrConfig = edi.ConfigurationManager.Get<OSRConfig>();
 
             var galleries = edi.Definitions.Where(x=> x.Type != "filler" ).ToList();
 
@@ -55,6 +60,7 @@ namespace Edi.Forms
                 handyConfig = handyConfig,
                 buttplugConfig = buttplugConfig,
                 estimConfig = estimConfig,
+                osrConfig = osrConfig,
 
                 devices = edi.DeviceManager.Devices,
                 
@@ -85,6 +91,18 @@ namespace Edi.Forms
             }
             audioDevicesComboBox.ItemsSource = audios;
             DevicesGrid.ItemsSource = edi.DeviceManager.Devices;
+
+            loadOSRPorts();
+        }
+
+        private void loadOSRPorts()
+        {
+            var comPorts = new List<ComPort>() { new ComPort("None", null) };
+            foreach (var port in SerialPort.GetPortNames())
+            {
+                comPorts.Add(new ComPort(port, port));
+            }
+            comPortsComboBox.ItemsSource = comPorts;
         }
         private void Edi_OnChangeStatus(string message)
         {
@@ -147,6 +165,7 @@ namespace Edi.Forms
         {
             await Dispatcher.Invoke(async () =>
             {
+                loadOSRPorts();
                 await edi.DeviceManager.Init();
             });
         }

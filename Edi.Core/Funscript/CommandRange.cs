@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
+using System.Text.Json.Serialization;
 using System.Threading.Tasks;
 
 namespace Edi.Core.Funscript
@@ -22,11 +23,14 @@ namespace Edi.Core.Funscript
             set { _upperLimit = Math.Min(Math.Max(_lowerLimit, value), 200); }
         }
 
-        public int RangeDelta => _upperLimit - _lowerLimit;
+        public int RangeDelta()
+        {
+            return _upperLimit - _lowerLimit;
+        }
 
         public CmdLinear ProcessCommand(CmdLinear command)
         {
-            command.Value = Convert.ToByte(Math.Min(100, _lowerLimit + (RangeDelta / 100 * command.Value)));
+            command.Value = Convert.ToByte(Math.Min(100, _lowerLimit + (RangeDelta() / 100 * command.Value)));
 
             return command;
         }

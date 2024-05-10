@@ -44,19 +44,21 @@
         <TextBox HorizontalAlignment="Left" Margin="84,45,0,0" TextWrapping="Wrap" Text="{Binding buttplugConfig.Url}" ToolTip="Buttplug Url" VerticalAlignment="Top" Width="210"/>
         <Label Content="EStim Audio:" HorizontalAlignment="Left" Margin="5,69,0,0" VerticalAlignment="Top"/>
         <ComboBox Name="audioDevicesComboBox" HorizontalAlignment="Left" DisplayMemberPath="name" Margin="84,73,0,0" VerticalAlignment="Top" SelectedValuePath="id" SelectedValue="{Binding estimConfig.DeviceId}" Width="210" IsTextSearchEnabled="True" IsEnabled="True"/>
+        <Label Content="OSR Port:" HorizontalAlignment="Left" Margin="5,97,0,0" VerticalAlignment="Top"/>
+        <ComboBox Name="comPortsComboBox" HorizontalAlignment="Left" DisplayMemberPath="name" Margin="84,101,0,0" VerticalAlignment="Top" SelectedValuePath="value" SelectedValue="{Binding osrConfig.COMPort}" Width="210" IsTextSearchEnabled="True" IsEnabled="True"/>
 
 
         <Label Grid.Column="1" Content="Devices:" HorizontalAlignment="Left" Margin="5,66,0,0" VerticalAlignment="Top" Width="200"/>
         <Label  Foreground="Blue" Content="http://localhost:5000/swagger/index.html" HorizontalAlignment="Left" MouseDoubleClick="Label_MouseDoubleClick"  Margin="5,0,0,79" VerticalAlignment="Bottom" Width="230"/>
         <Label Grid.Column="0" Content="Status:" Margin="10,0,0,25" x:Name="lblStatus" Width="652" Height="26" VerticalAlignment="Bottom" HorizontalAlignment="Left" Grid.ColumnSpan="2" />
 
-        <Button Content="Reconnect" HorizontalAlignment="Left" Margin="222,112,0,0" VerticalAlignment="Top" x:Name="ReconnectButton" Click="ReconnectButton_ClickAsync" Height="22" Width="72" RenderTransformOrigin="5.083,-1.983"/>
-        <Button Content="Reload Galleries" HorizontalAlignment="Left" Margin="10,112,0,0" VerticalAlignment="Top" x:Name="ReloadButton"  Height="22" Width="103" Click="ReloadButton_Click"/>
+        <Button Content="Reconnect" HorizontalAlignment="Left" Margin="222,142,0,0" VerticalAlignment="Top" x:Name="ReconnectButton" Click="ReconnectButton_ClickAsync" Height="22" Width="72" RenderTransformOrigin="5.083,-1.983"/>
+        <Button Content="Reload Galleries" HorizontalAlignment="Left" Margin="10,142,0,0" VerticalAlignment="Top" x:Name="ReloadButton"  Height="22" Width="103" Click="ReloadButton_Click"/>
 
         <Button Visibility="Hidden" Content="RePackButton" HorizontalAlignment="Left" Margin="10,125,0,0" VerticalAlignment="Top" x:Name="RePackButton"  Height="22" Width="103" Click="RePackButton_Click"/>
 
 
-        
+
         <!-- ComboBox para las galerías -->
         <ComboBox x:Name="cmbGallerie" HorizontalAlignment="Left" VerticalAlignment="Bottom" Width="144" Height="22" Margin="10,0,0,56" Grid.Column="0" DisplayMemberPath="Name" ItemsSource="{Binding galleries}">
         </ComboBox>

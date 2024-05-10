@@ -295,7 +295,7 @@ namespace Edi.Core.Device.OSR
                     return command;
             }
 
-            var value = Math.Min(100, (limits.LowerLimit / 100f * 100) + (limits.RangeDelta / 100f * command.Value));
+            var value = Math.Min(100, (limits.LowerLimit / 100f * 100) + (limits.RangeDelta() / 100f * command.Value));
             return CmdLinear.GetCommandMillis(command.Millis, value);
         }
     }

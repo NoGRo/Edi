@@ -10,11 +10,10 @@ using PropertyChanged;
 
 namespace Edi.Core.Device.OSR
 {
-    
     [AddINotifyPropertyChangedInterface]
-    public  class OSRConfig
+    public class OSRConfig
     {
-        public string COMPort { get; set; } = "COM5";
+        public string? COMPort { get; set; } = null;
         public bool EnableMultiAxis { get; set; } = false;
         public RangeConfiguration RangeLimits { get; set; } = new RangeConfiguration();
     }

@@ -2,6 +2,7 @@
 using Edi.Core.Funscript;
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 
 namespace FunscriptIntegrationService.Connector.Shared
@@ -70,17 +71,25 @@ namespace FunscriptIntegrationService.Connector.Shared
 
                 if (seekIdx >= 0)
                 {
-                    commands.Insert(seekIdx + 1, currentPositionCommand);
+                    commands.Insert(seekIdx, currentPositionCommand);
 
-                    var nextCommand = commands[seekIdx + 2];
-                    nextCommand.InitialValue = currentPositionCommand.Value;
-                    if (nextCommand.Speed > 350)
+                    if (seekIdx < commands.Count - 1)
                     {
-                        commands[seekIdx + 2] = CmdLinear.GetCommandSpeed(300, nextCommand.Value, currentPositionCommand.Value);
+                        var nextCommand = commands[seekIdx + 1];
+                        nextCommand.InitialValue = currentPositionCommand.Value;
+                        if (nextCommand.Speed > 350)
+                        {
+                            commands[seekIdx + 2] = CmdLinear.GetCommandSpeed(300, nextCommand.Value, currentPositionCommand.Value);
+                        }
                     }
                 }
+                var firstCmd = commands.First();
+                if (firstCmd.buttplugMillis == 0)
+                {
+                    commands.RemoveAt(0);
+                }
 
-                commands.Insert(0, CmdLinear.GetCommandMillis(0, device.LastCommandSent(axis)?.Value ?? 50));
+                commands = commands.Prepend(CmdLinear.GetCommandMillis(0, device.LastCommandSent(axis)?.Value ?? 50)).ToList();
 
                 processedCommands[axis] = commands;
 

@@ -261,9 +261,6 @@ namespace Edi.Core.Device.OSR
             var value = (int)(updatedCmd.Value * 99.99);
             var tCode = $"{ChannelCode(axis)}{value.ToString().PadLeft(4, '0')}I{updatedCmd.Millis}";
 
-            if (axis == Axis.Sway)
-                Debug.WriteLine(tCode);
-
             DevicePort.WriteLine(tCode);
             lastCommandSent[axis] = cmd;
         }

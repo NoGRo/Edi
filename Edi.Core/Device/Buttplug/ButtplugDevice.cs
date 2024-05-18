@@ -26,13 +26,37 @@ namespace Edi.Core.Device.Buttplug
         public ActuatorType Actuator { get; }
         public uint Channel { get; }
 
-        
-        public CmdLinear CurrentCmd { get; set; }
+        private CmdLinear _currentCmd;
+
+        public CmdLinear CurrentCmd
+        {
+            get => _currentCmd;
+            set => Interlocked.Exchange(ref _currentCmd, value);
+        }
         private DateTime lastCmdSendAt { get;  set; }
         public int currentCmdIndex { get; set; }
-        public int CurrentCmdTime => CurrentCmd == null ? 0 : Math.Min(CurrentCmd.Millis, Convert.ToInt32(this.CurrentTime - (CurrentCmd.AbsoluteTime - CurrentCmd.Millis)) );
-        public int ReminingCmdTime => CurrentCmd == null ? 0 : Math.Max(0, Convert.ToInt32((CurrentCmd.AbsoluteTime) - this.CurrentTime));
-
+        public int CurrentCmdTime
+        {
+            get
+            {
+                CmdLinear localCmd = null;
+                Interlocked.CompareExchange(ref localCmd, _currentCmd, null);
+                return localCmd == null
+                    ? 0
+                    : Math.Min(localCmd.Millis, Convert.ToInt32(this.CurrentTime - (localCmd.AbsoluteTime - localCmd.Millis)));
+            }
+        }
+        public int ReminingCmdTime 
+        {
+            get
+            {
+                CmdLinear localCmd = null;
+                Interlocked.CompareExchange(ref localCmd, _currentCmd, null);
+                return localCmd == null 
+                    ? 0 
+                    : Math.Max(0, Convert.ToInt32(localCmd.AbsoluteTime - this.CurrentTime));
+            }
+        }
         public int Min { get; set; }
         public int Max { get; set; } = 100;
 
@@ -60,10 +84,12 @@ namespace Edi.Core.Device.Buttplug
 
             this.config = config;
             
-            SelectedVariant = Variants.FirstOrDefault(x => x.Contains(Actuator.ToString(),StringComparison.OrdinalIgnoreCase))
-                                ?? Variants.FirstOrDefault("");
         }
 
+        public override string ResolveDefaultVariant()
+        => Variants.FirstOrDefault(x => x.Contains(Actuator.ToString(), StringComparison.OrdinalIgnoreCase))
+            ?? base.ResolveDefaultVariant();
+        
         public override async Task PlayGallery(FunscriptGallery gallery, long seek = 0)
         {
 
@@ -144,9 +170,6 @@ namespace Edi.Core.Device.Buttplug
                 switch (Actuator)
                 {
                     case ActuatorType.Position:
-
-                         
-
                         sendtask = Device.LinearAsync(new[] { ((uint)(ReminingCmdTime), Math.Min(1.0, Math.Max(0, GetValueInRangue() / (double)100))) });
                         break;
                     case ActuatorType.Rotate:
@@ -171,6 +194,7 @@ namespace Edi.Core.Device.Buttplug
 
         public (double Speed, int TimeUntilNextChange) CalculateSpeed()
         {
+
             if (CurrentCmd == null)
                 return (0, 0); // Si no hay comando actual, no hay velocidad ni cambio.
 
@@ -180,7 +204,7 @@ namespace Edi.Core.Device.Buttplug
             var elapsedFraction = (double)CurrentCmdTime / CurrentCmd.Millis;
             var travel = Math.Round(distanceToTravel * elapsedFraction, 0);
             travel = travel is double.NaN or double.PositiveInfinity or double.NegativeInfinity ? 0 : travel;
-            var currVal = Math.Abs(Math.Max(0, Math.Min(100,CurrentCmd.InitialValue + Convert.ToInt16(travel))));
+            var currVal = Math.Abs(Math.Max(0, Math.Min(100, CurrentCmd.InitialValue + Convert.ToInt16(travel))));
 
             var speed = (int)Math.Round(currVal / vibroSteps) * vibroSteps;
             speed = Math.Min(1.0, Math.Max(0, speed / (double)100));
@@ -192,7 +216,9 @@ namespace Edi.Core.Device.Buttplug
             var timeUntilNextChange = (elapsedFraction + nextStepFraction) * CurrentCmd.Millis - CurrentCmdTime;
 
             // Ajustamos el tiempo para asegurarnos de que no sea negativo ni infinito.
-            timeUntilNextChange = timeUntilNextChange < 0 ? ReminingCmdTime : timeUntilNextChange;
+            if(timeUntilNextChange < 0)
+                timeUntilNextChange = ReminingCmdTime;
+                
             timeUntilNextChange = Math.Min(ReminingCmdTime, timeUntilNextChange);
             return (speed, Convert.ToInt32(timeUntilNextChange));
         }

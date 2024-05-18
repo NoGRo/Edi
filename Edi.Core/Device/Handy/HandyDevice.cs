@@ -38,15 +38,9 @@ namespace Edi.Core.Device.Handy
         public HttpClient Client = null;
 
 
-        public override string SelectedVariant
+        internal override void SetVariant()
         {
-            get => selectedVariant;
-            set
-            {
-                selectedVariant = value;
-                upload();
-                
-            }
+            upload();
         }
         private string CurrentBundle = "default";
         public HandyDevice(HttpClient Client, IndexRepository repository): base(repository) 
@@ -57,8 +51,6 @@ namespace Edi.Core.Device.Handy
 
             IsReady = false;
             this.Client = Client;
-
-            SelectedVariant = repository.GetVariants().FirstOrDefault("");
         }
 
     
@@ -158,16 +150,12 @@ namespace Edi.Core.Device.Handy
                     var resp = await Client.PutAsync("hssp/setup", new StringContent(JsonConvert.SerializeObject(new SyncUpload(blob)), Encoding.UTF8, "application/json"), uploadCancellationTokenSource.Token);
                     var result = await resp.Content.ReadAsStringAsync();
 
-                    if(result.Contains("timeout") )
+                    if (result.Contains("timeout"))
                     {
                         //when the divice ends, re adquiere seek command
                     }
                     IsReady = true;
-
-                    if (currentGallery != null && !IsPause)
-                    {
-                        await PlayGallery(currentGallery.Name, CurrentTime);
-                    }
+                    Resume();
                 }
                 catch (TaskCanceledException)
                 {

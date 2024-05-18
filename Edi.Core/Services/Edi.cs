@@ -55,7 +55,7 @@ namespace Edi.Core
 
         }
 
-        private void DeviceManager_OnloadDevice(IDevice device)
+        private void DeviceManager_OnloadDevice(IDevice device,List<IDevice> devices)
         {
             if (LastGallery == null || GallerySendTime == null)
                 return;
@@ -78,6 +78,7 @@ namespace Edi.Core
 
         public async Task Init(string path)
         {
+            path = path ?? ConfigurationManager.Get<GalleryConfig>()?.GalleryPath ?? "./" ;
             foreach (var repo in repos)
             {
                 await repo.Init(path);

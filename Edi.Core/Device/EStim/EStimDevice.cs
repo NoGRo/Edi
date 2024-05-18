@@ -32,7 +32,6 @@ namespace Edi.Core.Device.EStim
             _wavePlayer = wavePlayer;
 
             _inMemoryMp3 = _repository.GetAll().Select(x=> x.AudioPath).Distinct().ToDictionary(x=> x, y => new Mp3FileReader(y));
-            SelectedVariant = _repository.GetVariants().FirstOrDefault();
             
         }
         internal override Task applyRange()

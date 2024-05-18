@@ -31,7 +31,7 @@ namespace Edi.Core.Device.Buttplug
 
 
 
-        private void DeviceManager_OnUnloadDevice(IDevice Device)
+        private void DeviceManager_OnUnloadDevice(IDevice Device, List<IDevice> devices)
         {
             ButtplugDevice? buttplugDevice = (Device as ButtplugDevice);
             if (buttplugDevice != null && customDelayDevices.TryRemove(buttplugDevice.Device, out var cts))
@@ -40,7 +40,7 @@ namespace Edi.Core.Device.Buttplug
             }
         }
 
-        private void DeviceManager_OnloadDevice(IDevice Device)
+        private void DeviceManager_OnloadDevice(IDevice Device, List<IDevice> devices)
         {
             var device = Device as ButtplugDevice;
             if (device != null && device.Actuator is ActuatorType.Vibrate or ActuatorType.Oscillate)
@@ -59,7 +59,8 @@ namespace Edi.Core.Device.Buttplug
         {
             while (!cancellationToken.IsCancellationRequested)
             {
-                var commands = deviceManager.Devices
+                var devices = deviceManager.Devices; //obtener desde interlock exchange 
+                var commands =  devices
                                                 .OfType<ButtplugDevice>()
                                                 .Where(x => x != null && x.Device == device.Device && !x.IsPause  && x.CurrentCmd != null)
                                                 .Select(x => new { x.Device, x.Actuator, ReminingTime = x.CalculateSpeed().TimeUntilNextChange, Cmd = (x.Channel, x.CalculateSpeed().Speed )})

@@ -18,7 +18,7 @@ namespace Edi.Core.Device.Interfaces
         protected TRepository repository { get; }
         protected TGallery currentGallery;
 
-        public bool IsPause { get; set; }
+        public bool IsPause { get; set; } = true;
         protected DeviceBase(TRepository repository) 
         {
             this.repository = repository;
@@ -34,10 +34,25 @@ namespace Edi.Core.Device.Interfaces
             get => selectedVariant;
             set
             {
-                selectedVariant = value;
-                if (currentGallery != null && !IsPause)
-                    PlayGallery(currentGallery.Name, CurrentTime).GetAwaiter();
+                if(selectedVariant != value) {
+                    selectedVariant = value;
+                    SetVariant();
+                    Resume();
+                }
             }
+        }
+
+        public void Resume()
+        {
+            if (currentGallery != null && !IsPause)
+            {
+                PlayGallery(currentGallery.Name, CurrentTime).GetAwaiter();
+            }    
+        }
+
+        internal virtual void SetVariant()
+        {
+
         }
 
         public virtual IEnumerable<string> Variants => repository.GetVariants();
@@ -169,5 +184,9 @@ namespace Edi.Core.Device.Interfaces
 
         }
         public abstract Task StopGallery();
+
+        public virtual string ResolveDefaultVariant()
+        => Variants.FirstOrDefault("");
+        
     }
 }

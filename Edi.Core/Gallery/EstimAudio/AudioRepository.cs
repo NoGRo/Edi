@@ -26,36 +26,12 @@ namespace Edi.Core.Gallery.EStimAudio
 
         public override AudioGallery ReadGallery(AssetEdi asset, DefinitionGallery definition)
         {
-            Mp3FileReader reader;
-
-            try
-            {
-                reader = new Mp3FileReader(asset.File.FullName);
-            }
-            catch
-            {
-                return null;
-            }
-
-            if (!reader.CanSeek)
-            {
-                reader.Close();
-                return null;
-            }
-
-            try
-            {
-                reader.CurrentTime = TimeSpan.FromMilliseconds(definition.StartTime);
-            }
-            catch
-            {
-                return null;
-            }
+            //Validate(asset, definition);
 
             return new AudioGallery
             {
                 Name = definition.Name,
-                Variant =  asset.Variant,
+                Variant = asset.Variant,
                 AudioPath = asset.File.FullName,
                 Loop = definition.Loop,
                 Duration = definition.Duration,
@@ -64,5 +40,35 @@ namespace Edi.Core.Gallery.EStimAudio
 
         }
 
+        private static bool Validate(AssetEdi asset, DefinitionGallery definition)
+        {
+            Mp3FileReader reader;
+
+            try
+            {
+                reader = new Mp3FileReader(asset.File.FullName);
+            }
+            catch
+            {
+                return false;
+            }
+
+            if (!reader.CanSeek)
+            {
+                reader.Close();
+                return false;
+            }
+
+            try
+            {
+                reader.CurrentTime = TimeSpan.FromMilliseconds(definition.StartTime);
+            }
+            catch
+            {
+                return false;
+            }
+
+            return true;
+        }
     }
 }

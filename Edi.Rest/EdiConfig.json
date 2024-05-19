@@ -2,7 +2,7 @@
   "Gallery": {
     "DefaulVariant": "BF",
     "SelectedVariant": null,
-    "GalleryPath": "D:\\Programacion\\CockHeroPlatform"
+    "GalleryPath": "Gallery"
   },
   "GalleryBundler": {
     "RepearDuration": 2000,

@@ -20,6 +20,7 @@ using Edi.Core.Device.Interfaces;
 using System.Runtime.CompilerServices;
 using System.Threading;
 using PropertyChanged;
+using System.Timers;
 using System.ComponentModel.DataAnnotations;
 using System.Xml.Linq;
 
@@ -37,15 +38,9 @@ namespace Edi.Core.Device.Handy
         public HttpClient Client = null;
 
 
-        public override string SelectedVariant
+        internal override void SetVariant()
         {
-            get => selectedVariant;
-            set
-            {
-                selectedVariant = value;
-                upload();
-                
-            }
+            upload();
         }
         private string CurrentBundle = "default";
         public HandyDevice(HttpClient Client, IndexRepository repository): base(repository) 
@@ -56,10 +51,16 @@ namespace Edi.Core.Device.Handy
 
             IsReady = false;
             this.Client = Client;
-
-            SelectedVariant = repository.GetVariants().FirstOrDefault("");
         }
-        
+
+    
+        internal override async Task applyRange()
+        {
+            Debug.WriteLine($"Handy: {Key} Slide {Min}-{Max}");
+            var request = new SlideRequest(Min, Max);
+            await Client.PutAsync("Slide", new StringContent(JsonConvert.SerializeObject(request), Encoding.UTF8, "application/json"));
+        }
+
         public override async Task PlayGallery(IndexGallery gallery, long seek = 0)
         {
             if (gallery.Bundle != CurrentBundle)
@@ -76,13 +77,12 @@ namespace Edi.Core.Device.Handy
 
         private async Task Seek(long timeMs)
         {
-
-            var req = new SyncPlayRequest(ServerTime, timeMs);
             if (IsReady)
             {
-                Debug.WriteLine($"Handy: {Key} PLay [{timeMs}] ({currentGallery?.Name ?? ""}))");
+                Debug.WriteLine($"Handy: [{DateTimeOffset.UtcNow.ToUnixTimeMilliseconds()}] {ServerTime} {Key} PLay [{timeMs}] ({currentGallery?.Name ?? ""}))");
                 try
                 {
+                    var req = new SyncPlayRequest(ServerTime, timeMs);
                     await Client.PutAsync("hssp/play", new StringContent(JsonConvert.SerializeObject(req), Encoding.UTF8, "application/json"));
                 }
                 catch (Exception ex)
@@ -100,7 +100,6 @@ namespace Edi.Core.Device.Handy
                 Debug.WriteLine($"Handy: {Key} Stop");
                 try
                 {
-
                     await Client.PutAsync("hssp/stop", null);
                 }
                 catch (Exception ex)
@@ -118,7 +117,7 @@ namespace Edi.Core.Device.Handy
         private async void upload(string bundle = null, bool delay = true)
         {
 
-            uploadCancellationTokenSource?.Cancel();
+            uploadCancellationTokenSource?.Cancel(true);
             await Task.Delay(50);
             uploadCancellationTokenSource = new CancellationTokenSource();
             
@@ -134,6 +133,7 @@ namespace Edi.Core.Device.Handy
                     {
                         return;
                     }
+
                 }
                 try
                 {
@@ -150,16 +150,12 @@ namespace Edi.Core.Device.Handy
                     var resp = await Client.PutAsync("hssp/setup", new StringContent(JsonConvert.SerializeObject(new SyncUpload(blob)), Encoding.UTF8, "application/json"), uploadCancellationTokenSource.Token);
                     var result = await resp.Content.ReadAsStringAsync();
 
-                    if(result.Contains("timeout") )
+                    if (result.Contains("timeout"))
                     {
                         //when the divice ends, re adquiere seek command
                     }
                     IsReady = true;
-
-                    if (currentGallery != null && !IsPause)
-                    {
-                        await PlayGallery(currentGallery.Name, CurrentTime);
-                    }
+                    Resume();
                 }
                 catch (TaskCanceledException)
                 {
@@ -232,6 +228,7 @@ namespace Edi.Core.Device.Handy
     public record ConnectedResponse(bool connected);
     public record ModeRequest(int mode);
     public record ErrorDetails(int Code, string Name, string Message, bool Connected);
+    public record SlideRequest(int min, int max);
     public record ErrorResponse(ErrorDetails Error);
 
 }

@@ -30,10 +30,11 @@ namespace Edi.Forms
 
         private async Task BuildApi(string galleryPath)
         {
+
+            galleryPath = new DirectoryInfo(galleryPath).FullName;
+
             if (webApp != null)
                 await webApp.DisposeAsync();
-
-                
 
             var webAppBuilder = WebApplication.CreateBuilder();
 

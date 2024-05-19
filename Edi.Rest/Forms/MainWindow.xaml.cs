@@ -112,24 +112,25 @@ namespace Edi.Forms
             });
         }
 
-        private async void DeviceManager_OnUnloadDevice(Core.Device.Interfaces.IDevice device)
+        private async void DeviceManager_OnUnloadDevice(IDevice device, List<IDevice> devices)
         {
             Thread.Sleep(1000);
             await Dispatcher.InvokeAsync(async () =>
             {
-                //DevicesGrid.ItemsSource =  ((dynamic)this.DataContext).devices;
-                
+                DevicesGrid.ItemsSource =  devices;
+
                 DevicesGrid.Items.Refresh();
             });
 
         }
 
-        private async void DeviceManager_OnloadDeviceAsync(Core.Device.Interfaces.IDevice device)
+        private async void DeviceManager_OnloadDeviceAsync(IDevice device, List<IDevice> devices)
         {
             Thread.Sleep(500);
 
             await Dispatcher.InvokeAsync(async () =>
             {
+                DevicesGrid.ItemsSource = devices;
                 DevicesGrid.Items.Refresh();
             });
         }
@@ -140,7 +141,7 @@ namespace Edi.Forms
             ComboBox comboBox = (sender as ComboBox);
             
             var device = comboBox.DataContext as IDevice;
-            edi.DeviceManager.SelectVariant(device.Name, (string)comboBox.SelectedValue);
+            edi.DeviceManager.SelectVariant(device, (string)comboBox.SelectedValue);
         }
 
 

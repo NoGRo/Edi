@@ -25,6 +25,7 @@ namespace Edi.Core.Gallery.Definition
 
         public async Task Init(string path)
         {
+            path = path ?? Config.GalleryPath;
             var GalleryPath = $"{path}\\";
 
             if (!Directory.Exists($"{GalleryPath}"))

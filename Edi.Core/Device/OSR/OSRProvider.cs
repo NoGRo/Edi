@@ -51,9 +51,9 @@ namespace Edi.Core.Device.OSR
 
         private async Task Connect()
         {
+            await UnloadDevice();
             if (Config.COMPort == null)
             {
-                await UnloadDevice();
                 return;
             }
 

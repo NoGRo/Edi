@@ -1,42 +1,41 @@
-﻿using Buttplug;
-using Buttplug.Client;
-using Buttplug.Core;
-using Buttplug.Core.Messages;
-using Edi.Core.Device.Interfaces;
+﻿using Edi.Core.Device.Interfaces;
 using Edi.Core.Funscript;
-using Edi.Core.Gallery;
 using Edi.Core.Gallery.CmdLineal;
 using PropertyChanged;
-using System;
-using System.Collections;
-using System.Collections.Generic;
-using System.Diagnostics;
-using System.Diagnostics.CodeAnalysis;
-using System.Linq;
-using System.Net;
-using System.Text;
-using System.Timers;
-using System.Xml.Linq;
 using System.IO.Ports;
-using Timer = System.Timers.Timer;
-using System.Data;
-using NAudio.CoreAudioApi;
 using FunscriptIntegrationService.Connector.Shared;
 using System.Collections.Concurrent;
 
 namespace Edi.Core.Device.OSR
 {
     [AddINotifyPropertyChangedInterface]
-    public class OSRDevice : DeviceBase<FunscriptRepository,  FunscriptGallery>
+    public class OSRDevice : IDevice
     {
         public SerialPort DevicePort { get; private set; }
+        public string Name { get; set; }
         public OSRConfig Config { get; private set; }
+        public string SelectedVariant
+        {
+            get => selectedVariant;
+            set
+            {
+                selectedVariant = value;
+                if (currentGallery != null && PlaybackScript != null && !IsPause)
+                    PlayGallery(currentGallery.Name, PlaybackScript.CurrentTime).GetAwaiter();
+            }
+        }
+        public IEnumerable<string> Variants => repository.GetVariants();
         public DateTime GalleryStart { get; private set; } = DateTime.Now;
+        public bool IsPause { get; private set; } = true;
+        public bool IsReady => DevicePort?.IsOpen == true;
         public CmdLinear? LastCommandSent(Axis axis) => lastCommandSent.ContainsKey(axis) ? lastCommandSent[axis] : null;
 
 
         private readonly string[] channelCodes = new string[] { "L0", "L1", "L2", "R0", "R1", "R2", "V0", "A0", "A1" };
+        private FunscriptRepository repository { get; set; }
+        private string selectedVariant;
 
+        private FunscriptGallery? currentGallery;
         private OSRScript? PlaybackScript { get; set; }
         private bool IsNewScript { get; set; } = false;
         private bool SpeedRampUp { get; set; } = false;
@@ -47,16 +46,23 @@ namespace Edi.Core.Device.OSR
         private SemaphoreSlim AsyncLock = new(1, 1);
         private string ChannelCode(Axis type) => channelCodes[(int)type];
 
-        public OSRDevice(SerialPort devicePort, FunscriptRepository repository, OSRConfig config) : base(repository)
+        public OSRDevice(SerialPort devicePort, FunscriptRepository repository, OSRConfig config)
         {
             DevicePort = devicePort;
             Name = GetDeviceName();
 
             Config = config;
+            this.repository = repository;
+
+            selectedVariant = repository.GetVariants().FirstOrDefault();
         }
 
-        override public async Task PlayGallery(FunscriptGallery gallery, long seek = 0)
+        public async Task PlayGallery(string name, long seek = 0)
         {
+            var gallery = repository.Get(name, SelectedVariant);
+            if (gallery == null)
+                return;
+
             var script = new OSRScript(gallery.AxisCommands, seek);
             IsNewScript = currentGallery?.Name != gallery.Name;
             currentGallery = gallery;
@@ -68,9 +74,10 @@ namespace Edi.Core.Device.OSR
             PlayScript(script);
         }
 
-        override public async Task StopGallery()
+        public async Task Stop()
         {
-            playbackCancellationTokenSource?.Cancel();
+            IsPause = true;
+            playbackCancellationTokenSource.Cancel();
         }
 
         private void PlayScript(OSRScript script)
@@ -307,5 +314,8 @@ namespace Edi.Core.Device.OSR
             var value = Math.Min(100, (limits.LowerLimit / 100f * 100) + (limits.RangeDelta() / 100f * command.Value));
             return CmdLinear.GetCommandMillis(command.Millis, value);
         }
+
+        public string ResolveDefaultVariant()
+        => Variants.FirstOrDefault("");
     }
 }

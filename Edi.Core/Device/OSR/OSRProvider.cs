@@ -51,15 +51,25 @@ namespace Edi.Core.Device.OSR
 
         private async Task Connect()
         {
+            if (Config.COMPort == null)
+            {
+                await UnloadDevice();
+                return;
+            }
+
+            var port = new SerialPort(Config.COMPort, 115200, Parity.None, 8, StopBits.One);
+
             try
             {
-                if (Config.COMPort == null)
-                    return;
-
-                var port = new SerialPort(Config.COMPort, 115200, Parity.None, 8, StopBits.One);
                 port.Open();
 
-                Device = new OSRDevice(port, Repository, Config);
+                Device = new(port, Repository, Config);
+                if (!Device.AlivePing())
+                {
+                    OnStatusChange("Device unverifiable as OSR");
+                    return;
+                }
+
                 _ = Device.ReturnToHome();
 
                 DeviceManager.LoadDevice(Device);
@@ -67,6 +77,10 @@ namespace Edi.Core.Device.OSR
             catch (Exception e)
             {
                 OnStatusChange("Error");
+                if (port.IsOpen)
+                {
+                    port.Close();
+                }
             }
         }
 

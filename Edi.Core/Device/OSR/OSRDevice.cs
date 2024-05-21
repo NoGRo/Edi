@@ -23,8 +23,6 @@ using System.Data;
 using NAudio.CoreAudioApi;
 using FunscriptIntegrationService.Connector.Shared;
 using System.Collections.Concurrent;
-using System.Transactions;
-using System.Threading;
 
 namespace Edi.Core.Device.OSR
 {
@@ -174,11 +172,16 @@ namespace Edi.Core.Device.OSR
 
         public bool AlivePing()
         {
-            var ranges = GetDeviceRanges();
-            if (ranges == null)
-                return false;
-            if (ranges.StartsWith("L0"))
-                return true;
+            try
+            {
+                var ranges = GetDeviceRanges();
+
+                if (ranges == null)
+                    return false;
+                if (ranges.StartsWith("L0"))
+                    return true;
+
+            } catch { }
 
             return false;
         }
@@ -207,8 +210,11 @@ namespace Edi.Core.Device.OSR
 
         private string ReadDeviceOutput()
         {
+            var tryCount = 0;
             while (DevicePort.BytesToRead == 0)
             {
+                if (tryCount++ > 5)
+                    throw new Exception("Timeout waiting for OSR response");
                 Thread.Sleep(100);
             }
             return DevicePort.ReadExisting();

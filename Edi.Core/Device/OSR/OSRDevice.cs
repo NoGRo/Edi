@@ -172,17 +172,47 @@ namespace Edi.Core.Device.OSR
             }
         }
 
+        public bool AlivePing()
+        {
+            var ranges = GetDeviceRanges();
+            if (ranges == null)
+                return false;
+            if (ranges.StartsWith("L0"))
+                return true;
+
+            return false;
+        }
+
+        private string GetDeviceRanges()
+        {
+            if (!DevicePort.IsOpen)
+                return null;
+
+            DevicePort.ReadExisting();
+            DevicePort.Write("d2\n");
+            var ranges = ReadDeviceOutput();
+            return ranges.Replace("\r\n", "");
+        }
+
         private string GetDeviceName()
         {
+            if (!DevicePort.IsOpen)
+                return null;
+
             DevicePort.ReadExisting();
             DevicePort.Write("d1\n");
+            var name = ReadDeviceOutput();
+            return name.Replace("\r\n", "");
+        }
+
+        private string ReadDeviceOutput()
+        {
             while (DevicePort.BytesToRead == 0)
             {
                 Thread.Sleep(100);
             }
-            var name = DevicePort.ReadExisting();
-            return name.Replace("\r\n", "");
-        }
+            return DevicePort.ReadExisting();
+         }
 
         public async Task ReturnToHome()
         {

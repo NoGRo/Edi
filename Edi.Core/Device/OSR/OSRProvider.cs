@@ -24,23 +24,23 @@ namespace Edi.Core.Device.OSR
         public readonly OSRConfig Config;
         public event EventHandler<string> StatusChange;
 
-        private OSRDevice? device;
-        private DeviceManager deviceManager;
-        private FunscriptRepository repository;
-        private Timer timerReconnect = new Timer(20000);
+        private OSRDevice? Device;
+        private DeviceManager DeviceManager;
+        private FunscriptRepository Repository;
+        private readonly Timer TimerPing = new(5000);
 
         public OSRProvider(FunscriptRepository repository, ConfigurationManager config, DeviceManager deviceManager)
         {
             Config = config.Get<OSRConfig>();
 
-            this.deviceManager = deviceManager;
-            this.repository = repository;
+            this.DeviceManager = deviceManager;
+            this.Repository = repository;
         }
 
         public async Task Init()
         {
-            timerReconnect.Elapsed += timerReconnectevent;
-            timerReconnect.Start();
+            TimerPing.Elapsed += TimerPingEvent;
+            TimerPing.Start();
             await Connect();
         }
 
@@ -51,30 +51,46 @@ namespace Edi.Core.Device.OSR
 
         private async Task Connect()
         {
-            timerReconnect.Enabled = false;
             try
             {
+                if (Config.COMPort == null)
+                    return;
+
                 var port = new SerialPort(Config.COMPort, 115200, Parity.None, 8, StopBits.One);
                 port.Open();
 
-                device = new OSRDevice(port, repository, Config);
-                _ = device.ReturnToHome();
+                Device = new OSRDevice(port, Repository, Config);
+                _ = Device.ReturnToHome();
 
-                deviceManager.LoadDevice(device);
+                DeviceManager.LoadDevice(Device);
             }
             catch (Exception e)
             {
-                timerReconnect.Enabled = true;
                 OnStatusChange("Error");
             }
         }
 
-        private void timerReconnectevent(object sender, ElapsedEventArgs e)
+        private void TimerPingEvent(object sender, ElapsedEventArgs e)
         {
-            if (device == null)
-                Connect();
+            if (Device == null)
+                _ = Connect();
             else
-                timerReconnect.Enabled = false;
+            {
+                if (!Device.AlivePing())
+                    _  = UnloadDevice();
+            }
+        }
+
+        private async Task UnloadDevice()
+        {
+            if (Device != null)
+            {
+                if (Device.DevicePort.IsOpen)
+                    Device.DevicePort.Close();
+                await DeviceManager.UnloadDevice(Device);
+            }
+
+            Device = null;
         }
     }
 }

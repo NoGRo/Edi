@@ -90,7 +90,6 @@ namespace Edi.Core.Gallery.Definition
 
             if (!funscriptsFiles.Any())
                 return;
-            var regex = new Regex(@"^(?<nombre>.*?)(\.(?<variante>[^.]+))?$");
 
 
             funscriptsFiles = funscriptsFiles.DistinctBy(x => x.Name).ToList();
@@ -101,7 +100,7 @@ namespace Edi.Core.Gallery.Definition
             foreach (var file in funscriptsFiles)  
             {
 
-                var fileName = regex.Match(Path.GetFileNameWithoutExtension(file.FullName)).Groups["nombre"].Value;
+                var fileName = DiscoverExtencion.variantRegex.Match(Path.GetFileNameWithoutExtension(file.FullName)).Groups["name"].Value;
 
                 var funscript = FunScriptFile.Read(file.FullName);
                 if (funscript.metadata?.chapters?.Any() == true)

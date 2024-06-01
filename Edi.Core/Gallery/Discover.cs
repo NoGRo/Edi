@@ -26,11 +26,16 @@ namespace Edi.Core.Gallery
                 files.AddRange(GalleryDir.EnumerateDirectories().SelectMany(d => d.EnumerateFiles(mask)));
             }
 
+            string ReserveRx = Repository.Reserve.Any()
+                                ? @"\." + string.Join("|", Repository.Reserve.Select(Regex.Escape))
+                                : "";
+
             var assetEdis = new List<AssetEdi>();
             foreach (var file in files)
             {
                 var fileName = variantRegex.Match(Path.GetFileNameWithoutExtension(file.Name)).Groups["name"].Value;
                 var variant = variantRegex.Match(Path.GetFileNameWithoutExtension(file.Name)).Groups["variant"].Value;
+                variant = Regex.Replace(variant, ReserveRx, string.Empty);
 
                 var pathSplit = file.FullName.Replace(GalleryDir.FullName + "\\", "").Split('\\');
                 var pathVariant = pathSplit.Length > 1 ? pathSplit[0] : null;
@@ -41,41 +46,9 @@ namespace Edi.Core.Gallery
                 assetEdis.Add(new(file, fileName, variant));
             }
 
-            return assetEdis.DistinctBy(x => x.Variant).ToList();
+            return assetEdis.ToList();
         }
 
-
-        public static List<AssetEdi> Discover<tGallery>(this IGalleryRepository<tGallery> Repository,string path)
-             where tGallery : class, IGallery
-        {
-            var GalleryDir = new DirectoryInfo(path);
-            var files = new List<FileInfo>();
-            foreach (var item in Repository.Accept)
-            {
-                var mask = item.Contains("*.") ? item : $"*.{item}";
-                files.AddRange(GalleryDir.EnumerateFiles(mask));
-                files.AddRange(GalleryDir.EnumerateDirectories().SelectMany(d => d.EnumerateFiles(mask)));
-            }
-
-            var assetEdis = new List<AssetEdi>();
-            foreach (var file in files)
-            {
-                var fileName = variantRegex.Match(Path.GetFileNameWithoutExtension(file.Name)).Groups["name"].Value;
-                var variant = variantRegex.Match(Path.GetFileNameWithoutExtension(file.Name)).Groups["variant"].Value;
-
-                var pathSplit = file.FullName.Replace(GalleryDir.FullName + "\\", "").Split('\\');
-                var pathVariant = pathSplit.Length > 1 ? pathSplit[0] : null;
-                variant = !string.IsNullOrEmpty(variant)
-                                        ? variant
-                                        : pathVariant ?? defualtVariant;
-
-                assetEdis.Add(new(file, fileName, variant));
-            }
-
-            return assetEdis.DistinctBy(x => x.Variant).ToList();
-        }
-
-        public record AssetEdi(FileInfo File, string Name, string Variant);
- 
     }
+    public record AssetEdi(FileInfo File, string Name, string Variant);
 }

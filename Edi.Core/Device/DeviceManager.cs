@@ -53,7 +53,7 @@ namespace Edi.Core
             Providers.AsParallel().ForAll(async x => await x.Init());
         }
 
-        public void SelectVariant(IDevice device, string variant)
+        public async Task SelectVariant(IDevice device, string variant)
         {
             var deviceName = Devices.FirstOrDefault(x  => x == device)?.Name;
 
@@ -61,10 +61,10 @@ namespace Edi.Core
                 return;
             if (Config.DeviceVariant.ContainsKey(deviceName))
             {
-               
 
-                if (lastGallerySend == null)
-                    device.Stop().GetAwaiter().GetResult();
+
+                if (lastGallerySend == null && device.IsReady)
+                    await device.Stop();
                 
                 Config.DeviceVariant[deviceName] = variant;
                 device.SelectedVariant = variant;

@@ -27,7 +27,7 @@ namespace Edi.Core.Gallery
             }
 
             string ReserveRx = Repository.Reserve.Any()
-                                ? @"\." + string.Join("|", Repository.Reserve.Select(Regex.Escape))
+                                ? @"(?i)\." + string.Join("|", Repository.Reserve.Select(Regex.Escape))
                                 : "";
 
             var assetEdis = new List<AssetEdi>();

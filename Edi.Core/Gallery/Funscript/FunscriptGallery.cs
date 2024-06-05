@@ -18,6 +18,10 @@ namespace Edi.Core.Gallery.CmdLineal
 
                 return null;
             }
+            set
+            {
+                AxisCommands[Axis.Default] = value;
+            }
         }
         public virtual Dictionary<Axis, List<CmdLinear>> AxisCommands { get; set; } = new Dictionary<Axis, List<CmdLinear>>();
         public int Duration { get; set; }

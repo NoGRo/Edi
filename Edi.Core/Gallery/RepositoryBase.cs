@@ -93,8 +93,7 @@ namespace Edi.Core.Gallery
                 }
             }
         }
-        public abstract T ReadGallery(AssetEdi asset, DefinitionGallery definition);
-        
+        public abstract T? ReadGallery(AssetEdi asset, DefinitionGallery definition);        
 
 
     }

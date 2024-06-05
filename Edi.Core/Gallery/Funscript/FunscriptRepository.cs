@@ -22,9 +22,9 @@ namespace Edi.Core.Gallery.CmdLineal
         }
 
         public override IEnumerable<string> Accept => new[] { "funscript" };
+        public override IEnumerable<string> Reserve => Enum.GetNames(typeof(Axis));
 
         private List<FunScriptFile> ToSave = new List<FunScriptFile>();
-        private Dictionary<string, List<FunscriptGallery>> GalleryCache = new();
 
         private void SyncChapterInfo(DefinitionGallery DefinitionGallery, FunScriptFile? funscript)
         {
@@ -56,7 +56,7 @@ namespace Edi.Core.Gallery.CmdLineal
         }
 
 
-        private FunscriptGallery ParseActions(string variant, DefinitionGallery DefinitionGallery,ref IEnumerable<FunScriptAction> actions, Axis axis)
+        private static FunscriptGallery ParseActions(string variant, DefinitionGallery DefinitionGallery,ref IEnumerable<FunScriptAction> actions)
         {
             var sb = new ScriptBuilder();
             foreach (var action in actions)
@@ -66,31 +66,19 @@ namespace Edi.Core.Gallery.CmdLineal
                     value: action.pos);
             }
 
-            var galleryVariants = GalleryCache.GetValueOrDefault(DefinitionGallery.Name, new List<FunscriptGallery>());
-
-            var gallery = galleryVariants.Find(g => g.Variant == variant);
-            var newGallery = false;
-            if (gallery == null)
+            var gallery = new FunscriptGallery
             {
-                gallery = new FunscriptGallery
-                {
-                    Name = DefinitionGallery.Name,
-                    Loop = DefinitionGallery.Loop,
-                    Variant = variant,
-                    Duration = DefinitionGallery.Duration
-                };
+                Name = DefinitionGallery.Name,
+                Variant = variant,
+                Loop = DefinitionGallery.Loop,
+                Duration = DefinitionGallery.Duration,
 
-                galleryVariants.Add(gallery);
-                GalleryCache[DefinitionGallery.Name] = galleryVariants;
-
-                newGallery = true;
-            }
-
+            };
             sb.TrimTimeTo(DefinitionGallery.Duration);
-            gallery.AxisCommands[axis] = sb.Generate();
 
-            if (newGallery) return gallery;
-            else return null;
+            gallery.Commands = sb.Generate();
+
+            return gallery;
         }
 
 
@@ -113,7 +101,7 @@ namespace Edi.Core.Gallery.CmdLineal
             return gallery;
         }
 
-        public override FunscriptGallery ReadGallery(AssetEdi asset, DefinitionGallery definition)
+        public override FunscriptGallery? ReadGallery(AssetEdi asset, DefinitionGallery definition)
         {
             var funscript = FunScriptFile.TryRead(asset.File.FullName);
 
@@ -131,8 +119,19 @@ namespace Edi.Core.Gallery.CmdLineal
 
             SyncChapterInfo(definition, funscript);
 
-            return ParseActions(asset.Variant, definition, ref actions, funscript.axis);
 
+            var gallery = ParseActions(asset.Variant, definition, ref actions);
+            if (Galleries.ContainsKey(gallery.Name))
+            {
+                var existingGallery = Galleries[definition.Name].Find(g => g.Variant == gallery.Variant);
+                if (existingGallery != null)
+                {
+                    existingGallery.AxisCommands[funscript.axis] = gallery.Commands;
+                    return null;
+                }
+            }
+
+            return gallery;
         }
         protected override void ReadEnd()
         {

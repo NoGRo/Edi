@@ -38,8 +38,8 @@
         <CheckBox Content="Reaction" HorizontalAlignment="Left" Margin="5,51,0,0" VerticalAlignment="Top" RenderTransformOrigin="-0.063,-0.829" x:Name="chkReaction" IsChecked="{Binding config.Reactive, Mode=TwoWay}" Grid.Column="1" />
 
 
-        <Label Content="Handy Keys:" HorizontalAlignment="Left" Margin="5,15,0,0" VerticalAlignment="Top"/>
-        <TextBox HorizontalAlignment="Left" Margin="84,19,0,0" TextWrapping="Wrap" ToolTip="Handy Key" Text="{Binding handyConfig.Key}" VerticalAlignment="Top" Width="210"/>
+        <Label Content="Keys:" HorizontalAlignment="Left" Margin="5,15,0,0" VerticalAlignment="Top"/>
+        <TextBox HorizontalAlignment="Left" Margin="84,19,0,0" TextWrapping="Wrap" ToolTip="Handy Key" Text="{Binding handyConfig.Key}" VerticalAlignment="Top" Width="210" TextChanged="TextBox_TextChanged"/>
         <Label Content="Intiface Url:" HorizontalAlignment="Left" Margin="5,41,0,0" VerticalAlignment="Top"/>
         <TextBox HorizontalAlignment="Left" Margin="84,45,0,0" TextWrapping="Wrap" Text="{Binding buttplugConfig.Url}" ToolTip="Buttplug Url" VerticalAlignment="Top" Width="210"/>
         <Label Content="EStim Audio:" HorizontalAlignment="Left" Margin="5,69,0,0" VerticalAlignment="Top"/>

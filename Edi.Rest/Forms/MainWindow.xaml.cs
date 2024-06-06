@@ -208,6 +208,12 @@ namespace Edi.Forms
             await Task.Delay(1000); 
             base.EndInit();
         }
+
+        private void TextBox_TextChanged(object sender, TextChangedEventArgs e)
+        {
+
+        }
+
         private async void MainWindow_Closing(object? sender, System.ComponentModel.CancelEventArgs e)
         {
             await Dispatcher.Invoke(async () =>

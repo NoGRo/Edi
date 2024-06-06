@@ -15,6 +15,7 @@ using System.Linq;
 using System.Runtime.InteropServices;
 using System.Text;
 using System.Threading.Tasks;
+using Edi.Core.Device.AutoBlow;
 
 namespace Edi.Core
 {
@@ -42,6 +43,7 @@ namespace Edi.Core
             #region Device Provides 
 
             deviceManager.Providers.Add(new ButtplugProvider(funscriptRepository, configuration, deviceManager));
+            deviceManager.Providers.Add(new AutoBlowProvider(indexRepository, configuration, deviceManager));
             deviceManager.Providers.Add(new HandyProvider(indexRepository, configuration, deviceManager));
             deviceManager.Providers.Add(new EStimProvider(audioRepository, configuration, deviceManager));
 

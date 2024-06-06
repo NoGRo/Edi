@@ -38,12 +38,12 @@
         <CheckBox Content="Reaction" HorizontalAlignment="Left" Margin="5,51,0,0" VerticalAlignment="Top" RenderTransformOrigin="-0.063,-0.829" x:Name="chkReaction" IsChecked="{Binding config.Reactive, Mode=TwoWay}" Grid.Column="1" />
 
 
-        <Label Content="Keys:" HorizontalAlignment="Left" Margin="5,15,0,0" VerticalAlignment="Top"/>
+        <Label Content="Devices Keys:" HorizontalAlignment="Left" Margin="5,15,0,0" VerticalAlignment="Top"/>
         <TextBox HorizontalAlignment="Left" Margin="84,19,0,0" TextWrapping="Wrap" ToolTip="Handy Key" Text="{Binding handyConfig.Key}" VerticalAlignment="Top" Width="210" TextChanged="TextBox_TextChanged"/>
         <Label Content="Intiface Url:" HorizontalAlignment="Left" Margin="5,41,0,0" VerticalAlignment="Top"/>
         <TextBox HorizontalAlignment="Left" Margin="84,45,0,0" TextWrapping="Wrap" Text="{Binding buttplugConfig.Url}" ToolTip="Buttplug Url" VerticalAlignment="Top" Width="210"/>
-        <Label Content="EStim Audio:" HorizontalAlignment="Left" Margin="5,69,0,0" VerticalAlignment="Top"/>
-        <ComboBox Name="audioDevicesComboBox" HorizontalAlignment="Left" DisplayMemberPath="name" Margin="84,73,0,0" VerticalAlignment="Top" SelectedValuePath="id" SelectedValue="{Binding estimConfig.DeviceId}" Width="210" IsTextSearchEnabled="True" IsEnabled="True"/>
+        <Label Content="EStim Audio:" HorizontalAlignment="Left" Margin="5,67,0,0" VerticalAlignment="Top"/>
+        <ComboBox Name="audioDevicesComboBox" HorizontalAlignment="Left" DisplayMemberPath="name" Margin="84,71,0,0" VerticalAlignment="Top" SelectedValuePath="id" SelectedValue="{Binding estimConfig.DeviceId}" Width="210" IsTextSearchEnabled="True" IsEnabled="True"/>
 
 
         <Label Grid.Column="1" Content="Devices:" HorizontalAlignment="Left" Margin="5,66,0,0" VerticalAlignment="Top" Width="200"/>
@@ -56,7 +56,7 @@
         <Button Visibility="Hidden" Content="RePackButton" HorizontalAlignment="Left" Margin="10,125,0,0" VerticalAlignment="Top" x:Name="RePackButton"  Height="22" Width="103" Click="RePackButton_Click"/>
 
 
-        
+
         <!-- ComboBox para las galerías -->
         <ComboBox x:Name="cmbGallerie" HorizontalAlignment="Left" VerticalAlignment="Bottom" Width="144" Height="22" Margin="10,0,0,56" Grid.Column="0" DisplayMemberPath="Name" ItemsSource="{Binding galleries}">
         </ComboBox>

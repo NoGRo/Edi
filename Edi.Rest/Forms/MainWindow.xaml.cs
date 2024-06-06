@@ -7,7 +7,9 @@ using Edi.Core.Device.Interfaces;
 using NAudio.Wave;
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Globalization;
+using System.IO;
 using System.Linq;
 using System.Security.Policy;
 using System.Text;
@@ -34,6 +36,33 @@ namespace Edi.Forms
         public HandyConfig handyConfig;
         public ButtplugConfig buttplugConfig;
         public EStimConfig estimConfig;
+        private Timer timer;
+        private bool launched;
+        private void RefrehGrid(object? o)
+        {
+            Dispatcher.Invoke(async () =>
+            {
+                DevicesGrid.ItemsSource = edi.DeviceManager.Devices;
+
+                DevicesGrid.Items.Refresh();
+
+                if (edi.DeviceManager.Devices.Any(x => x.IsReady))
+                {
+
+                    if (!launched
+                        && !string.IsNullOrEmpty(config.ExecuteOnReady)
+                        && File.Exists(config.ExecuteOnReady))
+                    {
+                        launched = true;
+                        Process.Start(new ProcessStartInfo(new FileInfo(config.ExecuteOnReady).FullName) { UseShellExecute = true});
+                        lblStatus.Content = "launched: " + config.ExecuteOnReady;
+                    }
+
+                    
+                }
+            });
+
+        }
 
         private record AudioDevice(int id, string name);
         public MainWindow()
@@ -69,7 +98,9 @@ namespace Edi.Forms
             edi.OnChangeStatus += Edi_OnChangeStatus;
 
 
-
+            timer = new Timer(RefrehGrid);
+            timer.Change(3000, 3000);
+            
             Closing += MainWindow_Closing;
             LoadForm();
         }

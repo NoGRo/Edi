@@ -146,8 +146,13 @@ namespace Edi.Core.Device.AutoBlow
                     var file = repository.GetBundle($"{CurrentBundle}.{selectedVariant}", "csv");
                     var resp  = await Client.PutAsync("sync-script/upload-csv",
                         new MultipartFormDataContent { { new StreamContent(file.OpenRead()), "file", $"Edi/{CurrentBundle}/{selectedVariant}.csv" } });
-                    var status = JsonConvert.DeserializeObject<Status>(await resp.Content.ReadAsStringAsync());
+                    
+                    
 
+                    if(!resp.IsSuccessStatusCode)
+                        return;
+
+                    var status = JsonConvert.DeserializeObject<Status>(await resp.Content.ReadAsStringAsync());
 
 
                     IsReady = true;

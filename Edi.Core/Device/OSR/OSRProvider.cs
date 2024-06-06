@@ -61,6 +61,8 @@ namespace Edi.Core.Device.OSR
 
             try
             {
+                port.ReadTimeout = 1000;
+                port.WriteTimeout = 1000;
                 port.Open();
 
                 Device = new(port, Repository, Config);

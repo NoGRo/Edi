@@ -12,18 +12,18 @@ namespace Edi.Core.Gallery.CmdLineal
                 var enumValues = Enum.GetValues<Axis>();
                 foreach (var enumValue in enumValues)
                 {
-                    if (AxisCommands.ContainsKey(enumValue))
-                        return AxisCommands[enumValue];
+                    if (AxesCommands.ContainsKey(enumValue))
+                        return AxesCommands[enumValue];
                 }
 
                 return null;
             }
             set
             {
-                AxisCommands[Axis.Default] = value;
+                AxesCommands[Axis.Default] = value;
             }
         }
-        public virtual Dictionary<Axis, List<CmdLinear>> AxisCommands { get; set; } = new Dictionary<Axis, List<CmdLinear>>();
+        public virtual Dictionary<Axis, List<CmdLinear>> AxesCommands { get; set; } = new Dictionary<Axis, List<CmdLinear>>();
         public int Duration { get; set; }
         public bool Loop { get; set; }
 
@@ -36,9 +36,9 @@ namespace Edi.Core.Gallery.CmdLineal
                 Loop = this.Loop,
             };
 
-            foreach (var axis in AxisCommands.Keys)
+            foreach (var axis in AxesCommands.Keys)
             {
-                gallery.AxisCommands[axis] = AxisCommands[axis].Clone();
+                gallery.AxesCommands[axis] = AxesCommands[axis].Clone();
             }
 
             return gallery;

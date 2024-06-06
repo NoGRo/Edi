@@ -63,7 +63,7 @@ namespace Edi.Core.Device.OSR
             if (gallery == null)
                 return;
 
-            var script = new OSRScript(gallery.AxisCommands, seek);
+            var script = new OSRScript(gallery.AxesCommands, seek);
             IsNewScript = currentGallery?.Name != gallery.Name;
             currentGallery = gallery;
             if (IsPause)

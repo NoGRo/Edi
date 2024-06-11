@@ -1,10 +1,8 @@
 ﻿using Edi.Core.Device.Interfaces;
-using Edi.Core.Funscript;
 using Edi.Core.Gallery.CmdLineal;
 using PropertyChanged;
+using System.Diagnostics;
 using System.IO.Ports;
-using FunscriptIntegrationService.Connector.Shared;
-using System.Collections.Concurrent;
 
 namespace Edi.Core.Device.OSR
 {
@@ -20,31 +18,27 @@ namespace Edi.Core.Device.OSR
             set
             {
                 selectedVariant = value;
-                if (currentGallery != null && PlaybackScript != null && !IsPause)
-                    PlayGallery(currentGallery.Name, PlaybackScript.CurrentTime).GetAwaiter();
+                if (currentGallery != null && playbackScript != null && !IsPause)
+                    PlayGallery(currentGallery.Name, playbackScript.CurrentTime).GetAwaiter();
             }
         }
         public IEnumerable<string> Variants => repository.GetVariants();
-        public DateTime GalleryStart { get; private set; } = DateTime.Now;
         public bool IsPause { get; private set; } = true;
         public bool IsReady => DevicePort?.IsOpen == true;
-        public CmdLinear? LastCommandSent(Axis axis) => lastCommandSent.ContainsKey(axis) ? lastCommandSent[axis] : null;
 
+        internal OSRPosition? LastPosition { get; private set; }
 
-        private readonly string[] channelCodes = new string[] { "L0", "L1", "L2", "R0", "R1", "R2", "V0", "A0", "A1" };
         private FunscriptRepository repository { get; set; }
         private string selectedVariant;
 
         private FunscriptGallery? currentGallery;
-        private OSRScript? PlaybackScript { get; set; }
-        private bool IsNewScript { get; set; } = false;
-        private bool SpeedRampUp { get; set; } = false;
-        private DateTime? SpeedRampUpTime { get; set; }
-        private ConcurrentDictionary<Axis, CmdLinear> lastCommandSent { get; set; } = new();
+        private OSRScript? playbackScript { get; set; }
+        private bool speedRampUp { get; set; } = false;
+        private DateTime? speedRampUpTime { get; set; }
+
         private volatile CancellationTokenSource playbackCancellationTokenSource = new();
 
-        private SemaphoreSlim AsyncLock = new(1, 1);
-        private string ChannelCode(Axis type) => channelCodes[(int)type];
+        private SemaphoreSlim asyncLock = new(1, 1);
 
         public OSRDevice(SerialPort devicePort, FunscriptRepository repository, OSRConfig config)
         {
@@ -54,7 +48,7 @@ namespace Edi.Core.Device.OSR
             Config = config;
             this.repository = repository;
 
-            selectedVariant = repository.GetVariants().FirstOrDefault();
+            selectedVariant = repository.GetVariants().FirstOrDefault("");
         }
 
         public async Task PlayGallery(string name, long seek = 0)
@@ -64,10 +58,9 @@ namespace Edi.Core.Device.OSR
                 return;
 
             var script = new OSRScript(gallery.AxesCommands, seek);
-            IsNewScript = currentGallery?.Name != gallery.Name;
             currentGallery = gallery;
             if (IsPause)
-                SpeedRampUp = true;
+                speedRampUp = true;
 
             IsPause = false;
 
@@ -83,7 +76,7 @@ namespace Edi.Core.Device.OSR
         private void PlayScript(OSRScript script)
         {
             var newCancellationTokenSource = new CancellationTokenSource();
-            AsyncLock.Wait();
+            asyncLock.Wait();
             try
             {
                 playbackCancellationTokenSource?.Cancel();
@@ -91,10 +84,10 @@ namespace Edi.Core.Device.OSR
             }
             finally
             {
-                AsyncLock.Release();
+                asyncLock.Release();
             }
 
-            PlaybackScript = script;
+            playbackScript = script;
             script.ProcessCommands(this);
 
             _ = Task.Run(() => PlayCommands(newCancellationTokenSource.Token));
@@ -102,78 +95,48 @@ namespace Edi.Core.Device.OSR
 
         private void PlayCommands(CancellationToken token)
         {
-            if (PlaybackScript == null)
+            if (playbackScript == null)
                 return;
-
-            Axis[] scriptCommandTypes = PlaybackScript.SupportedAxis.ToArray();
-            HashSet<Axis> finishedCommandTypes = new();
 
             while (!token.IsCancellationRequested)
             {
-                foreach (var axis in scriptCommandTypes)
+                var pos = playbackScript.GetNextPosition();
+
+                if (token.IsCancellationRequested || pos == null)
                 {
-                    if (finishedCommandTypes.Contains(axis))
-                        continue;
-
-                    var send = PlaybackScript.GetNextCommand(axis, out CmdLinear? nextCmd);
-
-                    if (token.IsCancellationRequested || (nextCmd == null && send == true))
+                    if (currentGallery?.Loop == true && !token.IsCancellationRequested)
                     {
-                        finishedCommandTypes.Add(axis);
-
-                        if (finishedCommandTypes.Count != scriptCommandTypes.Length)
-                        {
-                            continue;
-                        }
-
-                        if (currentGallery?.Loop == true && !token.IsCancellationRequested)
-                        {
-                            PlaybackScript.Loop();
-                            PlayScript(PlaybackScript);
-                            return;
-                        }
-
+                        playbackScript.Loop();
+                        PlayScript(playbackScript);
                         return;
                     }
 
-                    if (nextCmd != null)
+                    return;
+                } else {
+                    if (speedRampUp)
                     {
+                        if (speedRampUpTime == null)
+                            speedRampUpTime = DateTime.Now;
 
-                        var prevCmd = LastCommandSent(axis);
-                        if (!SpeedRampUp && nextCmd.Millis <= 200 && IsNewScript && prevCmd != null)
+                        var rampUpDuration = 1000;
+                        var adjustment = rampUpDuration - DateTime.Now.Subtract((DateTime)speedRampUpTime).TotalMilliseconds;
+
+                        if (adjustment > 0)
                         {
-                            var deltaValue = Math.Abs(prevCmd.Value - nextCmd.Value);
-                            var speed = deltaValue / nextCmd.Millis;
-
-                            SpeedRampUp = speed > 0.4;
+                            var easeAmount = Math.Sin(((rampUpDuration - adjustment) / rampUpDuration * Math.PI) / 2);
+                            adjustment = (1 - easeAmount) * 1000;
+                            pos.DeltaMillis += (int)adjustment;
                         }
-
-                        IsNewScript = false;
-                        if (SpeedRampUp)
+                        else
                         {
-                            if (SpeedRampUpTime == null)
-                                SpeedRampUpTime = DateTime.Now;
-
-                            var rampUpDuration = 1000;
-                            var adjustment = rampUpDuration - DateTime.Now.Subtract((DateTime)SpeedRampUpTime).TotalMilliseconds;
-
-                            if (adjustment > 0)
-                            {
-                                var easeAmount = Math.Sin(((rampUpDuration - adjustment) / rampUpDuration * Math.PI) / 2);
-                                adjustment = (1 - easeAmount) * 1000;
-                                nextCmd = CmdLinear.GetCommandMillis(nextCmd.Millis + (int)adjustment, nextCmd.Value);
-                            }
-                            else
-                            {
-                                SpeedRampUp = false;
-                                IsNewScript = false;
-                                SpeedRampUpTime = null;
-                            }
+                            speedRampUp = false;
+                            speedRampUpTime = null;
                         }
-
-                        SendCmd(nextCmd, axis);
                     }
+
+                    SendPos(pos);
                 }
+
             }
         }
 
@@ -193,7 +156,7 @@ namespace Edi.Core.Device.OSR
             return false;
         }
 
-        private string GetDeviceRanges()
+        private string? GetDeviceRanges()
         {
             if (!DevicePort.IsOpen)
                 return null;
@@ -207,7 +170,7 @@ namespace Edi.Core.Device.OSR
         private string GetDeviceName()
         {
             if (!DevicePort.IsOpen)
-                return null;
+                return string.Empty;
 
             DevicePort.ReadExisting();
             DevicePort.Write("d1\n");
@@ -220,7 +183,7 @@ namespace Edi.Core.Device.OSR
             var tryCount = 0;
             while (DevicePort.BytesToRead == 0)
             {
-                if (tryCount++ > 5)
+                if (tryCount++ >= 5)
                     throw new Exception("Timeout waiting for OSR response");
                 Thread.Sleep(100);
             }
@@ -229,90 +192,36 @@ namespace Edi.Core.Device.OSR
 
         public async Task ReturnToHome()
         {
-            var cmds = ReturnToHomeCommands();
+            var pos = OSRPosition.ZeroedPosition();
+            pos.DeltaMillis = 1000;
 
-            await AsyncLock.WaitAsync();
+            await asyncLock.WaitAsync();
             try
             {
-                cmds.Keys
-                    .AsParallel()
-                    .ForAll(axis => { SendCmd(cmds[axis].First(), axis); });
+                SendPos(pos);
                 await Task.Delay(1000);
             }
             finally
             {
-                AsyncLock.Release();
+                asyncLock.Release();
             }
         }
 
-        private Dictionary<Axis, List<CmdLinear>> ReturnToHomeCommands()
-        {
-            var cmds = new Dictionary<Axis, List<CmdLinear>>();
 
-            var sb = new ScriptBuilder();
-            sb.AddCommandMillis(1000, 0);
-
-            var zeroedScript = sb.Generate();
-
-            cmds[Axis.Default] = zeroedScript;
-            cmds[Axis.Vibrate] = zeroedScript;
-
-            sb.AddCommandMillis(1000, 50);
-
-            var halvedScript = sb.Generate();
-
-            cmds[Axis.Pitch] = halvedScript;
-            cmds[Axis.Roll] = halvedScript;
-            cmds[Axis.Suction] = halvedScript;
-            cmds[Axis.Surge] = halvedScript;
-            cmds[Axis.Sway] = halvedScript;
-            cmds[Axis.Twist] = halvedScript;
-
-            return cmds;
-        }
-
-        private void SendCmd(CmdLinear cmd, Axis axis)
+        private void SendPos(OSRPosition pos)
         {
             if (DevicePort == null)
                 return;
 
-            var updatedCmd = GetUpdatedCommandRange(cmd, axis);
-            var value = (int)(updatedCmd.Value * 99.99);
-            var tCode = $"{ChannelCode(axis)}{value.ToString().PadLeft(4, '0')}I{updatedCmd.Millis}";
+            pos.UpdateRanges(Config.RangeLimits);
 
-            DevicePort.WriteLine(tCode);
-            lastCommandSent[axis] = cmd;
-        }
-
-        private CmdLinear GetUpdatedCommandRange(CmdLinear command, Axis axis)
-        {
-            CmdRange limits;
-            switch (axis)
+            var tCode = pos.OSRCommandString(LastPosition);
+            if (tCode.Trim().Length > 0)
             {
-                case Axis.Default:
-                    limits = Config.RangeLimits.Linear;
-                    break;
-                case Axis.Surge:
-                    limits = Config.RangeLimits.Surge;
-                    break;
-                case Axis.Sway:
-                    limits = Config.RangeLimits.Sway;
-                    break;
-                case Axis.Twist:
-                    limits = Config.RangeLimits.Twist;
-                    break;
-                case Axis.Roll:
-                    limits = Config.RangeLimits.Roll;
-                    break;
-                case Axis.Pitch:
-                    limits = Config.RangeLimits.Pitch;
-                    break;
-                default:
-                    return command;
+                Debug.WriteLine(tCode);
+                DevicePort.WriteLine(tCode);
+                LastPosition = pos;
             }
-
-            var value = Math.Min(100, (limits.LowerLimit / 100f * 100) + (limits.RangeDelta() / 100f * command.Value));
-            return CmdLinear.GetCommandMillis(command.Millis, value);
         }
 
         public string ResolveDefaultVariant()

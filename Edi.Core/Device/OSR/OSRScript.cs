@@ -1,13 +1,9 @@
-﻿using Edi.Core.Device.OSR;
-using Edi.Core.Funscript;
-using System;
-using System.Collections.Generic;
+﻿using Edi.Core.Funscript;
 using System.Diagnostics;
-using System.Linq;
 
-namespace FunscriptIntegrationService.Connector.Shared
+namespace Edi.Core.Device.OSR
 {
-    public class OSRScript
+    internal class OSRScript
     {
         private struct MakimaCoefficient
         {
@@ -26,17 +22,19 @@ namespace FunscriptIntegrationService.Connector.Shared
 
         private DateTime playbackStartTime = DateTime.Now;
         private long seekTime = 0;
-        private long scriptLength = -1;
+        private int scriptLength;
 
         public OSRScript(Dictionary<Axis, List<CmdLinear>> commands)
         {
             unprocessedCommands = commands;
+            scriptLength = (int)commands.Values.SelectMany(x => x).ToList().MaxBy(x => x.AbsoluteTime).AbsoluteTime;
         }
 
         public OSRScript(Dictionary<Axis, List<CmdLinear>> commands, long seek)
         {
             unprocessedCommands = commands;
             seekTime = seek;
+            scriptLength = (int)commands.Values.SelectMany(x => x).ToList().MaxBy(x => x.AbsoluteTime).AbsoluteTime;
         }
 
         public void ProcessCommands(OSRDevice device)
@@ -52,6 +50,7 @@ namespace FunscriptIntegrationService.Connector.Shared
                 {
                     var value = axis != Axis.Default && axis != Axis.Vibrate ? 50 : 0;
                     sb.AddCommandMillis(500 + (int)seekTime, value);
+                    sb.AddCommandMillis(scriptLength - 500 - (int)seekTime, value);
                     unprocessedCommands[axis] = sb.Generate();
                 }
 
@@ -59,6 +58,7 @@ namespace FunscriptIntegrationService.Connector.Shared
                 {
                     var value = axis == Axis.Vibrate ? 0 : 50;
                     sb.AddCommandMillis(500 + (int)seekTime, value);
+                    sb.AddCommandMillis(scriptLength - 500 - (int)seekTime, value);
                     unprocessedCommands[axis] = sb.Generate();
                     continue;
                 }
@@ -66,7 +66,9 @@ namespace FunscriptIntegrationService.Connector.Shared
                 var commands = unprocessedCommands[axis].Clone();
 
                 var seekIdx = commands.FindLastIndex(c => c.AbsoluteTime < seekTime);
-                var currentPositionCommand = CmdLinear.GetCommandMillis((int)seekTime, device.LastCommandSent(axis)?.Value ?? 50);
+                var lastPosition = device.LastPosition?.GetAxisValue(axis) ?? 5000;
+
+                var currentPositionCommand = CmdLinear.GetCommandMillis((int)seekTime, Math.Round(lastPosition / 99.99f));
                 currentPositionCommand.AbsoluteTime = seekTime;
 
                 if (seekIdx >= 0)
@@ -89,7 +91,7 @@ namespace FunscriptIntegrationService.Connector.Shared
                     commands.RemoveAt(0);
                 }
 
-                commands = commands.Prepend(CmdLinear.GetCommandMillis(0, device.LastCommandSent(axis)?.Value ?? 50)).ToList();
+                commands = commands.Prepend(CmdLinear.GetCommandMillis(0, Math.Round(lastPosition / 99.99f))).ToList();
 
                 processedCommands[axis] = commands;
 
@@ -108,36 +110,56 @@ namespace FunscriptIntegrationService.Connector.Shared
             ResetIndices();
         }
 
-        public bool GetNextCommand(Axis axis, out CmdLinear? cmd)
+        public OSRPosition? GetNextPosition()
         {
-            cmd = null;
-            var millisDelta = 5;
+            OSRPosition? pos = null;
+            var deltaMillis = 5;
             if (playbackCommands == null)
             {
-                return true;
+                return pos;
             }
 
-            var index = commandIndex.GetValueOrDefault(axis, 0);
-            var command = playbackCommands[axis].ElementAt(index);
+            var hasScript = false;
 
-            var nextMillis = CurrentTime + millisDelta;
-
-            while (command.Next == null || command.Next.AbsoluteTime <= nextMillis)
+            Dictionary<Axis, ushort?> positionValues = new();
+            foreach (var axis in SupportedAxis.ToArray())
             {
-                index++;
-                if (command.Next == null || index > playbackCommands[axis].Count)
+                var index = commandIndex.GetValueOrDefault(axis, 0);
+                var command = playbackCommands[axis].ElementAt(index);
+
+                var nextMillis = CurrentTime + deltaMillis;
+
+                while (command.Next == null || command.Next.AbsoluteTime <= nextMillis)
                 {
-                    return true;
+                    if (command.Next == null || index > playbackCommands[axis].Count)
+                    {
+                        break;
+                    }
+
+                    command = command.Next;
+                    commandIndex[axis] = index++;
                 }
 
-                command = command.Next;
-                commandIndex[axis] = index;
+                if (makimaCoefficients[axis].ContainsKey(command.AbsoluteTime))
+                {
+                    var coefficients = makimaCoefficients[axis][command.AbsoluteTime];
+                    var value = Math.Max(0, Math.Min(100, CubicHermite(command.AbsoluteTime, command.Value, command.Next.AbsoluteTime, command.Next.Value, coefficients.s1, coefficients.s2, nextMillis)));
+
+                    positionValues[axis] = (ushort)(value * 99.99f);
+                    hasScript = true;
+                } else
+                {
+                    positionValues[axis] = null;
+                }
             }
 
-            var coefficients = makimaCoefficients[axis][command.AbsoluteTime];
-            var value = Math.Max(0, Math.Min(100, CubicHermite(command.AbsoluteTime, command.Value, command.Next.AbsoluteTime, command.Next.Value, coefficients.s1, coefficients.s2, nextMillis)));
-            cmd = CmdLinear.GetCommandMillis(millisDelta, value);
-            return true;
+            if (hasScript)
+            {
+                pos = OSRPosition.fromAxisDictionary(positionValues);
+                pos.DeltaMillis = deltaMillis;
+            }
+
+            return pos;
         }
 
         public void Loop()
@@ -164,8 +186,6 @@ namespace FunscriptIntegrationService.Connector.Shared
             firstCommand.Value = firstCommand.Value;
 
             var lastCommand = commands.Last();
-            if (lastCommand.AbsoluteTime > scriptLength)
-                scriptLength = lastCommand.AbsoluteTime;
 
             for (var i = 0; i < commands.Count - 1; i++)
             {

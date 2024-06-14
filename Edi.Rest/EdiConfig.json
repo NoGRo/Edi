@@ -2,7 +2,7 @@
   "Gallery": {
     "DefaulVariant": "BF",
     "SelectedVariant": null,
-    "GalleryPath": "C:\\Program Files (x86)\\Steam\\steamapps\\common\\Succubus Farm\\Gallery"
+    "GalleryPath": "D:\\Juegos\\Agent_mirai-v3\\EdiDemo\\Gallery"
   },
   "GalleryBundler": {
     "RepearDuration": 2000,
@@ -19,19 +19,20 @@
     "Filler": true,
     "Gallery": true,
     "Reactive": true,
-    "ExecuteOnReady": "C:\\Program Files (x86)\\Steam\\steamapps\\common\\Succubus Farm\\Game.exe"
+    "ExecuteOnReady": ""
   },
   "Devices": {
     "DeviceVariant": {
-      "Lovense Dolce Vibrate: 1": "vibro",
-      "Lovense Dolce Vibrate: 2": "vibro",
-      "The Handy [ppJdVv3V]": "Gallery",
+      "Lovense Dolce Vibrate: 1": "vib",
+      "Lovense Dolce Vibrate: 2": "vib2",
+      "The Handy [ppJdVv3V]": "lineal-vaginal",
       "The Handy": "Gallery",
       "The Handy [PiBnz]": "Gallery",
       "The Handy (1)": "dildo",
       "The Handy (2)": "dildo",
       "The Handy [92H0Y]": "lineal-anal",
-      "AutoBlow [ibjckz1x0q91]": "detailed"
+      "AutoBlow [ibjckz1x0q91]": "lineal-anal",
+      "Lovense Hush": "vib"
     }
   },
   "EStim": {

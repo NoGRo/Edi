@@ -29,6 +29,7 @@ namespace Edi.Core.Gallery.CmdLineal
         {
             if (funscript.metadata == null)
                 funscript.metadata = new FunScriptMetadata();
+            
             var chapter = funscript.metadata?.chapters?.FirstOrDefault(x => x.name == DefinitionGallery.Name);
             if (chapter == null)
             {
@@ -100,16 +101,21 @@ namespace Edi.Core.Gallery.CmdLineal
             return gallery;
         }
 
+        private Dictionary<string, FunScriptFile> cacheFun = new();
         public override FunscriptGallery ReadGallery(AssetEdi asset, DefinitionGallery definition)
         {
-            var funscript = FunScriptFile.TryRead(asset.File.FullName);
+            if (!cacheFun.ContainsKey(asset.File.FullName))
+                cacheFun.Add(asset.File.FullName, FunScriptFile.TryRead(asset.File.FullName));
+            
+
+            var funscript = cacheFun[asset.File.FullName];
 
             if (funscript == null || funscript.actions?.Any() != true)
                 return null;
             var actions = funscript.actions
                 .Where(x => x.at >= definition.StartTime
                             && x.at <= definition.EndTime);
-
+            
             if (!actions.Any())
             {
                 Debug.WriteLine($"FunscriptRepository Empty ignored: {definition.Name}");
@@ -123,7 +129,7 @@ namespace Edi.Core.Gallery.CmdLineal
         }
         protected override void ReadEnd()
         {
-            //ToSave.Distinct().ToList().ForEach(x => x.Save(x.path));
+            ToSave.Distinct().ToList().ForEach(x => x.Save(x.path));
         }
     }
 }

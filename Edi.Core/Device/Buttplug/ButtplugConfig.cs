@@ -14,7 +14,8 @@ namespace Edi.Core.Device.Buttplug
     public  class ButtplugConfig
     {
         public string Url { get; set; } = "ws://localhost:12345";
-        public int CommandDelay{ get; set; } = 80;
+        public int MinCommandDelay{ get; set; } = 60;
+        public int MotorInercialDelay { get; set; } = 50;
 
     }
 }

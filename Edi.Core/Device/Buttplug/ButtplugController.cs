@@ -19,7 +19,7 @@ namespace Edi.Core.Device.Buttplug
         private readonly Dictionary<ButtplugClientDevice, (ActuatorType, ICollection<(uint, double)>)> lastCommands = new();
         private readonly ConcurrentDictionary<ButtplugClientDevice, CancellationTokenSource> customDelayDevices = new();
         private readonly List<int> SignalQueue = new();
-        public int DelayMin => config.CommandDelay;
+        public int DelayMin => config.MinCommandDelay;
         public ButtplugController(ButtplugConfig config, DeviceManager deviceManager)
         {
             this.config = config;

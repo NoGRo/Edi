@@ -1,8 +1,7 @@
 {
   "Gallery": {
-    "DefaulVariant": "BF",
-    "SelectedVariant": null,
-    "GalleryPath": "D:\\Juegos\\Agent_mirai-v3\\EdiDemo\\Gallery"
+    "GalleryPath": "D:\\Programacion\\CockHeroPlatform",
+    "GenerateFromChapters": false
   },
   "GalleryBundler": {
     "RepearDuration": 2000,
@@ -10,7 +9,8 @@
   },
   "Buttplug": {
     "Url": "ws://localhost:12345",
-    "CommandDelay": 50
+    "MinCommandDelay": 50,
+    "VibratorInercialDelay": 40
   },
   "Handy": {
     "Key": "PiBnz, 92H0Y, ppJdVv3V, ibjckz1x0q91"
@@ -23,8 +23,8 @@
   },
   "Devices": {
     "DeviceVariant": {
-      "Lovense Dolce Vibrate: 1": "vib",
-      "Lovense Dolce Vibrate: 2": "vib2",
+      "Lovense Dolce Vibrate: 1": "vib1",
+      "Lovense Dolce Vibrate: 2": "vib1",
       "The Handy [ppJdVv3V]": "lineal-vaginal",
       "The Handy": "Gallery",
       "The Handy [PiBnz]": "Gallery",

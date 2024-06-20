@@ -102,6 +102,11 @@ namespace Edi.Core.Device.Buttplug
                 previousCts.Dispose(); // Asegúrate de disponer el CTS anterior para liberar recursos.
             }
 
+            if (Actuator == ActuatorType.Vibrate)
+            {
+                SeekTime += config.MotorInercialDelay;
+            }
+
             currentCmdIndex = Math.Max(0, cmds.FindIndex(x => x.AbsoluteTime > CurrentTime));
 
             while (currentCmdIndex >= 0 && currentCmdIndex < cmds.Count)
@@ -163,8 +168,8 @@ namespace Edi.Core.Device.Buttplug
                 return;
             }
             Task sendtask = Task.CompletedTask;
-            if (CurrentCmd.Millis >= config.CommandDelay
-                || (DateTime.Now - lastCmdSendAt).TotalMilliseconds >= config.CommandDelay)
+            if (CurrentCmd.Millis >= config.MinCommandDelay
+                || (DateTime.Now - lastCmdSendAt).TotalMilliseconds >= config.MinCommandDelay)
             {
                 lastCmdSendAt = DateTime.Now;
                 switch (Actuator)

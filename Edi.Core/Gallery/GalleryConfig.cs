@@ -12,5 +12,6 @@ namespace Edi.Core.Gallery
     public class GalleryConfig
     {
         public string GalleryPath { get; set; }
+        public bool GenerateFromChapters { get; set; } =true;
     }
 }

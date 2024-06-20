@@ -103,7 +103,7 @@ namespace Edi.Core.Gallery.Definition
                 var fileName = DiscoverExtencion.variantRegex.Match(Path.GetFileNameWithoutExtension(file.FullName)).Groups["name"].Value;
 
                 var funscript = FunScriptFile.Read(file.FullName);
-                if (funscript.metadata?.chapters?.Any() == true)
+                if (funscript.metadata?.chapters?.Any() == true && Config.GenerateFromChapters)
                 {
                     newDefinitionFile.AddRange(
                         funscript.metadata.chapters.Select(x => new DefinitionWriteDto

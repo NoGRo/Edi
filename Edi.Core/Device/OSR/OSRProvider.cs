@@ -35,11 +35,12 @@ namespace Edi.Core.Device.OSR
 
             this.DeviceManager = deviceManager;
             this.Repository = repository;
+
+            TimerPing.Elapsed += TimerPingEvent;
         }
 
         public async Task Init()
         {
-            TimerPing.Elapsed += TimerPingEvent;
             TimerPing.Start();
             await Connect();
         }
@@ -101,6 +102,7 @@ namespace Edi.Core.Device.OSR
         {
             if (Device != null)
             {
+                await Device.Stop();
                 if (Device.DevicePort.IsOpen)
                     Device.DevicePort.Close();
                 await DeviceManager.UnloadDevice(Device);

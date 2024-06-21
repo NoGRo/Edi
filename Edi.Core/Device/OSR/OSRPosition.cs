@@ -75,6 +75,23 @@ namespace Edi.Core.Device.OSR
             return sb.ToString().Trim();
         }
 
+        public OSRPosition Clone()
+        {
+            return new OSRPosition
+            {
+                L0 = L0,
+                L1 = L1,
+                L2 = L2,
+                R0 = R0,
+                R1 = R1,
+                R2 = R2,
+                V0 = V0,
+                A0 = A0,
+                A1 = A1,
+                DeltaMillis = DeltaMillis,
+            };
+        }
+
         public void UpdateRanges(RangeConfiguration ranges)
         {
             if (L0.HasValue)

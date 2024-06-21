@@ -213,14 +213,20 @@ namespace Edi.Core.Device.OSR
             if (DevicePort == null)
                 return;
 
-            pos.UpdateRanges(Config.RangeLimits);
+            var posClone = pos.Clone();
+            posClone.UpdateRanges(Config.RangeLimits);
 
-            var tCode = pos.OSRCommandString(LastPosition);
+            var tCode = posClone.OSRCommandString(LastPosition);
             if (tCode.Trim().Length > 0)
             {
-                Debug.WriteLine(tCode);
-                DevicePort.WriteLine(tCode);
-                LastPosition = pos;
+                try
+                {
+                    Debug.WriteLine(tCode);
+                    DevicePort.WriteLine(tCode);
+                    LastPosition = pos;
+                } catch (Exception) { 
+                    playbackCancellationTokenSource.Cancel();
+                }
             }
         }
 

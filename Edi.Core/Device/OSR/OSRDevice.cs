@@ -221,7 +221,6 @@ namespace Edi.Core.Device.OSR
             {
                 try
                 {
-                    Debug.WriteLine(tCode);
                     DevicePort.WriteLine(tCode);
                     LastPosition = pos;
                 } catch (Exception) { 

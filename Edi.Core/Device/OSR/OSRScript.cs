@@ -65,33 +65,18 @@ namespace Edi.Core.Device.OSR
 
                 var commands = unprocessedCommands[axis].Clone();
 
+                if (commands.First().buttplugMillis == 0)
+                {
+                    commands.RemoveAt(0);
+                }
+
                 var seekIdx = commands.FindLastIndex(c => c.AbsoluteTime < seekTime);
                 var lastPosition = device.LastPosition?.GetAxisValue(axis) ?? 5000;
 
                 var currentPositionCommand = CmdLinear.GetCommandMillis((int)seekTime, Math.Round(lastPosition / 99.99f));
                 currentPositionCommand.AbsoluteTime = seekTime;
 
-                if (seekIdx >= 0)
-                {
-                    commands.Insert(seekIdx, currentPositionCommand);
-
-                    if (seekIdx < commands.Count - 1)
-                    {
-                        var nextCommand = commands[seekIdx + 1];
-                        nextCommand.InitialValue = currentPositionCommand.Value;
-                        if (nextCommand.Speed > 350)
-                        {
-                            commands[seekIdx + 2] = CmdLinear.GetCommandSpeed(300, nextCommand.Value, currentPositionCommand.Value);
-                        }
-                    }
-                }
-                var firstCmd = commands.First();
-                if (firstCmd.buttplugMillis == 0)
-                {
-                    commands.RemoveAt(0);
-                }
-
-                commands = commands.Prepend(CmdLinear.GetCommandMillis(0, Math.Round(lastPosition / 99.99f))).ToList();
+                commands.Insert(seekIdx + 1, currentPositionCommand);
 
                 processedCommands[axis] = commands;
 

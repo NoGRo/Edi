@@ -18,7 +18,7 @@ namespace Edi.Core.Gallery.Definition
             Config = configuration.Get<GalleryConfig>(); 
         }
         private List<string> Variants { get; set; } = new List<string>();
-        private GalleryConfig Config { get; set; }
+        public GalleryConfig Config { get; set; }
         private Dictionary<string, DefinitionGallery> dicDefinitions { get; set; } = new Dictionary<string, DefinitionGallery>(StringComparer.OrdinalIgnoreCase);
 
         public IEnumerable<string> Accept => new[] { "Definitions.csv", "Definitions_auto.csv" };
@@ -103,7 +103,7 @@ namespace Edi.Core.Gallery.Definition
                 var fileName = DiscoverExtencion.variantRegex.Match(Path.GetFileNameWithoutExtension(file.FullName)).Groups["name"].Value;
 
                 var funscript = FunScriptFile.Read(file.FullName);
-                if (funscript.metadata?.chapters?.Any() == true && Config.GenerateFromChapters)
+                if (funscript.metadata?.chapters?.Any() == true && Config.GenerateDefinitionFromChapters)
                 {
                     newDefinitionFile.AddRange(
                         funscript.metadata.chapters.Select(x => new DefinitionWriteDto

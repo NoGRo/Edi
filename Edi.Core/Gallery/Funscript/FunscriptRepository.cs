@@ -129,7 +129,10 @@ namespace Edi.Core.Gallery.CmdLineal
         }
         protected override void ReadEnd()
         {
-            ToSave.Distinct().ToList().ForEach(x => x.Save(x.path));
+            if (Definition.Config.GenerateChaptersFromDefinition)
+            {
+                ToSave.Distinct().ToList().ForEach(x => x.Save(x.path));
+            }
         }
     }
 }

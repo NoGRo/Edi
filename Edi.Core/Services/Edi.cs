@@ -241,6 +241,12 @@ namespace Edi.Core
                     await SendGallery(LastGallery, resumePauseAt);
             }
         }
+
+        public Task Intensity(int Max)
+        {
+            //DeviceManager.
+        }
+
         private async Task SendGallery(string name, long seek = 0)
         {
             if (string.IsNullOrEmpty(name))
@@ -290,7 +296,7 @@ namespace Edi.Core
 
 
 
-        public Trepo? GetRepo<Trepo>() where Trepo : class, IRepository 
+        public Trepo? GetRepository<Trepo>() where Trepo : class, IRepository 
             => repos?.FirstOrDefault(x => x is Trepo) as Trepo;
 
         public async Task Repack()

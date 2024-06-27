@@ -59,19 +59,49 @@ namespace Edi.Core
 
             if (device is null || deviceName is null)
                 return;
-            if (Config.DeviceVariant.ContainsKey(deviceName))
+            if (!Config.Devices.ContainsKey(deviceName))
+                Config.Devices.Add(deviceName, new() { Variant = variant});
+            else
             {
-
-
                 if (lastGallerySend == null && device.IsReady)
                     await device.Stop();
-                
-                Config.DeviceVariant[deviceName] = variant;
-                device.SelectedVariant = variant;
+
+                Config.Devices[deviceName].Variant = variant;
             }
-            else
-                Config.DeviceVariant.Add(deviceName, variant);
+
+
+            if (device.SelectedVariant != variant)
+                device.SelectedVariant = variant;
+
             configuration.Save(Config);
+        }
+
+        public async Task SelectRange(IDevice device, IRange range)
+        {
+            var deviceName = Devices.FirstOrDefault(x => x == device)?.Name;
+
+            if (device is null || deviceName is null)
+                return;
+            if (!Config.Devices.ContainsKey(deviceName))
+                Config.Devices.Add(deviceName, new DeviceConfig() { });
+
+            Config.Devices[deviceName].SetRange(range);
+            
+
+            (device as IRange)?.SetRange(range);
+
+            configuration.Save(Config);
+        }
+
+        public void Intensity(int Max)
+        {
+            DevicesParallel.ForAll(async x =>
+            {
+                if (x is not IRange)
+                    return;
+              
+                
+            });
         }
         
         public async void LoadDevice(IDevice device)
@@ -83,20 +113,20 @@ namespace Edi.Core
             }
 
             string variant = "";
-            if (Config.DeviceVariant.ContainsKey(device.Name))
+            if (Config.Devices.ContainsKey(device.Name))
             {
-                variant = Config.DeviceVariant[device.Name];
+                variant = Config.Devices[device.Name].Variant;
 
                 variant = device.Variants.Contains(variant)
                                         ? variant
                                         : device.ResolveDefaultVariant();
 
-                Config.DeviceVariant[device.Name] = variant;
+                Config.Devices[device.Name].Variant = variant;
             }
             else
             {
                 variant = device.ResolveDefaultVariant();
-                Config.DeviceVariant.Add(device.Name, variant);
+                Config.Devices.Add(device.Name, new DeviceConfig() {Variant = variant });
             }
 
             device.SelectedVariant = variant;

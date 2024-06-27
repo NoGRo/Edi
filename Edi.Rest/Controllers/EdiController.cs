@@ -1,3 +1,4 @@
+using System.ComponentModel.DataAnnotations;
 using Microsoft.AspNetCore.Mvc;
 using Edi.Core;
 using Edi.Core.Device.Interfaces;
@@ -5,6 +6,7 @@ using Edi.Forms;
 using Edi.Core.Gallery.Definition;
 using Edi.Core.Gallery;
 using System.IO;
+using System.Security.Cryptography;
 
 namespace Edi.Controllers
 {
@@ -51,6 +53,13 @@ namespace Edi.Controllers
         {
             await _edi.Resume(AtCurrentTime);
         }
+        [HttpPost("Intensity/{Max}")]
+        public async Task Intensity([Required,FromRoute,Range(0, 100)] int Max = 100)
+        {
+            //await _edi;
+        }
+
+
 
         [HttpGet("Definitions")]
         public async Task<IEnumerable<DefinitionGallery>> GetDefinitions()

@@ -122,7 +122,7 @@ namespace Edi.Core.Device.Handy
             if (devices.ContainsKey(Key))
             {
                 await deviceManager.UnloadDevice(devices[Key]);
-                devices.Remove(Key);
+                 devices.Remove(Key);
             }
         }
 

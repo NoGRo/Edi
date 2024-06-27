@@ -55,6 +55,9 @@ namespace Edi.Core
 
         public async Task SelectVariant(IDevice device, string variant)
         {
+            if (device.SelectedVariant == variant)
+                return;
+
             var deviceName = Devices.FirstOrDefault(x  => x == device)?.Name;
 
             if (device is null || deviceName is null)
@@ -106,6 +109,7 @@ namespace Edi.Core
         
         public async void LoadDevice(IDevice device)
         {
+            string variant = "";
             lock (Devices)
             {
                 UniqueName(device);
@@ -117,9 +121,9 @@ namespace Edi.Core
             {
                 variant = Config.Devices[device.Name].Variant;
 
-                variant = device.Variants.Contains(variant)
-                                        ? variant
-                                        : device.ResolveDefaultVariant();
+                    variant = device.Variants.Contains(variant)
+                                            ? variant
+                                            : device.ResolveDefaultVariant();
 
                 Config.Devices[device.Name].Variant = variant;
             }

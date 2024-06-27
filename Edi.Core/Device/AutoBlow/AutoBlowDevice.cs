@@ -145,7 +145,7 @@ namespace Edi.Core.Device.AutoBlow
 
                     var file = repository.GetBundle($"{CurrentBundle}.{selectedVariant}", "csv");
                     var resp  = await Client.PutAsync("sync-script/upload-csv",
-                        new MultipartFormDataContent { { new StreamContent(file.OpenRead()), "file", $"Edi/{CurrentBundle}/{selectedVariant}.csv" } });
+                        new MultipartFormDataContent { { new StreamContent(file.OpenRead()), "file", $"EdiCurrentBundle{selectedVariant}.csv" } });
                     
                     
 

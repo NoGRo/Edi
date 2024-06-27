@@ -55,48 +55,45 @@ namespace Edi.Core
 
         public async Task SelectVariant(IDevice device, string variant)
         {
+            if (device.SelectedVariant == variant)
+                return;
+
             var deviceName = Devices.FirstOrDefault(x  => x == device)?.Name;
 
             if (device is null || deviceName is null)
                 return;
-            if (Config.DeviceVariant.ContainsKey(deviceName))
-            {
 
-
-                if (lastGallerySend == null && device.IsReady)
-                    await device.Stop();
-                
-                Config.DeviceVariant[deviceName] = variant;
-                device.SelectedVariant = variant;
-            }
-            else
-                Config.DeviceVariant.Add(deviceName, variant);
+            Config.DeviceVariant[deviceName] = variant;
+            device.SelectedVariant = variant;
+ 
             configuration.Save(Config);
         }
         
         public async void LoadDevice(IDevice device)
         {
+            string variant = "";
             lock (Devices)
             {
                 UniqueName(device);
                 Devices.Add(device);
-            }
+            
 
-            string variant = "";
-            if (Config.DeviceVariant.ContainsKey(device.Name))
-            {
-                variant = Config.DeviceVariant[device.Name];
+               
+                if (Config.DeviceVariant.ContainsKey(device.Name))
+                {
+                    variant = Config.DeviceVariant[device.Name];
 
-                variant = device.Variants.Contains(variant)
-                                        ? variant
-                                        : device.ResolveDefaultVariant();
+                    variant = device.Variants.Contains(variant)
+                                            ? variant
+                                            : device.ResolveDefaultVariant();
 
-                Config.DeviceVariant[device.Name] = variant;
-            }
-            else
-            {
-                variant = device.ResolveDefaultVariant();
-                Config.DeviceVariant.Add(device.Name, variant);
+                    Config.DeviceVariant[device.Name] = variant;
+                }
+                else
+                {
+                    variant = device.ResolveDefaultVariant();
+                    Config.DeviceVariant.Add(device.Name, variant);
+                }
             }
 
             device.SelectedVariant = variant;

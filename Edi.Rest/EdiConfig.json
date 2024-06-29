@@ -9,7 +9,7 @@
   "Buttplug": {
     "Url": "ws://localhost:12345",
     "MinCommandDelay": 50,
-    "VibratorInercialDelay": 40
+    "VibratorInercialDelay": 60
   },
   "Handy": {
     "Key": "PiBnz"
@@ -21,17 +21,17 @@
     "ExecuteOnReady": ""
   },
   "Devices": {
-    "DeviceVariant": {
-      "Lovense Dolce Vibrate: 1": "vib1",
-      "Lovense Dolce Vibrate: 2": "vib1",
-      "The Handy [ppJdVv3V]": "lineal-vaginal",
-      "The Handy": "Gallery",
-      "The Handy [PiBnz]": "sleeve",
-      "The Handy (1)": "dildo",
-      "The Handy (2)": "dildo",
-      "The Handy [92H0Y]": "lineal-anal",
-      "AutoBlow [ibjckz1x0q91]": "dildo",
-      "Lovense Hush": "vib"
+    "Devices": {
+      "The Handy [PiBnz]": {
+        "Variant": "detailed",
+        "Min": 0,
+        "Max": 100
+      },
+      "The Handy": {
+        "Variant": "detailed",
+        "Min": 0,
+        "Max": 100
+      }
     }
   },
   "EStim": {

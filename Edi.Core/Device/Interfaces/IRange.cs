@@ -7,7 +7,7 @@ using System.Threading.Tasks;
 
 namespace Edi.Core.Device.Interfaces
 {
-    internal interface IRange
+    public interface IRange
     {
         public int Min{ get; set; }
         public int Max { get; set; }
@@ -15,7 +15,7 @@ namespace Edi.Core.Device.Interfaces
 
     }
 
-    internal static class RangeEx
+    public static class RangeEx
     {
         public static void SetRange(this IRange Thisrange, IRange range)
         {

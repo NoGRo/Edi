@@ -27,7 +27,7 @@ using System.Xml.Linq;
 namespace Edi.Core.Device.Handy
 {
     [AddINotifyPropertyChangedInterface]
-    internal class HandyDevice : DeviceBase<IndexRepository,IndexGallery>
+    internal class HandyDevice : DeviceBase<IndexRepository,IndexGallery> 
     {
 
         public string Key { get; set; }
@@ -58,7 +58,7 @@ namespace Edi.Core.Device.Handy
         {
             Debug.WriteLine($"Handy: {Key} Slide {Min}-{Max}");
             var request = new SlideRequest(Min, Max);
-            await Client.PutAsync("Slide", new StringContent(JsonConvert.SerializeObject(request), Encoding.UTF8, "application/json"));
+            await Client.PutAsync("slide", new StringContent(JsonConvert.SerializeObject(request), Encoding.UTF8, "application/json"));
         }
 
         public override async Task PlayGallery(IndexGallery gallery, long seek = 0)

@@ -56,7 +56,7 @@ namespace Edi.Controllers
         [HttpPost("Intensity/{Max}")]
         public async Task Intensity([Required,FromRoute,Range(0, 100)] int Max = 100)
         {
-            //await _edi;
+            await _edi.Intensity(Max);
         }
 
 

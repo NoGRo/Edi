@@ -23,8 +23,8 @@ namespace Edi.Core
 
         public delegate void OnUnloadDeviceHandler(IDevice device, List<IDevice> devices);
         public delegate void OnloadDeviceHandler(IDevice device, List<IDevice> devices);
-        public event OnUnloadDeviceHandler OnUnloadDevice;
-        public event OnloadDeviceHandler OnloadDevice;
+        public event OnUnloadDeviceHandler? OnUnloadDevice;
+        public event OnloadDeviceHandler? OnloadDevice;
 
         [ActivatorUtilitiesConstructor]
         public DeviceManager(IServiceProvider serviceProvider)
@@ -83,16 +83,15 @@ namespace Edi.Core
         {
             var deviceName = Devices.FirstOrDefault(x => x == device)?.Name;
 
-            if (device is null || deviceName is null)
+            if (device is null || deviceName is null || device is not IRange)
                 return;
-            if (!Config.Devices.ContainsKey(deviceName))
-                Config.Devices.Add(deviceName, new DeviceConfig() { });
 
             Config.Devices[deviceName].SetRange(range);
             
 
-            (device as IRange)?.SetRange(range);
+            (device as IRange).SetRange(range);
 
+            
             configuration.Save(Config);
         }
 
@@ -102,44 +101,34 @@ namespace Edi.Core
             {
                 if (x is not IRange)
                     return;
-              
+                var range = x as IRange;
+                var configRange = Config.Devices[x.Name] as IRange;
                 
+                range.Max = configRange.Min + (configRange.Max - configRange.Min) * Max / 100;
+
             });
         }
-        
+
         public async void LoadDevice(IDevice device)
         {
-            string variant = "";
             lock (Devices)
             {
                 UniqueName(device);
                 Devices.Add(device);
+                Config.Devices.TryAdd(device.Name, new DeviceConfig());
             }
 
-            string variant = "";
-            if (Config.Devices.ContainsKey(device.Name))
-            {
-                variant = Config.Devices[device.Name].Variant;
+            var deviceConfig = Config.Devices[device.Name];
+            
+            deviceConfig.Variant = device.Variants.Contains(deviceConfig.Variant) 
+                                    ? deviceConfig.Variant 
+                                    : device.ResolveDefaultVariant();
 
-                    variant = device.Variants.Contains(variant)
-                                            ? variant
-                                            : device.ResolveDefaultVariant();
-
-                Config.Devices[device.Name].Variant = variant;
-            }
-            else
-            {
-                variant = device.ResolveDefaultVariant();
-                Config.Devices.Add(device.Name, new DeviceConfig() {Variant = variant });
-            }
-
-            device.SelectedVariant = variant;
-
+            device.SelectedVariant = deviceConfig.Variant;
             configuration.Save(Config);
-
-            if (OnloadDevice != null)
-                OnloadDevice(device, Devices);
+            OnloadDevice?.Invoke(device, Devices);
         }
+
 
         private void UniqueName(IDevice device)
         {
@@ -161,10 +150,9 @@ namespace Edi.Core
                 Devices.RemoveAll(x => x.Name == device.Name);
 
             }
-            if (OnUnloadDevice != null)
-                OnUnloadDevice(device, Devices);
+            OnUnloadDevice?.Invoke(device, Devices);
 
-          
+
         }
 
         public async Task Stop()

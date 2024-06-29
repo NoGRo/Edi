@@ -54,12 +54,12 @@ namespace Edi.Core.Device.AutoBlow
         }
 
     
-        internal override async Task applyRange()
-        {
-            Debug.WriteLine($"AutoBlow: {Key} Slide {Min}-{Max}");
-            var request = new SlideRequest(Min, Max);
-            await Client.PutAsync("Slide", new StringContent(JsonConvert.SerializeObject(request), Encoding.UTF8, "application/json"));
-        }
+        //internal override async Task applyRange()
+        //{
+        //    Debug.WriteLine($"AutoBlow: {Key} Slide {Min}-{Max}");
+        //    var request = new SlideRequest(Min, Max);
+        //    await Client.PutAsync("Slide", new StringContent(JsonConvert.SerializeObject(request), Encoding.UTF8, "application/json"));
+        //}
 
         public override async Task PlayGallery(IndexGallery gallery, long seek = 0)
         {

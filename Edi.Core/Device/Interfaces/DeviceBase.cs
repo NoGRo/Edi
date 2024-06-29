@@ -11,7 +11,7 @@ using System.Timers;
 
 namespace Edi.Core.Device.Interfaces
 {
-    public abstract class DeviceBase<TRepository, TGallery> : IDevice
+    public abstract class DeviceBase<TRepository, TGallery> : IDevice , IRange
         where TRepository : class , IGalleryRepository<TGallery>
         where TGallery : class, IGallery
     {
@@ -65,7 +65,7 @@ namespace Edi.Core.Device.Interfaces
         private System.Timers.Timer timerRange = new System.Timers.Timer(100);
         private Task TimerRangeTask;
         private int lastMin;
-        private int lastMax;
+        private int lastMax = 100;
 
         internal virtual async Task applyRange()
         {
@@ -74,7 +74,7 @@ namespace Edi.Core.Device.Interfaces
 
         private async void TimerRange_Elapsed(object sender, ElapsedEventArgs e)
         {
-            if (TimerRangeTask != null && !TimerRangeTask.IsCompleted)
+            if (TimerRangeTask != null && !TimerRangeTask.IsCompleted || !IsReady)
                 return;
 
             if (min == lastMin && max == lastMax)
@@ -93,7 +93,7 @@ namespace Edi.Core.Device.Interfaces
             await TimerRangeTask;
         }
         public record SlideRequest(int min, int max);
-        private int max;
+        private int max = 100;
         private int min;
         public int Min
         {

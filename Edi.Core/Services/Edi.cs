@@ -244,7 +244,8 @@ namespace Edi.Core
 
         public Task Intensity(int Max)
         {
-            //DeviceManager.
+            DeviceManager.Intensity(Max);
+            return Task.CompletedTask;
         }
 
         private async Task SendGallery(string name, long seek = 0)

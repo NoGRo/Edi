@@ -31,7 +31,7 @@ namespace Edi.Core.Device.OSR
                 A1 = 5000
             };
 
-        public static OSRPosition fromAxisDictionary(Dictionary<Axis, ushort?> axisValues)
+        public static OSRPosition FromAxisDictionary(Dictionary<Axis, ushort?> axisValues)
         {
             var pos = new OSRPosition();
             pos.L0 = axisValues[Axis.Default];
@@ -45,6 +45,19 @@ namespace Edi.Core.Device.OSR
             pos.A1 = axisValues[Axis.Suction];
 
             return pos;
+        }
+
+        public void Merge(OSRPosition other)
+        {
+            L0 ??= other.L0;
+            L1 ??= other.L1;
+            L2 ??= other.L2;
+            R0 ??= other.R0;
+            R1 ??= other.R1;
+            R2 ??= other.R2;
+            V0 ??= other.V0;
+            A0 ??= other.A0;
+            A1 ??= other.A1;
         }
 
         public string OSRCommandString(OSRPosition? prevPos = null)

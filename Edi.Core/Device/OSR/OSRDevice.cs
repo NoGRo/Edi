@@ -81,16 +81,16 @@ namespace Edi.Core.Device.OSR
             {
                 playbackCancellationTokenSource?.Cancel();
                 playbackCancellationTokenSource = newCancellationTokenSource;
+
+                playbackScript = script;
+                script.ProcessCommands(this);
+
+                _ = Task.Run(() => PlayCommands(newCancellationTokenSource.Token));
             }
             finally
             {
                 asyncLock.Release();
             }
-
-            playbackScript = script;
-            script.ProcessCommands(this);
-
-            _ = Task.Run(() => PlayCommands(newCancellationTokenSource.Token));
         }
 
         private void PlayCommands(CancellationToken token)
@@ -213,11 +213,14 @@ namespace Edi.Core.Device.OSR
             if (DevicePort == null)
                 return;
 
+            if (LastPosition != null)
+                pos.Merge(LastPosition);
+
             var posClone = pos.Clone();
             posClone.UpdateRanges(Config.RangeLimits);
 
             var tCode = posClone.OSRCommandString(LastPosition);
-            if (tCode.Trim().Length > 0)
+            if (tCode.Length > 0)
             {
                 try
                 {

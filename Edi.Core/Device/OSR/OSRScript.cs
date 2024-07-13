@@ -49,16 +49,18 @@ namespace Edi.Core.Device.OSR
                 if (!unprocessedCommands.ContainsKey(axis))
                 {
                     var value = axis != Axis.Default && axis != Axis.Vibrate ? 50 : 0;
-                    sb.AddCommandMillis(500 + (int)seekTime, value);
-                    sb.AddCommandMillis(scriptLength - 500 - (int)seekTime, value);
+                    var bufferTime = 500 + (int)seekTime;
+                    sb.AddCommandMillis(bufferTime, value);
+                    sb.AddCommandMillis(bufferTime, value);
                     unprocessedCommands[axis] = sb.Generate();
                 }
 
                 if (!device.Config.EnableMultiAxis && axis != Axis.Default)
                 {
                     var value = axis == Axis.Vibrate ? 0 : 50;
-                    sb.AddCommandMillis(500 + (int)seekTime, value);
-                    sb.AddCommandMillis(scriptLength - 500 - (int)seekTime, value);
+                    var bufferTime = 500 + (int)seekTime;
+                    sb.AddCommandMillis(bufferTime, value);
+                    sb.AddCommandMillis(bufferTime, value);
                     unprocessedCommands[axis] = sb.Generate();
                     continue;
                 }
@@ -99,9 +101,11 @@ namespace Edi.Core.Device.OSR
         {
             OSRPosition? pos = null;
             var deltaMillis = 5;
-            if (playbackCommands == null)
+            var nextMillis = CurrentTime + deltaMillis;
+
+            if (playbackCommands == null || nextMillis > scriptLength)
             {
-                return pos;
+                return null;
             }
 
             var hasScript = false;
@@ -111,8 +115,6 @@ namespace Edi.Core.Device.OSR
             {
                 var index = commandIndex.GetValueOrDefault(axis, 0);
                 var command = playbackCommands[axis].ElementAt(index);
-
-                var nextMillis = CurrentTime + deltaMillis;
 
                 while (command.Next == null || command.Next.AbsoluteTime <= nextMillis)
                 {
@@ -128,7 +130,11 @@ namespace Edi.Core.Device.OSR
                 if (makimaCoefficients[axis].ContainsKey(command.AbsoluteTime))
                 {
                     var coefficients = makimaCoefficients[axis][command.AbsoluteTime];
-                    var value = Math.Max(0, Math.Min(100, CubicHermite(command.AbsoluteTime, command.Value, command.Next.AbsoluteTime, command.Next.Value, coefficients.s1, coefficients.s2, nextMillis)));
+                    var followingCommand = command.Next ?? playbackCommands[axis].ElementAt(1).Clone();
+                    if (followingCommand.AbsoluteTime < command.AbsoluteTime)
+                        followingCommand.AbsoluteTime += scriptLength;
+
+                    var value = Math.Max(0, Math.Min(100, CubicHermite(command.AbsoluteTime, command.Value, followingCommand.AbsoluteTime, followingCommand.Value, coefficients.s1, coefficients.s2, nextMillis)));
 
                     positionValues[axis] = (ushort)(value * 99.99f);
                     hasScript = true;
@@ -140,8 +146,8 @@ namespace Edi.Core.Device.OSR
 
             if (hasScript)
             {
-                pos = OSRPosition.fromAxisDictionary(positionValues);
-                pos.DeltaMillis = deltaMillis;
+                pos = OSRPosition.FromAxisDictionary(positionValues);
+                pos.DeltaMillis = deltaMillis;            
             }
 
             return pos;

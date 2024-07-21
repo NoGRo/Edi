@@ -214,7 +214,7 @@ namespace Edi.Core
                 var actions = sb.Generate();
                 new FunScriptFile()
                 {
-                    actions = actions.Select(x => new FunScriptAction { at = x.AbsoluteTime, pos = x.Value }).ToList(),
+                    actions = actions.Select(x => new FunScriptAction { at = x.AbsoluteTime, pos = (int)Math.Round(x.Value) }).ToList(),
                     metadata = new()
                     {
                         chapters = _galleries.Select(x => new FunScriptChapter

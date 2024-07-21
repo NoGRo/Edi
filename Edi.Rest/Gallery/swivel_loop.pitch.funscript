@@ -1,0 +1,32 @@
+{
+	"version": "1.0",
+	"inverted": false,
+	"range": 100,
+	"actions": [
+		{
+			"pos": 0,
+			"at": 0
+		},
+		{
+			"pos": 100,
+			"at": 1000
+		},
+		{
+			"pos": 0,
+			"at": 2000
+		}
+	],
+	"metadata": {
+		"creator": "",
+		"description": "",
+		"duration": 5,
+		"license": "",
+		"notes": "",
+		"performers": [],
+		"scriptUrl": "",
+		"tags": [],
+		"title": "",
+		"type": "basic",
+		"videoUrl": ""
+	}
+}

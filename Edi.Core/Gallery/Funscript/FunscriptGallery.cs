@@ -4,13 +4,44 @@ using Edi.Core.Funscript;
 
 namespace Edi.Core.Gallery.CmdLineal
 {
-    public class FunscriptGallery: IGallery
+    public class FunscriptGallery : IGallery
     {
         public string Name { get; set; }
         public string Variant { get; set; }
-        public virtual List<CmdLinear> Commands { get; set; } = new List<CmdLinear>();
-        //OSR6 new property with dictionary<String , List<CmdLinear>> for Axie and the comands ;
+        public List<CmdLinear> Commands { get {
+                var enumValues = Enum.GetValues<Axis>();
+                foreach (var enumValue in enumValues)
+                {
+                    if (AxesCommands.ContainsKey(enumValue))
+                        return AxesCommands[enumValue];
+                }
+
+                return null;
+            }
+            set
+            {
+                AxesCommands[Axis.Default] = value;
+            }
+        }
+        public virtual Dictionary<Axis, List<CmdLinear>> AxesCommands { get; set; } = new Dictionary<Axis, List<CmdLinear>>();
         public int Duration { get; set; }
         public bool Loop { get; set; }
+
+        public FunscriptGallery Clone()
+        {
+            var gallery = new FunscriptGallery
+            {
+                Name = this.Name,
+                Variant = this.Variant,
+                Loop = this.Loop,
+            };
+
+            foreach (var axis in AxesCommands.Keys)
+            {
+                gallery.AxesCommands[axis] = AxesCommands[axis].Clone();
+            }
+
+            return gallery;
+        }
     }
 }

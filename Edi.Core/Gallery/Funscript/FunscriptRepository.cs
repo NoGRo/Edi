@@ -22,6 +22,7 @@ namespace Edi.Core.Gallery.CmdLineal
         }
 
         public override IEnumerable<string> Accept => new[] { "funscript" };
+        public override IEnumerable<string> Reserve => Enum.GetNames(typeof(Axis));
 
         private List<FunScriptFile> ToSave = new List<FunScriptFile>();
 
@@ -56,7 +57,7 @@ namespace Edi.Core.Gallery.CmdLineal
         }
 
 
-        private static FunscriptGallery ParseActions(string variant, DefinitionGallery DefinitionGallery,ref IEnumerable<FunScriptAction> actions)
+        private static FunscriptGallery ParseActions(string variant, Axis axis, DefinitionGallery DefinitionGallery,ref IEnumerable<FunScriptAction> actions)
         {
             var sb = new ScriptBuilder();
             foreach (var action in actions)
@@ -76,7 +77,7 @@ namespace Edi.Core.Gallery.CmdLineal
             };
             sb.TrimTimeTo(DefinitionGallery.Duration);
 
-            gallery.Commands = sb.Generate();
+            gallery.AxesCommands[axis] = sb.Generate();
 
             return gallery;
         }
@@ -124,8 +125,19 @@ namespace Edi.Core.Gallery.CmdLineal
 
             SyncChapterInfo(definition, funscript);
 
-            return ParseActions(asset.Variant, definition, ref actions);
 
+            var gallery = ParseActions(asset.Variant, funscript.axis, definition, ref actions);
+            if (Galleries.ContainsKey(definition.Name))
+            {
+                var existingGallery = Galleries[definition.Name].Find(g => g.Variant == gallery.Variant);
+                if (existingGallery != null)
+                {
+                    existingGallery.AxesCommands[funscript.axis] = gallery.AxesCommands[funscript.axis];
+                    return null;
+                }
+            }
+
+            return gallery;
         }
         protected override void ReadEnd()
         {

@@ -1,6 +1,8 @@
 {
   "Gallery": {
-    "GalleryPath": "D:\\Programacion\\CockHeroPlatform"
+    "DefaulVariant": "BF",
+    "SelectedVariant": null,
+    "GalleryPath": "Gallery"
   },
   "GalleryBundler": {
     "RepearDuration": 2000,
@@ -19,6 +21,36 @@
     "Gallery": true,
     "Reactive": true,
     "ExecuteOnReady": ""
+  },
+  "OSR": {
+    "COMPort": "COM5",
+    "EnableMultiAxis": true,
+    "RangeLimits": {
+      "Linear": {
+        "LowerLimit": 0,
+        "UpperLimit": 100
+      },
+      "Roll": {
+        "LowerLimit": 0,
+        "UpperLimit": 100
+      },
+      "Pitch": {
+        "LowerLimit": 0,
+        "UpperLimit": 100
+      },
+      "Twist": {
+        "LowerLimit": 0,
+        "UpperLimit": 100
+      },
+      "Sway": {
+        "LowerLimit": 0,
+        "UpperLimit": 100
+      },
+      "Surge": {
+        "LowerLimit": 0,
+        "UpperLimit": 100
+      }
+    }
   },
   "Devices": {
     "Devices": {

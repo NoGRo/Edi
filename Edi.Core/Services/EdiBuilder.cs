@@ -3,6 +3,7 @@ using Edi.Core.Device.Buttplug;
 using Edi.Core.Device.EStim;
 using Edi.Core.Device.Handy;
 using Edi.Core.Device.Interfaces;
+using Edi.Core.Device.OSR;
 using Edi.Core.Gallery;
 using Edi.Core.Gallery.CmdLineal;
 using Edi.Core.Gallery.Definition;
@@ -45,6 +46,7 @@ namespace Edi.Core
             deviceManager.Providers.Add(new ButtplugProvider(funscriptRepository, configuration, deviceManager));
             deviceManager.Providers.Add(new AutoBlowProvider(indexRepository, configuration, deviceManager));
             deviceManager.Providers.Add(new HandyProvider(indexRepository, configuration, deviceManager));
+            deviceManager.Providers.Add(new OSRProvider(funscriptRepository, configuration, deviceManager));
             deviceManager.Providers.Add(new EStimProvider(audioRepository, configuration, deviceManager));
 
             #endregion

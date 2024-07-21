@@ -13,7 +13,7 @@ namespace Edi.Core.Funscript
     {
         public FunScriptCsv(IEnumerable<CmdLinear> cmds)
         {
-            actions = cmds.Select(x => new FunScriptAction { at = x.AbsoluteTime, pos = x.Value }).ToList();
+            actions = cmds.Select(x => new FunScriptAction { at = x.AbsoluteTime, pos = (int)Math.Round(x.Value) }).ToList();
         }
 
 

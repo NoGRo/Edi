@@ -12,7 +12,7 @@ namespace Edi.Core.Funscript
         public static int SpeedLimit => 400;
 
         #region move to some creation pattern
-        public static CmdLinear GetCommandSpeed(int speed, int value, int initialValue)
+        public static CmdLinear GetCommandSpeed(int speed, double value, double initialValue)
         {
             speed = speed > SpeedLimit ? SpeedLimit : speed;
 
@@ -25,7 +25,7 @@ namespace Edi.Core.Funscript
                 Value = Convert.ToByte(value),
             };
         }
-        public static CmdLinear GetCommand(int millis, int value, int initialValue = 0)
+        public static CmdLinear GetCommand(int millis, double value, double initialValue = 0)
         {
             return new CmdLinear
             {
@@ -34,7 +34,7 @@ namespace Edi.Core.Funscript
                 Value = Convert.ToByte(value)
             };
         }
-        public static CmdLinear GetCommand(uint millis, int value, int initialValue = 0)
+        public static CmdLinear GetCommand(uint millis, double value, double initialValue = 0)
         {
             return new CmdLinear
             {
@@ -69,7 +69,7 @@ namespace Edi.Core.Funscript
             }
             return resul;
         }
-        public static CmdLinear GetCommandMillis(int millis, int value)
+        public static CmdLinear GetCommandMillis(int millis, double value)
         {
 
             return new CmdLinear
@@ -88,10 +88,10 @@ namespace Edi.Core.Funscript
         public int Speed => Millis == 0 ? 0 : Convert.ToInt32(Math.Abs(InitialValue - Value) / (double)Millis * 1000);
 
         public bool Direction => Value > InitialValue;
-        public int Value { get; set; }
+        public double Value { get; set; }
 
-        private int initialValue;
-        public int InitialValue
+        private double initialValue;
+        public double InitialValue
         {
             get => Prev?.Value ?? initialValue;
             set => initialValue = value;
@@ -105,15 +105,25 @@ namespace Edi.Core.Funscript
         public DateTime? Sent { get; set; }
         public bool Cancel { get; set; }
         public short Distance => (short)Math.Abs(Direction ? Value - InitialValue : InitialValue - Value);
-       
+
+        public CmdLinear Clone()
+        {
+            return new CmdLinear
+            {
+                AbsoluteTime = AbsoluteTime,
+                Value = Value,
+                Millis = Millis,
+            };
+        }
+
     }
     public static class CmdLinearExtend
     {
         public static List<CmdLinear> Clone(this IEnumerable<CmdLinear> cmds)
-            => cmds.Select(x => CmdLinear.GetCommandMillis(x.Millis, x.Value)).ToList();
+            => cmds.Select(x => x.Clone()).ToList();
 
         public static List<CmdLinear> AddAbsoluteTime(this List<CmdLinear> cmds)
-        { 
+        {
             var at = 0;
             CmdLinear last = cmds.LastOrDefault();
             foreach (var cmd in cmds)
@@ -121,7 +131,7 @@ namespace Edi.Core.Funscript
                 cmd.Prev = last;
                 at += cmd.Millis;
                 cmd.AbsoluteTime = at;
-                last = cmd; 
+                last = cmd;
             }
             return cmds;
         }

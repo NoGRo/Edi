@@ -18,7 +18,7 @@
             <ColumnDefinition Width="19*"/>
         </Grid.ColumnDefinitions>
 
-        <DataGrid x:Name="DevicesGrid" ItemsSource="{Binding devices, Mode=OneWay}"  AutoGenerateColumns="False" Margin="0,97,0,56" HorizontalAlignment="Center" Width="339" Grid.Column="1">
+        <DataGrid x:Name="DevicesGrid" ItemsSource="{Binding devices}"  AutoGenerateColumns="False" Margin="0,97,0,56" HorizontalAlignment="Center" Width="339" Grid.Column="1">
             <DataGrid.Columns>
 
                 <DataGridTextColumn Header="Name" Binding="{Binding Name}" />

@@ -116,7 +116,6 @@ namespace Edi.Core.Device.AutoBlow
                 deviceManager.LoadDevice(device);
             }
 
-            await device.updateServerTime();
 
         }
 

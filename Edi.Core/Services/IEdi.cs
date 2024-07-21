@@ -2,6 +2,7 @@
 using Edi.Core.Gallery;
 using Edi.Core.Gallery.Definition;
 using System;
+using System.Collections.ObjectModel;
 
 namespace Edi.Core
 {
@@ -10,6 +11,7 @@ namespace Edi.Core
         
         public Task Init(string path = null);
         public DeviceManager DeviceManager { get; }
+        public ObservableCollection<IDevice> Devices { get;  }
         public ConfigurationManager ConfigurationManager { get; }
 
         public Trepo GetRepository<Trepo>() where Trepo : class , IRepository;

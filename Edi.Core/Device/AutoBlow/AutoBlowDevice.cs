@@ -167,41 +167,9 @@ namespace Edi.Core.Device.AutoBlow
                 }
             });
         }
-     
-
-        private long ServerTime => DateTimeOffset.UtcNow.ToUnixTimeMilliseconds() + timeSyncInitialOffset + timeSyncAvrageOffset;
-        public async Task updateServerTime()
-        {
-            var totalCalls = 30;
-            var discardTopBotom = 2;
-            //warm up
-            _ = await getServerOfsset();
 
 
-            timeSyncInitialOffset = await getServerOfsset();
-
-            var offsets = new List<long>();
-            for (int i = 0; i < 30; i++)
-            {
-                offsets.Add(await getServerOfsset() - timeSyncInitialOffset);
-            }
-            timeSyncAvrageOffset = Convert.ToInt64(
-                                        offsets.OrderBy(x => x)
-                                            .Take(totalCalls - discardTopBotom).TakeLast(totalCalls - discardTopBotom * 2) //discard TopBotom Extreme cases
-                                            .Average()
-                                    );
-
-        }
-        private async Task<long> getServerOfsset()
-        {
-            var sendTime = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
-            var result = await Client.GetAsync("servertime");
-            var receiveTime = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
-            var resp = JsonConvert.DeserializeObject<ServerTimeResponse>(await result.Content.ReadAsStringAsync());
-            var estimatedServerTimeNow = resp.serverTime + (receiveTime - sendTime) / 2;
-            return estimatedServerTimeNow - receiveTime;
-        }
-     
+        private long ServerTime => DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(); 
 
     }
     public record ServerTimeResponse(long serverTime);

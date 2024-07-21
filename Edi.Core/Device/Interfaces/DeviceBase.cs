@@ -8,9 +8,11 @@ using System.Threading.Tasks;
 using System.Threading;
 using Newtonsoft.Json;
 using System.Timers;
+using PropertyChanged;
 
 namespace Edi.Core.Device.Interfaces
 {
+    [AddINotifyPropertyChangedInterface]
     public abstract class DeviceBase<TRepository, TGallery> : IDevice , IRange
         where TRepository : class , IGalleryRepository<TGallery>
         where TGallery : class, IGallery

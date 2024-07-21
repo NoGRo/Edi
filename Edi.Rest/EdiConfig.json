@@ -1,6 +1,6 @@
 {
   "Gallery": {
-    "GalleryPath": "C:\\Program Files (x86)\\Steam\\steamapps\\common\\Succubus Farm\\Gallery"
+    "GalleryPath": "D:\\Programacion\\CockHeroPlatform"
   },
   "GalleryBundler": {
     "RepearDuration": 2000,
@@ -8,11 +8,11 @@
   },
   "Buttplug": {
     "Url": "ws://localhost:12345",
-    "MinCommandDelay": 50,
-    "VibratorInercialDelay": 60
+    "MinCommandDelay": 60,
+    "VibratorInercialDelay": 80
   },
   "Handy": {
-    "Key": "PiBnz"
+    "Key": "PiBnz, ppJdVv3V, ibjckz1x0q91, 92H0Y"
   },
   "Edi": {
     "Filler": true,
@@ -28,7 +28,37 @@
         "Max": 100
       },
       "The Handy": {
-        "Variant": "detailed",
+        "Variant": "sleeve",
+        "Min": 0,
+        "Max": 100
+      },
+      "Lovense Dolce Vibrate: 1": {
+        "Variant": "vib2",
+        "Min": 0,
+        "Max": 100
+      },
+      "Lovense Dolce Vibrate: 2": {
+        "Variant": "vib1",
+        "Min": 0,
+        "Max": 100
+      },
+      "The Handy [ppJdVv3V]": {
+        "Variant": "default",
+        "Min": 0,
+        "Max": 100
+      },
+      "AutoBlow [ibjckz1x0q91]": {
+        "Variant": "sleeve",
+        "Min": 0,
+        "Max": 100
+      },
+      "The Handy [92H0Y]": {
+        "Variant": "sleeve",
+        "Min": 0,
+        "Max": 100
+      },
+      "Lovense Hush": {
+        "Variant": "vib1",
         "Min": 0,
         "Max": 100
       }

@@ -12,13 +12,14 @@ using Edi.Core.Gallery.CmdLineal;
 using Edi.Core.Funscript;
 using PropertyChanged;
 using System.ComponentModel;
+using System.Collections.ObjectModel;
 
 namespace Edi.Core
 {
     [AddINotifyPropertyChangedInterface]
     public class Edi : IEdi
     {
-        public  ConfigurationManager ConfigurationManager { get; set; }
+        public ConfigurationManager ConfigurationManager { get; set; }
         public DeviceManager DeviceManager { get; private set; }
         private readonly DefinitionRepository _repository;
         private readonly IEnumerable<IRepository> repos;
@@ -30,7 +31,7 @@ namespace Edi.Core
         public event IEdi.ChangeStatusHandler OnChangeStatus;
 
 
-        public IEnumerable<IDevice> Devices => DeviceManager.Devices;
+        public ObservableCollection<IDevice> Devices => new ObservableCollection<IDevice>(DeviceManager.Devices);
         public Edi(DeviceManager deviceManager, DefinitionRepository repository, IEnumerable<IRepository> repos, ConfigurationManager configuration)
         {
             if (!Directory.Exists(OutputDir))  
@@ -51,7 +52,7 @@ namespace Edi.Core
             TimerReactStop.Elapsed += TimerReactStop_ElapsedAsync;
             ConfigurationManager = configuration;
             Config = configuration.Get<EdiConfig>();
-
+       
 
         }
 

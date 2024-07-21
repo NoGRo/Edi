@@ -42,10 +42,6 @@ namespace Edi.Forms
         {
             Dispatcher.Invoke(async () =>
             {
-                DevicesGrid.ItemsSource = edi.DeviceManager.Devices;
-
-                DevicesGrid.Items.Refresh();
-
                 if (edi.DeviceManager.Devices.Any(x => x.IsReady))
                 {
 
@@ -85,7 +81,7 @@ namespace Edi.Forms
                 buttplugConfig = buttplugConfig,
                 estimConfig = estimConfig,
 
-                devices = edi.DeviceManager.Devices,
+                devices = edi.Devices,
                 
                 galleries = galleries,
 
@@ -115,7 +111,7 @@ namespace Edi.Forms
                 audios.Add(new AudioDevice(i, WaveOut.GetCapabilities(i).ProductName));
             }
             audioDevicesComboBox.ItemsSource = audios;
-            DevicesGrid.ItemsSource = edi.DeviceManager.Devices;
+            DevicesGrid.ItemsSource = edi.Devices;
         }
         private void Edi_OnChangeStatus(string message)
         {
@@ -130,9 +126,9 @@ namespace Edi.Forms
             Thread.Sleep(1000);
             await Dispatcher.InvokeAsync(async () =>
             {
-                DevicesGrid.ItemsSource =  devices;
+                DevicesGrid.ItemsSource = edi.Devices;
 
-                DevicesGrid.Items.Refresh();
+                //DevicesGrid.Items.Refresh();
             });
 
         }
@@ -143,8 +139,8 @@ namespace Edi.Forms
 
             await Dispatcher.InvokeAsync(async () =>
             {
-                DevicesGrid.ItemsSource = devices;
-                DevicesGrid.Items.Refresh();
+                DevicesGrid.ItemsSource = edi.Devices;
+                //DevicesGrid.Items.Refresh();
             });
         }
 

@@ -17,6 +17,10 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <None Remove="Device\AutoBlow\AutoBlowDevice.cs~RF25726d5d.TMP" />
+  </ItemGroup>
+
+  <ItemGroup>
     <PackageReference Include="Buttplug" Version="3.0.1" />
     <PackageReference Include="Buttplug.Client.Connectors.WebsocketConnector" Version="3.0.1" />
     <PackageReference Include="CsvHelper" Version="31.0.2" />

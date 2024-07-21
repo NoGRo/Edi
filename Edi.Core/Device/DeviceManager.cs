@@ -18,7 +18,6 @@ namespace Edi.Core
     public class DeviceManager
     {
         public List<IDevice> Devices { get; set; } =  new List<IDevice>();    
-        private  ParallelQuery<IDevice> DevicesParallel => Devices.Where(x => x != null).AsParallel();
         private string? lastGallerySend;
 
         public delegate void OnUnloadDeviceHandler(IDevice device, List<IDevice> devices);
@@ -97,16 +96,15 @@ namespace Edi.Core
 
         public void Intensity(int Max)
         {
-            DevicesParallel.ForAll(async x =>
+            foreach (var device in Devices)
             {
-                if (x is not IRange)
+                if (device is not IRange)
                     return;
-                var range = x as IRange;
-                var configRange = Config.Devices[x.Name] as IRange;
-                
-                range.Max = configRange.Min + (configRange.Max - configRange.Min) * Max / 100;
+                var range = device as IRange;
+                var configRange = Config.Devices[device.Name] as IRange;
 
-            });
+                range.Max = configRange.Min + (configRange.Max - configRange.Min) * Max / 100;
+            }
         }
 
         public async void LoadDevice(IDevice device)
@@ -158,14 +156,17 @@ namespace Edi.Core
         public async Task Stop()
         {
             lastGallerySend = null;
-            DevicesParallel.ForAll(async x => await x.Stop());
+            _ = Devices.Select(device => device.Stop()).ToList();
+            //await Task.WhenAll(stopTasks);
         }
 
         public async Task PlayGallery(string name, long seek = 0)
         {
             lastGallerySend = name;
-            DevicesParallel.ForAll(async x => await x.PlayGallery(name, seek));
+            _ = Devices.Select(device => device.PlayGallery(name, seek)).ToList();
+            
         }
+
 
 
     }

@@ -158,7 +158,7 @@ namespace Edi.Core.Device.Interfaces
 
             if (currentGallery?.Loop == true && !IsPause)
             {
-                await PlayGallery(currentGallery.Name);
+                _ = PlayGallery(currentGallery.Name);
             }
             else
             {

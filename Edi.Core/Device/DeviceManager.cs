@@ -103,6 +103,8 @@ namespace Edi.Core
                 var range = device as IRange;
                 var configRange = Config.Devices[device.Name] as IRange;
 
+                // This line calculates the maximum value of 'range' based on a percentage of the difference between the maximum and minimum values in 'configRange'.
+                // It adjusts 'range.Max' proportionally according to 'Max', which represents a percentage (0 to 100). This allows dynamic scaling of 'range' within the bounds of 'configRange'.
                 range.Max = configRange.Min + (configRange.Max - configRange.Min) * Max / 100;
             }
         }

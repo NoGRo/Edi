@@ -26,5 +26,18 @@ namespace Edi.Core.Device.OSR
         public CmdRange Twist { get; set; } = new CmdRange();
         public CmdRange Sway { get; set; } = new CmdRange();
         public CmdRange Surge { get; set; } = new CmdRange();
+
+        public RangeConfiguration Clone()
+        {
+            return new RangeConfiguration
+            {
+                Linear = Linear.Clone(),
+                Roll = Roll.Clone(),
+                Pitch = Pitch.Clone(),
+                Twist = Twist.Clone(),
+                Sway = Sway.Clone(),
+                Surge = Surge.Clone()
+            };
+        }
     }
 }

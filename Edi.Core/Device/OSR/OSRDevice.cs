@@ -1,13 +1,12 @@
 ﻿using Edi.Core.Device.Interfaces;
 using Edi.Core.Gallery.CmdLineal;
 using PropertyChanged;
-using System.Diagnostics;
 using System.IO.Ports;
 
 namespace Edi.Core.Device.OSR
 {
     [AddINotifyPropertyChangedInterface]
-    public class OSRDevice : IDevice
+    public class OSRDevice : IDevice, IRange
     {
         public SerialPort DevicePort { get; private set; }
         public string Name { get; set; }
@@ -39,6 +38,24 @@ namespace Edi.Core.Device.OSR
         private volatile CancellationTokenSource playbackCancellationTokenSource = new();
 
         private SemaphoreSlim asyncLock = new(1, 1);
+
+        private volatile CancellationTokenSource rangeCancellationTokenSource = new();
+
+        private int min = 0;
+        private int max = 100;
+        private int targetMin = 0;
+        private int targetMax = 100;
+
+        public int Min { get => targetMin; set {
+                targetMin = value;
+                _ = ApplyRange();
+            }
+        }
+        public int Max { get => targetMax; set { 
+                targetMax = value;
+                _ = ApplyRange();
+            } 
+        }
 
         public OSRDevice(SerialPort devicePort, FunscriptRepository repository, OSRConfig config)
         {
@@ -217,7 +234,7 @@ namespace Edi.Core.Device.OSR
                 pos.Merge(LastPosition);
 
             var posClone = pos.Clone();
-            posClone.UpdateRanges(Config.RangeLimits);
+            posClone.UpdateRanges(GetDeviceRangeConfig());
 
             var tCode = posClone.OSRCommandString(LastPosition);
             if (tCode.Length > 0)
@@ -229,6 +246,87 @@ namespace Edi.Core.Device.OSR
                 } catch (Exception) { 
                     playbackCancellationTokenSource.Cancel();
                 }
+            }
+        }
+
+        private RangeConfiguration GetDeviceRangeConfig()
+        {
+            var rangeLimits = Config.RangeLimits.Clone();
+
+            if (min == 0 && max == 100)
+                return rangeLimits;
+
+            var delta = max - min;
+            rangeLimits.Linear.UpperLimit = (int)(rangeLimits.Linear.LowerLimit + rangeLimits.Linear.RangeDelta() * max / 100f);
+            rangeLimits.Linear.LowerLimit = (int)(rangeLimits.Linear.LowerLimit + rangeLimits.Linear.RangeDelta() * min / 100f);
+
+            var rollDelta = rangeLimits.Roll.RangeDelta();
+            rangeLimits.Roll.UpperLimit = (int)(rollDelta / 2f + delta / 2f);
+            rangeLimits.Roll.LowerLimit = (int)(rollDelta / 2f - delta / 2f);
+
+            var pitchDelta = rangeLimits.Pitch.RangeDelta();
+            rangeLimits.Pitch.UpperLimit = (int)(pitchDelta / 2f + delta / 2f);
+            rangeLimits.Pitch.LowerLimit = (int)(pitchDelta / 2f - delta / 2f);
+
+            var twistDelta = rangeLimits.Twist.RangeDelta();
+            rangeLimits.Twist.UpperLimit = (int)(twistDelta / 2f + delta / 2f);
+            rangeLimits.Twist.LowerLimit = (int)(twistDelta / 2f - delta / 2f);
+
+            var swayDelta = rangeLimits.Sway.RangeDelta();
+            rangeLimits.Sway.UpperLimit = (int)(swayDelta / 2f + delta / 2f);
+            rangeLimits.Sway.LowerLimit = (int)(swayDelta / 2f - delta / 2f);
+
+            var surgeDelta = rangeLimits.Surge.RangeDelta();
+            rangeLimits.Surge.UpperLimit = (int)(surgeDelta / 2f + delta / 2f);
+            rangeLimits.Surge.LowerLimit = (int)(surgeDelta / 2f - delta / 2f);
+
+            return rangeLimits;
+        }
+
+        private async Task ApplyRange()
+        {
+            var previousCts = rangeCancellationTokenSource;
+            var cts = new CancellationTokenSource();
+            var token = cts.Token;
+
+            rangeCancellationTokenSource = cts;
+            previousCts.Cancel();
+
+            var delta = 3;
+            var iterations = Math.Max(Math.Abs(targetMax - max), Math.Abs(targetMin - min)) / delta;
+
+            for (int i = 0; i <= iterations; i++)
+            {
+                if (token.IsCancellationRequested) break;
+
+                var currentLower = min;
+                var targetLower = targetMin;
+
+                if (targetLower > currentLower)
+                {
+                    min = Math.Min(currentLower + delta, targetLower);
+                }
+                else
+                {
+                    min = Math.Max(currentLower - delta, targetLower);
+                }
+
+                var currentUpper = max;
+                var targetUpper = targetMax;
+
+                if (targetUpper > currentUpper)
+                {
+                    max = Math.Min(currentUpper + delta, targetUpper);
+                }
+                else
+                {
+                    max = Math.Max(currentUpper - delta, targetUpper);
+                }
+
+                if (LastPosition != null)
+                    SendPos(LastPosition);
+
+                await Task.Delay(15);
             }
         }
 

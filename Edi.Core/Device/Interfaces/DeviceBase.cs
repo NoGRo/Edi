@@ -142,7 +142,7 @@ namespace Edi.Core.Device.Interfaces
             IsPause = false;
 
             var interval = gallery.Duration - seek;
-            await PlayGallery(gallery, seek);
+            _ = PlayGallery(gallery, seek);
             try
             {
                 await Task.Delay(TimeSpan.FromMilliseconds(interval), cancelTokenSource.Token);

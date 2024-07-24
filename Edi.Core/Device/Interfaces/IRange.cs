@@ -22,5 +22,10 @@ namespace Edi.Core.Device.Interfaces
             Thisrange.Max = range.Max;
             Thisrange.Min = range.Min;
         }
+        public static void SetRange(this IRange Thisrange, int min, int max)
+        {
+            Thisrange.Max = max;
+            Thisrange.Min = min;
+        }
     }
 }

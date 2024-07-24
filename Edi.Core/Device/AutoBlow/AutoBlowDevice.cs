@@ -16,7 +16,6 @@ using System.Threading.Tasks;
 using System.Diagnostics.CodeAnalysis;
 using Edi.Core.Gallery.Index;
 using Edi.Core.Gallery.Definition;
-using Edi.Core.Device.Interfaces;
 using System.Runtime.CompilerServices;
 using System.Threading;
 using PropertyChanged;
@@ -117,11 +116,11 @@ namespace Edi.Core.Device.AutoBlow
         private async void upload(string bundle = null, bool delay = true)
         {
 
-            uploadCancellationTokenSource?.Cancel(true);
+            var previousCts = Interlocked.Exchange(ref uploadCancellationTokenSource, new CancellationTokenSource());
+            previousCts.Cancel(true);
             await Task.Delay(50);
-            uploadCancellationTokenSource = new CancellationTokenSource();
             
-            uploadTask = Task.Run(async () =>
+            _ = Task.Run(async () =>
             {
                 if (delay)
                 { 
@@ -146,7 +145,6 @@ namespace Edi.Core.Device.AutoBlow
                     var file = repository.GetBundle($"{CurrentBundle}.{selectedVariant}", "csv");
                     var resp  = await Client.PutAsync("sync-script/upload-csv",
                         new MultipartFormDataContent { { new StreamContent(file.OpenRead()), "file", $"EdiCurrentBundle{selectedVariant}.csv" } });
-                    
                     
 
                     if(!resp.IsSuccessStatusCode)

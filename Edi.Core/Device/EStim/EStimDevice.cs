@@ -9,7 +9,6 @@ using System.Threading.Tasks;
 using System.Timers;
 using Timer = System.Timers.Timer;
 using System.Threading;
-using Edi.Core.Device.Interfaces;
 using PropertyChanged;
 using System.Xml.Linq;
 

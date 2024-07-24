@@ -16,7 +16,6 @@ using System.Threading.Tasks;
 using System.Diagnostics.CodeAnalysis;
 using Edi.Core.Gallery.Index;
 using Edi.Core.Gallery.Definition;
-using Edi.Core.Device.Interfaces;
 using System.Runtime.CompilerServices;
 using System.Threading;
 using PropertyChanged;
@@ -142,7 +141,7 @@ namespace Edi.Core.Device.Handy
 
                     CurrentBundle = bundle ?? CurrentBundle;
 
-                    var blob = await uploadBlob(repository.GetBundle($"{CurrentBundle}.{selectedVariant}", "csv"), uploadCancellationTokenSource.Token);
+                    var blob = await uploadBlob(repository.GetBundle($"{CurrentBundle}.{selectedVariant}", "csv"));
                     
                     await pause;
 
@@ -166,7 +165,7 @@ namespace Edi.Core.Device.Handy
                 }
             });
         }
-        private async Task<string> uploadBlob(FileInfo file, CancellationToken  cancellationToken)
+        private async Task<string> uploadBlob(FileInfo file)
         {
 
             using (var blobClient = new HttpClient())
@@ -181,9 +180,9 @@ namespace Edi.Core.Device.Handy
 
                 request.Content = content;
 
-                var resp = await blobClient.SendAsync(request, cancellationToken);
+                var resp = await blobClient.SendAsync(request, uploadCancellationTokenSource.Token);
 
-                return JsonConvert.DeserializeObject<SyncUpload>(await resp.Content.ReadAsStringAsync(cancellationToken)).url;
+                return JsonConvert.DeserializeObject<SyncUpload>(await resp.Content.ReadAsStringAsync(uploadCancellationTokenSource.Token)).url;
             }
         }
 

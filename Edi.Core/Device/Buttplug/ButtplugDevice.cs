@@ -61,7 +61,6 @@ namespace Edi.Core.Device.Buttplug
         public int Max { get; set; } = 100;
 
         private double vibroSteps;
-        private CancellationTokenSource cancelTokenSource = new CancellationTokenSource();
 
         public ButtplugDevice(ButtplugClientDevice device, ActuatorType actuator, uint channel, FunscriptRepository repository, ButtplugConfig config)
             : base(repository)
@@ -95,12 +94,6 @@ namespace Edi.Core.Device.Buttplug
 
             var cmds = gallery?.Commands;
             if (cmds == null) return;
-            var previousCts = Interlocked.Exchange(ref cancelTokenSource, new CancellationTokenSource());
-            if (previousCts != null)
-            {
-                previousCts.Cancel();
-                previousCts.Dispose(); // Asegúrate de disponer el CTS anterior para liberar recursos.
-            }
 
             if (Actuator == ActuatorType.Vibrate)
             {
@@ -119,7 +112,7 @@ namespace Edi.Core.Device.Buttplug
                 try
                 {
                     // Usa el nuevo token de cancelación aquí
-                    await Task.Delay(Math.Max(0, ReminingCmdTime), cancelTokenSource.Token);
+                    await Task.Delay(Math.Max(0, ReminingCmdTime), playCancelTokenSource.Token);
                 }
                 catch (TaskCanceledException)
                 {
@@ -137,24 +130,7 @@ namespace Edi.Core.Device.Buttplug
         }
         public override async Task StopGallery()
         {
-            var previousCts = Interlocked.Exchange(ref cancelTokenSource, new CancellationTokenSource());
-            if (previousCts != null)
-            {
-                previousCts.Cancel();
-                previousCts.Dispose(); // Es importante disponer el CTS antiguo para liberar recursos.
-            }
-            lock (Device)
-            {
-                if (Device == null) return;
-                try
-                {
-                    Device.Stop().GetAwaiter().GetResult();
-                }
-                catch (Exception ex) 
-                {
-                    return;
-                }
-            }
+            await Device?.Stop() ;
         }
 
         public async Task SendCmd()
@@ -204,7 +180,6 @@ namespace Edi.Core.Device.Buttplug
                 return (0, 0); // Si no hay comando actual, no hay velocidad ni cambio.
 
             var distanceToTravel = GetValueInRange() - CurrentCmd.InitialValue;
-
 
             var elapsedFraction = (double)CurrentCmdTime / CurrentCmd.Millis;
             var travel = Math.Round(distanceToTravel * elapsedFraction, 0);

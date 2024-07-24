@@ -254,6 +254,14 @@ namespace Edi.Forms
             base.EndInit();
         }
 
+        private async void Slider_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
+        {
+            await Dispatcher.Invoke(async () =>
+            {
+                await edi.Intensity(Convert.ToInt32(sliderIntensity.Value));
+            });
+        }
+
         private void TextBox_TextChanged(object sender, TextChangedEventArgs e)
         {
 

@@ -1,9 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Text.Json.Serialization;
-using System.Threading.Tasks;
+﻿
 
 namespace Edi.Core.Funscript
 {
@@ -33,6 +28,15 @@ namespace Edi.Core.Funscript
             command.Value = Convert.ToByte(Math.Min(100, _lowerLimit + (RangeDelta() / 100 * command.Value)));
 
             return command;
+        }
+
+        public CmdRange Clone()
+        {
+            return new CmdRange
+            {
+                LowerLimit = LowerLimit,
+                UpperLimit = UpperLimit
+            };
         }
     }
 }

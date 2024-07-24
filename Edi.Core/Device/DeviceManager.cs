@@ -1,14 +1,5 @@
-﻿using System;
-using System.Collections.Generic;
-using System.ComponentModel;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using System.Xml.Linq;
-using Edi.Core.Device.Interfaces;
-using Edi.Core.Gallery;
+﻿using Edi.Core.Device.Interfaces;
 using Microsoft.Extensions.DependencyInjection;
-using NAudio.CoreAudioApi;
 using PropertyChanged;
 
 namespace Edi.Core
@@ -18,12 +9,6 @@ namespace Edi.Core
     public class DeviceManager
     {
         public List<IDevice> Devices { get; set; } =  new List<IDevice>();    
-        private string? lastGallerySend;
-
-        public delegate void OnUnloadDeviceHandler(IDevice device, List<IDevice> devices);
-        public delegate void OnloadDeviceHandler(IDevice device, List<IDevice> devices);
-        public event OnUnloadDeviceHandler? OnUnloadDevice;
-        public event OnloadDeviceHandler? OnloadDevice;
 
         [ActivatorUtilitiesConstructor]
         public DeviceManager(IServiceProvider serviceProvider)
@@ -31,14 +16,21 @@ namespace Edi.Core
             ServiceProvider = serviceProvider;
         }
 
-        public DeviceManager(ConfigurationManager configuration ) 
+        public DeviceManager(ConfigurationManager configuration)
         {
             Config = configuration.Get<DevicesConfig>();
             this.configuration = configuration;
         }
 
-        private DevicesConfig Config;
-        private readonly ConfigurationManager configuration;
+        internal DevicesConfig Config;
+        internal readonly ConfigurationManager configuration;
+
+        public delegate void OnUnloadDeviceHandler(IDevice device, List<IDevice> devices);
+        public delegate void OnloadDeviceHandler(IDevice device, List<IDevice> devices);
+        public event OnUnloadDeviceHandler? OnUnloadDevice;
+        public event OnloadDeviceHandler? OnloadDevice;
+
+        private string? lastGallerySend;
 
         public List<IDeviceProvider> Providers { get; set; } =  new List<IDeviceProvider>();
 
@@ -57,12 +49,12 @@ namespace Edi.Core
             if (device.SelectedVariant == variant)
                 return;
 
-            var deviceName = Devices.FirstOrDefault(x  => x == device)?.Name;
+            var deviceName = Devices.FirstOrDefault(x => x == device)?.Name;
 
             if (device is null || deviceName is null)
                 return;
             if (!Config.Devices.ContainsKey(deviceName))
-                Config.Devices.Add(deviceName, new() { Variant = variant});
+                Config.Devices.Add(deviceName, new() { Variant = variant });
             else
             {
                 if (lastGallerySend == null && device.IsReady)
@@ -78,19 +70,18 @@ namespace Edi.Core
             configuration.Save(Config);
         }
 
-        public async Task SelectRange(IDevice device, IRange range)
+        public async Task SelectRange(IDevice device, int min, int max)
         {
             var deviceName = Devices.FirstOrDefault(x => x == device)?.Name;
 
             if (device is null || deviceName is null || device is not IRange)
                 return;
 
-            Config.Devices[deviceName].SetRange(range);
-            
+            Config.Devices[deviceName].SetRange(min, max);
 
-            (device as IRange).SetRange(range);
 
-            
+            (device as IRange).SetRange(min, max);
+
             configuration.Save(Config);
         }
 
@@ -119,22 +110,22 @@ namespace Edi.Core
             }
 
             var deviceConfig = Config.Devices[device.Name];
-            
-            deviceConfig.Variant = device.Variants.Contains(deviceConfig.Variant) 
-                                    ? deviceConfig.Variant 
+
+            deviceConfig.Variant = device.Variants.Contains(deviceConfig.Variant)
+                                    ? deviceConfig.Variant
                                     : device.ResolveDefaultVariant();
 
+            (device as IRange)?.SetRange(deviceConfig);
             device.SelectedVariant = deviceConfig.Variant;
             configuration.Save(Config);
             OnloadDevice?.Invoke(device, Devices);
         }
 
-
         private void UniqueName(IDevice device)
         {
             var c = 0;
             var NewName = device.Name;
-            while (Devices.Any(x=> x.Name == NewName))
+            while (Devices.Any(x => x.Name == NewName))
             {
                 c++;
                 NewName = $"{device.Name} ({c})";
@@ -166,7 +157,7 @@ namespace Edi.Core
         {
             lastGallerySend = name;
             _ = Devices.Select(device => device.PlayGallery(name, seek)).ToList();
-            
+
         }
 
 

@@ -100,7 +100,7 @@ namespace Edi.Core.Gallery.Definition
             foreach (var file in funscriptsFiles)  
             {
 
-                var fileName = DiscoverExtencion.variantRegex.Match(Path.GetFileNameWithoutExtension(file.FullName)).Groups["name"].Value;
+                var fileName = DiscoverExtension.variantRegex.Match(Path.GetFileNameWithoutExtension(file.FullName)).Groups["name"].Value;
 
                 var funscript = FunScriptFile.Read(file.FullName);
                 if (funscript.metadata?.chapters?.Any() == true && Config.GenerateDefinitionFromChapters)

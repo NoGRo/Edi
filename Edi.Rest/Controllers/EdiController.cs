@@ -53,11 +53,14 @@ namespace Edi.Controllers
         {
             await _edi.Resume(AtCurrentTime);
         }
-        [HttpPost("Intensity/{Max}")]
-        public async Task Intensity([Required,FromRoute,Range(0, 100)] int Max = 100)
+
+        [HttpPost("Intensity/{max}")]
+        public async Task Intensity([Required,FromRoute,Range(0, 100)] int max = 100)
         {
-            await _edi.Intensity(Max);
+            await _edi.Intensity(max);
         }
+
+
 
 
 

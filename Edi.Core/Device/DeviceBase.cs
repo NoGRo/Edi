@@ -64,7 +64,7 @@ namespace Edi.Core.Device
         public string Name { get; set; }
         public DateTime SyncSend { get; private set; }
         public long SeekTime { get; internal set; }
-        public int CurrentTime => currentGallery == null ? 0 : Convert.ToInt32(((DateTime.Now - SyncSend).TotalMilliseconds + SeekTime) % currentGallery.Duration);
+        public int CurrentTime => currentGallery == null ? 0 : Convert.ToInt32(((DateTime.Now - SyncSend).TotalMilliseconds + SeekTime) );
 
         private System.Timers.Timer timerRange = new System.Timers.Timer(100);
         private Task TimerRangeTask;

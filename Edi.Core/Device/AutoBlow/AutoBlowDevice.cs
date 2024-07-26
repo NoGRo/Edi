@@ -117,7 +117,7 @@ namespace Edi.Core.Device.AutoBlow
         {
 
             var previousCts = Interlocked.Exchange(ref uploadCancellationTokenSource, new CancellationTokenSource());
-            previousCts.Cancel(true);
+            previousCts?.Cancel(true);
             await Task.Delay(50);
             
             _ = Task.Run(async () =>

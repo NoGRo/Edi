@@ -47,14 +47,14 @@ namespace Edi.Core.Gallery.Index
 
             if (indexGallery.Duration == 0)
             {
-                sb.AddCommandMillis(gallery.Loop ? Config.MinRepearDuration : Config.SpacerDuration, sb.lastValue);
+                sb.AddCommandMillis(gallery.Loop ? Config.MinRepeatDuration : Config.SpacerDuration, sb.lastValue);
                 indexGallery.Duration = Convert.ToInt32(sb.TotalTime - startTime);
             }
             else if (gallery.Loop)
             {
                 var originalDuration = indexGallery.Duration;
-                var newDuration = (int)Math.Ceiling((double)Config.MinRepearDuration / originalDuration) * originalDuration;
-                var NewTotalTime = startTime + newDuration + Config.RepearDuration;
+                var newDuration = (int)Math.Ceiling((double)Config.MinRepeatDuration / originalDuration) * originalDuration;
+                var NewTotalTime = startTime + newDuration + Config.RepeatDuration;
 
                 sb.addCommands(gallery.Commands.Clone());
                 while (sb.TotalTime < NewTotalTime)

@@ -2,10 +2,11 @@
   "Gallery": {
     "DefaulVariant": "BF",
     "SelectedVariant": null,
-    "GalleryPath": "D:\\Programacion\\Mage Kanade’s Futanari Dungeon Quest\\BepInEx\\plugins\\Gallery"
+    "GalleryPath": ".\\Gallery"
   },
   "GalleryBundler": {
-    "RepearDuration": 2000,
+    "MinRepeatDuration": 8000,
+    "RepeatDuration": 2000,
     "SpacerDuration": 4000
   },
   "Buttplug": {
@@ -60,17 +61,17 @@
         "Max": 100
       },
       "The Handy": {
-        "Variant": "sleeve",
+        "Variant": "default",
         "Min": 0,
         "Max": 100
       },
       "Lovense Dolce Vibrate: 1": {
-        "Variant": "vibrator",
+        "Variant": "variant1",
         "Min": 0,
         "Max": 100
       },
       "Lovense Dolce Vibrate: 2": {
-        "Variant": "vibrator",
+        "Variant": "variant2",
         "Min": 0,
         "Max": 100
       },
@@ -80,14 +81,14 @@
         "Max": 100
       },
       "AutoBlow [ibjckz1x0q91]": {
-        "Variant": "detailed",
+        "Variant": "default",
         "Min": 0,
         "Max": 100
       },
       "The Handy [92H0Y]": {
         "Variant": "detailed",
         "Min": 0,
-        "Max": 100
+        "Max": 80
       },
       "Lovense Hush": {
         "Variant": "vibrator",

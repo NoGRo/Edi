@@ -52,16 +52,19 @@ namespace Edi.Core.Gallery.Index
             }
             else if (gallery.Loop)
             {
-                var NewTotalTime = startTime + Math.Max(indexGallery.Duration , Config.MinRepearDuration) + Config.RepearDuration;
+                var originalDuration = indexGallery.Duration;
+                var newDuration = (int)Math.Ceiling((double)Config.MinRepearDuration / originalDuration) * originalDuration;
+                var NewTotalTime = startTime + newDuration + Config.RepearDuration;
 
                 sb.addCommands(gallery.Commands.Clone());
-                while (sb.TotalTime <= NewTotalTime)
+                while (sb.TotalTime < NewTotalTime)
                 {
                     sb.addCommands(gallery.Commands.Clone());
                 }
                 sb.TrimTimeTo(NewTotalTime);
 
-                indexGallery.Duration = Convert.ToInt32(NewTotalTime - startTime - Config.RepearDuration);
+                indexGallery.Duration = newDuration;
+
             }
             else if (Config.SpacerDuration > 0) // extra, no movement
                 sb.AddCommandMillis(Config.SpacerDuration, sb.lastValue);

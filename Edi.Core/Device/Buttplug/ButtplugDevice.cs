@@ -163,9 +163,10 @@ namespace Edi.Core.Device.Buttplug
 
         }
 
-        private int GetValueInRange()
+        private int GetValueInRange(double? value =  null )
         {
-            return  Convert.ToInt32(Min + ((Max - Min) / ((double)100) * CurrentCmd.Value));
+            value ??= CurrentCmd.Value;
+            return  Convert.ToInt32(Min + ((Max - Min) / ((double)100) * value));
 /*
             if (CurrentCmd.Value == Min && CurrentCmd.Value == Max && CurrentCmd.Prev?.Value == Min)
                 CurrentCmd.Cancel = true;
@@ -179,12 +180,13 @@ namespace Edi.Core.Device.Buttplug
             if (CurrentCmd == null)
                 return (0, 0); // Si no hay comando actual, no hay velocidad ni cambio.
 
-            var distanceToTravel = GetValueInRange() - CurrentCmd.InitialValue;
+            var initialValue = GetValueInRange(CurrentCmd.InitialValue);
+            var distanceToTravel = GetValueInRange() - initialValue;
 
             var elapsedFraction = (double)CurrentCmdTime / CurrentCmd.Millis;
             var travel = Math.Round(distanceToTravel * elapsedFraction, 0);
             travel = travel is double.NaN or double.PositiveInfinity or double.NegativeInfinity ? 0 : travel;
-            var currVal = Math.Abs(Math.Max(0, Math.Min(100, CurrentCmd.InitialValue + Convert.ToInt16(travel))));
+            var currVal = Math.Abs(Math.Max(0, Math.Min(100, initialValue + Convert.ToInt16(travel))));
 
             var speed = (int)Math.Round(currVal / vibroSteps) * vibroSteps;
             speed = Math.Min(1.0, Math.Max(0, speed / (double)100));

@@ -86,7 +86,8 @@ namespace Edi.Core.Device
             lastMax = max;
             lastMin = min;
 
-            await TimerRangeTask;
+            if(TimerRangeTask != null)
+                await TimerRangeTask;
 
             TimerRangeTask = applyRange();
         }
@@ -119,7 +120,7 @@ namespace Edi.Core.Device
         public virtual async Task PlayGallery(string name, long seek = 0)
         {
 
-            SyncSend = DateTime.Now;
+
             var previousCts = Interlocked.Exchange(ref playCancelTokenSource, new CancellationTokenSource()); // Intercambia el CTS global con el nuevo, de forma atómica
             previousCts?.Cancel(true); // Cancela cualquier tarea anterior
 
@@ -130,8 +131,9 @@ namespace Edi.Core.Device
                 return;
             }
 
-
             SeekTime = seek;
+            
+            SyncSend = DateTime.Now;
             currentGallery = gallery;
             IsPause = false;
 

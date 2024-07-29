@@ -40,7 +40,10 @@ namespace Edi.Core.Funscript
             cmd.AbsoluteTime = TotalTime;
             Sequence.Add(cmd);
         }
-
+        public void AddTime(long time)
+        {
+            TotalTime += time;
+        }
             //go to a value at speed (Use starting point to calculate speed)
         public void AddCommand(CmdLinear cmd)
         {

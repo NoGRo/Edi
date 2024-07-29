@@ -35,25 +35,23 @@ namespace Edi.Core.Gallery
 
             var assetEdis = new List<AssetEdi>();
 
- 
             foreach (var file in files)
             {
                 var fileName = variantRegex.Match(Path.GetFileNameWithoutExtension(file.Name)).Groups["name"].Value;
-                var variant = variantRegex.Match(Path.GetFileNameWithoutExtension(file.Name)).Groups["variant"].Value;
+                var fileVariant = variantRegex.Match(Path.GetFileNameWithoutExtension(file.Name)).Groups["variant"].Value;
 
                 // Remove any reserved names from the variant
-                variant = Regex.Replace(variant, ReserveRx, string.Empty);
+                fileVariant = Regex.Replace(fileVariant, ReserveRx, string.Empty);
 
                 var pathSplit = file.FullName.Replace(GalleryDir.FullName + "\\", "").Split('\\');
                 var pathVariant = pathSplit.Length > 1 ? pathSplit[0] : null;
 
-                // Determine the final variant to use
-                variant = !string.IsNullOrEmpty(variant)
-                                        ? variant
+                fileVariant = !string.IsNullOrEmpty(fileVariant)
+                                        ? fileVariant
                                         : pathVariant ?? defaultVariant;
 
                 // Add the processed asset to the list
-                assetEdis.Add(new(file, fileName, variant));
+                assetEdis.Add(new(file, fileName, fileVariant));
             }
 
             // Return the list of discovered assets

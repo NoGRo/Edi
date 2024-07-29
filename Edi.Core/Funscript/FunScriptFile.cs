@@ -71,9 +71,14 @@ namespace Edi.Core.Funscript
             {
                 var axis = filename?.Split('.').Last();
 
-                Axis parsedAxis;
-                var parsed = Enum.TryParse(axis, true, out parsedAxis);
-                return parsed ? parsedAxis : Axis.Default;
+                if (axis != null && !int.TryParse(axis, out _))
+                {
+                    Axis parsedAxis;
+                    var parsed = Enum.TryParse(axis, true, out parsedAxis);
+                    return parsed ? parsedAxis : Axis.Default;
+                }
+
+                return Axis.Default;
             }
         }
 

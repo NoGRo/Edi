@@ -245,6 +245,7 @@ namespace Edi.Core
 
         public Task Intensity(int Max)
         {
+            changeStatus($"Intensity Set {Max}");
             DeviceManager.Intensity(Max);
             return Task.CompletedTask;
         }

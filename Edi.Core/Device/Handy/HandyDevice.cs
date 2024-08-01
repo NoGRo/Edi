@@ -186,30 +186,29 @@ namespace Edi.Core.Device.Handy
             }
         }
 
-        private long ServerTime => DateTimeOffset.UtcNow.ToUnixTimeMilliseconds() + timeSyncInitialOffset + timeSyncAvrageOffset;
+        private long ServerTime => DateTimeOffset.UtcNow.ToUnixTimeMilliseconds() +  timeSyncAvrageOffset;
+
         public async Task updateServerTime()
         {
-            var totalCalls = 30;
-            var discardTopBotom = 2;
-            //warm up
-            _ = await getServerOfsset();
+            const int totalCalls = 30;
+            const int discardCount = 2;
 
+            // Warm up
+            _ = await GetServerOffsetAsync();
 
-            timeSyncInitialOffset = await getServerOfsset();
 
             var offsets = new List<long>();
-            for (int i = 0; i < 30; i++)
+            for (int i = 0; i < totalCalls; i++)
             {
-                offsets.Add(await getServerOfsset() - timeSyncInitialOffset);
+                offsets.Add(await GetServerOffsetAsync());
             }
-            timeSyncAvrageOffset = Convert.ToInt64(
-                                        offsets.OrderBy(x => x)
-                                            .Take(totalCalls - discardTopBotom).TakeLast(totalCalls - discardTopBotom * 2) //discard TopBotom Extreme cases
-                                            .Average()
-                                    );
 
+            // Discard top and bottom extremes
+            var validOffsets = offsets.OrderBy(x => x).Skip(discardCount).Take(totalCalls - discardCount * 2).ToList();
+            timeSyncAvrageOffset = Convert.ToInt64(validOffsets.Average()) / 4;
         }
-        private async Task<long> getServerOfsset()
+
+        private async Task<long> GetServerOffsetAsync()
         {
             var sendTime = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
             var result = await Client.GetAsync("servertime");
@@ -218,7 +217,7 @@ namespace Edi.Core.Device.Handy
             var estimatedServerTimeNow = resp.serverTime + (receiveTime - sendTime) / 2;
             return estimatedServerTimeNow - receiveTime;
         }
-     
+
 
     }
     public record ServerTimeResponse(long serverTime);

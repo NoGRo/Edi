@@ -3,8 +3,9 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using Edi.Core.Device.Interfaces;
 
-namespace Edi.Core.Device.Interfaces
+namespace Edi.Core.Device
 {
     public class DeviceDto : IRange
     {

@@ -42,8 +42,8 @@ namespace Edi.Core.Gallery
 
                 // Remove any reserved names from the variant
                 fileVariant = Regex.Replace(fileVariant, ReserveRx, string.Empty);
-
-                var pathSplit = file.FullName.Replace(GalleryDir.FullName + "\\", "").Split('\\');
+                var removePathBase = GalleryDir.FullName.EndsWith("\\") ? GalleryDir.FullName : GalleryDir.FullName + "\\";
+                var pathSplit = file.FullName.Replace(removePathBase, "").Split('\\');
                 var pathVariant = pathSplit.Length > 1 ? pathSplit[0] : null;
 
                 fileVariant = !string.IsNullOrEmpty(fileVariant)

@@ -151,7 +151,7 @@ namespace Edi.Core.Device.Buttplug
                 switch (Actuator)
                 {
                     case ActuatorType.Position:
-                        sendtask = Device.LinearAsync(new[] { ((uint)(ReminingCmdTime), Math.Min(1.0, Math.Max(0, GetValueInRange() / (double)100))) });
+                        sendtask = Device.LinearAsync(new[] { ((uint)(ReminingCmdTime), Math.Min(1.0, Math.Max(0, CurrentCmd.GetValueInRange(Min,Max) / (double)100))) });
                         break;
                     case ActuatorType.Rotate:
                         sendtask = Device.RotateAsync(Math.Min(1.0, Math.Max(0, CurrentCmd.Speed / (double)450)), CurrentCmd.Direction); ;
@@ -163,16 +163,7 @@ namespace Edi.Core.Device.Buttplug
 
         }
 
-        private int GetValueInRange(double? value =  null )
-        {
-            value ??= CurrentCmd.Value;
-            return  Convert.ToInt32(Min + ((Max - Min) / ((double)100) * value));
-/*
-            if (CurrentCmd.Value == Min && CurrentCmd.Value == Max && CurrentCmd.Prev?.Value == Min)
-                CurrentCmd.Cancel = true;
-*/
 
-        }
 
         public (double Speed, int TimeUntilNextChange) CalculateSpeed()
         {
@@ -180,8 +171,8 @@ namespace Edi.Core.Device.Buttplug
             if (CurrentCmd == null)
                 return (0, 0); // Si no hay comando actual, no hay velocidad ni cambio.
 
-            var initialValue = GetValueInRange(CurrentCmd.InitialValue);
-            var distanceToTravel = GetValueInRange() - initialValue;
+            var initialValue = CurrentCmd.Prev?.GetValueInRange(Min, Max) ?? 0;
+            var distanceToTravel = CurrentCmd.GetValueInRange(Min, Max) - initialValue;
 
             var elapsedFraction = (double)CurrentCmdTime / CurrentCmd.Millis;
             var travel = Math.Round(distanceToTravel * elapsedFraction, 0);

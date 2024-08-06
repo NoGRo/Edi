@@ -105,7 +105,15 @@ namespace Edi.Core.Funscript
         public DateTime? Sent { get; set; }
         public bool Cancel { get; set; }
         public short Distance => (short)Math.Abs(Direction ? Value - InitialValue : InitialValue - Value);
+        public int GetValueInRange(int min, int max)
+        {
+            return Convert.ToInt32(min + ((max - min) / ((double)100) * Value));
+            /*
+                        if (CurrentCmd.Value == Min && CurrentCmd.Value == Max && CurrentCmd.Prev?.Value == Min)
+                            CurrentCmd.Cancel = true;
+            */
 
+        }
         public CmdLinear Clone()
         {
             return new CmdLinear

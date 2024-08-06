@@ -2,7 +2,7 @@
   "Gallery": {
     "DefaulVariant": "BF",
     "SelectedVariant": null,
-    "GalleryPath": ".\\Gallery"
+    "GalleryPath": "C:\\Users\\jcrisolini\\Downloads\\"
   },
   "GalleryBundler": {
     "MinRepeatDuration": 8000,
@@ -86,9 +86,9 @@
         "Max": 100
       },
       "The Handy [92H0Y]": {
-        "Variant": "detailed",
+        "Variant": "default",
         "Min": 0,
-        "Max": 80
+        "Max": 100
       },
       "Lovense Hush": {
         "Variant": "vibrator",

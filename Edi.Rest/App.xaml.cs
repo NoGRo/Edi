@@ -38,11 +38,11 @@ namespace Edi.Forms
 
             var webAppBuilder = WebApplication.CreateBuilder();
 
-            webAppBuilder.WebHost.UseUrls("http://localhost:5000/");
+            webAppBuilder.WebHost.UseUrls("https://*:5000/");
 
             IServiceCollection services = webAppBuilder.Services;
 
-            services.AddControllers();
+            services.AddControllersWithViews();
             services.AddSwaggerGen(c =>
             {
                 c.SwaggerDoc("v1", new OpenApiInfo { Title = "Edi Rest", Version = "v1" });
@@ -51,10 +51,10 @@ namespace Edi.Forms
             services.AddCors(options =>
             {
                 options.AddPolicy("AllowSpecificOrigin",
-                    builder => builder.WithOrigins("http://localhost:1234", "http://localhost:5000/") // Permite solicitudes desde este origen
-                                        .AllowAnyMethod()
-                                        .AllowAnyOrigin()
-                                        .AllowAnyHeader());
+           builder => builder
+            .AllowAnyOrigin() // Permite solicitudes desde cualquier origen
+            .AllowAnyMethod()
+            .AllowAnyHeader());
             });
 
             webApp = webAppBuilder.Build();
@@ -109,7 +109,16 @@ namespace Edi.Forms
             webApp.UseSwaggerUI();
 
             webApp.UseCors("AllowSpecificOrigin");
-            webApp.MapControllers();
+
+            webApp.UseRouting();
+            webApp.UseEndpoints(endpoints =>
+            {
+                endpoints.MapControllerRoute(
+                    name: "default",
+                    pattern: "{controller=Home}/{action=Index}/{id?}");
+                endpoints.MapRazorPages();
+            });
+
             serviceProvider = services.BuildServiceProvider();
             
 

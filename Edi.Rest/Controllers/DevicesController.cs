@@ -1,4 +1,5 @@
 ﻿using Edi.Core;
+using Edi.Core.Device;
 using Edi.Core.Device.Interfaces;
 using Edi.Forms;
 using Microsoft.AspNetCore.Mvc;

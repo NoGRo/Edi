@@ -19,6 +19,8 @@
 	  <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
 	</PackageReference>
 
+	<PackageReference Include="Microsoft.VisualStudio.Web.CodeGeneration.Design" Version="6.0.17" />
+
 	<PackageReference Include="PropertyChanged.Fody" Version="4.1.0" />
 
 	<PackageReference Include="Swashbuckle.AspNetCore" Version="6.6.2" />

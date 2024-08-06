@@ -22,6 +22,7 @@ using PropertyChanged;
 using System.Timers;
 using System.ComponentModel.DataAnnotations;
 using System.Xml.Linq;
+using System.Reflection;
 
 namespace Edi.Core.Device.Handy
 {
@@ -33,7 +34,6 @@ namespace Edi.Core.Device.Handy
 
         
         private static long timeSyncAvrageOffset;
-        private static long timeSyncInitialOffset;
         public HttpClient Client = null;
 
 
@@ -82,7 +82,16 @@ namespace Edi.Core.Device.Handy
                 try
                 {
                     var req = new SyncPlayRequest(ServerTime, timeMs);
-                    await Client.PutAsync("hssp/play", new StringContent(JsonConvert.SerializeObject(req), Encoding.UTF8, "application/json"));
+                    await Client.PutAsync("hssp/play", new StringContent(JsonConvert.SerializeObject(req), Encoding.UTF8, "application/json"), playCancelTokenSource.Token);
+                    await Task.Delay(2000, playCancelTokenSource.Token);
+                    req = new SyncPlayRequest(ServerTime, CurrentTime);
+                    await Client.PutAsync("hssp/play", new StringContent(JsonConvert.SerializeObject(req), Encoding.UTF8, "application/json"), playCancelTokenSource.Token);
+
+                }
+
+                catch (TaskCanceledException ex)
+                {
+                    return;
                 }
                 catch (Exception ex)
                 {
@@ -186,40 +195,65 @@ namespace Edi.Core.Device.Handy
             }
         }
 
+        internal async Task updateServerTime()
+        {
+            timeSyncAvrageOffset = await ServerTimeSync.SyncServerTimeAsync();
+            Debug.WriteLine($"Handy: [Offset {timeSyncAvrageOffset}]");
+        }
+
         private long ServerTime => DateTimeOffset.UtcNow.ToUnixTimeMilliseconds() +  timeSyncAvrageOffset;
-
-        public async Task updateServerTime()
-        {
-            const int totalCalls = 30;
-            const int discardCount = 2;
-
-            // Warm up
-            _ = await GetServerOffsetAsync();
-
-
-            var offsets = new List<long>();
-            for (int i = 0; i < totalCalls; i++)
-            {
-                offsets.Add(await GetServerOffsetAsync());
-            }
-
-            // Discard top and bottom extremes
-            var validOffsets = offsets.OrderBy(x => x).Skip(discardCount).Take(totalCalls - discardCount * 2).ToList();
-            timeSyncAvrageOffset = Convert.ToInt64(validOffsets.Average()) / 4;
-        }
-
-        private async Task<long> GetServerOffsetAsync()
-        {
-            var sendTime = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
-            var result = await Client.GetAsync("servertime");
-            var receiveTime = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
-            var resp = JsonConvert.DeserializeObject<ServerTimeResponse>(await result.Content.ReadAsStringAsync());
-            var estimatedServerTimeNow = resp.serverTime + (receiveTime - sendTime) / 2;
-            return estimatedServerTimeNow - receiveTime;
-        }
 
 
     }
+public static class ServerTimeSync
+    {
+        private static double _estimatedAverageOffset = 0;
+        private static DateTime _estimatedDatetime;
+        private static int offsetTimeoutRefreshMinutes = 10;
+
+
+        private static async Task<long> GetServerTimeAsync()
+        {
+            using (var client = new HttpClient())
+            {
+                client.DefaultRequestHeaders.Accept.Add(new System.Net.Http.Headers.MediaTypeWithQualityHeaderValue("application/json"));
+                var response = await client.GetStringAsync("https://www.handyfeeling.com/api/handy/v2/servertime");
+                var data = JsonDocument.Parse(response);
+                return data.RootElement.GetProperty("serverTime").GetInt64();
+            }
+        }
+
+        public static async Task<long> SyncServerTimeAsync()
+        {
+            var syncTries = 20;
+            var offsetAggregated = new List<double>();
+            for (int i = 0; i < syncTries; i++)
+            {
+                var tStart = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
+                var tServer = await GetServerTimeAsync();
+                var tEnd = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
+                var tRtd = tEnd - tStart;
+                var tOffset = (tServer + (tRtd / 2.0)) - tEnd;
+                offsetAggregated.Add(tOffset);
+            }
+            offsetAggregated.Sort();
+            var trimmedOffsets = offsetAggregated.Skip(1).Take(offsetAggregated.Count - 2).ToList();
+
+            // Calcular el promedio de los offsets sin los extremos
+            _estimatedAverageOffset = Math.Round(trimmedOffsets.Average());
+            _estimatedDatetime = DateTime.Now;
+            Console.WriteLine("Server clock is synced");
+            Console.WriteLine($"Estimated average offset: {_estimatedAverageOffset}");
+            return Convert.ToInt64( _estimatedAverageOffset);
+        }
+
+    }
+
+    // Example usage:
+    // await ServerTimeSync.SyncServerTimeAsync(10);
+    // var serverTime = ServerTimeSync.GetEstimatedServerTime();
+    // Console.WriteLine($"Estimated Server Time: {serverTime}");
+
     public record ServerTimeResponse(long serverTime);
     public record SyncPlayRequest(long estimatedServerTime, long startTime);
     public record SyncUpload(string url);

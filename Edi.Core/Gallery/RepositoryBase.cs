@@ -76,7 +76,7 @@ namespace Edi.Core.Gallery
             }
 
             Variants = Galleries.SelectMany(x => x.Value.Select(y => y.Variant)).Distinct().ToList();
-            Variants.Insert(0, "None");
+            Variants.Add("None");
             ReadEnd();
         }
         protected virtual void ReadEnd() { }

@@ -182,7 +182,7 @@ namespace Edi.Core.Device
         public abstract Task StopGallery();
 
         public virtual string ResolveDefaultVariant()
-        => Variants.Where(x=> x != "None").FirstOrDefault("None");
+        => Variants.FirstOrDefault("");
 
     }
 }

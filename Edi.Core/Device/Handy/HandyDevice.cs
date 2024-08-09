@@ -71,36 +71,10 @@ namespace Edi.Core.Device.Handy
                     upload(gallery.Bundle, false);
                 }
             }
-            await Seek(gallery.StartTime + seek);
+            await Seek(gallery.StartTime + CurrentTime);
         }
 
-        private async Task Seek(long timeMs)
-        {
-            if (IsReady)
-            {
-                Debug.WriteLine($"Handy: [{DateTimeOffset.UtcNow.ToUnixTimeMilliseconds()}] {ServerTime} {Key} PLay [{timeMs}] ({currentGallery?.Name ?? ""}))");
-                try
-                {
-                    var req = new SyncPlayRequest(ServerTime, timeMs);
-                    await Client.PutAsync("hssp/play", new StringContent(JsonConvert.SerializeObject(req), Encoding.UTF8, "application/json"), playCancelTokenSource.Token);
-                    await Task.Delay(2000, playCancelTokenSource.Token);
-                    req = new SyncPlayRequest(ServerTime, CurrentTime);
-                    await Client.PutAsync("hssp/play", new StringContent(JsonConvert.SerializeObject(req), Encoding.UTF8, "application/json"), playCancelTokenSource.Token);
 
-                }
-
-                catch (TaskCanceledException ex)
-                {
-                    return;
-                }
-                catch (Exception ex)
-                {
-                    Debug.WriteLine($"Handy: {Key} Error: {ex.Message}");
-                }
-            }
-
-
-        }
         public override async Task StopGallery()
         {
             if (IsReady)
@@ -201,6 +175,33 @@ namespace Edi.Core.Device.Handy
             Debug.WriteLine($"Handy: [Offset {timeSyncAvrageOffset}]");
         }
 
+        private async Task Seek(long timeMs)
+        {
+            if (!IsReady)
+                return;
+            
+
+            Debug.WriteLine($"Handy: [{DateTimeOffset.UtcNow.ToFileTime}] {ServerTime} {Key} PLay [{timeMs}] ({currentGallery?.Name ?? ""}))");
+            try
+            {
+                var req = new SyncPlayRequest(estimatedServerTime: ServerTime, startTime: timeMs);
+                await Client.PutAsync("hssp/play", new StringContent(JsonConvert.SerializeObject(req), Encoding.UTF8, "application/json"), playCancelTokenSource.Token);
+                Debug.WriteLine(JsonConvert.SerializeObject(req));
+                await Task.Delay(1000, playCancelTokenSource.Token);
+                req = new SyncPlayRequest(ServerTime, currentGallery.StartTime +  CurrentTime);
+                await Client.PutAsync("hssp/play", new StringContent(JsonConvert.SerializeObject(req), Encoding.UTF8, "application/json"), playCancelTokenSource.Token);
+
+            }
+
+            catch (TaskCanceledException ex)
+            {
+                return;
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"Handy: {Key} Error: {ex.Message}");
+            }
+        }
         private long ServerTime => DateTimeOffset.UtcNow.ToUnixTimeMilliseconds() +  timeSyncAvrageOffset;
 
 
@@ -209,41 +210,39 @@ public static class ServerTimeSync
     {
         private static double _estimatedAverageOffset = 0;
         private static DateTime _estimatedDatetime;
-        private static int offsetTimeoutRefreshMinutes = 10;
+        private static int offsetRefreshMinutes = 10;
 
 
-        private static async Task<long> GetServerTimeAsync()
-        {
-            using (var client = new HttpClient())
-            {
-                client.DefaultRequestHeaders.Accept.Add(new System.Net.Http.Headers.MediaTypeWithQualityHeaderValue("application/json"));
-                var response = await client.GetStringAsync("https://www.handyfeeling.com/api/handy/v2/servertime");
-                var data = JsonDocument.Parse(response);
-                return data.RootElement.GetProperty("serverTime").GetInt64();
-            }
-        }
-
+        
+        
         public static async Task<long> SyncServerTimeAsync()
         {
-            var syncTries = 20;
+            var client = new HttpClient();
+
+            client.DefaultRequestHeaders.Accept.Add(new System.Net.Http.Headers.MediaTypeWithQualityHeaderValue("application/json"));
+            //_ =  await GetServerTimeAsync(); //warmup
+            var syncTries =30;
             var offsetAggregated = new List<double>();
             for (int i = 0; i < syncTries; i++)
             {
+
+                    
                 var tStart = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
-                var tServer = await GetServerTimeAsync();
+                var response = await client.GetAsync("https://www.handyfeeling.com/api/handy/v2/servertime");
                 var tEnd = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
+
+                var data = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+                var tServer = data.RootElement.GetProperty("serverTime").GetInt64();
+                
                 var tRtd = tEnd - tStart;
                 var tOffset = (tServer + (tRtd / 2.0)) - tEnd;
                 offsetAggregated.Add(tOffset);
             }
             offsetAggregated.Sort();
-            var trimmedOffsets = offsetAggregated.Skip(1).Take(offsetAggregated.Count - 2).ToList();
+            var trimmedOffsets = offsetAggregated.Skip(4).Take(offsetAggregated.Count - 8).ToList();
 
             // Calcular el promedio de los offsets sin los extremos
             _estimatedAverageOffset = Math.Round(trimmedOffsets.Average());
-            _estimatedDatetime = DateTime.Now;
-            Console.WriteLine("Server clock is synced");
-            Console.WriteLine($"Estimated average offset: {_estimatedAverageOffset}");
             return Convert.ToInt64( _estimatedAverageOffset);
         }
 

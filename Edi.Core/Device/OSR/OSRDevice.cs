@@ -331,6 +331,6 @@ namespace Edi.Core.Device.OSR
         }
 
         public string ResolveDefaultVariant()
-        => Variants.FirstOrDefault("");
+        => Variants.Where(x=> x != "None").FirstOrDefault("None");
     }
 }

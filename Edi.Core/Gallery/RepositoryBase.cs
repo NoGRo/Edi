@@ -33,7 +33,7 @@ namespace Edi.Core.Gallery
         {
             var variants = Galleries.GetValueOrDefault(name);
 
-            if (variants is null)
+            if (variants is null || string.IsNullOrEmpty(variant) || variant == "None")
                 return null;
 
             var gallery = variants.FirstOrDefault(x => x.Variant == variant)
@@ -76,7 +76,7 @@ namespace Edi.Core.Gallery
             }
 
             Variants = Galleries.SelectMany(x => x.Value.Select(y => y.Variant)).Distinct().ToList();
-
+            Variants.Insert(0, "None");
             ReadEnd();
         }
         protected virtual void ReadEnd() { }

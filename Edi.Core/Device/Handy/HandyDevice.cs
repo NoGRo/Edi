@@ -83,8 +83,11 @@ namespace Edi.Core.Device.Handy
                 {
                     var req = new SyncPlayRequest(ServerTime, timeMs);
                     await Client.PutAsync("hssp/play", new StringContent(JsonConvert.SerializeObject(req), Encoding.UTF8, "application/json"), playCancelTokenSource.Token);
-                    await Task.Delay(2000, playCancelTokenSource.Token);
-                    req = new SyncPlayRequest(ServerTime, CurrentTime);
+                    // second call for warmp up connection delay msg 
+                    await Task.Delay(1500, playCancelTokenSource.Token);
+                    if(currentGallery is null) 
+                            return;
+                    req = new SyncPlayRequest(ServerTime, currentGallery.StartTime + CurrentTime);
                     await Client.PutAsync("hssp/play", new StringContent(JsonConvert.SerializeObject(req), Encoding.UTF8, "application/json"), playCancelTokenSource.Token);
 
                 }

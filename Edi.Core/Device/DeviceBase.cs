@@ -84,6 +84,7 @@ namespace Edi.Core.Device
                 timerRange.Stop();
                 return;
             }
+            // Stop/Resume When Range: 0-0 ???
             lastMax = max;
             lastMin = min;
 
@@ -126,7 +127,7 @@ namespace Edi.Core.Device
             previousCts?.Cancel(true); // Cancela cualquier tarea anterior
 
             var gallery = repository.Get(name, SelectedVariant);
-            if (gallery == null)
+            if (gallery == null) // stop? || (Min == 0 && Max == 0))
             {
                 await Stop();
                 return;
@@ -140,6 +141,7 @@ namespace Edi.Core.Device
 
             var interval = gallery.Duration - seek;
             _ = PlayGallery(gallery, seek);
+
             var token = playCancelTokenSource.Token;
             try
             {

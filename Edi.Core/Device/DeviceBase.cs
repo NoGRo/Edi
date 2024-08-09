@@ -10,6 +10,7 @@ using Newtonsoft.Json;
 using System.Timers;
 using PropertyChanged;
 using Edi.Core.Device.Interfaces;
+using Newtonsoft.Json.Linq;
 
 namespace Edi.Core.Device
 {
@@ -139,9 +140,11 @@ namespace Edi.Core.Device
 
             var interval = gallery.Duration - seek;
             _ = PlayGallery(gallery, seek);
+            var token = playCancelTokenSource.Token;
             try
             {
-                await Task.Delay(TimeSpan.FromMilliseconds(interval), playCancelTokenSource.Token);
+                
+                await Task.Delay(TimeSpan.FromMilliseconds(interval), token);
             }
             catch (TaskCanceledException)
             {
@@ -149,7 +152,7 @@ namespace Edi.Core.Device
             }
 
             // Verifica que el token no haya sido cancelado por otra invocación
-            if (playCancelTokenSource.Token.IsCancellationRequested)
+            if (token.IsCancellationRequested)
                 return;
 
             if (currentGallery?.Loop == true && !IsPause)

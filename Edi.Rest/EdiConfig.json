@@ -2,10 +2,10 @@
   "Gallery": {
     "DefaulVariant": "BF",
     "SelectedVariant": null,
-    "GalleryPath": "C:\\Users\\jcrisolini\\Downloads\\"
+    "GalleryPath": ".\\Gallery"
   },
   "GalleryBundler": {
-    "MinRepeatDuration": 8000,
+    "MinRepeatDuration": 6000,
     "RepeatDuration": 2000,
     "SpacerDuration": 4000
   },
@@ -56,7 +56,7 @@
   "Devices": {
     "Devices": {
       "The Handy [PiBnz]": {
-        "Variant": "detailed",
+        "Variant": "default",
         "Min": 0,
         "Max": 100
       },
@@ -81,7 +81,7 @@
         "Max": 100
       },
       "AutoBlow [ibjckz1x0q91]": {
-        "Variant": "default",
+        "Variant": "detailed",
         "Min": 0,
         "Max": 100
       },

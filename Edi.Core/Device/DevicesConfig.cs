@@ -6,7 +6,7 @@ using System.Text;
 using System.Threading.Tasks;
 using Edi.Core.Device.Interfaces;
 
-namespace Edi.Core
+namespace Edi.Core.Device
 {
     [AddINotifyPropertyChangedInterface]
     public class DevicesConfig
@@ -14,7 +14,7 @@ namespace Edi.Core
         public Dictionary<string, DeviceConfig> Devices { get; set; } = new Dictionary<string, DeviceConfig>();
     }
 
-    public class DeviceConfig : IRange 
+    public class DeviceConfig : IRange
     {
         public string Variant { get; set; }
 

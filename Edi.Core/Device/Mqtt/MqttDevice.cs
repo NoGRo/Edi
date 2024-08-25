@@ -1,7 +1,7 @@
 ﻿using Buttplug.Core.Messages;
 using Edi.Core.Funscript;
 using Edi.Core.Gallery;
-using Edi.Core.Gallery.CmdLineal;
+using Edi.Core.Gallery.Funscript;
 using MQTTnet;
 using MQTTnet.Client;
 using System;

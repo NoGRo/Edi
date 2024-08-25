@@ -2,13 +2,13 @@
 using Microsoft.Extensions.DependencyInjection;
 using PropertyChanged;
 
-namespace Edi.Core
+namespace Edi.Core.Device
 {
 
     [AddINotifyPropertyChangedInterface]
     public class DeviceManager
     {
-        public List<IDevice> Devices { get; set; } =  new List<IDevice>();    
+        public List<IDevice> Devices { get; set; } = new List<IDevice>();
 
         [ActivatorUtilitiesConstructor]
         public DeviceManager(IServiceProvider serviceProvider)
@@ -32,10 +32,10 @@ namespace Edi.Core
 
         private string? lastGallerySend;
 
-        public List<IDeviceProvider> Providers { get; set; } =  new List<IDeviceProvider>();
+        public List<IDeviceProvider> Providers { get; set; } = new List<IDeviceProvider>();
 
         private IServiceProvider ServiceProvider { get; }
-        
+
         public async Task Init()
         {
             if (!Providers.Any() && ServiceProvider != null)

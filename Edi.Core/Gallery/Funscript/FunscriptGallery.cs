@@ -2,13 +2,16 @@
 using System.IO;
 using Edi.Core.Funscript;
 
-namespace Edi.Core.Gallery.CmdLineal
+namespace Edi.Core.Gallery.Funscript
 {
     public class FunscriptGallery : IGallery
     {
         public string Name { get; set; }
         public string Variant { get; set; }
-        public List<CmdLinear> Commands { get {
+        public List<CmdLinear> Commands
+        {
+            get
+            {
                 var enumValues = Enum.GetValues<Axis>();
                 foreach (var enumValue in enumValues)
                 {
@@ -31,9 +34,9 @@ namespace Edi.Core.Gallery.CmdLineal
         {
             var gallery = new FunscriptGallery
             {
-                Name = this.Name,
-                Variant = this.Variant,
-                Loop = this.Loop,
+                Name = Name,
+                Variant = Variant,
+                Loop = Loop,
             };
 
             foreach (var axis in AxesCommands.Keys)

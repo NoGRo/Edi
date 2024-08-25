@@ -1,8 +1,8 @@
 {
   "Gallery": {
-    "DefaulVariant": "BF",
-    "SelectedVariant": null,
-    "GalleryPath": ".\\Gallery"
+    "GalleryPath": "C:\\Users\\NoGro\\Downloads\\Season",
+    "GenerateDefinitionFromChapters": false,
+    "GenerateChaptersFromDefinition": false
   },
   "GalleryBundler": {
     "MinRepeatDuration": 6000,

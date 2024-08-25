@@ -8,11 +8,12 @@ using Edi.Core.Gallery.Definition;
 using NAudio.Wave.SampleProviders;
 using CsvHelper;
 using CsvHelper.Configuration;
-using Edi.Core.Gallery.CmdLineal;
+using Edi.Core.Gallery.Funscript;
 using Edi.Core.Funscript;
 using PropertyChanged;
 using System.ComponentModel;
 using System.Collections.ObjectModel;
+using Edi.Core.Device;
 
 namespace Edi.Core
 {

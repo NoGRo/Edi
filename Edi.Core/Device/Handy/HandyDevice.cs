@@ -36,7 +36,7 @@ namespace Edi.Core.Device.Handy
         private static long timeSyncAvrageOffset;
         public HttpClient Client = null;
 
-
+        
         internal override void SetVariant()
         {
             upload();
@@ -76,46 +76,51 @@ namespace Edi.Core.Device.Handy
 
         private async Task Seek(long timeMs)
         {
-            if (IsReady)
+            if (!IsReady)
+                return;
+            
+            Debug.WriteLine($"Handy: [{DateTimeOffset.UtcNow.ToUnixTimeMilliseconds()}] {ServerTime} {Key} PLay [{timeMs}] ({currentGallery?.Name ?? ""}))");
+            try
             {
-                Debug.WriteLine($"Handy: [{DateTimeOffset.UtcNow.ToUnixTimeMilliseconds()}] {ServerTime} {Key} PLay [{timeMs}] ({currentGallery?.Name ?? ""}))");
-                try
-                {
-                    var req = new SyncPlayRequest(ServerTime, timeMs);
-                    await Client.PutAsync("hssp/play", new StringContent(JsonConvert.SerializeObject(req), Encoding.UTF8, "application/json"), playCancelTokenSource.Token);
-                    // second call for warmp up connection delay msg 
-                    await Task.Delay(1500, playCancelTokenSource.Token);
-                    if(currentGallery is null) 
-                            return;
-                    req = new SyncPlayRequest(ServerTime, currentGallery.StartTime + CurrentTime);
-                    await Client.PutAsync("hssp/play", new StringContent(JsonConvert.SerializeObject(req), Encoding.UTF8, "application/json"), playCancelTokenSource.Token);
 
-                }
+                var req = new SyncPlayRequest(ServerTime, timeMs);
 
-                catch (TaskCanceledException ex)
-                {
+                var token = playCancelTokenSource.Token;
+                await Client.PutAsync("hssp/play", new StringContent(JsonConvert.SerializeObject(req), Encoding.UTF8, "application/json"), token);
+                // second call after warmp up connection  
+                await Task.Delay(1500, token);
+                if (currentGallery is null || token.IsCancellationRequested)
                     return;
-                }
-                catch (Exception ex)
-                {
-                    Debug.WriteLine($"Handy: {Key} Error: {ex.Message}");
-                }
+
+                req = new SyncPlayRequest(ServerTime, currentGallery.StartTime + CurrentTime);
+                await Client.PutAsync("hssp/play", new StringContent(JsonConvert.SerializeObject(req), Encoding.UTF8, "application/json"), token);
+
             }
 
+            catch (TaskCanceledException ex)
+            {
+                return;
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"Handy: {Key} Error: {ex.Message}");
+            }
+        }
 
         public override async Task StopGallery()
         {
-            if (IsReady)
+            if (!IsReady)
             {
-                Debug.WriteLine($"Handy: {Key} Stop");
-                try
-                {
-                    await Client.PutAsync("hssp/stop", null);
-                }
-                catch (Exception ex)
-                {
-                    Debug.WriteLine($"Handy: {Key} Error: {ex.Message}");
-                }
+                return;
+            }
+            Debug.WriteLine($"Handy: {Key} Stop");
+            try
+            {
+                await Client.PutAsync("hssp/stop", null);
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"Handy: {Key} Error: {ex.Message}");
             }
         }
 
@@ -203,33 +208,7 @@ namespace Edi.Core.Device.Handy
             Debug.WriteLine($"Handy: [Offset {timeSyncAvrageOffset}]");
         }
 
-        private async Task Seek(long timeMs)
-        {
-            if (!IsReady)
-                return;
-            
-
-            Debug.WriteLine($"Handy: [{DateTimeOffset.UtcNow.ToFileTime}] {ServerTime} {Key} PLay [{timeMs}] ({currentGallery?.Name ?? ""}))");
-            try
-            {
-                var req = new SyncPlayRequest(estimatedServerTime: ServerTime, startTime: timeMs);
-                await Client.PutAsync("hssp/play", new StringContent(JsonConvert.SerializeObject(req), Encoding.UTF8, "application/json"), playCancelTokenSource.Token);
-                Debug.WriteLine(JsonConvert.SerializeObject(req));
-                await Task.Delay(1000, playCancelTokenSource.Token);
-                req = new SyncPlayRequest(ServerTime, currentGallery.StartTime +  CurrentTime);
-                await Client.PutAsync("hssp/play", new StringContent(JsonConvert.SerializeObject(req), Encoding.UTF8, "application/json"), playCancelTokenSource.Token);
-
-            }
-
-            catch (TaskCanceledException ex)
-            {
-                return;
-            }
-            catch (Exception ex)
-            {
-                Debug.WriteLine($"Handy: {Key} Error: {ex.Message}");
-            }
-        }
+      
         private long ServerTime => DateTimeOffset.UtcNow.ToUnixTimeMilliseconds() +  timeSyncAvrageOffset;
 
 
@@ -249,16 +228,14 @@ public static class ServerTimeSync
 
             client.DefaultRequestHeaders.Accept.Add(new System.Net.Http.Headers.MediaTypeWithQualityHeaderValue("application/json"));
             //_ =  await GetServerTimeAsync(); //warmup
-            var syncTries =30;
+            var syncTries = 30;
             var offsetAggregated = new List<double>();
             for (int i = 0; i < syncTries; i++)
             {
-
-                    
                 var tStart = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
                 var response = await client.GetAsync("https://www.handyfeeling.com/api/handy/v2/servertime");
                 var tEnd = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
-
+                
                 var data = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
                 var tServer = data.RootElement.GetProperty("serverTime").GetInt64();
                 

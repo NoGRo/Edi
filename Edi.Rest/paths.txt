@@ -4,4 +4,5 @@
    GalleryPath": "D:\\Programacion\\Mage Kanade’s Futanari Dungeon Quest\\BepInEx\\plugins\\Gallery"
    GalleryPath": "C:\\Program Files (x86)\\Steam\\steamapps\\common\\Succubus Farm\\Gallery"
 	GalleryPath": "D:\\Juegos\\Fapland Remastered clean\\Edi\\scripts"
+	GalleryPath": "C:\Users\NoGro\Downloads\Season"
 	

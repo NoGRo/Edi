@@ -13,7 +13,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Collections.Immutable;
 
-namespace Edi.Core.Gallery.CmdLineal
+namespace Edi.Core.Gallery.Funscript
 {
     public class FunscriptRepository : RepositoryBase<FunscriptGallery>
     {
@@ -30,7 +30,7 @@ namespace Edi.Core.Gallery.CmdLineal
         {
             if (funscript.metadata == null)
                 funscript.metadata = new FunScriptMetadata();
-            
+
             var chapter = funscript.metadata?.chapters?.FirstOrDefault(x => x.name == DefinitionGallery.Name);
             if (chapter == null)
             {
@@ -57,7 +57,7 @@ namespace Edi.Core.Gallery.CmdLineal
         }
 
 
-        private static FunscriptGallery ParseActions(string variant, Axis axis, DefinitionGallery DefinitionGallery,ref IEnumerable<FunScriptAction> actions)
+        private static FunscriptGallery ParseActions(string variant, Axis axis, DefinitionGallery DefinitionGallery, ref IEnumerable<FunScriptAction> actions)
         {
             var sb = new ScriptBuilder();
             foreach (var action in actions)
@@ -95,7 +95,7 @@ namespace Edi.Core.Gallery.CmdLineal
             var gallery = variants.FirstOrDefault(x => x.Variant == variant)
                         ?? variants.FirstOrDefault();
 
-            if (gallery is null) 
+            if (gallery is null)
                 return null;
 
 
@@ -107,7 +107,7 @@ namespace Edi.Core.Gallery.CmdLineal
         {
             if (!cacheFun.ContainsKey(asset.File.FullName))
                 cacheFun.Add(asset.File.FullName, FunScriptFile.TryRead(asset.File.FullName));
-            
+
 
             var funscript = cacheFun[asset.File.FullName];
 
@@ -116,7 +116,7 @@ namespace Edi.Core.Gallery.CmdLineal
             var actions = funscript.actions
                 .Where(x => x.at >= definition.StartTime
                             && x.at <= definition.EndTime);
-            
+
             if (!actions.Any())
             {
                 Debug.WriteLine($"FunscriptRepository Empty ignored: {definition.Name}");

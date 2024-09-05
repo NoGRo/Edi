@@ -44,7 +44,11 @@ class videoSync {
 
         // Encuentra el elemento cuyo rango de tiempo incluye el seek
         const foundGallery = filteredGallerys.find(element => seek >= element.startTime && seek <= element.endTime);
+        if (intervalTimer) {
+            clearInterval(intervalTimer);
+        }
 
+        intervalTimer = setInterval(this.executeChaptersAndBookmarks.bind(this), 1000);
 
         if (!foundGallery) {
             console.log("No se encontró un elemento que coincida con los criterios.");ese
@@ -75,6 +79,7 @@ class videoSync {
             return
         }
 
+        let currentChapters = [];
         let currentBookmarks = [];
 
         const currentTimeMs = Video.currentTime;
@@ -85,7 +90,22 @@ class videoSync {
 
         const foundGallery = this.definitions.find(element => element.fileName === file && seek <= element.startTime && (seek + 1000) > element.startTime);
 
+        currentChapters = this.funscript.metadata.chapters.reduce((acc, chapter) => {
+            chapter.startMs = this.timeToMs(chapter.startTime);
+            chapter.endMs = this.timeToMs(chapter.endTime);
 
+
+            // Incluye capítulos que están activos en el segundo actual o que comenzarán en el próximo segundo
+            if (currentTimeMs <= chapter.startMs && chapter.startMs < oneSecondFutureMs) {
+                // Capítulo activo en el segundo actual
+                acc.push({ ...chapter, state: 'start', timeRemaining: chapter.endMs - currentTimeMs });
+            } else if (currentTimeMs <= chapter.endMs && chapter.endMs < oneSecondFutureMs) {
+                // Capítulo que comenzará en el próximo segundo
+                acc.push({ ...chapter, state: 'end', timeRemaining: chapter.endMs - currentTimeMs });
+            }
+
+            return acc;
+        }, []);
         // bookmarks event in this current second
         this.funscript.metadata.bookmarks.forEach(bookmark => {
             const bookmarkTimeMs = this.timeToMs(bookmark.time);
@@ -105,10 +125,10 @@ class videoSync {
 
         currentBookmarks.forEach(bookmark => {
             console.log(`execute bookmark ${bookmark.name}`);
-            setTimeout(async () => {
+                setTimeout(async () => {
                 $(document).trigger('bookmarkFound', { bookmarkName: bookmark.name, timeRemaining: bookmark.timeRemaining });
-            }, parseInt(bookmark.timeRemaining));
-        });
+                }, parseInt(bookmark.timeRemaining));
+            });
 
         if (foundGallery && (seek + 1000) >= foundGallery.endTime) {
             const relativeSeek = seek + 1000 - foundGallery.startTime;

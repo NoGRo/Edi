@@ -85,13 +85,19 @@ namespace Edi.Core.Device
                 timerRange.Stop();
                 return;
             }
-            // Stop/Resume When Range: 0-0 ???
+
+            if (max == 0 && lastMax != 0)
+            {
+                await Stop();
+            }
+
             lastMax = max;
             lastMin = min;
 
             if (TimerRangeTask != null)
                 await TimerRangeTask;
 
+       
             TimerRangeTask = applyRange();
         }
         public record SlideRequest(int min, int max);
@@ -127,7 +133,7 @@ namespace Edi.Core.Device
             previousCts?.Cancel(true); // Cancela cualquier tarea anterior
 
             var gallery = repository.Get(name, SelectedVariant);
-            if (gallery == null) // stop? || (Min == 0 && Max == 0))
+            if (gallery == null || SelectedVariant == "None" || this.Max == 0) // stop? || (Min == 0 && Max == 0))
             {
                 await Stop();
                 return;

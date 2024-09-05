@@ -1,5 +1,5 @@
 
-import Edi from './Edi.js'
+import Edi from './EdiClient.js'
 import videoSync from './videoSync.js'
 const videoExtensions = ['.mp4', '.avi', '.mov', '.wmv', '.mkv'];
 

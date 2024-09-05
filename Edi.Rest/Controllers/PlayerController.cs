@@ -2,7 +2,7 @@
 
 namespace Edi.Controllers
 {
-    public class Player : Controller
+    public class PlayerController : Controller
     {
         public IActionResult Index()
         {

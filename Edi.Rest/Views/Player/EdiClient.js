@@ -73,6 +73,35 @@ class Edi {
             console.error('Error fetching assets:', error);
         }
     }
+
+    async getDevices() {
+        try {
+            const response = await apiClient.get('/Devices');
+            console.log('/Devices');
+            return response.data;
+        } catch (error) {
+            console.error('Error fetching devices:', error);
+        }
+    }
+
+    // Method to set a specific variant for a device
+    async setDeviceVariant(deviceName, variantName) {
+        try {
+            const response = await apiClient.post(`/Devices/${deviceName}/Variant/${variantName}`);
+            console.log(`/Devices/${deviceName}/Variant/${variantName}`);
+        } catch (error) {
+            console.error('Error setting device variant:', error);
+        }
+    }
+
+    // Method to set the range for a device
+    async setDeviceRange(deviceName, min, max) {
+        try {
+            const response = await apiClient.post(`/Devices/${deviceName}/Range/${min}-${max}`);
+            console.log(`/Devices/${deviceName}/Range/${min}-${max}`);
+        } catch (error) {
+            console.error('Error setting device range:', error);
+        }
 }
 export default new Edi();
 // Example usage

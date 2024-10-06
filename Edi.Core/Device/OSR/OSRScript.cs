@@ -5,7 +5,7 @@ namespace Edi.Core.Device.OSR
 {
     internal class OSRScript
     {
-        private struct MakimaCoefficient
+        private struct InterpolationCoefficients
         {
             public double s1;
             public double s2;
@@ -18,7 +18,7 @@ namespace Edi.Core.Device.OSR
         private Dictionary<Axis, List<CmdLinear>> unprocessedCommands;
         private Dictionary<Axis, List<CmdLinear>> playbackCommands;
         private Dictionary<Axis, int> commandIndex = new();
-        private Dictionary<Axis, Dictionary<long, MakimaCoefficient>> makimaCoefficients;
+        private Dictionary<Axis, Dictionary<long, InterpolationCoefficients>> interpolationCoefficients;
 
         private DateTime playbackStartTime = DateTime.Now;
         private long seekTime = 0;
@@ -39,7 +39,7 @@ namespace Edi.Core.Device.OSR
 
         public void ProcessCommands(OSRDevice device)
         {
-            makimaCoefficients = new();
+            interpolationCoefficients = new();
             var processedCommands = new Dictionary<Axis, List<CmdLinear>>();
 
             var sb = new ScriptBuilder();
@@ -127,9 +127,9 @@ namespace Edi.Core.Device.OSR
                     commandIndex[axis] = index++;
                 }
 
-                if (makimaCoefficients[axis].ContainsKey(command.AbsoluteTime))
+                if (interpolationCoefficients[axis].ContainsKey(command.AbsoluteTime))
                 {
-                    var coefficients = makimaCoefficients[axis][command.AbsoluteTime];
+                    var coefficients = interpolationCoefficients[axis][command.AbsoluteTime];
                     var followingCommand = command.Next ?? playbackCommands[axis].ElementAt(1).Clone();
                     if (followingCommand.AbsoluteTime < command.AbsoluteTime)
                         followingCommand.AbsoluteTime += scriptLength;
@@ -170,7 +170,7 @@ namespace Edi.Core.Device.OSR
 
         private void CreateCoefficients(List<CmdLinear> commands, Axis axis)
         {
-            makimaCoefficients[axis] = new();
+            interpolationCoefficients[axis] = new();
             var loopedCommands = commands.GetRange(1, commands.Count - 1);
 
             var firstCommand = commands.First();
@@ -201,9 +201,10 @@ namespace Edi.Core.Device.OSR
                 while (next3Command.AbsoluteTime < next2Command.AbsoluteTime)
                     next3Command.AbsoluteTime += lastCommand.AbsoluteTime;
 
-                MakimaSlopes(previous2Command.AbsoluteTime, previous2Command.Value, previousCommand.AbsoluteTime, previousCommand.Value, currentCommand.AbsoluteTime, currentCommand.Value, nextCommand.AbsoluteTime, nextCommand.Value, next2Command.AbsoluteTime, next2Command.Value, next3Command.AbsoluteTime, next3Command.Value, out var s1, out var s2);
+                //MakimaSlopes(previous2Command.AbsoluteTime, previous2Command.Value, previousCommand.AbsoluteTime, previousCommand.Value, currentCommand.AbsoluteTime, currentCommand.Value, nextCommand.AbsoluteTime, nextCommand.Value, next2Command.AbsoluteTime, next2Command.Value, next3Command.AbsoluteTime, next3Command.Value, out var s1, out var s2);
+                PchipSlopes(previousCommand.AbsoluteTime, previousCommand.Value, currentCommand.AbsoluteTime, currentCommand.Value, nextCommand.AbsoluteTime, nextCommand.Value, next2Command.AbsoluteTime, next2Command.Value, out var s1, out var s2);
 
-                makimaCoefficients[axis][currentCommand.AbsoluteTime] = new MakimaCoefficient
+                interpolationCoefficients[axis][currentCommand.AbsoluteTime] = new InterpolationCoefficients
                 {
                     s1 = s1,
                     s2 = s2
@@ -246,6 +247,33 @@ namespace Edi.Core.Device.OSR
             var w22 = Math.Abs(m2 - m1) + Math.Abs(m2 + m1) / 2;
             s2 = (w21 * m2 + w22 * m3) / (w21 + w22);
             if (!double.IsFinite(s2))
+                s2 = 0;
+        }
+
+        private static void PchipSlopes(double x0, double y0, double x1, double y1, double x2, double y2, double x3, double y3, out double s1, out double s2)
+        {
+            var hkm1 = x1 - x0;
+            var dkm1 = (y1 - y0) / hkm1;
+
+            var hk1 = x2 - x1;
+            var dk1 = (y2 - y1) / hk1;
+            var w11 = 2 * hk1 + hkm1;
+            var w12 = hk1 + 2 * hkm1;
+
+            s1 = (w11 + w12) / (w11 / dkm1 + w12 / dk1);
+            if (!double.IsFinite(s1) || dk1 * dkm1 < 0)
+                s1 = 0;
+
+            var hkm2 = x2 - x1;
+            var dkm2 = (y2 - y1) / hkm2;
+
+            var hk2 = x3 - x2;
+            var dk2 = (y3 - y2) / hk2;
+            var w21 = 2 * hk2 + hkm2;
+            var w22 = hk2 + 2 * hkm2;
+
+            s2 = (w21 + w22) / (w21 / dkm2 + w22 / dk2);
+            if (!double.IsFinite(s2) || dk2 * dkm2 < 0)
                 s2 = 0;
         }
 

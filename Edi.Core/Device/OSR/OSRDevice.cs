@@ -161,11 +161,11 @@ namespace Edi.Core.Device.OSR
         {
             try
             {
-                var ranges = GetDeviceRanges();
+                var ranges = GetDeviceName();
 
                 if (ranges == null)
                     return false;
-                if (ranges.StartsWith("L0"))
+                if (ranges.Contains("tcode", StringComparison.InvariantCultureIgnoreCase))
                     return true;
 
             } catch { }

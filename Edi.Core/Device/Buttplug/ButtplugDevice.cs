@@ -3,13 +3,13 @@ using Buttplug.Core.Messages;
 using Edi.Core.Device.Interfaces;
 using Edi.Core.Funscript;
 using Edi.Core.Gallery;
-using Edi.Core.Gallery.CmdLineal;
 using PropertyChanged;
 using System.Runtime.InteropServices;
 using System.Timers;
 using Timer = System.Timers.Timer;
 using System;
 using System.Diagnostics;
+using Edi.Core.Gallery.Funscript;
 
 
 

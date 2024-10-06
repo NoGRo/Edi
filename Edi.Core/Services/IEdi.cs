@@ -1,4 +1,5 @@
-﻿using Edi.Core.Device.Interfaces;
+﻿using Edi.Core.Device;
+using Edi.Core.Device.Interfaces;
 using Edi.Core.Gallery;
 using Edi.Core.Gallery.Definition;
 using System;

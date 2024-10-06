@@ -1,5 +1,5 @@
 ﻿using Edi.Core.Funscript;
-using Edi.Core.Gallery.CmdLineal;
+using Edi.Core.Gallery.Funscript;
 using Edi.Core.Gallery.Definition;
 using System;
 using System.Collections.Generic;

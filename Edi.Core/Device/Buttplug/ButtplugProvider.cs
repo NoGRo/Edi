@@ -5,8 +5,7 @@ using Buttplug.Core;
 using Buttplug.Core.Messages;
 using Edi.Core.Device.Interfaces;
 using Edi.Core.Gallery;
-using Edi.Core.Gallery.CmdLineal;
-
+using Edi.Core.Gallery.Funscript;
 using System;
 using System.Collections.Generic;
 using System.Linq;

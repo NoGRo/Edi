@@ -31,6 +31,7 @@ namespace Edi.Core.Device
         }
 
         public virtual bool IsReady { get; set; } = true;
+        internal virtual bool SelfManagedLoop { get; set; } = false;
 
         internal string selectedVariant;
         public virtual string SelectedVariant
@@ -65,7 +66,7 @@ namespace Edi.Core.Device
         public string Name { get; set; }
         public DateTime SyncSend { get; private set; }
         public long SeekTime { get; internal set; }
-        public int CurrentTime => currentGallery == null ? 0 : Convert.ToInt32(((DateTime.Now - SyncSend).TotalMilliseconds + SeekTime) % currentGallery.Duration );
+        public int CurrentTime => currentGallery == null ? 0 : Convert.ToInt32(((DateTime.Now - SyncSend).TotalMilliseconds + SeekTime) % currentGallery.Duration);
 
         private System.Timers.Timer timerRange = new System.Timers.Timer(100);
         private Task TimerRangeTask;
@@ -84,13 +85,19 @@ namespace Edi.Core.Device
                 timerRange.Stop();
                 return;
             }
-            // Stop/Resume When Range: 0-0 ???
+
+            if (max == 0 && lastMax != 0)
+            {
+                await Stop();
+            }
+
             lastMax = max;
             lastMin = min;
 
-            if(TimerRangeTask != null)
+            if (TimerRangeTask != null)
                 await TimerRangeTask;
 
+       
             TimerRangeTask = applyRange();
         }
         public record SlideRequest(int min, int max);
@@ -122,30 +129,34 @@ namespace Edi.Core.Device
         public virtual async Task PlayGallery(string name, long seek = 0)
         {
 
-
             var previousCts = Interlocked.Exchange(ref playCancelTokenSource, new CancellationTokenSource()); // Intercambia el CTS global con el nuevo, de forma atómica
             previousCts?.Cancel(true); // Cancela cualquier tarea anterior
 
             var gallery = repository.Get(name, SelectedVariant);
-            if (gallery == null) // stop? || (Min == 0 && Max == 0))
+            if (gallery == null || SelectedVariant == "None" || this.Max == 0) // stop? || (Min == 0 && Max == 0))
             {
                 await Stop();
                 return;
             }
 
             SeekTime = seek;
-            
+
             SyncSend = DateTime.Now;
             currentGallery = gallery;
             IsPause = false;
 
-            var interval = gallery.Duration - seek;
+
             _ = PlayGallery(gallery, seek);
+
+            if (SelfManagedLoop)
+                return;
+
+            var interval = gallery.Duration - seek;
 
             var token = playCancelTokenSource.Token;
             try
             {
-                
+
                 await Task.Delay(TimeSpan.FromMilliseconds(interval), token);
             }
             catch (TaskCanceledException)

@@ -6,7 +6,7 @@ using System.Text;
 using Edi.Core.Funscript;
 
 using System.Reflection;
-using Edi.Core.Gallery.CmdLineal;
+using Edi.Core.Gallery.Funscript;
 
 namespace Edi.Core.Gallery.Index
 {
@@ -27,6 +27,7 @@ namespace Edi.Core.Gallery.Index
         public void Clear()
         {
             sb = new ScriptBuilder();
+            sb.AddCommandMillis(Config.SpacerDuration, 0);
         }
         public IndexGallery Add(FunscriptGallery gallery, string bundleName )
         {

@@ -1,5 +1,5 @@
 ﻿using Edi.Core.Device.Interfaces;
-using Edi.Core.Gallery.CmdLineal;
+using Edi.Core.Gallery.Funscript;
 using PropertyChanged;
 using System.IO.Ports;
 

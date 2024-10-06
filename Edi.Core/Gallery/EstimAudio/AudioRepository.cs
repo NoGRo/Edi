@@ -7,7 +7,7 @@ using Edi.Core.Funscript;
 
 using System.Runtime.CompilerServices;
 using Edi.Core.Gallery.Index;
-using Edi.Core.Gallery.CmdLineal;
+using Edi.Core.Gallery.Funscript;
 using NAudio.Wave;
 using Edi.Core.Gallery.Definition;
 using System.Text.RegularExpressions;

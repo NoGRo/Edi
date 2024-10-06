@@ -2,8 +2,8 @@
 using CsvHelper.Configuration;
 using Edi.Core.Funscript;
 using Edi.Core.Gallery;
-using Edi.Core.Gallery.CmdLineal;
 using Edi.Core.Gallery.Definition;
+using Edi.Core.Gallery.Funscript;
 using NAudio.Midi;
 using System.Diagnostics;
 using System.Globalization;

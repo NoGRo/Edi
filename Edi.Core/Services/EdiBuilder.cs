@@ -5,7 +5,7 @@ using Edi.Core.Device.Handy;
 using Edi.Core.Device.Interfaces;
 using Edi.Core.Device.OSR;
 using Edi.Core.Gallery;
-using Edi.Core.Gallery.CmdLineal;
+using Edi.Core.Gallery.Funscript;
 using Edi.Core.Gallery.Definition;
 using Edi.Core.Gallery.EStimAudio;
 using Edi.Core.Gallery.Index;

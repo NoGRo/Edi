@@ -1,8 +1,8 @@
 {
   "Gallery": {
-    "DefaulVariant": "BF",
-    "SelectedVariant": null,
-    "GalleryPath": ".\\Gallery"
+    "GalleryPath": "C:\\Users\\NoGro\\Downloads\\Season",
+    "GenerateDefinitionFromChapters": false,
+    "GenerateChaptersFromDefinition": false
   },
   "GalleryBundler": {
     "MinRepeatDuration": 6000,
@@ -56,7 +56,7 @@
   "Devices": {
     "Devices": {
       "The Handy [PiBnz]": {
-        "Variant": "default",
+        "Variant": "None",
         "Min": 0,
         "Max": 100
       },
@@ -66,12 +66,12 @@
         "Max": 100
       },
       "Lovense Dolce Vibrate: 1": {
-        "Variant": "variant1",
+        "Variant": "default",
         "Min": 0,
         "Max": 100
       },
       "Lovense Dolce Vibrate: 2": {
-        "Variant": "variant2",
+        "Variant": "default",
         "Min": 0,
         "Max": 100
       },
@@ -81,7 +81,7 @@
         "Max": 100
       },
       "AutoBlow [ibjckz1x0q91]": {
-        "Variant": "detailed",
+        "Variant": "default",
         "Min": 0,
         "Max": 100
       },

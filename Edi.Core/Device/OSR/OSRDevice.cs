@@ -125,7 +125,6 @@ namespace Edi.Core.Device.OSR
                     {
                         playbackScript.Loop();
                         PlayScript(playbackScript);
-                        return;
                     }
 
                     return;

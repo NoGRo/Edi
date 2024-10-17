@@ -1,5 +1,4 @@
 ﻿using Edi.Core.Funscript;
-using System.Diagnostics;
 
 namespace Edi.Core.Device.OSR
 {
@@ -12,7 +11,7 @@ namespace Edi.Core.Device.OSR
         }
 
         public readonly Axis[] SupportedAxis = new Axis[] { Axis.Default, Axis.Surge, Axis.Sway, Axis.Twist, Axis.Roll, Axis.Pitch, Axis.Vibrate, Axis.Valve, Axis.Suction };
-        public long CurrentTime => Convert.ToInt32((DateTime.Now - playbackStartTime).TotalMilliseconds + seekTime);
+        public long CurrentTime => Math.Max(0, Convert.ToInt32((DateTime.Now - playbackStartTime).TotalMilliseconds + seekTime));
 
 
         private Dictionary<Axis, List<CmdLinear>> unprocessedCommands;
@@ -46,13 +45,15 @@ namespace Edi.Core.Device.OSR
 
             foreach (var axis in SupportedAxis)
             {
-                if (!unprocessedCommands.ContainsKey(axis))
+                var commands = unprocessedCommands.GetValueOrDefault(axis)?.Clone();
+
+                if (commands == null)
                 {
                     var value = axis != Axis.Default && axis != Axis.Vibrate ? 50 : 0;
                     var bufferTime = 500 + (int)seekTime;
                     sb.AddCommandMillis(bufferTime, value);
                     sb.AddCommandMillis(bufferTime, value);
-                    unprocessedCommands[axis] = sb.Generate();
+                    commands = sb.Generate();
                 }
 
                 if (!device.Config.EnableMultiAxis && axis != Axis.Default)
@@ -61,11 +62,8 @@ namespace Edi.Core.Device.OSR
                     var bufferTime = 500 + (int)seekTime;
                     sb.AddCommandMillis(bufferTime, value);
                     sb.AddCommandMillis(bufferTime, value);
-                    unprocessedCommands[axis] = sb.Generate();
-                    continue;
+                    commands = sb.Generate();
                 }
-
-                var commands = unprocessedCommands[axis].Clone();
 
                 if (commands.First().buttplugMillis == 0)
                 {

@@ -45,14 +45,14 @@ namespace Edi.Controllers
 
         [HttpPost("{deviceName}/Range/{min}-{max}")]
         public async Task<IActionResult> SelectRange([FromRoute, Required] string deviceName,
-                                                     [FromRoute, Required, Range(0, 100)] int min,
-                                                     [FromRoute, Required, Range(0, 100)] int max)
+                                                     [FromRoute, Range(0, 100)] int min,
+                                                     [FromRoute, Range(0, 100)] int max)
         {
             var device = _edi.Devices.FirstOrDefault(x => x.Name == deviceName);
 
             if (device == null)
                 return NotFound("Device not found");
-            if (max <= min)
+            if (max < min)
                 return BadRequest("Max must be greater than Min");
 
             await _edi.DeviceManager.SelectRange(device, min, max);

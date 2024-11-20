@@ -123,7 +123,7 @@ namespace Edi.Forms
 
         private void loadOSRPorts()
         {
-            var comPorts = new List<ComPort>() { new ComPort("None", null) };
+            var comPorts = new HashSet<ComPort>() { new ComPort("None", null) };
             foreach (var port in SerialPort.GetPortNames())
             {
                 comPorts.Add(new ComPort(port, port));

@@ -103,34 +103,29 @@ namespace Edi.Core.Gallery.Definition
                 Match matchFile = DiscoverExtension.variantRegex.Match(Path.GetFileNameWithoutExtension(file.FullName));
                 var fileName = matchFile.Groups["name"].Value;
                 var loop = matchFile.Groups["loop"].Value.ToLower() != "nonloop" ? "true" : "false";
-                var type = matchFile.Groups.ContainsKey("type") ? matchFile.Groups["type"].Value : "gallery";
+                var type = matchFile.Groups.ContainsKey("type") ? matchFile.Groups["type"].Value.ToLower() : "gallery";
 
                 var funscript = FunScriptFile.Read(file.FullName);
                 if (funscript?.metadata?.chapters?.Any() == true && Config.GenerateDefinitionFromChapters)
                 {
                     newDefinitionFile.AddRange(
-                        funscript.metadata.chapters.Select(x =>
-                           {
+                        funscript.metadata.chapters.Select(x => 
+                        {
 
                             var mathChapter = DiscoverExtension.loopRegex.Match(Path.GetFileNameWithoutExtension(x.name));
-                            var name  = x.name;
-                            if (mathChapter.Groups.ContainsKey("loop"))
-                            {
-                                loop = mathChapter.Groups["loop"].Value.ToLower() != "nonloop" ? "true" : "false";
-                                name = mathChapter.Groups["name"].Value;
-                                type = matchFile.Groups.ContainsKey("type") ? matchFile.Groups["type"].Value : "gallery";
-                            }
                             return new DefinitionWriteDto
                             {
-                                Name = name,
+                                Name = mathChapter.Groups["name"].Value,
                                 FileName = fileName,
-                                Type = type,
-                                Loop = loop,
+                                Type = matchFile.Groups.ContainsKey("type") ? matchFile.Groups["type"].Value : type,
+                                Loop = matchFile.Groups.ContainsKey("loop")
+                                        ? mathChapter.Groups["loop"].Value?.ToLower() != "nonloop" ? "true" : "false"
+                                        : loop,
                                 StartTime = x.startTime,
                                 EndTime = x.endTime
                             };
-                        }).ToArray()
-                    );
+                        }).ToArray());
+                    
                 }
                 else
                 {

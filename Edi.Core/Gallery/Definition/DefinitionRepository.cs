@@ -100,20 +100,35 @@ namespace Edi.Core.Gallery.Definition
             foreach (var file in funscriptsFiles)  
             {
 
-                var fileName = DiscoverExtension.variantRegex.Match(Path.GetFileNameWithoutExtension(file.FullName)).Groups["name"].Value;
+                Match matchFile = DiscoverExtension.variantRegex.Match(Path.GetFileNameWithoutExtension(file.FullName));
+                var fileName = matchFile.Groups["name"].Value;
+                var loop = matchFile.Groups["loop"].Value.ToLower() != "nonloop" ? "true" : "false";
+                var type = matchFile.Groups.ContainsKey("type") ? matchFile.Groups["type"].Value : "gallery";
 
                 var funscript = FunScriptFile.Read(file.FullName);
                 if (funscript?.metadata?.chapters?.Any() == true && Config.GenerateDefinitionFromChapters)
                 {
                     newDefinitionFile.AddRange(
-                        funscript.metadata.chapters.Select(x => new DefinitionWriteDto
-                        { 
-                            Name = x.name,
-                            FileName = fileName,
-                            Type = "gallery",
-                            Loop = "true",
-                            StartTime = x.startTime,
-                            EndTime = x.endTime
+                        funscript.metadata.chapters.Select(x =>
+                           {
+
+                            var mathChapter = DiscoverExtension.loopRegex.Match(Path.GetFileNameWithoutExtension(x.name));
+                            var name  = x.name;
+                            if (mathChapter.Groups.ContainsKey("loop"))
+                            {
+                                loop = mathChapter.Groups["loop"].Value.ToLower() != "nonloop" ? "true" : "false";
+                                name = mathChapter.Groups["name"].Value;
+                                type = matchFile.Groups.ContainsKey("type") ? matchFile.Groups["type"].Value : "gallery";
+                            }
+                            return new DefinitionWriteDto
+                            {
+                                Name = name,
+                                FileName = fileName,
+                                Type = type,
+                                Loop = loop,
+                                StartTime = x.startTime,
+                                EndTime = x.endTime
+                            };
                         }).ToArray()
                     );
                 }
@@ -122,8 +137,8 @@ namespace Edi.Core.Gallery.Definition
                     newDefinitionFile.Add( new() {
                             Name = fileName,
                             FileName = fileName,
-                            Type = "gallery",
-                            Loop = "true",
+                            Type = type,
+                            Loop = loop,
                             StartTime = "0",
                             EndTime = (funscript?.actions.Max(x => x.at) ?? 0).ToString(),
                     });

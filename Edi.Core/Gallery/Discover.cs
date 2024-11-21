@@ -11,13 +11,13 @@ namespace Edi.Core.Gallery
     {
         // Regex pattern to extract the name and variant from a file name
         public static Regex variantRegex => new Regex(
-            @"^(?<name>.*?)(\.(?<variant>[^.\[\]]+))?\s*(\[(?<loop>nonLoop|loop)\])?\s*(\[(?<gallery>Gallery|Filler|Action)\])?$",
+            @"^(?<name>.*?)(\.(?<variant>[^.\[\]]+))?\s*(\[(?<loop>nonLoop|loop)\])?\s*(\[(?<gallery>Gallery|Filler|Reaction)\])?$",
             RegexOptions.IgnoreCase
         );
 
 
         public static Regex loopRegex => new Regex(
-            @"^(?<name>.*?)\s*(\[(?<loop>nonLoop|loop)\])?\s*(\[(?<gallery>Gallery|Filler|Action)\])?$",
+            @"^(?<name>.*?)\s*(\[(?<loop>nonLoop|loop)\])?\s*(\[(?<gallery>Gallery|Filler|Reaction)\])?$",
             RegexOptions.IgnoreCase
         );
 

@@ -2,13 +2,7 @@
 using Buttplug.Core.Messages;
 using Edi.Core.Device.Interfaces;
 using Edi.Core.Funscript;
-using Edi.Core.Gallery;
 using PropertyChanged;
-using System.Runtime.InteropServices;
-using System.Timers;
-using Timer = System.Timers.Timer;
-using System;
-using System.Diagnostics;
 using Edi.Core.Gallery.Funscript;
 
 
@@ -46,7 +40,7 @@ namespace Edi.Core.Device.Buttplug
                     : Math.Min(localCmd.Millis, Convert.ToInt32(this.CurrentTime - (localCmd.AbsoluteTime - localCmd.Millis)));
             }
         }
-        public int ReminingCmdTime 
+        public int RemainingCmdTime 
         {
             get
             {
@@ -61,6 +55,13 @@ namespace Edi.Core.Device.Buttplug
         public int Max { get; set; } = 100;
 
         private double vibroSteps;
+
+        private readonly Random RandomRotate = new((int)DateTime.Now.Ticks);
+        private bool RotateDirection = true;
+        private float? RotateMillisDirChange = null;
+        private float RotateTotalMillis = 0;
+        private readonly float RotateMinimumMillisDirChange = 500;
+        private readonly float RotateMaximumMillisDirChange = 2500;
 
         public ButtplugDevice(ButtplugClientDevice device, ActuatorType actuator, uint channel, FunscriptRepository repository, ButtplugConfig config)
             : base(repository)
@@ -112,7 +113,7 @@ namespace Edi.Core.Device.Buttplug
                 try
                 {
                     // Usa el nuevo token de cancelación aquí
-                    await Task.Delay(Math.Max(0, ReminingCmdTime), playCancelTokenSource.Token);
+                    await Task.Delay(Math.Max(0, RemainingCmdTime), playCancelTokenSource.Token);
                 }
                 catch (TaskCanceledException)
                 {
@@ -151,10 +152,24 @@ namespace Edi.Core.Device.Buttplug
                 switch (Actuator)
                 {
                     case ActuatorType.Position:
-                        sendtask = Device.LinearAsync(new[] { ((uint)(ReminingCmdTime), Math.Min(1.0, Math.Max(0, CurrentCmd.GetValueInRange(Min,Max) / (double)100))) });
+                        sendtask = Device.LinearAsync(new[] { ((uint)(RemainingCmdTime), Math.Min(1.0, Math.Max(0, CurrentCmd.GetValueInRange(Min,Max) / 100f))) });
                         break;
                     case ActuatorType.Rotate:
-                        sendtask = Device.RotateAsync(Math.Min(1.0, Math.Max(0, CurrentCmd.Speed / (double)450)), CurrentCmd.Direction); ;
+                        sendtask = Device.RotateAsync(Math.Min(1.0, Math.Max(0, CurrentCmd.Speed / 400f)), RotateDirection);
+                        RotateTotalMillis += RemainingCmdTime;
+
+                        if (RotateMillisDirChange == null || RotateTotalMillis >= RotateMillisDirChange)
+                        {
+                            if (RotateMillisDirChange != null)
+                            {
+                                RotateTotalMillis = 0;
+                                RotateDirection = !RotateDirection;
+                            }
+
+                            var next = RandomRotate.NextSingle();
+                            RotateMillisDirChange = (1 - next) * RotateMinimumMillisDirChange + next * RotateMaximumMillisDirChange;
+                        }
+
                         break;
                 }
             }
@@ -190,9 +205,9 @@ namespace Edi.Core.Device.Buttplug
 
             // Ajustamos el tiempo para asegurarnos de que no sea negativo ni infinito.
             if(timeUntilNextChange < 0)
-                timeUntilNextChange = ReminingCmdTime;
+                timeUntilNextChange = RemainingCmdTime;
                 
-            timeUntilNextChange = Math.Min(ReminingCmdTime, timeUntilNextChange);
+            timeUntilNextChange = Math.Min(RemainingCmdTime, timeUntilNextChange);
             return (speed, Convert.ToInt32(timeUntilNextChange));
         }
 

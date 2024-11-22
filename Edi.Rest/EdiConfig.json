@@ -1,13 +1,13 @@
 {
   "Gallery": {
-    "GalleryPath": "C:\\Users\\NoGro\\Downloads\\Season",
+    "GalleryPath": "D:\\Juegos\\Fapland Remastered clean\\Edi\\scripts",
     "GenerateDefinitionFromChapters": false,
     "GenerateChaptersFromDefinition": false
   },
   "GalleryBundler": {
-    "MinRepeatDuration": 6000,
-    "RepeatDuration": 2000,
-    "SpacerDuration": 4000
+    "MinRepeatDuration": 60000,
+    "RepeatDuration": 6000,
+    "SpacerDuration": 5000
   },
   "Buttplug": {
     "Url": "ws://localhost:12345",
@@ -56,7 +56,7 @@
   "Devices": {
     "Devices": {
       "The Handy [PiBnz]": {
-        "Variant": "None",
+        "Variant": "hard",
         "Min": 0,
         "Max": 100
       },
@@ -66,12 +66,12 @@
         "Max": 100
       },
       "Lovense Dolce Vibrate: 1": {
-        "Variant": "default",
+        "Variant": "Vibe2",
         "Min": 0,
         "Max": 100
       },
       "Lovense Dolce Vibrate: 2": {
-        "Variant": "default",
+        "Variant": "Vibe1",
         "Min": 0,
         "Max": 100
       },
@@ -81,7 +81,7 @@
         "Max": 100
       },
       "AutoBlow [ibjckz1x0q91]": {
-        "Variant": "default",
+        "Variant": "normal",
         "Min": 0,
         "Max": 100
       },
@@ -91,7 +91,7 @@
         "Max": 100
       },
       "Lovense Hush": {
-        "Variant": "vibrator",
+        "Variant": "Vibe1",
         "Min": 0,
         "Max": 100
       }

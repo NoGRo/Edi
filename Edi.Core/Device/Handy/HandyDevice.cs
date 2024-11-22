@@ -65,7 +65,7 @@ namespace Edi.Core.Device.Handy
             if (gallery.Bundle != CurrentBundle)
             {
                 gallery = repository.Get(gallery.Name, SelectedVariant, CurrentBundle);//find in current bundle 
-
+                currentGallery = gallery;
                 if (gallery.Bundle != CurrentBundle)//not in the current uploaded bundle 
                 {
                     upload(gallery.Bundle, false);

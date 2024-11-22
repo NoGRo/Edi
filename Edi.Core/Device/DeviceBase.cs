@@ -42,8 +42,17 @@ namespace Edi.Core.Device
                 if (selectedVariant != value)
                 {
                     selectedVariant = value;
-                    SetVariant();
-                    Resume();
+                    if (value == "None")
+                    {
+                        _ = StopGallery();
+
+                    }
+                    else
+                    {
+                        SetVariant();
+                        Resume();
+                    }
+                    
                 }
             }
         }
@@ -70,11 +79,12 @@ namespace Edi.Core.Device
 
         private System.Timers.Timer timerRange = new System.Timers.Timer(100);
         private Task TimerRangeTask;
+        private Task PlayStopRangeTask;
         private int lastMin;
         private int lastMax = 100;
 
         internal virtual async Task applyRange() { }
-
+        internal bool isStopRange(int min, int max) => min == max;
         private async void TimerRange_Elapsed(object sender, ElapsedEventArgs e)
         {
             if (TimerRangeTask != null && !TimerRangeTask.IsCompleted)
@@ -85,11 +95,8 @@ namespace Edi.Core.Device
                 timerRange.Stop();
                 return;
             }
-
-            if (max == 0 && lastMax != 0)
-            {
-                await Stop();
-            }
+            var resume = isStopRange(lastMin, lastMax)
+                        && !isStopRange(min, max);
 
             lastMax = max;
             lastMin = min;
@@ -97,8 +104,21 @@ namespace Edi.Core.Device
             if (TimerRangeTask != null)
                 await TimerRangeTask;
 
-       
-            TimerRangeTask = applyRange();
+            if(!isStopRange(min, max))
+                TimerRangeTask = applyRange();
+
+            if (currentGallery == null)
+                return;
+
+            if (resume)
+                PlayStopRangeTask = PlayGallery(currentGallery, CurrentTime);
+            else if (isStopRange(min, max))
+            {
+                _ = StopGallery();
+            }
+                
+
+
         }
         public record SlideRequest(int min, int max);
         private int max = 100;
@@ -128,12 +148,13 @@ namespace Edi.Core.Device
         internal CancellationTokenSource playCancelTokenSource = new CancellationTokenSource();
         public virtual async Task PlayGallery(string name, long seek = 0)
         {
+            Stopwatch sw = Stopwatch.StartNew();
 
             var previousCts = Interlocked.Exchange(ref playCancelTokenSource, new CancellationTokenSource()); // Intercambia el CTS global con el nuevo, de forma atómica
             previousCts?.Cancel(true); // Cancela cualquier tarea anterior
 
             var gallery = repository.Get(name, SelectedVariant);
-            if (gallery == null || SelectedVariant == "None" || this.Max == 0) // stop? || (Min == 0 && Max == 0))
+            if (gallery == null)
             {
                 await Stop();
                 return;
@@ -145,8 +166,8 @@ namespace Edi.Core.Device
             currentGallery = gallery;
             IsPause = false;
 
-
-            _ = PlayGallery(gallery, seek);
+            if (!isStopRange(Min, Max) && SelectedVariant != "None")
+                _ = PlayGallery(gallery, seek);
 
             if (SelfManagedLoop)
                 return;
@@ -154,6 +175,8 @@ namespace Edi.Core.Device
             var interval = gallery.Duration - seek;
 
             var token = playCancelTokenSource.Token;
+            sw.Stop();
+            Debug.WriteLine(sw.ElapsedMilliseconds);
             try
             {
 
@@ -167,7 +190,7 @@ namespace Edi.Core.Device
             // Verifica que el token no haya sido cancelado por otra invocación
             if (token.IsCancellationRequested)
                 return;
-
+                  
             if (currentGallery?.Loop == true && !IsPause)
             {
                 _ = PlayGallery(currentGallery.Name);

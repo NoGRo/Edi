@@ -35,7 +35,7 @@ namespace Edi.Core.Device.Handy
         
         private static long timeSyncAvrageOffset;
         public HttpClient Client = null;
-
+        private bool isStopCalled;
         
         internal override void SetVariant()
         {
@@ -65,7 +65,7 @@ namespace Edi.Core.Device.Handy
             if (gallery.Bundle != CurrentBundle)
             {
                 gallery = repository.Get(gallery.Name, SelectedVariant, CurrentBundle);//find in current bundle 
-
+                currentGallery = gallery;
                 if (gallery.Bundle != CurrentBundle)//not in the current uploaded bundle 
                 {
                     upload(gallery.Bundle, false);
@@ -79,20 +79,21 @@ namespace Edi.Core.Device.Handy
             if (!IsReady)
                 return;
             
-            Debug.WriteLine($"Handy: [{DateTimeOffset.UtcNow.ToUnixTimeMilliseconds()}] {ServerTime} {Key} PLay [{timeMs}] ({currentGallery?.Name ?? ""}))");
+            
             try
             {
-
-                var req = new SyncPlayRequest(ServerTime, timeMs);
-
+                isStopCalled = false;
+                var req = new SyncPlayRequest(ServerTime, currentGallery.StartTime + CurrentTime);
+                Debug.WriteLine($"Handy: [{DateTimeOffset.UtcNow.ToUnixTimeMilliseconds()}] {req.estimatedServerTime} {Key} PLay [{req.startTime}] ({currentGallery?.Name ?? ""}))");
                 var token = playCancelTokenSource.Token;
                 await Client.PutAsync("hssp/play", new StringContent(JsonConvert.SerializeObject(req), Encoding.UTF8, "application/json"), token);
                 // second call after warmp up connection  
                 await Task.Delay(1500, token);
-                if (currentGallery is null || token.IsCancellationRequested)
+                if (currentGallery is null || token.IsCancellationRequested || isStopCalled)
                     return;
 
                 req = new SyncPlayRequest(ServerTime, currentGallery.StartTime + CurrentTime);
+                Debug.WriteLine($"Handy: [{DateTimeOffset.UtcNow.ToUnixTimeMilliseconds()}] {req.estimatedServerTime} {Key} PLay AfterWarmup [{req.startTime}] ({currentGallery?.Name ?? ""}))");
                 await Client.PutAsync("hssp/play", new StringContent(JsonConvert.SerializeObject(req), Encoding.UTF8, "application/json"), token);
 
             }
@@ -109,6 +110,7 @@ namespace Edi.Core.Device.Handy
 
         public override async Task StopGallery()
         {
+            isStopCalled = true;
             if (!IsReady)
             {
                 return;

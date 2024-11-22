@@ -65,16 +65,16 @@ namespace Edi.Core.Device.Handy
             if (gallery.Bundle != CurrentBundle)
             {
                 gallery = repository.Get(gallery.Name, SelectedVariant, CurrentBundle);//find in current bundle 
-                currentGallery = gallery;
+
                 if (gallery.Bundle != CurrentBundle)//not in the current uploaded bundle 
                 {
                     upload(gallery.Bundle, false);
                 }
             }
-            await Seek(gallery.StartTime + seek);
+            await Seek();
         }
 
-        private async Task Seek(long timeMs)
+        private async Task Seek()
         {
             if (!IsReady)
                 return;

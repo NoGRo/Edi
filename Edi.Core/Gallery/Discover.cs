@@ -10,7 +10,17 @@ namespace Edi.Core.Gallery
     public static class DiscoverExtension
     {
         // Regex pattern to extract the name and variant from a file name
-        public static Regex variantRegex => new Regex(@"^(?<name>.*?)(\.(?<variant>[^.]+))?$");
+        public static Regex variantRegex => new Regex(
+            @"^(?<name>.*?)(\.(?<variant>[^.\[\]]+))?\s*(\[(?<loop>nonLoop|loop)\])?\s*(\[(?<gallery>Gallery|Filler|Reaction)\])?$",
+            RegexOptions.IgnoreCase
+        );
+
+
+        public static Regex loopRegex => new Regex(
+            @"^(?<name>.*?)\s*(\[(?<loop>nonLoop|loop)\])?\s*(\[(?<gallery>Gallery|Filler|Reaction)\])?$",
+            RegexOptions.IgnoreCase
+        );
+
 
         public static string defaultVariant => "default";
 
@@ -39,8 +49,10 @@ namespace Edi.Core.Gallery
 
             foreach (var file in files)
             {
-                var fileName = variantRegex.Match(Path.GetFileNameWithoutExtension(file.Name)).Groups["name"].Value;
-                var fileVariant = variantRegex.Match(Path.GetFileNameWithoutExtension(file.Name)).Groups["variant"].Value;
+                var match = variantRegex.Match(Path.GetFileNameWithoutExtension(file.Name));
+
+                var fileName = match.Groups["name"].Value;
+                var fileVariant = match.Groups["variant"].Value;
 
                 // Remove any reserved names from the variant
                 fileVariant = Regex.Replace(fileVariant, ReserveRx, string.Empty);
@@ -52,8 +64,11 @@ namespace Edi.Core.Gallery
                                         ? fileVariant
                                         : pathVariant ?? defaultVariant;
 
+                var loop = match.Groups["loop"].Value.ToLower() != "nonloop";
+
+                var type = match.Groups["type"].Value.ToLower() ;
                 // Add the processed asset to the list
-                assetEdis.Add(new(file, fileName, fileVariant));
+                assetEdis.Add(new(file, fileName, fileVariant, loop, type));
             }
 
             // Return the list of discovered assets
@@ -63,5 +78,5 @@ namespace Edi.Core.Gallery
     }
 
     // Record type to store file information, name, and variant
-    public record AssetEdi(FileInfo File, string Name, string Variant);
+    public record AssetEdi(FileInfo File, string Name, string Variant,bool Loop = true,string Type = "");
 }

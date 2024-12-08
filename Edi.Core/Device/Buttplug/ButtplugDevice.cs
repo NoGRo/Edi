@@ -2,13 +2,7 @@
 using Buttplug.Core.Messages;
 using Edi.Core.Device.Interfaces;
 using Edi.Core.Funscript;
-using Edi.Core.Gallery;
 using PropertyChanged;
-using System.Runtime.InteropServices;
-using System.Timers;
-using Timer = System.Timers.Timer;
-using System;
-using System.Diagnostics;
 using Edi.Core.Gallery.Funscript;
 using Microsoft.Extensions.Logging;
 
@@ -62,6 +56,13 @@ namespace Edi.Core.Device.Buttplug
         public int Min { get; set; }
         public int Max { get; set; } = 100;
         private double vibroSteps;
+
+        private readonly Random RandomRotate = new((int)DateTime.Now.Ticks);
+        private bool RotateDirection = true;
+        private float? RotateMillisDirChange = null;
+        private float RotateTotalMillis = 0;
+        private readonly float RotateMinimumMillisDirChange = 500;
+        private readonly float RotateMaximumMillisDirChange = 2500;
 
         public ButtplugDevice(ButtplugClientDevice device, ActuatorType actuator, uint channel, FunscriptRepository repository, ButtplugConfig config, ILogger logger)
             : base(repository, logger)
@@ -167,7 +168,21 @@ namespace Edi.Core.Device.Buttplug
                         sendtask = Device.LinearAsync((uint)ReminingCmdTime, Math.Min(1.0, Math.Max(0, CurrentCmd.GetValueInRange(Min, Max) / (double)100)));
                         break;
                     case ActuatorType.Rotate:
-                        sendtask = Device.RotateAsync(Math.Min(1.0, Math.Max(0, CurrentCmd.Speed / (double)450)), CurrentCmd.Direction);
+                        sendtask = Device.RotateAsync(Math.Min(1.0, Math.Max(0, CurrentCmd.Speed / 400f)), RotateDirection);
+                        RotateTotalMillis += ReminingCmdTime;
+
+                        if (RotateMillisDirChange == null || RotateTotalMillis >= RotateMillisDirChange)
+                        {
+                            if (RotateMillisDirChange != null)
+                            {
+                                RotateTotalMillis = 0;
+                                RotateDirection = !RotateDirection;
+                            }
+
+                            var next = RandomRotate.NextSingle();
+                            RotateMillisDirChange = (1 - next) * RotateMinimumMillisDirChange + next * RotateMaximumMillisDirChange;
+                        }
+
                         break;
                 }
             }

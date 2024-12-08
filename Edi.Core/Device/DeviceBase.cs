@@ -47,8 +47,17 @@ namespace Edi.Core.Device
                 {
                     _logger.LogInformation($"Device '{Name}': SelectedVariant changed from '{selectedVariant}' to '{value}'.");
                     selectedVariant = value;
-                    SetVariant();
-                    Resume();
+                    if (value == "None")
+                    {
+                        _ = StopGallery();
+
+                    }
+                    else
+                    {
+                        SetVariant();
+                        Resume();
+                    }
+                    
                 }
             }
         }
@@ -76,14 +85,12 @@ namespace Edi.Core.Device
 
         private System.Timers.Timer timerRange = new System.Timers.Timer(100);
         private Task TimerRangeTask;
+        private Task PlayStopRangeTask;
         private int lastMin;
         private int lastMax = 100;
 
-        internal virtual async Task applyRange()
-        {
-            _logger.LogInformation($"Device '{Name}': Applying range with min: {min} and max: {max}.");
-        }
-
+        internal virtual async Task applyRange() { }
+        internal bool isStopRange(int min, int max) => min == max;
         private async void TimerRange_Elapsed(object sender, ElapsedEventArgs e)
         {
             if (TimerRangeTask != null && !TimerRangeTask.IsCompleted)
@@ -95,12 +102,8 @@ namespace Edi.Core.Device
                 timerRange.Stop();
                 return;
             }
-
-            if (max == 0 && lastMax != 0)
-            {
-                _logger.LogInformation($"Device '{Name}': Max value is 0, stopping gallery playback.");
-                await Stop();
-            }
+            var resume = isStopRange(lastMin, lastMax)
+                        && !isStopRange(min, max);
 
             lastMax = max;
             lastMin = min;
@@ -108,7 +111,21 @@ namespace Edi.Core.Device
             if (TimerRangeTask != null)
                 await TimerRangeTask;
 
-            TimerRangeTask = applyRange();
+            if(!isStopRange(min, max))
+                TimerRangeTask = applyRange();
+
+            if (currentGallery == null)
+                return;
+
+            if (resume)
+                PlayStopRangeTask = PlayGallery(currentGallery, CurrentTime);
+            else if (isStopRange(min, max))
+            {
+                _ = StopGallery();
+            }
+                
+
+
         }
 
         public record SlideRequest(int min, int max);
@@ -161,7 +178,8 @@ namespace Edi.Core.Device
             currentGallery = gallery;
             IsPause = false;
 
-            _ = PlayGallery(gallery, seek);
+            if (!isStopRange(Min, Max) && SelectedVariant != "None")
+                _ = PlayGallery(gallery, seek);
 
             if (SelfManagedLoop)
                 return;
@@ -181,7 +199,7 @@ namespace Edi.Core.Device
 
             if (token.IsCancellationRequested)
                 return;
-
+                  
             if (currentGallery?.Loop == true && !IsPause)
             {
                 _logger.LogInformation($"Device '{Name}': Looping gallery playback for '{currentGallery.Name}'.");

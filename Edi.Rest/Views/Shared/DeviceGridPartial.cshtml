@@ -1,0 +1,247 @@
+﻿<!-- DeviceGridPartial.cshtml -->
+<div class="container">
+    <!-- Devices Grid -->
+    <div id="devicesGrid" class="list-group">
+        <!-- Device rows will be appended here dynamically -->
+    </div>
+</div>
+
+<!-- Include CSS for jQuery UI (if not already included in your main layout) -->
+<!-- Remove this if already included -->
+<link rel="stylesheet" href="https://code.jquery.com/ui/1.12.1/themes/base/jquery-ui.css">
+
+<style>
+    .device-row {
+        cursor: move;
+        margin-bottom: 15px;
+    }
+
+    .slider-range {
+        width: 100%;
+        margin-top: 10px;
+    }
+
+    .mute-button {
+        min-width: 75px;
+    }
+
+    .btn-group .btn {
+        margin-right: 5px;
+    }
+    /* Fix for jQuery UI Slider with Bootstrap */
+    /* Reset box-sizing for jQuery UI elements */
+    .ui-widget *,
+    .ui-widget {
+        box-sizing: content-box;
+    }
+    /* Adjust slider styles */
+    .ui-slider {
+        position: relative;
+        text-align: left;
+        height: 1.5em;
+    }
+
+    .ui-slider-horizontal {
+        height: 1.5em;
+    }
+
+    .ui-slider .ui-slider-handle {
+        position: absolute;
+        z-index: 2;
+        width: 1.5em;
+        height: 1.5em;
+        cursor: pointer;
+        margin-top: -0.6em;
+    }
+
+    .ui-slider .ui-slider-range {
+        position: absolute;
+        z-index: 1;
+        height: 100%;
+        display: block;
+    }
+    /* Adjust the handle icon */
+    .ui-slider .ui-slider-handle:before {
+        content: '';
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+    }
+</style>
+
+<!-- Remove script includes from the partial view -->
+<!-- Ensure scripts are included in your main layout or parent view -->
+
+<script>
+    $(document).ready(function () {
+
+        let deviceRanges = {}; // To store previous ranges for unmute functionality
+        let isSliding = false; // To prevent grid refresh while sliding
+        let lastUpdateTimes = {}; // To throttle updates
+
+        // Function to load devices
+        function loadDevices() {
+            $.getJSON('/Devices', function (devices) {
+                let devicesGrid = $('#devicesGrid');
+                devicesGrid.empty();
+
+                devices.forEach(function (device, index) {
+                    let isMuted = (device.min === 0 && device.max === 0);
+
+                    let deviceRow = $(`
+                            <div class="device-row list-group-item" data-device-name="${device.name}">
+                                <div class="row align-items-center">
+                                    <div class="col-md-2">
+                                        <strong>${device.name}</strong>
+                                    </div>
+                                    <div class="col-md-5">
+                                        <div id="slider-${index}" class="slider-range"></div>
+                                    </div>
+                                    <div class="col-md-3">
+                                        <div class="btn-group" role="group">
+                                            <button class="btn btn-${isMuted ? 'success' : 'danger'} mute-button">${isMuted ? 'Unmute' : 'Mute'}</button>
+                                            <button class="btn btn-primary set-range-button" data-range="100">100%</button>
+                                            <button class="btn btn-primary set-range-button" data-range="70">70%</button>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-2">
+                                        Min: <span id="min-${index}">${device.min}</span>, Max: <span id="max-${index}">${device.max}</span>
+                                    </div>
+                                </div>
+                            </div>
+                        `);
+
+                    devicesGrid.append(deviceRow);
+
+                    // Store the current range
+                    if (!deviceRanges[device.name] && !isMuted) {
+                        deviceRanges[device.name] = { min: device.min, max: device.max };
+                    }
+
+                    // Initialize slider
+                    $(`#slider-${index}`).slider({
+                        range: true,
+                        min: 0,
+                        max: 100,
+                        values: [device.min, device.max],
+                        start: function () {
+                            isSliding = true;
+                        },
+                        stop: function (event, ui) {
+                            isSliding = false;
+
+                            let deviceName = device.name;
+                            let min = ui.values[0];
+                            let max = ui.values[1];
+
+                            // Update stored range
+                            deviceRanges[deviceName] = { min: min, max: max };
+
+                            // Send final update
+                            $.post(`/Devices/${deviceName}/Range/${min}-${max}`);
+                        },
+                        slide: function (event, ui) {
+                            $(`#min-${index}`).text(ui.values[0]);
+                            $(`#max-${index}`).text(ui.values[1]);
+
+                            let deviceName = device.name;
+                            let min = ui.values[0];
+                            let max = ui.values[1];
+
+                            // Update stored range
+                            deviceRanges[deviceName] = { min: min, max: max };
+
+                            // Throttle updates to the server
+                            let now = Date.now();
+                            if (!lastUpdateTimes[deviceName] || (now - lastUpdateTimes[deviceName] > 200)) {
+                                lastUpdateTimes[deviceName] = now;
+                                $.post(`/Devices/${deviceName}/Range/${min}-${max}`);
+                            }
+                        }
+                    });
+
+                    // Mute button click handler
+                    // Manejador del botón Mute
+                    deviceRow.find('.mute-button').click(function () {
+                        let deviceName = device.name;
+                        let button = $(this);
+
+                        if (button.text().trim() == 'Mute') {
+                            // Almacena el rango actual antes de mutear, solo si el rango no es 0-0
+                            let currentMin = $(`#slider-${index}`).slider('values', 0);
+                            let currentMax = $(`#slider-${index}`).slider('values', 1);
+                            if (currentMin !== 0 || currentMax !== 0) {
+                                deviceRanges[deviceName] = {
+                                    min: currentMin,
+                                    max: currentMax
+                                };
+                            } else if (!deviceRanges[deviceName]) {
+                                // Si el rango es 0-0 y no hay un rango previo almacenado, establece un rango por defecto
+                                deviceRanges[deviceName] = { min: 0, max: 100 };
+                            }
+
+                            // Envía el rango 0-0 para mutear
+                            $.post(`/Devices/${deviceName}/Range/0-0`, function () {
+                                // Actualiza la interfaz de usuario
+                                button.removeClass('btn-danger').addClass('btn-success').text('Unmute');
+                                $(`#slider-${index}`).slider('values', [0, 0]);
+                                $(`#min-${index}`).text(0);
+                                $(`#max-${index}`).text(0);
+                            });
+                        } else {
+                            // Restaura el rango previo al desmutear
+                            let prevRange = deviceRanges[deviceName] || { min: 0, max: 100 };
+                            $.post(`/Devices/${deviceName}/Range/${prevRange.min}-${prevRange.max}`, function () {
+                                // Actualiza la interfaz de usuario
+                                button.removeClass('btn-success').addClass('btn-danger').text('Mute');
+                                $(`#slider-${index}`).slider('values', [prevRange.min, prevRange.max]);
+                                $(`#min-${index}`).text(prevRange.min);
+                                $(`#max-${index}`).text(prevRange.max);
+                            });
+                        }
+                    });
+
+                    // Set Range button click handler
+                    deviceRow.find('.set-range-button').click(function () {
+                        let deviceName = device.name;
+                        let range = $(this).data('range');
+                        let min = 0;
+                        let max = parseInt(range);
+
+                        // Update stored range
+                        deviceRanges[deviceName] = { min: min, max: max };
+
+                        // Set slider values
+                        $(`#slider-${index}`).slider('values', [min, max]);
+                        $(`#min-${index}`).text(min);
+                        $(`#max-${index}`).text(max);
+
+                        // Send update to server
+                        $.post(`/Devices/${deviceName}/Range/${min}-${max}`);
+                    });
+                });
+
+                // Make device rows sortable
+                devicesGrid.sortable({
+                    update: function (event, ui) {
+                        // Handle order change if needed
+                        let sortedIDs = devicesGrid.sortable('toArray', { attribute: 'data-device-name' });
+                        // You can send the new order to the server here if needed
+                    }
+                });
+            });
+        }
+
+        // Load devices on page load
+        loadDevices();
+
+        // Refresh devices every few seconds
+        setInterval(function () {
+            if (!isSliding) {
+                loadDevices();
+            }
+        }, 5000);
+
+    });
+</script>

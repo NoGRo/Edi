@@ -113,8 +113,7 @@ namespace Edi.Core
                 changeStatus($"Ignored not found [{name}]");
                 return;
             }
-            changeStatus($"recived [{name}] {gallery.Type}");
-
+           
             switch (gallery.Type)
             {
                 case "filler":
@@ -273,7 +272,7 @@ namespace Edi.Core
                 else
                 {
                     //seek out of range StopGallery
-                    await Stop();
+                    _ = Stop();
                     return;
                 }
             }

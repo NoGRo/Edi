@@ -36,9 +36,11 @@ namespace Edi.Core.Device.Handy
         public HttpClient Client = null;
 
         private string CurrentBundle = "default";
-
+        private bool isStopCalled;
         public HandyDevice(HttpClient client, IndexRepository repository, ILogger logger) : base(repository, logger)
-        {
+        { 
+
+
             _logger = logger;
             Key = client.DefaultRequestHeaders.GetValues("X-Connection-Key").First();
             Name = $"The Handy [{Key}]";
@@ -68,17 +70,17 @@ namespace Edi.Core.Device.Handy
 
             if (gallery.Bundle != CurrentBundle)
             {
-                gallery = repository.Get(gallery.Name, SelectedVariant, CurrentBundle);
-                if (gallery.Bundle != CurrentBundle)
+                gallery = repository.Get(gallery.Name, SelectedVariant, CurrentBundle);//find in current bundle 
+                currentGallery = gallery;
+                if (gallery.Bundle != CurrentBundle)//not in the current uploaded bundle 
                 {
                     upload(gallery.Bundle, false);
                 }
             }
-
-            await Seek(gallery.StartTime + seek);
+            await Seek();
         }
 
-        private async Task Seek(long timeMs)
+        private async Task Seek()
         {
             if (!IsReady)
             {
@@ -86,20 +88,20 @@ namespace Edi.Core.Device.Handy
                 return;
             }
 
-            _logger.LogInformation($"Sending seek command for Key: {Key}, TimeMs: {timeMs}.");
-
             try
             {
-                var req = new SyncPlayRequest(ServerTime, timeMs);
+                isStopCalled = false;
+                var req = new SyncPlayRequest(ServerTime, currentGallery.StartTime + CurrentTime);
+                Debug.WriteLine($"Handy: [{DateTimeOffset.UtcNow.ToUnixTimeMilliseconds()}] {req.estimatedServerTime} {Key} PLay [{req.startTime}] ({currentGallery?.Name ?? ""}))");
                 var token = playCancelTokenSource.Token;
 
                 await Client.PutAsync("hssp/play", new StringContent(JsonConvert.SerializeObject(req), Encoding.UTF8, "application/json"), token);
                 await Task.Delay(1500, token);
-
-                if (currentGallery is null || token.IsCancellationRequested)
+                if (currentGallery is null || token.IsCancellationRequested || isStopCalled)
                     return;
 
                 req = new SyncPlayRequest(ServerTime, currentGallery.StartTime + CurrentTime);
+                Debug.WriteLine($"Handy: [{DateTimeOffset.UtcNow.ToUnixTimeMilliseconds()}] {req.estimatedServerTime} {Key} PLay AfterWarmup [{req.startTime}] ({currentGallery?.Name ?? ""}))");
                 await Client.PutAsync("hssp/play", new StringContent(JsonConvert.SerializeObject(req), Encoding.UTF8, "application/json"), token);
             }
             catch (TaskCanceledException)
@@ -114,6 +116,7 @@ namespace Edi.Core.Device.Handy
 
         public override async Task StopGallery()
         {
+            isStopCalled = true;
             if (!IsReady)
             {
                 _logger.LogWarning($"Device not ready to stop playback. Key: {Key}");

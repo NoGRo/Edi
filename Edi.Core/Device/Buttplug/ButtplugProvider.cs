@@ -1,6 +1,4 @@
-﻿
-using Buttplug.Client;
-using Buttplug.Client.Connectors.WebsocketConnector;
+﻿using Buttplug.Client;
 using Buttplug.Core;
 using Buttplug.Core.Messages;
 using Edi.Core.Device.Interfaces;
@@ -13,20 +11,24 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Timers;
+using Microsoft.Extensions.Logging;
 using Timer = System.Timers.Timer;
 
 namespace Edi.Core.Device.Buttplug
 {
     public class ButtplugProvider : IDeviceProvider
     {
-        public ButtplugProvider(FunscriptRepository repository, ConfigurationManager config, DeviceManager deviceManager)
+        private readonly ILogger _logger;
+
+        public ButtplugProvider(FunscriptRepository repository, ConfigurationManager config, DeviceManager deviceManager, ILogger logger)
         {
-
-            this.Config = config.Get<ButtplugConfig>();
-
+            _logger = logger;
+            Config = config.Get<ButtplugConfig>();
             this.repository = repository;
             DeviceManager = deviceManager;
-            Controller = new ButtplugController(Config, deviceManager);
+            Controller = new ButtplugController(Config, deviceManager, _logger);
+
+            _logger.LogInformation("ButtplugProvider initialized with repository and device manager.");
         }
 
         public readonly ButtplugConfig Config;
@@ -36,12 +38,15 @@ namespace Edi.Core.Device.Buttplug
         public ButtplugClient client { get; set; }
         public ButtplugController Controller { get; set; }
         private FunscriptRepository repository { get; }
+
         public async Task Init()
         {
+            _logger.LogInformation("Initializing ButtplugProvider...");
             timerReconnect.Elapsed += timerReconnectevent;
             timerReconnect.Start();
-            //RemoveAllDevices();
+
             await Connect();
+            _logger.LogInformation("ButtplugProvider initialization complete.");
         }
 
         public event EventHandler<string> StatusChange;
@@ -52,90 +57,99 @@ namespace Edi.Core.Device.Buttplug
 
         public async Task Connect()
         {
-
+            _logger.LogInformation("Attempting to connect to Buttplug client.");
             timerReconnect.Enabled = false;
+
             if (client != null)
             {
                 if (client.Connected)
+                {
                     await client.DisconnectAsync();
+                    _logger.LogInformation("Disconnected existing client connection.");
+                }
 
                 client.Dispose();
                 client = null;
                 await RemoveAllDevices();
-
+                _logger.LogInformation("Existing client disposed and devices removed.");
             }
+
             client = new ButtplugClient("Edi");
 
             client.DeviceAdded += Client_DeviceAdded;
             client.DeviceRemoved += Client_DeviceRemoved;
             client.ErrorReceived += Client_ErrorReceived;
             client.ServerDisconnect += Client_ServerDisconnect;
-            
 
             try
             {
                 if (!string.IsNullOrEmpty(Config.Url))
                 {
-                    var conector = new ButtplugWebsocketConnector(new Uri(Config.Url));
-                    await client.ConnectAsync(conector);
+                    var connector = new ButtplugWebsocketConnector(new Uri(Config.Url));
+                    await client.ConnectAsync(connector);
                     if (client.Connected)
+                    {
                         await client.StartScanningAsync();
+                        _logger.LogInformation("Client connected and scanning started.");
+                    }
                 }
-//                else
-  //                  await client.ConnectAsync(new buttplugE);
             }
             catch (ButtplugClientConnectorException ex)
             {
+                _logger.LogError($"Failed to connect to client: {ex.Message}");
                 timerReconnect.Enabled = true;
-                return;
             }
-
         }
 
         private async Task RemoveAllDevices()
         {
-            foreach (ButtplugDevice devicerm in devices)
+            _logger.LogInformation("Removing all devices.");
+            foreach (var devicerm in devices)
             {
-               await DeviceManager.UnloadDevice(devicerm);
+                await DeviceManager.UnloadDevice(devicerm);
             }
             devices.Clear();
+            _logger.LogInformation("All devices removed.");
         }
 
         private void AddDeviceOn(ButtplugClientDevice Device)
         {
+            _logger.LogInformation($"Adding device: {Device.Name}");
             var newdevices = new List<ButtplugDevice>();
-            
 
-            //OSR6 detect if is Osr and create another Device class ?
-
+            // OSR6: Detect if it's an OSR device and create a different Device class if necessary.
 
             for (uint i = 0; i < Device.LinearAttributes.Count; i++)
             {
-                newdevices.Add(new ButtplugDevice(Device,ActuatorType.Position, i, repository,Config));
+                newdevices.Add(new ButtplugDevice(Device, ActuatorType.Position, i, repository, Config,_logger));
             }
 
             for (uint i = 0; i < Device.VibrateAttributes.Count; i++)
             {
-                newdevices.Add(new ButtplugDevice(Device, ActuatorType.Vibrate, i, repository,Config));
+                newdevices.Add(new ButtplugDevice(Device, ActuatorType.Vibrate, i, repository, Config, _logger));
             }
             for (uint i = 0; i < Device.RotateAttributes.Count; i++)
             {
-                newdevices.Add(new ButtplugDevice(Device, ActuatorType.Rotate, i, repository,Config));
+                newdevices.Add(new ButtplugDevice(Device, ActuatorType.Rotate, i, repository, Config, _logger));
             }
             for (uint i = 0; i < Device.OscillateAttributes.Count; i++)
             {
-                newdevices.Add(new ButtplugDevice(Device, ActuatorType.Oscillate, i, repository,Config));
+                newdevices.Add(new ButtplugDevice(Device, ActuatorType.Oscillate, i, repository, Config, _logger));
             }
 
             devices.AddRange(newdevices);
 
-            foreach (var device in newdevices) { 
+            foreach (var device in newdevices)
+            {
                 DeviceManager.LoadDevice(device);
+                _logger.LogInformation($"Device loaded: {device.Name}");
             }
         }
+
         private void RemoveDeviceOn(ButtplugClientDevice Device)
         {
-            var rmdevices =  new List<ButtplugDevice>();
+            _logger.LogInformation($"Removing device: {Device.Name}");
+            var rmdevices = new List<ButtplugDevice>();
 
             for (uint i = 0; i < Device.LinearAttributes.Count; i++)
             {
@@ -145,7 +159,6 @@ namespace Edi.Core.Device.Buttplug
             for (uint i = 0; i < Device.VibrateAttributes.Count; i++)
             {
                 rmdevices.Add(devices.FirstOrDefault(x => x.Device == Device && x.Actuator == ActuatorType.Vibrate && x.Channel == i));
-               
             }
             for (uint i = 0; i < Device.RotateAttributes.Count; i++)
             {
@@ -156,45 +169,60 @@ namespace Edi.Core.Device.Buttplug
                 rmdevices.Add(devices.FirstOrDefault(x => x.Device == Device && x.Actuator == ActuatorType.Oscillate && x.Channel == i));
             }
 
-            foreach (ButtplugDevice devicerm in rmdevices.Where(x=> x is not null))
+            foreach (var devicerm in rmdevices.Where(x => x != null))
             {
                 devices.Remove(devicerm);
                 DeviceManager.UnloadDevice(devicerm);
+                _logger.LogInformation($"Device removed: {devicerm.Name}");
             }
-            
         }
 
         private void Client_ServerDisconnect(object sender, EventArgs e)
         {
             timerReconnect.Enabled = true;
             OnStatusChange("Disconnect");
+            _logger.LogWarning("Server disconnected. Reconnection timer started.");
         }
+
         private void Client_DeviceRemoved(object sender, DeviceRemovedEventArgs e)
         {
+            _logger.LogInformation($"Device removed: {e.Device.Name}");
             RemoveDeviceOn(e.Device);
         }
+
         private void Client_ErrorReceived(object sender, ButtplugExceptionEventArgs e)
         {
+            _logger.LogError("Error received from client.");
             foreach (var device in (sender as ButtplugClient).Devices)
             {
                 RemoveDeviceOn(device);
             }
             OnStatusChange("Error");
         }
+
         private void Client_ScanningFinished(object sender, EventArgs e)
         {
-            OnStatusChange($"Scanning Finished");
+            OnStatusChange("Scanning Finished");
+            _logger.LogInformation("Device scanning finished.");
         }
+
         private void Client_DeviceAdded(object sender, DeviceAddedEventArgs e)
         {
+            _logger.LogInformation($"Device added: {e.Device.Name}");
             AddDeviceOn(e.Device);
         }
+
         private void timerReconnectevent(object sender, ElapsedEventArgs e)
         {
             if (!client.Connected)
+            {
+                _logger.LogInformation("Reconnection timer triggered. Attempting to reconnect.");
                 Connect();
+            }
             else
+            {
                 timerReconnect.Enabled = false;
+            }
         }
     }
 }

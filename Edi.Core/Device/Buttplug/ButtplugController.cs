@@ -5,10 +5,11 @@ using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Collections.Immutable;
-using System.ComponentModel.DataAnnotations;
 using System.Diagnostics;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
 
 namespace Edi.Core.Device.Buttplug
 {
@@ -18,93 +19,133 @@ namespace Edi.Core.Device.Buttplug
         private readonly DeviceManager deviceManager;
         private readonly Dictionary<ButtplugClientDevice, (ActuatorType, ICollection<(uint, double)>)> lastCommands = new();
         private readonly ConcurrentDictionary<ButtplugClientDevice, CancellationTokenSource> customDelayDevices = new();
-        private readonly List<int> SignalQueue = new();
+        private readonly ILogger _logger;
+
         public int DelayMin => config.MinCommandDelay;
-        public ButtplugController(ButtplugConfig config, DeviceManager deviceManager)
+
+        public ButtplugController(ButtplugConfig config, DeviceManager deviceManager, ILogger logger)
         {
             this.config = config;
             this.deviceManager = deviceManager;
-            deviceManager.OnloadDevice += DeviceManager_OnloadDevice; ;
-            deviceManager.OnUnloadDevice += DeviceManager_OnUnloadDevice; ;
-            
+            _logger = logger;
+
+            deviceManager.OnloadDevice += DeviceManager_OnloadDevice;
+            deviceManager.OnUnloadDevice += DeviceManager_OnUnloadDevice;
+
+            _logger.LogInformation("ButtplugController initialized.");
         }
 
-
-
-        private void DeviceManager_OnUnloadDevice(IDevice Device, List<IDevice> devices)
+        private void DeviceManager_OnUnloadDevice(IDevice device, List<IDevice> devices)
         {
-            ButtplugDevice? buttplugDevice = (Device as ButtplugDevice);
-            if (buttplugDevice != null && customDelayDevices.TryRemove(buttplugDevice.Device, out var cts))
+            if (device is ButtplugDevice buttplugDevice && customDelayDevices.TryRemove(buttplugDevice.Device, out var cts))
             {
                 cts.Cancel();
+                _logger.LogInformation($"Device unloaded: {buttplugDevice.Name}.");
             }
         }
 
-        private void DeviceManager_OnloadDevice(IDevice Device, List<IDevice> devices)
+        private void DeviceManager_OnloadDevice(IDevice device, List<IDevice> devices)
         {
-            var device = Device as ButtplugDevice;
-            if (device != null && device.Actuator is ActuatorType.Vibrate or ActuatorType.Oscillate)
+            if (device is ButtplugDevice buttplugDevice && buttplugDevice.Actuator is ActuatorType.Vibrate or ActuatorType.Oscillate)
             {
                 var cts = new CancellationTokenSource();
-                if (customDelayDevices.TryAdd(device.Device, cts))
+                if (customDelayDevices.TryAdd(buttplugDevice.Device, cts))
                 {
-                    var delay = device.Device.MessageTimingGap != 0 ? device.Device.MessageTimingGap : Convert.ToUInt16(DelayMin);
-                    Task.Run(() => ExecuteDeviceCommandsAsync(device, delay, cts.Token));
+                    var delay = buttplugDevice.Device.MessageTimingGap != 0
+                        ? buttplugDevice.Device.MessageTimingGap
+                        : Convert.ToUInt16(DelayMin);
+
+                    _logger.LogInformation($"Device loaded: {buttplugDevice.Name}, Actuator: {buttplugDevice.Actuator}, Delay: {delay}ms.");
+                    Task.Run(() => ExecuteDeviceCommandsAsync(buttplugDevice, delay, cts.Token));
                 }
             }
         }
 
-
         private async Task ExecuteDeviceCommandsAsync(ButtplugDevice device, uint delay, CancellationToken cancellationToken)
         {
+            _logger.LogInformation($"Starting command execution loop for device: {device.Name} with delay: {delay}ms.");
+
             while (!cancellationToken.IsCancellationRequested)
             {
-                var devices = deviceManager.Devices; //obtener desde interlock exchange 
-                var commands =  devices
-                                                .OfType<ButtplugDevice>()
-                                                .Where(x => x != null && x.Device == device.Device && !x.IsPause  && x.CurrentCmd != null)
-                                                .Select(x => new { x.Device, x.Actuator, ReminingTime = x.CalculateSpeed().TimeUntilNextChange, Cmd = (x.Channel, x.CalculateSpeed().Speed )})
-                                                .GroupBy(x => new { x.Device, x.Actuator })
-                                                .ToImmutableDictionary(g => g.Key, g => new { cmds = g.Select(x => x.Cmd).ToImmutableArray(), ReminingTime = g.Min(x => x.ReminingTime) });
+                var commands = deviceManager.Devices
+                    .OfType<ButtplugDevice>()
+                    .Where(x => x.Device == device.Device && !x.IsPause && x.CurrentCmd != null)
+                    .Select(x => new
+                    {
+                        x.Device,
+                        x.Actuator,
+                        RemainingTime = x.CalculateSpeed().TimeUntilNextChange,
+                        Cmd = (x.Channel, x.CalculateSpeed().Speed)
+                    })
+                    .GroupBy(x => new { x.Device, x.Actuator })
+                    .ToImmutableDictionary(
+                        g => g.Key,
+                        g => new
+                        {
+                            Commands = g.OrderBy(x => x.Cmd.Channel).Select(x => x.Cmd).ToImmutableArray(),
+                            RemainingTime = g.Min(x => x.RemainingTime)
+                        });
 
-                var sendTaks = new List<Task>();
-                var NextDelay = DelayMin;
+                var nextDelay = DelayMin;
+
                 foreach (var command in commands)
                 {
                     var cmdValue = command.Value;
 
                     if (!lastCommands.TryGetValue(command.Key.Device, out var lastCommand)
-                        || AreCommandsDifferent(lastCommand.Item2, cmdValue.cmds))
+                        || AreCommandsDifferent(lastCommand.Item2, cmdValue.Commands))
                     {
-                        sendTaks.Add(SendCommandAsync(command.Key.Device, command.Key.Actuator, cmdValue.cmds));
-                        lastCommands[command.Key.Device] = (command.Key.Actuator, cmdValue.cmds);
+                        _ = SendCommandAsync(command.Key.Device, command.Key.Actuator, cmdValue.Commands);
+                        lastCommands[command.Key.Device] = (command.Key.Actuator, cmdValue.Commands);
+
+                        _logger.LogInformation($"Sending command to {command.Key.Device.Name} - Actuator: {command.Key.Actuator}, Commands: {string.Join(", ", cmdValue.Commands)}.");
                     }
 
-                    if (cmdValue.ReminingTime / DelayMin < 2)
-                        NextDelay = Math.Max(DelayMin, cmdValue.ReminingTime);
-                    
-                    if (sendTaks.Count > 0)
-                    {
-                        Debug.WriteLine($"Enviando comando a {command.Key.Device} - Actuador: {command.Key.Actuator}, Comandos: {string.Join(", ", cmdValue.cmds)}, NextDelay: {NextDelay}, ReminingTime: {cmdValue.ReminingTime}");
-                    }
+                    if (cmdValue.RemainingTime / DelayMin < 2)
+                        nextDelay = Math.Max(DelayMin, cmdValue.RemainingTime);
                 }
-                await Task.Delay(NextDelay, cancellationToken);
+               
+                await Task.Delay(nextDelay, cancellationToken);
             }
+
+            _logger.LogInformation($"Command execution loop ended for device: {device.Name}.");
         }
+
         private bool AreCommandsDifferent(ICollection<(uint Channel, double Speed)> lastCmds, ICollection<(uint Channel, double Speed)> newCmds)
         {
-
             if (lastCmds == null || newCmds == null || lastCmds.Count != newCmds.Count)
                 return true;
 
             return !lastCmds.SequenceEqual(newCmds, new CmdComparer());
         }
 
-        class CmdComparer : IEqualityComparer<(uint Channel, double Speed)>
+        private async Task SendCommandAsync(ButtplugClientDevice device, ActuatorType actuator, IEnumerable<(uint, double)> commands)
+        {
+            try
+            {
+                switch (actuator)
+                {
+                    case ActuatorType.Vibrate:
+                        await device.VibrateAsync(commands.Select(x => x.Item2));
+                        break;
+                    case ActuatorType.Oscillate:
+                        await device.OscillateAsync(commands.Select(x => x.Item2));
+                        break;
+                }
+
+                //_logger.LogInformation($"Command sent to {device.Name} - Actuator: {actuator}, Values: {string.Join(", ", commands.Select(x => x.Item2))}.");
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError($"Error sending command to {device.Name} - Actuator: {actuator}: {ex.Message}");
+            }
+        }
+
+        private class CmdComparer : IEqualityComparer<(uint Channel, double Speed)>
         {
             public bool Equals((uint Channel, double Speed) x, (uint Channel, double Speed) y)
             {
-                return x.Channel == y.Channel && x.Speed == y.Speed;
+                return x.Channel == y.Channel && Math.Abs(x.Speed - y.Speed) < 0.001;
             }
 
             public int GetHashCode((uint Channel, double Speed) obj)
@@ -112,26 +153,5 @@ namespace Edi.Core.Device.Buttplug
                 return obj.Channel.GetHashCode() ^ obj.Speed.GetHashCode();
             }
         }
-
-
-        private async Task SendCommandAsync(ButtplugClientDevice device, ActuatorType actuator, IEnumerable<(uint, double)> command)
-        {
-            try
-            {
-                switch (actuator)
-                {
-
-                    case ActuatorType.Vibrate:
-                        await device.VibrateAsync(command);
-                        break;
-                    case ActuatorType.Oscillate:
-                        await device.OscillateAsync(command);
-                        break;
-                }
-            }
-            catch { }
-        }
-
-        
     }
 }

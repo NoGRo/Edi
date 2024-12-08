@@ -17,6 +17,8 @@ using System.Runtime.InteropServices;
 using System.Text;
 using System.Threading.Tasks;
 using Edi.Core.Device.AutoBlow;
+using Microsoft.Extensions.Logging;
+using Serilog;
 
 namespace Edi.Core
 {
@@ -28,14 +30,21 @@ namespace Edi.Core
             #region Configuration
             var configuration = new ConfigurationManager(ConfigurationPath);
 
+            Log.Logger = new LoggerConfiguration()
+                .WriteTo.File("./Edilog.txt", rollingInterval: RollingInterval.Day)
+                .CreateLogger();
+
+            // Integra Serilog con ILogger
+            using var loggerFactory = LoggerFactory.Create(builder => { builder.AddSerilog(); });
+            var logger = loggerFactory.CreateLogger<Edi>();
             #endregion
 
             #region Repositories
 
             var definitionRepository = new DefinitionRepository(configuration);
-            var funscriptRepository = new FunscriptRepository(definitionRepository);
+            var funscriptRepository = new FunscriptRepository(definitionRepository, logger);
             var indexRepository = new IndexRepository(configuration, new GalleryBundler(configuration), funscriptRepository, definitionRepository);
-            var audioRepository = new AudioRepository( definitionRepository);
+            var audioRepository = new AudioRepository( definitionRepository, logger);
 
             #endregion
 
@@ -43,11 +52,11 @@ namespace Edi.Core
 
             #region Device Provides 
 
-            deviceManager.Providers.Add(new ButtplugProvider(funscriptRepository, configuration, deviceManager));
-            deviceManager.Providers.Add(new AutoBlowProvider(indexRepository, configuration, deviceManager));
-            deviceManager.Providers.Add(new HandyProvider(indexRepository, configuration, deviceManager));
+            deviceManager.Providers.Add(new ButtplugProvider(funscriptRepository, configuration, deviceManager, logger));
+            deviceManager.Providers.Add(new AutoBlowProvider(indexRepository, configuration, deviceManager, logger));
+            deviceManager.Providers.Add(new HandyProvider(indexRepository, configuration, deviceManager, logger));
             deviceManager.Providers.Add(new OSRProvider(funscriptRepository, configuration, deviceManager));
-            deviceManager.Providers.Add(new EStimProvider(audioRepository, configuration, deviceManager));
+            deviceManager.Providers.Add(new EStimProvider(audioRepository, configuration, deviceManager,logger));
 
             #endregion
 

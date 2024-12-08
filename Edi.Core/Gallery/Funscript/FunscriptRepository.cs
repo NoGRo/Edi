@@ -1,10 +1,8 @@
-﻿
-using System.Text.Json;
+﻿using System.Text.Json;
 using System.Globalization;
 using CsvHelper;
 using File = System.IO.File;
 using Edi.Core.Funscript;
-
 using System.Runtime.CompilerServices;
 using Edi.Core.Gallery.Definition;
 using System.Text.RegularExpressions;
@@ -12,28 +10,39 @@ using System.Linq;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Collections.Immutable;
+using Microsoft.Extensions.Logging;
 
 namespace Edi.Core.Gallery.Funscript
 {
     public class FunscriptRepository : RepositoryBase<FunscriptGallery>
     {
-        public FunscriptRepository(DefinitionRepository definition) : base(definition)
+        private readonly ILogger _logger;
+        private List<FunScriptFile> ToSave = new List<FunScriptFile>();
+        private Dictionary<string, FunScriptFile> cacheFun = new();
+
+        public FunscriptRepository(DefinitionRepository definition, ILogger logger) : base(definition, logger)
         {
+            _logger = logger;
+            _logger.LogInformation("FunscriptRepository initialized.");
         }
 
         public override IEnumerable<string> Accept => new[] { "funscript" };
         public override IEnumerable<string> Reserve => Enum.GetNames(typeof(Axis));
 
-        private List<FunScriptFile> ToSave = new List<FunScriptFile>();
-
         private void SyncChapterInfo(DefinitionGallery DefinitionGallery, FunScriptFile? funscript)
         {
+            if (!Definition.Config.GenerateChaptersFromDefinition)
+            {
+                return;
+            }
             if (funscript.metadata == null)
                 funscript.metadata = new FunScriptMetadata();
 
             var chapter = funscript.metadata?.chapters?.FirstOrDefault(x => x.name == DefinitionGallery.Name);
+
             if (chapter == null)
             {
+                _logger.LogInformation($"Adding new chapter to FunScript: {DefinitionGallery.Name}, Start: {DefinitionGallery.StartTime}, End: {DefinitionGallery.EndTime}");
                 funscript.metadata.chapters.Add(new()
                 {
                     name = DefinitionGallery.Name,
@@ -45,17 +54,15 @@ namespace Edi.Core.Gallery.Funscript
             else
             {
                 if (DefinitionGallery.StartTime != chapter.StartTimeMilis
-                 && DefinitionGallery.EndTime != chapter.EndTimeMilis)
+                 || DefinitionGallery.EndTime != chapter.EndTimeMilis)
                 {
+                    _logger.LogInformation($"Updating chapter for FunScript: {DefinitionGallery.Name}, Start: {DefinitionGallery.StartTime}, End: {DefinitionGallery.EndTime}");
                     chapter.StartTimeMilis = DefinitionGallery.StartTime;
                     chapter.EndTimeMilis = DefinitionGallery.EndTime;
                     ToSave.Add(funscript);
-
                 }
-
             }
         }
-
 
         private static FunscriptGallery ParseActions(string variant, Axis axis, DefinitionGallery DefinitionGallery, ref IEnumerable<FunScriptAction> actions)
         {
@@ -72,8 +79,7 @@ namespace Edi.Core.Gallery.Funscript
                 Name = DefinitionGallery.Name,
                 Variant = variant,
                 Loop = DefinitionGallery.Loop,
-                Duration = DefinitionGallery.Duration,
-
+                Duration = DefinitionGallery.Duration
             };
             sb.TrimTimeTo(DefinitionGallery.Duration);
 
@@ -82,67 +88,60 @@ namespace Edi.Core.Gallery.Funscript
             return gallery;
         }
 
-
-        public override FunscriptGallery? Get(string name, string variant = null)
-        {
-            //TODO: asset ovverride order priority similar minecraft texture packt 
-
-            var variants = Galleries.GetValueOrDefault(name);
-
-            if (variants is null)
-                return null;
-
-            var gallery = variants.FirstOrDefault(x => x.Variant == variant)
-                        ?? variants.FirstOrDefault();
-
-            if (gallery is null)
-                return null;
-
-
-            return gallery;
-        }
-
-        private Dictionary<string, FunScriptFile> cacheFun = new();
         public override FunscriptGallery ReadGallery(AssetEdi asset, DefinitionGallery definition)
         {
-            if (!cacheFun.ContainsKey(asset.File.FullName))
-                cacheFun.Add(asset.File.FullName, FunScriptFile.TryRead(asset.File.FullName));
+            //_logger.LogInformation($"Reading FunScriptGallery for Asset: {asset.File.Name}, Definition: {definition.Name}");
 
+            if (!cacheFun.ContainsKey(asset.File.FullName))
+            {
+                //_logger.LogInformation($"Caching FunScript file: {asset.File.FullName}");
+                cacheFun.Add(asset.File.FullName, FunScriptFile.TryRead(asset.File.FullName));
+            }
 
             var funscript = cacheFun[asset.File.FullName];
 
             if (funscript == null || funscript.actions?.Any() != true)
+            {
+                _logger.LogWarning($"No actions found in FunScript file: {asset.File.FullName}");
                 return null;
+            }
+
             var actions = funscript.actions
                 .Where(x => x.at >= definition.StartTime
                             && x.at <= definition.EndTime);
 
             if (!actions.Any())
             {
-                Debug.WriteLine($"FunscriptRepository Empty ignored: {definition.Name}");
+                _logger.LogWarning($"Filtered actions are empty for Definition: {definition.Name}, File: {asset.File.FullName}");
                 return null;
             }
 
             SyncChapterInfo(definition, funscript);
 
-
             var gallery = ParseActions(asset.Variant, funscript.axis, definition, ref actions);
+
             if (Galleries.ContainsKey(definition.Name))
             {
                 var existingGallery = Galleries[definition.Name].Find(g => g.Variant == gallery.Variant);
                 if (existingGallery != null)
                 {
+                    _logger.LogInformation($"Updating existing gallery for Definition: {definition.Name}, Variant: {gallery.Variant}");
                     existingGallery.AxesCommands[funscript.axis] = gallery.AxesCommands[funscript.axis];
                     return null;
                 }
             }
 
+           // _logger.LogInformation($"Gallery created for Definition: {definition.Name}, Variant: {gallery.Variant}");
             return gallery;
         }
+
         protected override void ReadEnd()
         {
+            _logger.LogInformation("Finalizing reading process in FunscriptRepository.");
+
             if (Definition.Config.GenerateChaptersFromDefinition)
             {
+                _logger.LogInformation($"Saving updated FunScript files. Total: {ToSave.Count}");
                 ToSave.Distinct().ToList().ForEach(x => x.Save(x.path));
             }
         }

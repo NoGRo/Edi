@@ -1,6 +1,6 @@
 {
   "Gallery": {
-    "GalleryPath": "C:\\Users\\NoGro\\Downloads\\Season",
+    "GalleryPath": "D:\\Games\\A Lose Hero in the Castle of the Succubi\\Edi\\Gallery",
     "GenerateDefinitionFromChapters": false,
     "GenerateChaptersFromDefinition": false
   },
@@ -56,7 +56,7 @@
   "Devices": {
     "Devices": {
       "The Handy [PiBnz]": {
-        "Variant": "None",
+        "Variant": "default",
         "Min": 0,
         "Max": 100
       },
@@ -66,12 +66,12 @@
         "Max": 100
       },
       "Lovense Dolce Vibrate: 1": {
-        "Variant": "default",
+        "Variant": "Vibe1",
         "Min": 0,
         "Max": 100
       },
       "Lovense Dolce Vibrate: 2": {
-        "Variant": "default",
+        "Variant": "Vibe2",
         "Min": 0,
         "Max": 100
       },

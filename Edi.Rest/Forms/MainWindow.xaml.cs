@@ -124,10 +124,17 @@ namespace Edi.Forms
         private void loadOSRPorts()
         {
             var comPorts = new HashSet<ComPort>() { new ComPort("None", null) };
-            foreach (var port in SerialPort.GetPortNames())
+            try
             {
-                comPorts.Add(new ComPort(port, port));
+                foreach (var port in SerialPort.GetPortNames())
+                {
+                    comPorts.Add(new ComPort(port, port));
+                }
             }
+            catch (Exception)
+            {
+            }
+
             comPortsComboBox.ItemsSource = comPorts;
         }
         private void Edi_OnChangeStatus(string message)

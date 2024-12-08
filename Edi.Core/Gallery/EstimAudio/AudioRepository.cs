@@ -11,6 +11,7 @@ using Edi.Core.Gallery.Funscript;
 using NAudio.Wave;
 using Edi.Core.Gallery.Definition;
 using System.Text.RegularExpressions;
+using Microsoft.Extensions.Logging;
 
 namespace Edi.Core.Gallery.EStimAudio
 {
@@ -18,7 +19,7 @@ namespace Edi.Core.Gallery.EStimAudio
 
     public class AudioRepository : RepositoryBase<AudioGallery>
     {
-        public AudioRepository(DefinitionRepository definitions) : base(definitions)
+        public AudioRepository(DefinitionRepository definitions, ILogger _logger) : base(definitions, _logger)
         {
 
         }

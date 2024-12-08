@@ -6,6 +6,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using System.Threading;
+using Microsoft.Extensions.Logging;
 using Newtonsoft.Json;
 using System.Timers;
 using PropertyChanged;
@@ -19,15 +20,18 @@ namespace Edi.Core.Device
         where TRepository : class, IGalleryRepository<TGallery>
         where TGallery : class, IGallery
     {
+        private readonly ILogger _logger;
         protected TRepository repository { get; }
         protected TGallery currentGallery;
 
         public bool IsPause { get; set; } = true;
-        protected DeviceBase(TRepository repository)
+
+        protected DeviceBase(TRepository repository, ILogger logger)
         {
             this.repository = repository;
+            _logger = logger;
             timerRange.Elapsed += TimerRange_Elapsed;
-
+            _logger.LogInformation($"Device '{Name}' initialized with repository.");
         }
 
         public virtual bool IsReady { get; set; } = true;
@@ -41,6 +45,7 @@ namespace Edi.Core.Device
             {
                 if (selectedVariant != value)
                 {
+                    _logger.LogInformation($"Device '{Name}': SelectedVariant changed from '{selectedVariant}' to '{value}'.");
                     selectedVariant = value;
                     SetVariant();
                     Resume();
@@ -52,13 +57,14 @@ namespace Edi.Core.Device
         {
             if (currentGallery != null && !IsPause)
             {
+                _logger.LogInformation($"Device '{Name}': Resuming gallery playback for '{currentGallery.Name}' at time {CurrentTime}.");
                 PlayGallery(currentGallery.Name, CurrentTime).GetAwaiter();
             }
         }
 
         internal virtual void SetVariant()
         {
-
+            _logger.LogInformation($"Device '{Name}': Setting variant for SelectedVariant: '{SelectedVariant}'");
         }
 
         public virtual IEnumerable<string> Variants => repository.GetVariants();
@@ -73,7 +79,10 @@ namespace Edi.Core.Device
         private int lastMin;
         private int lastMax = 100;
 
-        internal virtual async Task applyRange() { }
+        internal virtual async Task applyRange()
+        {
+            _logger.LogInformation($"Device '{Name}': Applying range with min: {min} and max: {max}.");
+        }
 
         private async void TimerRange_Elapsed(object sender, ElapsedEventArgs e)
         {
@@ -82,12 +91,14 @@ namespace Edi.Core.Device
 
             if (min == lastMin && max == lastMax)
             {
+                _logger.LogInformation($"Device '{Name}': Range values are unchanged. Stopping timer.");
                 timerRange.Stop();
                 return;
             }
 
             if (max == 0 && lastMax != 0)
             {
+                _logger.LogInformation($"Device '{Name}': Max value is 0, stopping gallery playback.");
                 await Stop();
             }
 
@@ -97,9 +108,9 @@ namespace Edi.Core.Device
             if (TimerRangeTask != null)
                 await TimerRangeTask;
 
-       
             TimerRangeTask = applyRange();
         }
+
         public record SlideRequest(int min, int max);
         private int max = 100;
         private int min;
@@ -110,7 +121,10 @@ namespace Edi.Core.Device
             {
                 min = value;
                 if (!timerRange.Enabled)
+                {
+                    _logger.LogInformation($"Device '{Name}': Min changed to {min}. Starting timer.");
                     timerRange.Start();
+                }
             }
         }
         public int Max
@@ -120,31 +134,32 @@ namespace Edi.Core.Device
             {
                 max = value;
                 if (!timerRange.Enabled)
+                {
+                    _logger.LogInformation($"Device '{Name}': Max changed to {max}. Starting timer.");
                     timerRange.Start();
+                }
             }
         }
-
 
         internal CancellationTokenSource playCancelTokenSource = new CancellationTokenSource();
         public virtual async Task PlayGallery(string name, long seek = 0)
         {
-
-            var previousCts = Interlocked.Exchange(ref playCancelTokenSource, new CancellationTokenSource()); // Intercambia el CTS global con el nuevo, de forma atómica
-            previousCts?.Cancel(true); // Cancela cualquier tarea anterior
+            var previousCts = Interlocked.Exchange(ref playCancelTokenSource, new CancellationTokenSource());
+            previousCts?.Cancel(true);
+            _logger.LogInformation($"Device '{Name}': Playing gallery '{name}' with seek: {seek}.");
 
             var gallery = repository.Get(name, SelectedVariant);
-            if (gallery == null || SelectedVariant == "None" || this.Max == 0) // stop? || (Min == 0 && Max == 0))
+            if (gallery == null || SelectedVariant == "None" || this.Max == 0)
             {
+                _logger.LogInformation($"Device '{Name}': Gallery is null or unplayable (name: '{name}', variant: '{SelectedVariant}', max: {Max}). Stopping playback.");
                 await Stop();
                 return;
             }
 
             SeekTime = seek;
-
             SyncSend = DateTime.Now;
             currentGallery = gallery;
             IsPause = false;
-
 
             _ = PlayGallery(gallery, seek);
 
@@ -152,24 +167,24 @@ namespace Edi.Core.Device
                 return;
 
             var interval = gallery.Duration - seek;
-
             var token = playCancelTokenSource.Token;
+
             try
             {
-
                 await Task.Delay(TimeSpan.FromMilliseconds(interval), token);
             }
             catch (TaskCanceledException)
             {
+                _logger.LogInformation($"Device '{Name}': Playback task was canceled for gallery '{name}'.");
                 return;
             }
 
-            // Verifica que el token no haya sido cancelado por otra invocación
             if (token.IsCancellationRequested)
                 return;
 
             if (currentGallery?.Loop == true && !IsPause)
             {
+                _logger.LogInformation($"Device '{Name}': Looping gallery playback for '{currentGallery.Name}'.");
                 _ = PlayGallery(currentGallery.Name);
             }
             else
@@ -183,22 +198,18 @@ namespace Edi.Core.Device
         public virtual async Task Stop()
         {
             var previousCts = Interlocked.Exchange(ref playCancelTokenSource, new CancellationTokenSource());
-
             previousCts?.Cancel(true);
-
 
             currentGallery = null;
             IsPause = true;
+            _logger.LogInformation($"Device '{Name}': Stopping gallery playback.");
 
-            // Llama al método abstracto StopGallery, que debe ser implementado por las clases derivadas.
             await StopGallery();
-
-
         }
+
         public abstract Task StopGallery();
 
         public virtual string ResolveDefaultVariant()
-        => Variants.FirstOrDefault("");
-
+            => Variants.FirstOrDefault("");
     }
 }

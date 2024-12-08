@@ -2,6 +2,7 @@
 using Edi.Core.Funscript;
 using Edi.Core.Gallery;
 using Edi.Core.Gallery.Funscript;
+using Microsoft.Extensions.Logging;
 using MQTTnet;
 using MQTTnet.Client;
 using System;
@@ -34,7 +35,7 @@ namespace Edi.Core.Device.Mqtt
         }
         private DateTime lastCmdSendAt { get; set; }
         public int currentCmdIndex { get; set; }
-        public MqttDevice(FunscriptRepository repository, MqttClient mqttClient,string topic) : base(repository)
+        public MqttDevice(FunscriptRepository repository, MqttClient mqttClient,string topic, ILogger logger) : base(repository, logger)
         {
             this.mqttClient = mqttClient;
             this.topic = topic;

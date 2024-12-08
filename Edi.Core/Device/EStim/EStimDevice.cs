@@ -11,6 +11,8 @@ using Timer = System.Timers.Timer;
 using System.Threading;
 using PropertyChanged;
 using System.Xml.Linq;
+using Serilog.Core;
+using Microsoft.Extensions.Logging;
 
 namespace Edi.Core.Device.EStim
 {
@@ -24,7 +26,7 @@ namespace Edi.Core.Device.EStim
         private Mp3FileReader _curentAudioFile { get; set; }
 
         private Dictionary<string, Mp3FileReader> _inMemoryMp3;
-        public EStimDevice(AudioRepository repository, WaveOutEvent wavePlayer) : base(repository)
+        public EStimDevice(AudioRepository repository, WaveOutEvent wavePlayer,ILogger _logger) : base(repository, _logger)
         {
             Name = $"SEstim ({wavePlayer.DeviceNumber})";
             _repository = repository;

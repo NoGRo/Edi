@@ -10,19 +10,17 @@ using Timer = System.Timers.Timer;
 using System;
 using System.Diagnostics;
 using Edi.Core.Gallery.Funscript;
-
-
+using Microsoft.Extensions.Logging;
 
 namespace Edi.Core.Device.Buttplug
 {
-
-
-    //OSR6 I don't know if you can use this class because it is all designed for a single stream to go under bluetooth it has the rate limit other things
+    // OSR6: I am not sure if this class can be used because it is all designed for a single stream to run under Bluetooth with rate limits and other constraints.
     [AddINotifyPropertyChangedInterface]
     public class ButtplugDevice : DeviceBase<FunscriptRepository, FunscriptGallery>, IRange
     {
+        private readonly ILogger _logger;
         public ButtplugClientDevice Device { get; private set; }
-        private ButtplugConfig config { get;  set; }
+        private ButtplugConfig config { get; set; }
         public ActuatorType Actuator { get; }
         public uint Channel { get; }
 
@@ -33,8 +31,10 @@ namespace Edi.Core.Device.Buttplug
             get => _currentCmd;
             set => Interlocked.Exchange(ref _currentCmd, value);
         }
-        private DateTime lastCmdSendAt { get;  set; }
+
+        private DateTime lastCmdSendAt { get; set; }
         public int currentCmdIndex { get; set; }
+
         public int CurrentCmdTime
         {
             get
@@ -46,25 +46,27 @@ namespace Edi.Core.Device.Buttplug
                     : Math.Min(localCmd.Millis, Convert.ToInt32(this.CurrentTime - (localCmd.AbsoluteTime - localCmd.Millis)));
             }
         }
-        public int ReminingCmdTime 
+
+        public int ReminingCmdTime
         {
             get
             {
                 CmdLinear localCmd = null;
                 Interlocked.CompareExchange(ref localCmd, _currentCmd, null);
-                return localCmd == null 
-                    ? 0 
+                return localCmd == null
+                    ? 0
                     : Math.Max(0, Convert.ToInt32(localCmd.AbsoluteTime - this.CurrentTime));
             }
         }
+
         public int Min { get; set; }
         public int Max { get; set; } = 100;
-
         private double vibroSteps;
 
-        public ButtplugDevice(ButtplugClientDevice device, ActuatorType actuator, uint channel, FunscriptRepository repository, ButtplugConfig config)
-            : base(repository)
+        public ButtplugDevice(ButtplugClientDevice device, ActuatorType actuator, uint channel, FunscriptRepository repository, ButtplugConfig config, ILogger logger)
+            : base(repository, logger)
         {
+            _logger = logger;
             this.Device = device;
             Name = device.Name + (device.GenericAcutatorAttributes(actuator).Count() > 1 
                                     ? $" {actuator}: {channel+1}" 
@@ -82,15 +84,16 @@ namespace Edi.Core.Device.Buttplug
             vibroSteps = (100.0 / vibroSteps);
 
             this.config = config;
-            
+            _logger.LogInformation($"ButtplugDevice initialized with Device: {Name}, Actuator: {Actuator}, Channel: {Channel}");
         }
 
         public override string ResolveDefaultVariant()
         => Variants.FirstOrDefault(x => x.Contains(Actuator.ToString(), StringComparison.OrdinalIgnoreCase))
             ?? base.ResolveDefaultVariant();
-        
+
         public override async Task PlayGallery(FunscriptGallery gallery, long seek = 0)
         {
+            _logger.LogInformation($"Starting PlayGallery with Device: {Name}, Gallery: {gallery?.Name ?? "Unknown"}, Seek: {seek}");
 
             var cmds = gallery?.Commands;
             if (cmds == null) return;
@@ -104,19 +107,20 @@ namespace Edi.Core.Device.Buttplug
 
             while (currentCmdIndex >= 0 && currentCmdIndex < cmds.Count)
             {
-                CurrentCmd =  cmds[currentCmdIndex];
-                //CurrentCmd.Sent = DateTime.Now;
+                CurrentCmd = cmds[currentCmdIndex];
+                //_logger.LogInformation($"Executing command at index: {currentCmdIndex} with AbsoluteTime: {CurrentCmd.AbsoluteTime}");
 
                 var sendtask = SendCmd();
 
                 try
                 {
-                    // Usa el nuevo token de cancelación aquí
+                    // Using the new cancellation token here
                     await Task.Delay(Math.Max(0, ReminingCmdTime), playCancelTokenSource.Token);
                 }
                 catch (TaskCanceledException)
                 {
-                    return; // Salimos de la función si la tarea fue cancelada.
+                    _logger.LogWarning($"PlayGallery canceled for Device: {Name}");
+                    return; // Exit the function if the task was canceled
                 }
 
                 currentCmdIndex = cmds.FindIndex(currentCmdIndex, x => x.AbsoluteTime > CurrentTime);
@@ -124,52 +128,61 @@ namespace Edi.Core.Device.Buttplug
                 {
                     currentCmdIndex = cmds.FindIndex(x => x.AbsoluteTime > CurrentTime);
                     if (currentCmdIndex < 0) 
-                        break; // Si aún así no hay más comandos, sale del bucle.
+                        break; // Exit the loop if there are no more commands
                 }
             }
+            _logger.LogInformation($"PlayGallery completed for Device: {Name}");
         }
+
         public override async Task StopGallery()
         {
-            await Device?.Stop() ;
+            _logger.LogInformation($"Stopping gallery playback for Device: {Name}");
+            await Device?.Stop();
         }
 
         public async Task SendCmd()
         {
             if (Device == null)
+            {
+                _logger.LogWarning($"Device is null, command not sent.");
                 return;
+            }
 
             if (CurrentCmd.Millis <= 0)
             {
                 await Task.Delay(1);
                 return;
             }
+
             Task sendtask = Task.CompletedTask;
             if (CurrentCmd.Millis >= config.MinCommandDelay
                 || (DateTime.Now - lastCmdSendAt).TotalMilliseconds >= config.MinCommandDelay)
             {
                 lastCmdSendAt = DateTime.Now;
+                _logger.LogInformation($"Sending command for Device: {Name}, Actuator: {Actuator}, CurrentCmd: in-{ReminingCmdTime} pos-{CurrentCmd.GetValueInRange(Min, Max)} with AbsoluteTime: {CurrentCmd.AbsoluteTime}");
+
                 switch (Actuator)
                 {
                     case ActuatorType.Position:
-                        sendtask = Device.LinearAsync(new[] { ((uint)(ReminingCmdTime), Math.Min(1.0, Math.Max(0, CurrentCmd.GetValueInRange(Min,Max) / (double)100))) });
+                        sendtask = Device.LinearAsync((uint)ReminingCmdTime, Math.Min(1.0, Math.Max(0, CurrentCmd.GetValueInRange(Min, Max) / (double)100)));
                         break;
                     case ActuatorType.Rotate:
-                        sendtask = Device.RotateAsync(Math.Min(1.0, Math.Max(0, CurrentCmd.Speed / (double)450)), CurrentCmd.Direction); ;
+                        sendtask = Device.RotateAsync(Math.Min(1.0, Math.Max(0, CurrentCmd.Speed / (double)450)), CurrentCmd.Direction);
                         break;
                 }
             }
 
             await sendtask.ConfigureAwait(false);
-
+            //_logger.LogInformation($"Command sent successfully for Device: {Name}, Actuator: {Actuator}");
         }
-
-
 
         public (double Speed, int TimeUntilNextChange) CalculateSpeed()
         {
-
             if (CurrentCmd == null)
-                return (0, 0); // Si no hay comando actual, no hay velocidad ni cambio.
+            {
+                _logger.LogInformation("No current command. Speed calculation returns zero values.");
+                return (0, 0); // If no current command, return zero speed and time.
+            }
 
             var initialValue = CurrentCmd.Prev?.GetValueInRange(Min, Max) ?? 0;
             var distanceToTravel = CurrentCmd.GetValueInRange(Min, Max) - initialValue;
@@ -182,21 +195,20 @@ namespace Edi.Core.Device.Buttplug
             var speed = (int)Math.Round(currVal / vibroSteps) * vibroSteps;
             speed = Math.Min(1.0, Math.Max(0, speed / (double)100));
 
-            // Calculamos el tiempo hasta el próximo cambio. 
-            // Suponemos que el tiempo hasta el próximo cambio es proporcional a la distancia hasta el próximo vibroStep.
+            // Calculate the time until the next change.
+            // We assume the time until the next change is proportional to the distance to the next vibroStep.
             var nextStepDistance = vibroSteps - (currVal % vibroSteps);
             var nextStepFraction = nextStepDistance / distanceToTravel;
             var timeUntilNextChange = (elapsedFraction + nextStepFraction) * CurrentCmd.Millis - CurrentCmdTime;
 
-            // Ajustamos el tiempo para asegurarnos de que no sea negativo ni infinito.
-            if(timeUntilNextChange < 0)
+            // Adjust time to ensure it's not negative or infinite.
+            if (timeUntilNextChange < 0)
                 timeUntilNextChange = ReminingCmdTime;
-                
+
             timeUntilNextChange = Math.Min(ReminingCmdTime, timeUntilNextChange);
+            //_logger.LogInformation($"Speed calculation for Device: {Name}, Speed: {speed}, TimeUntilNextChange: {Convert.ToInt32(timeUntilNextChange)}");
+
             return (speed, Convert.ToInt32(timeUntilNextChange));
         }
-
     }
-
 }
-

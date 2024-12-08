@@ -1,6 +1,5 @@
 ﻿
 using Buttplug.Client;
-using Buttplug.Client.Connectors.WebsocketConnector;
 using Buttplug.Core;
 using Buttplug.Core.Messages;
 using Edi.Core.Device.Interfaces;

@@ -19,6 +19,8 @@ namespace Edi.Core.Gallery
         {
             var GalleryDir = new DirectoryInfo(path);
             var files = new List<FileInfo>();
+            if (!GalleryDir.Exists)
+                throw new Exception($"Gallery Path not Fount {GalleryDir}");
 
             // Iterate through accepted file types and gather matching files
             foreach (var item in Repository.Accept)

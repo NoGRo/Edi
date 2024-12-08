@@ -17,93 +17,98 @@ using System.Diagnostics.CodeAnalysis;
 using Edi.Core.Gallery.Index;
 using Edi.Core.Gallery.Definition;
 using System.Runtime.CompilerServices;
-using System.Threading;
 using PropertyChanged;
 using System.Timers;
 using System.ComponentModel.DataAnnotations;
 using System.Xml.Linq;
 using System.Reflection;
+using Microsoft.Extensions.Logging;
 
 namespace Edi.Core.Device.Handy
 {
     [AddINotifyPropertyChangedInterface]
-    internal class HandyDevice : DeviceBase<IndexRepository,IndexGallery> 
+    internal class HandyDevice : DeviceBase<IndexRepository, IndexGallery>
     {
+        private readonly ILogger _logger;
 
         public string Key { get; set; }
-
-        
         private static long timeSyncAvrageOffset;
         public HttpClient Client = null;
 
-        
-        internal override void SetVariant()
-        {
-            upload();
-        }
         private string CurrentBundle = "default";
-        public HandyDevice(HttpClient Client, IndexRepository repository): base(repository) 
+
+        public HandyDevice(HttpClient client, IndexRepository repository, ILogger logger) : base(repository, logger)
         {
-            Key = Client.DefaultRequestHeaders.GetValues("X-Connection-Key").First();
-            //make unique nane 
+            _logger = logger;
+            Key = client.DefaultRequestHeaders.GetValues("X-Connection-Key").First();
             Name = $"The Handy [{Key}]";
 
             IsReady = false;
-            this.Client = Client;
+            Client = client;
+
+            _logger.LogInformation($"HandyDevice initialized with Key: {Key}.");
         }
 
-    
+        internal override void SetVariant()
+        {
+            _logger.LogInformation($"Setting variant for Key: {Key} with SelectedVariant: {SelectedVariant}.");
+            upload();
+        }
+
         internal override async Task applyRange()
         {
-            Debug.WriteLine($"Handy: {Key} Slide {Min}-{Max}");
+            _logger.LogInformation($"Applying range for Key: {Key}, Min: {Min}, Max: {Max}.");
             var request = new SlideRequest(Min, Max);
             await Client.PutAsync("slide", new StringContent(JsonConvert.SerializeObject(request), Encoding.UTF8, "application/json"));
         }
 
         public override async Task PlayGallery(IndexGallery gallery, long seek = 0)
         {
+            _logger.LogInformation($"Starting gallery '{gallery?.Name}' on Key: {Key} with seek: {seek}.");
+
             if (gallery.Bundle != CurrentBundle)
             {
-                gallery = repository.Get(gallery.Name, SelectedVariant, CurrentBundle);//find in current bundle 
-
-                if (gallery.Bundle != CurrentBundle)//not in the current uploaded bundle 
+                gallery = repository.Get(gallery.Name, SelectedVariant, CurrentBundle);
+                if (gallery.Bundle != CurrentBundle)
                 {
                     upload(gallery.Bundle, false);
                 }
             }
+
             await Seek(gallery.StartTime + seek);
         }
 
         private async Task Seek(long timeMs)
         {
             if (!IsReady)
+            {
+                _logger.LogWarning($"Device not ready for playback. Key: {Key}");
                 return;
-            
-            Debug.WriteLine($"Handy: [{DateTimeOffset.UtcNow.ToUnixTimeMilliseconds()}] {ServerTime} {Key} PLay [{timeMs}] ({currentGallery?.Name ?? ""}))");
+            }
+
+            _logger.LogInformation($"Sending seek command for Key: {Key}, TimeMs: {timeMs}.");
+
             try
             {
-
                 var req = new SyncPlayRequest(ServerTime, timeMs);
-
                 var token = playCancelTokenSource.Token;
+
                 await Client.PutAsync("hssp/play", new StringContent(JsonConvert.SerializeObject(req), Encoding.UTF8, "application/json"), token);
-                // second call after warmp up connection  
                 await Task.Delay(1500, token);
+
                 if (currentGallery is null || token.IsCancellationRequested)
                     return;
 
                 req = new SyncPlayRequest(ServerTime, currentGallery.StartTime + CurrentTime);
                 await Client.PutAsync("hssp/play", new StringContent(JsonConvert.SerializeObject(req), Encoding.UTF8, "application/json"), token);
-
             }
-
-            catch (TaskCanceledException ex)
+            catch (TaskCanceledException)
             {
-                return;
+                _logger.LogWarning($"Seek operation canceled for Key: {Key}.");
             }
             catch (Exception ex)
             {
-                Debug.WriteLine($"Handy: {Key} Error: {ex.Message}");
+                _logger.LogError($"Error during seek for Key: {Key} - {ex.Message}");
             }
         }
 
@@ -111,108 +116,111 @@ namespace Edi.Core.Device.Handy
         {
             if (!IsReady)
             {
+                _logger.LogWarning($"Device not ready to stop playback. Key: {Key}");
                 return;
             }
-            Debug.WriteLine($"Handy: {Key} Stop");
+
+            _logger.LogInformation($"Stopping gallery playback for Key: {Key}.");
+
             try
             {
                 await Client.PutAsync("hssp/stop", null);
             }
             catch (Exception ex)
             {
-                Debug.WriteLine($"Handy: {Key} Error: {ex.Message}");
+                _logger.LogError($"Error stopping gallery for Key: {Key} - {ex.Message}");
             }
         }
-
-
-
         private Task uploadTask { get; set; }
         private CancellationTokenSource uploadCancellationTokenSource;
 
         private async void upload(string bundle = null, bool delay = true)
         {
-
             uploadCancellationTokenSource?.Cancel(true);
             await Task.Delay(50);
             uploadCancellationTokenSource = new CancellationTokenSource();
-            
+
             uploadTask = Task.Run(async () =>
             {
                 if (delay)
-                { 
+                {
                     try
                     {
                         await Task.Delay(3000, uploadCancellationTokenSource.Token);
                     }
                     catch (TaskCanceledException)
                     {
+                        _logger.LogWarning($"Upload task canceled for Key: {Key}.");
                         return;
                     }
-
                 }
+
                 try
                 {
-                    Task pause =  Client.PutAsync("hssp/stop",null, uploadCancellationTokenSource.Token);
+                    _logger.LogInformation($"Starting upload for Key: {Key}, Bundle: {bundle ?? CurrentBundle}.");
+
+                    Task pause = Client.PutAsync("hssp/stop", null, uploadCancellationTokenSource.Token);
                     IsReady = false;
 
                     CurrentBundle = bundle ?? CurrentBundle;
-
                     var blob = await uploadBlob(repository.GetBundle($"{CurrentBundle}.{selectedVariant}", "csv"));
-                    
+
                     await pause;
 
-                    
                     var resp = await Client.PutAsync("hssp/setup", new StringContent(JsonConvert.SerializeObject(new SyncUpload(blob)), Encoding.UTF8, "application/json"), uploadCancellationTokenSource.Token);
                     var result = await resp.Content.ReadAsStringAsync();
 
                     if (result.Contains("timeout"))
                     {
-                        //when the divice ends, re adquiere seek command
+                        _logger.LogWarning($"Upload timed out for Key: {Key}.");
                     }
+
                     IsReady = true;
                     Resume();
+                    _logger.LogInformation($"Upload completed and device is ready for Key: {Key}.");
                 }
                 catch (TaskCanceledException)
                 {
-                    return;
+                    _logger.LogWarning($"Upload task canceled for Key: {Key}.");
                 }
-                catch (Exception ex) {
-                    return;
+                catch (Exception ex)
+                {
+                    _logger.LogError($"Error during upload for Key: {Key} - {ex.Message}");
                 }
             });
         }
+
         private async Task<string> uploadBlob(FileInfo file)
         {
+            _logger.LogInformation($"Uploading blob for file: {file.Name}.");
 
-            using (var blobClient = new HttpClient())
+            using (var blobClient = new HttpClient { Timeout = TimeSpan.FromMinutes(3) })
             {
-                blobClient.Timeout = TimeSpan.FromMinutes(3);
                 var request = new HttpRequestMessage(HttpMethod.Post, "https://www.handyfeeling.com/api/sync/upload");
-
                 var content = new MultipartFormDataContent
                 {
                     { new StreamContent(file.OpenRead()), "syncFile", "Edi.csv" }
                 };
-
                 request.Content = content;
 
                 var resp = await blobClient.SendAsync(request, uploadCancellationTokenSource.Token);
+                var uploadResult = JsonConvert.DeserializeObject<SyncUpload>(await resp.Content.ReadAsStringAsync(uploadCancellationTokenSource.Token));
 
-                return JsonConvert.DeserializeObject<SyncUpload>(await resp.Content.ReadAsStringAsync(uploadCancellationTokenSource.Token)).url;
+                _logger.LogInformation($"Blob upload completed for file: {file.Name} with URL: {uploadResult.url}.");
+                return uploadResult.url;
             }
         }
 
         internal async Task updateServerTime()
         {
             timeSyncAvrageOffset = await ServerTimeSync.SyncServerTimeAsync();
-            Debug.WriteLine($"Handy: [Offset {timeSyncAvrageOffset}]");
+            _logger.LogInformation($"Server time offset updated for Key: {Key}, Offset: {timeSyncAvrageOffset}ms.");
         }
 
-      
-        private long ServerTime => DateTimeOffset.UtcNow.ToUnixTimeMilliseconds() +  timeSyncAvrageOffset;
-
-
+        private long ServerTime => DateTimeOffset.UtcNow.ToUnixTimeMilliseconds() + timeSyncAvrageOffset;
     }
+
+
 public static class ServerTimeSync
     {
         private static double _estimatedAverageOffset = 0;
@@ -268,3 +276,4 @@ public static class ServerTimeSync
     public record ErrorResponse(ErrorDetails Error);
 
 }
+

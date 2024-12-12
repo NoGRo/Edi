@@ -133,11 +133,8 @@ namespace Edi.Core.Device.Handy
 
         private async void upload(string bundle = null, bool delay = true)
         {
-
-            uploadCancellationTokenSource?.Cancel(true);
-            await Task.Delay(50);
-            uploadCancellationTokenSource = new CancellationTokenSource();
-            
+            IsReady = false;
+            Interlocked.Exchange(ref uploadCancellationTokenSource, new CancellationTokenSource())?.Cancel(true);
             uploadTask = Task.Run(async () =>
             {
                 if (delay)
@@ -155,9 +152,7 @@ namespace Edi.Core.Device.Handy
                 try
                 {
                     Task pause =  Client.PutAsync("hssp/stop",null, uploadCancellationTokenSource.Token);
-                    IsReady = false;
-
-                    CurrentBundle = bundle ?? CurrentBundle;
+                     CurrentBundle = bundle ?? CurrentBundle;
 
                     var blob = await uploadBlob(repository.GetBundle($"{CurrentBundle}.{selectedVariant}", "csv"));
                     

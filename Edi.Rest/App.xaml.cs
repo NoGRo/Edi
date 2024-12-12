@@ -39,6 +39,7 @@ namespace Edi.Forms
 
             var webAppBuilder = WebApplication.CreateBuilder();
 
+           
             // Configura Kestrel para escuchar en ambos puertos y especifica HTTPS
             webAppBuilder.WebHost.ConfigureKestrel(serverOptions =>
             {
@@ -48,6 +49,8 @@ namespace Edi.Forms
                     listenOptions.UseHttps(); // Utiliza el certificado de desarrollo
                 });
             });
+            webAppBuilder.WebHost.UseUrls("http://localhost:5000/");
+            webAppBuilder.WebHost.UseUrls("https://localhost:5001/");
 
             IServiceCollection services = webAppBuilder.Services;
 
@@ -59,7 +62,7 @@ namespace Edi.Forms
 
             services.AddCors(options =>
             {
-                options.AddPolicy("AllowSpecificOrigin",
+                options.AddPolicy("AllowAnyOrigin",
                builder => builder
                 .AllowAnyOrigin() // Permite solicitudes desde cualquier origen
                 .AllowAnyMethod()

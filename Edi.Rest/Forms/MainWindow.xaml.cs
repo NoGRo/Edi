@@ -53,8 +53,9 @@ namespace Edi.Forms
                         && File.Exists(config.ExecuteOnReady))
                     {
                         launched = true;
-                        Process.Start(new ProcessStartInfo(new FileInfo(config.ExecuteOnReady).FullName) { UseShellExecute = true});
                         lblStatus.Content = "launched: " + config.ExecuteOnReady;
+                        Process.Start(new ProcessStartInfo(new FileInfo(config.ExecuteOnReady).FullName) { UseShellExecute = true});
+                        
                     }
 
                     

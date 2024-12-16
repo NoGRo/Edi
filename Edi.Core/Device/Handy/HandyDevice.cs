@@ -139,10 +139,8 @@ namespace Edi.Core.Device.Handy
 
         private async void upload(string bundle = null, bool delay = true)
         {
-            uploadCancellationTokenSource?.Cancel(true);
-            await Task.Delay(50);
-            uploadCancellationTokenSource = new CancellationTokenSource();
-
+            IsReady = false;
+            Interlocked.Exchange(ref uploadCancellationTokenSource, new CancellationTokenSource())?.Cancel(true);
             uploadTask = Task.Run(async () =>
             {
                 if (delay)

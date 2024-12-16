@@ -28,6 +28,9 @@ namespace Edi.Core.Gallery
         public static List<AssetEdi> Discover(this IRepository Repository, string path)
         {
             var GalleryDir = new DirectoryInfo(path);
+            if(GalleryDir?.Exists != true)
+                return new ();
+
             var files = new List<FileInfo>();
             if (!GalleryDir.Exists)
                 throw new Exception($"Gallery Path not Fount {GalleryDir}");

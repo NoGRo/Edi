@@ -1,6 +1,6 @@
 {
   "Gallery": {
-    "GalleryPath": "D:\\Games\\A Lose Hero in the Castle of the Succubi\\Edi\\Gallery",
+    "GalleryPath": "C:\\Program Files (x86)\\Steam\\steamapps\\common\\Mira and the Mysteries of Alchemy\\Gallery",
     "GenerateDefinitionFromChapters": false,
     "GenerateChaptersFromDefinition": false
   },
@@ -21,7 +21,7 @@
     "Filler": true,
     "Gallery": true,
     "Reactive": true,
-    "ExecuteOnReady": ""
+    "ExecuteOnReady": "D:\\Juegos\\Fapland Remastered clean\\Game.exe"
   },
   "OSR": {
     "COMPort": null,
@@ -76,7 +76,7 @@
         "Max": 100
       },
       "The Handy [ppJdVv3V]": {
-        "Variant": "default",
+        "Variant": "hard",
         "Min": 0,
         "Max": 100
       },

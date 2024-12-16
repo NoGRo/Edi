@@ -32,6 +32,9 @@ namespace Edi.Forms
 
         private async Task BuildApi(string galleryPath)
         {
+
+            bool useHttps = Edi.ConfigurationManager.Get<EdiConfig>().UseHtttps;
+
             galleryPath = new DirectoryInfo(galleryPath).FullName;
 
             if (webApp != null)
@@ -40,14 +43,19 @@ namespace Edi.Forms
             var webAppBuilder = WebApplication.CreateBuilder();
 
             // Configura Kestrel para escuchar en ambos puertos y especifica HTTPS
-            webAppBuilder.WebHost.ConfigureKestrel(serverOptions =>
+            if (useHttps)
+            {
+                webAppBuilder.WebHost.ConfigureKestrel(serverOptions =>
             {
                 serverOptions.ListenAnyIP(5000); // Puerto HTTP
-                serverOptions.ListenAnyIP(5001, listenOptions =>
-                {
-                    listenOptions.UseHttps(); // Utiliza el certificado de desarrollo
-                });
+                serverOptions.ListenAnyIP(5001, listenOptions => { listenOptions.UseHttps(); });
             });
+            }
+            else
+            {
+                webAppBuilder.WebHost.UseUrls("http://localhost:5000");
+            }
+            
 
             IServiceCollection services = webAppBuilder.Services;
 

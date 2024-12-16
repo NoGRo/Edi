@@ -14,6 +14,6 @@ namespace Edi.Core
         public bool Gallery { get; set; } = true;
         public bool Reactive { get; set; } = true;
         public string ExecuteOnReady { get; set; } = "";
-
+        public bool UseHtttps { get; set; } = false;
     }
 }

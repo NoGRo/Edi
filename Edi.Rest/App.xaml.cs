@@ -10,6 +10,7 @@ using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using System.Threading.Tasks;
 using System.Collections.Generic;
+using System.Net;
 
 namespace Edi.Forms
 {
@@ -43,10 +44,10 @@ namespace Edi.Forms
             // Configura Kestrel para escuchar en ambos puertos y especifica HTTPS
             webAppBuilder.WebHost.ConfigureKestrel(serverOptions =>
             {
-                serverOptions.ListenAnyIP(5000); // Puerto HTTP
-                serverOptions.ListenAnyIP(5001, listenOptions =>
+                serverOptions.Listen(IPAddress.Loopback, 5000); // Puerto HTTP
+                serverOptions.Listen(IPAddress.Loopback, 5001, listenOptions =>
                 {
-                    listenOptions.UseHttps(); // Utiliza el certificado de desarrollo
+                    listenOptions.UseHttps("certificate.pfx", "password"); // Utiliza el certificado de desarrollo
                 });
             });
             webAppBuilder.WebHost.UseUrls("http://localhost:5000/");

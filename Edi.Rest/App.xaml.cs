@@ -68,7 +68,7 @@ namespace Edi.Forms
 
             services.AddCors(options =>
             {
-                options.AddPolicy("AllowAnyOrigin",
+                options.AddPolicy("AllowSpecificOrigin",
                builder => builder
                 .AllowAnyOrigin() // Permite solicitudes desde cualquier origen
                 .AllowAnyMethod()

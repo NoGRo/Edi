@@ -1,6 +1,6 @@
 {
   "Gallery": {
-    "GalleryPath": "C:\\Program Files (x86)\\Steam\\steamapps\\common\\Mira and the Mysteries of Alchemy\\Gallery",
+    "GalleryPath": "D:\\pp\\playeables\\Goon Infinite Doble",
     "GenerateDefinitionFromChapters": false,
     "GenerateChaptersFromDefinition": false
   },
@@ -56,7 +56,7 @@
   "Devices": {
     "Devices": {
       "The Handy [PiBnz]": {
-        "Variant": "detail",
+        "Variant": "default",
         "Min": 0,
         "Max": 100
       },
@@ -81,9 +81,9 @@
         "Max": 100
       },
       "AutoBlow [ibjckz1x0q91]": {
-        "Variant": "lineal-anal",
+        "Variant": "default",
         "Min": 0,
-        "Max": 100
+        "Max": 70
       },
       "The Handy [92H0Y]": {
         "Variant": "default",

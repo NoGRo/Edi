@@ -34,7 +34,7 @@ namespace Edi.Forms
         private async Task BuildApi(string galleryPath)
         {
 
-            bool useHttps = Edi.ConfigurationManager.Get<EdiConfig>().UseHtttps;
+            bool useHttps = Edi.ConfigurationManager.Get<EdiConfig>().UseHttps;
 
             galleryPath = new DirectoryInfo(galleryPath).FullName;
 

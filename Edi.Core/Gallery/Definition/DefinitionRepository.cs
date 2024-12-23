@@ -103,7 +103,7 @@ namespace Edi.Core.Gallery.Definition
                 Match matchFile = DiscoverExtension.variantRegex.Match(Path.GetFileNameWithoutExtension(file.FullName));
                 var fileName = matchFile.Groups["name"].Value;
                 var loop = matchFile.Groups["loop"].Value.ToLower() != "nonloop" ? "true" : "false";
-                var type = matchFile.Groups.ContainsKey("type") ? matchFile.Groups["type"].Value.ToLower() : "gallery";
+                var type = matchFile.Groups["type"].Success ? matchFile.Groups["type"].Value.ToLower() : "gallery";
 
                 var funscript = FunScriptFile.Read(file.FullName);
                 if (funscript?.metadata?.chapters?.Any() == true && Config.GenerateDefinitionFromChapters)
@@ -117,8 +117,8 @@ namespace Edi.Core.Gallery.Definition
                             {
                                 Name = mathChapter.Groups["name"].Value,
                                 FileName = fileName,
-                                Type = matchFile.Groups.ContainsKey("type") ? matchFile.Groups["type"].Value : type,
-                                Loop = matchFile.Groups.ContainsKey("loop")
+                                Type = mathChapter.Groups["type"].Success ? mathChapter.Groups["type"].Value.ToLower() : type,
+                                Loop = mathChapter.Groups["loop"].Success
                                         ? mathChapter.Groups["loop"].Value?.ToLower() != "nonloop" ? "true" : "false"
                                         : loop,
                                 StartTime = x.startTime,

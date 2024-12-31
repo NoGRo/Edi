@@ -160,11 +160,11 @@ namespace Edi.Core.Device.OSR
         {
             try
             {
-                var ranges = GetDeviceName();
+                var name = GetDeviceName();
 
-                if (ranges == null)
+                if (name == null)
                     return false;
-                if (ranges.Contains("tcode", StringComparison.InvariantCultureIgnoreCase))
+                if (name.Contains("tcode", StringComparison.InvariantCultureIgnoreCase))
                     return true;
 
             } catch { }
@@ -188,7 +188,10 @@ namespace Edi.Core.Device.OSR
             if (!DevicePort.IsOpen)
                 return string.Empty;
 
-            DevicePort.ReadExisting();
+            while (DevicePort.BytesToRead > 0)
+            { 
+                DevicePort.ReadExisting();
+            }
             DevicePort.Write("d1\n");
             var name = ReadDeviceOutput();
             return name.Replace("\r\n", "");
@@ -200,7 +203,7 @@ namespace Edi.Core.Device.OSR
             while (DevicePort.BytesToRead == 0)
             {
                 if (tryCount++ >= 5)
-                    throw new Exception("Timeout waiting for OSR response");
+                    throw new Exception("Timeout waiting for TCode response");
                 Thread.Sleep(100);
             }
             return DevicePort.ReadExisting();

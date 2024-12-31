@@ -26,6 +26,7 @@ namespace Edi.Core.Device.OSR
         private DeviceManager DeviceManager;
         private FunscriptRepository Repository;
         private readonly Timer TimerPing = new(5000);
+        private int AliveCheckFails = 0;
 
         public OSRProvider(FunscriptRepository repository, ConfigurationManager config, DeviceManager deviceManager)
         {
@@ -67,12 +68,13 @@ namespace Edi.Core.Device.OSR
                 Device = new(port, Repository, Config);
                 if (!Device.AlivePing())
                 {
-                    OnStatusChange("Device unverifiable as OSR");
+                    OnStatusChange("Device unverifiable as TCode device");
                     return;
                 }
 
                 _ = Device.ReturnToHome();
 
+                AliveCheckFails = 0;
                 DeviceManager.LoadDevice(Device);
             }
             catch (Exception e)
@@ -91,8 +93,12 @@ namespace Edi.Core.Device.OSR
                 _ = Connect();
             else
             {
-                if (!Device.AlivePing())
-                    _  = UnloadDevice();
+                if (!Device.AlivePing() && ++AliveCheckFails >= 3)
+                    _ = UnloadDevice();
+                else
+                {
+                    AliveCheckFails = 0;
+                }
             }
         }
 

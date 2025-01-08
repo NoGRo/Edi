@@ -55,7 +55,7 @@ namespace Edi.Core
             deviceManager.Providers.Add(new ButtplugProvider(funscriptRepository, configuration, deviceManager, logger));
             deviceManager.Providers.Add(new AutoBlowProvider(indexRepository, configuration, deviceManager, logger));
             deviceManager.Providers.Add(new HandyProvider(indexRepository, configuration, deviceManager, logger));
-            deviceManager.Providers.Add(new OSRProvider(funscriptRepository, configuration, deviceManager));
+            deviceManager.Providers.Add(new OSRProvider(funscriptRepository, configuration, deviceManager, logger));
             deviceManager.Providers.Add(new EStimProvider(audioRepository, configuration, deviceManager,logger));
 
             #endregion

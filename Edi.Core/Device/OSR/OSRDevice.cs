@@ -1,5 +1,6 @@
 ﻿using Edi.Core.Device.Interfaces;
 using Edi.Core.Gallery.Funscript;
+using Microsoft.Extensions.Logging;
 using PropertyChanged;
 using System.IO.Ports;
 
@@ -17,6 +18,7 @@ namespace Edi.Core.Device.OSR
             set
             {
                 selectedVariant = value;
+                logger.LogInformation($"Setting variant on device '{Name}' with SelectedVariant: {SelectedVariant}.");
                 if (currentGallery != null && playbackScript != null && !IsPause)
                     PlayGallery(currentGallery.Name, playbackScript.CurrentTime).GetAwaiter();
             }
@@ -27,6 +29,7 @@ namespace Edi.Core.Device.OSR
 
         internal OSRPosition? LastPosition { get; private set; }
 
+        private readonly ILogger logger;
         private FunscriptRepository repository { get; set; }
         private string selectedVariant;
 
@@ -48,17 +51,20 @@ namespace Edi.Core.Device.OSR
 
         public int Min { get => targetMin; set {
                 targetMin = value;
+                logger.LogInformation($"Applying range for device: {Name}, Min: {Min}");
                 _ = ApplyRange();
             }
         }
         public int Max { get => targetMax; set { 
                 targetMax = value;
+                logger.LogInformation($"Applying range for device: {Name}, Max: {Max}");
                 _ = ApplyRange();
             } 
         }
 
-        public OSRDevice(SerialPort devicePort, FunscriptRepository repository, OSRConfig config)
+        public OSRDevice(SerialPort devicePort, FunscriptRepository repository, OSRConfig config, ILogger logger)
         {
+            this.logger = logger;
             DevicePort = devicePort;
             Name = GetDeviceName();
 
@@ -70,6 +76,7 @@ namespace Edi.Core.Device.OSR
 
         public async Task PlayGallery(string name, long seek = 0)
         {
+            logger.LogInformation($"Starting gallery '{name}' on device: {this.Name} with seek: {seek}");
             var gallery = repository.Get(name, SelectedVariant);
             if (gallery == null)
                 return;
@@ -88,6 +95,7 @@ namespace Edi.Core.Device.OSR
         {
             IsPause = true;
             playbackCancellationTokenSource.Cancel();
+            logger.LogInformation($"Stopping gallery playback for device: {Name}");
         }
 
         private void PlayScript(OSRScript script)
@@ -167,20 +175,11 @@ namespace Edi.Core.Device.OSR
                 if (name.Contains("tcode", StringComparison.InvariantCultureIgnoreCase))
                     return true;
 
-            } catch { }
+            } catch (Exception e) {
+                logger.LogError(e, $"Error during liveness check for device '{Name}'");
+            }
 
             return false;
-        }
-
-        private string? GetDeviceRanges()
-        {
-            if (!DevicePort.IsOpen)
-                return null;
-
-            DevicePort.ReadExisting();
-            DevicePort.Write("d2\n");
-            var ranges = ReadDeviceOutput();
-            return ranges.Replace("\r\n", "");
         }
 
         private string GetDeviceName()

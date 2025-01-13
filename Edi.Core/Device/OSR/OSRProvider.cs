@@ -66,7 +66,17 @@ namespace Edi.Core.Device.OSR
             {
                 port.ReadTimeout = 1000;
                 port.WriteTimeout = 1000;
+                port.DtrEnable = true;
                 port.Open();
+
+                var readWaits = 0;
+                while (port.BytesToRead == 0 && readWaits < 10)
+                {
+                    Thread.Sleep(100);
+                    readWaits++;
+                }
+                Thread.Sleep(100);
+                port.DiscardInBuffer();
 
                 Device = new(port, Repository, Config, logger);
                 if (!Device.AlivePing())

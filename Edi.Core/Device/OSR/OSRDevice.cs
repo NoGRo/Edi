@@ -62,6 +62,9 @@ namespace Edi.Core.Device.OSR
             } 
         }
 
+        private Timer positionUpdateTimer;
+        private int updateMs;
+
         public OSRDevice(SerialPort devicePort, FunscriptRepository repository, OSRConfig config, ILogger logger)
         {
             this.logger = logger;
@@ -72,6 +75,9 @@ namespace Edi.Core.Device.OSR
             this.repository = repository;
 
             selectedVariant = repository.GetVariants().FirstOrDefault("");
+
+            updateMs = 1000 / config.UpdateRate;
+            positionUpdateTimer = new Timer(_ => PlayCommands(), null, 0, updateMs);
         }
 
         public async Task PlayGallery(string name, long seek = 0)
@@ -107,10 +113,8 @@ namespace Edi.Core.Device.OSR
                 playbackCancellationTokenSource?.Cancel();
                 playbackCancellationTokenSource = newCancellationTokenSource;
 
-                playbackScript = script;
                 script.ProcessCommands(this);
-
-                _ = Task.Run(() => PlayCommands(newCancellationTokenSource.Token));
+                playbackScript = script;
             }
             finally
             {
@@ -118,25 +122,30 @@ namespace Edi.Core.Device.OSR
             }
         }
 
-        private void PlayCommands(CancellationToken token)
+        private void PlayCommands()
         {
-            if (playbackScript == null)
+            if (!Monitor.TryEnter(positionUpdateTimer))
                 return;
 
-            while (!token.IsCancellationRequested)
+            try
             {
-                var pos = playbackScript.GetNextPosition();
+                if (playbackScript == null || playbackCancellationTokenSource.IsCancellationRequested)
+                    return;
 
-                if (token.IsCancellationRequested || pos == null)
+                var pos = playbackScript.GetNextPosition(updateMs);
+
+                if (playbackCancellationTokenSource.IsCancellationRequested || pos == null)
                 {
-                    if (currentGallery?.Loop == true && !token.IsCancellationRequested)
+                    if (currentGallery?.Loop == true && !playbackCancellationTokenSource.IsCancellationRequested)
                     {
                         playbackScript.Loop();
                         PlayScript(playbackScript);
                     }
 
                     return;
-                } else {
+                }
+                else
+                {
                     if (speedRampUp)
                     {
                         if (speedRampUpTime == null)
@@ -161,6 +170,10 @@ namespace Edi.Core.Device.OSR
                     SendPos(pos);
                 }
 
+                
+            } finally
+            {
+                Monitor.Exit(positionUpdateTimer);
             }
         }
 

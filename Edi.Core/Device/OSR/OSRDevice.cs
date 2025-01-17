@@ -1,5 +1,6 @@
 ﻿using Edi.Core.Device.Interfaces;
 using Edi.Core.Gallery.Funscript;
+using Microsoft.Extensions.Logging;
 using PropertyChanged;
 using System.IO.Ports;
 
@@ -17,6 +18,7 @@ namespace Edi.Core.Device.OSR
             set
             {
                 selectedVariant = value;
+                logger.LogInformation($"Setting variant on device '{Name}' with SelectedVariant: {SelectedVariant}.");
                 if (currentGallery != null && playbackScript != null && !IsPause)
                     PlayGallery(currentGallery.Name, playbackScript.CurrentTime).GetAwaiter();
             }
@@ -27,6 +29,7 @@ namespace Edi.Core.Device.OSR
 
         internal OSRPosition? LastPosition { get; private set; }
 
+        private readonly ILogger logger;
         private FunscriptRepository repository { get; set; }
         private string selectedVariant;
 
@@ -48,17 +51,23 @@ namespace Edi.Core.Device.OSR
 
         public int Min { get => targetMin; set {
                 targetMin = value;
+                logger.LogInformation($"Applying range for device: {Name}, Min: {Min}");
                 _ = ApplyRange();
             }
         }
         public int Max { get => targetMax; set { 
                 targetMax = value;
+                logger.LogInformation($"Applying range for device: {Name}, Max: {Max}");
                 _ = ApplyRange();
             } 
         }
 
-        public OSRDevice(SerialPort devicePort, FunscriptRepository repository, OSRConfig config)
+        private Timer positionUpdateTimer;
+        private int updateMs;
+
+        public OSRDevice(SerialPort devicePort, FunscriptRepository repository, OSRConfig config, ILogger logger)
         {
+            this.logger = logger;
             DevicePort = devicePort;
             Name = GetDeviceName();
 
@@ -66,10 +75,14 @@ namespace Edi.Core.Device.OSR
             this.repository = repository;
 
             selectedVariant = repository.GetVariants().FirstOrDefault("");
+
+            updateMs = 1000 / config.UpdateRate;
+            positionUpdateTimer = new Timer(_ => PlayCommands(), null, 0, updateMs);
         }
 
         public async Task PlayGallery(string name, long seek = 0)
         {
+            logger.LogInformation($"Starting gallery '{name}' on device: {this.Name} with seek: {seek}");
             var gallery = repository.Get(name, SelectedVariant);
             if (gallery == null)
                 return;
@@ -88,6 +101,7 @@ namespace Edi.Core.Device.OSR
         {
             IsPause = true;
             playbackCancellationTokenSource.Cancel();
+            logger.LogInformation($"Stopping gallery playback for device: {Name}");
         }
 
         private void PlayScript(OSRScript script)
@@ -99,10 +113,8 @@ namespace Edi.Core.Device.OSR
                 playbackCancellationTokenSource?.Cancel();
                 playbackCancellationTokenSource = newCancellationTokenSource;
 
-                playbackScript = script;
                 script.ProcessCommands(this);
-
-                _ = Task.Run(() => PlayCommands(newCancellationTokenSource.Token));
+                playbackScript = script;
             }
             finally
             {
@@ -110,25 +122,30 @@ namespace Edi.Core.Device.OSR
             }
         }
 
-        private void PlayCommands(CancellationToken token)
+        private void PlayCommands()
         {
-            if (playbackScript == null)
+            if (!Monitor.TryEnter(positionUpdateTimer))
                 return;
 
-            while (!token.IsCancellationRequested)
+            try
             {
-                var pos = playbackScript.GetNextPosition();
+                if (playbackScript == null || playbackCancellationTokenSource.IsCancellationRequested)
+                    return;
 
-                if (token.IsCancellationRequested || pos == null)
+                var pos = playbackScript.GetNextPosition(updateMs);
+
+                if (playbackCancellationTokenSource.IsCancellationRequested || pos == null)
                 {
-                    if (currentGallery?.Loop == true && !token.IsCancellationRequested)
+                    if (currentGallery?.Loop == true && !playbackCancellationTokenSource.IsCancellationRequested)
                     {
                         playbackScript.Loop();
                         PlayScript(playbackScript);
                     }
 
                     return;
-                } else {
+                }
+                else
+                {
                     if (speedRampUp)
                     {
                         if (speedRampUpTime == null)
@@ -153,6 +170,10 @@ namespace Edi.Core.Device.OSR
                     SendPos(pos);
                 }
 
+                
+            } finally
+            {
+                Monitor.Exit(positionUpdateTimer);
             }
         }
 
@@ -160,27 +181,18 @@ namespace Edi.Core.Device.OSR
         {
             try
             {
-                var ranges = GetDeviceName();
+                var name = GetDeviceName();
 
-                if (ranges == null)
+                if (name == null)
                     return false;
-                if (ranges.Contains("tcode", StringComparison.InvariantCultureIgnoreCase))
+                if (name.Contains("tcode", StringComparison.InvariantCultureIgnoreCase))
                     return true;
 
-            } catch { }
+            } catch (Exception e) {
+                logger.LogError(e, $"Error during liveness check for device '{Name}'");
+            }
 
             return false;
-        }
-
-        private string? GetDeviceRanges()
-        {
-            if (!DevicePort.IsOpen)
-                return null;
-
-            DevicePort.ReadExisting();
-            DevicePort.Write("d2\n");
-            var ranges = ReadDeviceOutput();
-            return ranges.Replace("\r\n", "");
         }
 
         private string GetDeviceName()
@@ -188,7 +200,10 @@ namespace Edi.Core.Device.OSR
             if (!DevicePort.IsOpen)
                 return string.Empty;
 
-            DevicePort.ReadExisting();
+            while (DevicePort.BytesToRead > 0)
+            { 
+                DevicePort.ReadExisting();
+            }
             DevicePort.Write("d1\n");
             var name = ReadDeviceOutput();
             return name.Replace("\r\n", "");
@@ -200,7 +215,7 @@ namespace Edi.Core.Device.OSR
             while (DevicePort.BytesToRead == 0)
             {
                 if (tryCount++ >= 5)
-                    throw new Exception("Timeout waiting for OSR response");
+                    throw new Exception("Timeout waiting for TCode response");
                 Thread.Sleep(100);
             }
             return DevicePort.ReadExisting();

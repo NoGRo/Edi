@@ -95,10 +95,9 @@ namespace Edi.Core.Device.OSR
             ResetIndices();
         }
 
-        public OSRPosition? GetNextPosition()
+        public OSRPosition? GetNextPosition(int deltaMillis)
         {
             OSRPosition? pos = null;
-            var deltaMillis = 5;
             var nextMillis = CurrentTime + deltaMillis;
 
             if (playbackCommands == null || nextMillis > scriptLength)

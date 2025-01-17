@@ -5,6 +5,7 @@ using Buttplug.Core.Messages;
 using Edi.Core.Device.Interfaces;
 using Edi.Core.Gallery;
 using Edi.Core.Gallery.Funscript;
+using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
 using System.IO.Ports;
@@ -22,13 +23,16 @@ namespace Edi.Core.Device.OSR
         public readonly OSRConfig Config;
         public event EventHandler<string> StatusChange;
 
+        private ILogger logger;
         private OSRDevice? Device;
         private DeviceManager DeviceManager;
         private FunscriptRepository Repository;
         private readonly Timer TimerPing = new(5000);
+        private int AliveCheckFails = 0;
 
-        public OSRProvider(FunscriptRepository repository, ConfigurationManager config, DeviceManager deviceManager)
+        public OSRProvider(FunscriptRepository repository, ConfigurationManager config, DeviceManager deviceManager, ILogger logger)
         {
+            this.logger = logger;
             Config = config.Get<OSRConfig>();
 
             this.DeviceManager = deviceManager;
@@ -62,22 +66,36 @@ namespace Edi.Core.Device.OSR
             {
                 port.ReadTimeout = 1000;
                 port.WriteTimeout = 1000;
+                port.DtrEnable = true;
                 port.Open();
 
-                Device = new(port, Repository, Config);
+                var readWaits = 0;
+                while (port.BytesToRead == 0 && readWaits < 10)
+                {
+                    Thread.Sleep(100);
+                    readWaits++;
+                }
+                Thread.Sleep(100);
+                port.DiscardInBuffer();
+
+                Device = new(port, Repository, Config, logger);
                 if (!Device.AlivePing())
                 {
-                    OnStatusChange("Device unverifiable as OSR");
+                    OnStatusChange("Device unverifiable as TCode device");
+                    logger.LogWarning($"Device '{Device.Name}' unverifiable as TCode device. Failed liveness check");
                     return;
                 }
 
                 _ = Device.ReturnToHome();
+                logger.LogInformation($"TCode device initialized on port {Config.COMPort}");
 
+                AliveCheckFails = 0;
                 DeviceManager.LoadDevice(Device);
             }
             catch (Exception e)
             {
                 OnStatusChange("Error");
+                logger.LogError(e, "Error while attempting to connect TCode device");
                 if (port.IsOpen)
                 {
                     port.Close();
@@ -92,7 +110,15 @@ namespace Edi.Core.Device.OSR
             else
             {
                 if (!Device.AlivePing())
-                    _  = UnloadDevice();
+                {
+                    logger.LogWarning($"TCode device liveness check failed");
+                    if  (++AliveCheckFails >= 3)
+                        _ = UnloadDevice();
+                }
+                else
+                {
+                    AliveCheckFails = 0;
+                }
             }
         }
 
@@ -104,6 +130,7 @@ namespace Edi.Core.Device.OSR
                 if (Device.DevicePort.IsOpen)
                     Device.DevicePort.Close();
                 await DeviceManager.UnloadDevice(Device);
+                logger.LogInformation("Unloaded TCode device");
             }
 
             Device = null;

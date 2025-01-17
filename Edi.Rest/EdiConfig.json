@@ -26,6 +26,7 @@
   "OSR": {
     "COMPort": "COM3",
     "EnableMultiAxis": true,
+    "UpdateRate": 200,
     "RangeLimits": {
       "Linear": {
         "LowerLimit": 0,

@@ -24,7 +24,7 @@
     "ExecuteOnReady": "D:\\Juegos\\Fapland Remastered clean\\Game.exe"
   },
   "OSR": {
-    "COMPort": null,
+    "COMPort": "COM3",
     "EnableMultiAxis": true,
     "UpdateRate": 200,
     "RangeLimits": {
@@ -77,14 +77,14 @@
         "Max": 100
       },
       "The Handy [ppJdVv3V]": {
-        "Variant": "hard",
+        "Variant": "default",
         "Min": 0,
         "Max": 100
       },
       "AutoBlow [ibjckz1x0q91]": {
         "Variant": "default",
         "Min": 0,
-        "Max": 70
+        "Max": 100
       },
       "The Handy [92H0Y]": {
         "Variant": "default",

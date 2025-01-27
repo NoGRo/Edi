@@ -47,6 +47,7 @@ namespace Edi.Core.Gallery.Index
             foreach (var variant in GetVariants())
             {
                 var bundleConfigs = GetBundleDefinition(variant, path);
+                var variantGalleries = funRepo.GetAll().Where(x => x.Variant == variant).ToList();
 
                 foreach (var bundle in bundleConfigs)
                 {
@@ -55,11 +56,11 @@ namespace Edi.Core.Gallery.Index
                                                                 && bundle.Galleries.Contains(x.Name))
                                                        .ToDictionary(x => x.Name, x => x);
 
-                    var variantGalleries = funRepo.GetAll().Where(x => x.Variant == variant).ToList();
+                    
 
-                    variantGalleries = variantGalleries.Where(x => bundle.Galleries.Contains(x.Name)).ToList();
+                    var variantbundleGalleries = variantGalleries.Where(x => bundle.Galleries.Contains(x.Name)).ToList();
 
-                    foreach (var funscriptGallery in variantGalleries)
+                    foreach (var funscriptGallery in variantbundleGalleries)
                     {
                         if (finalGallery.ContainsKey(funscriptGallery.Name))
                             finalGallery[funscriptGallery.Name] = funscriptGallery;

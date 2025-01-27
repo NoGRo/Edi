@@ -55,7 +55,7 @@ namespace Edi.Core.Gallery
 
         public virtual List<T> GetAll()
         {
-            _logger.LogInformation($"Fetching all galleries for {this.GetType().Name}.");
+            //_logger.LogInformation($"Fetching all galleries for {this.GetType().Name}.");
             return Galleries.Values.SelectMany(x => x).ToList();
         }
 

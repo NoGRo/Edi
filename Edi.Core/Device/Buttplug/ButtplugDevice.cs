@@ -176,8 +176,6 @@ namespace Edi.Core.Device.Buttplug
 
                             var next = RandomRotate.NextSingle();
                             RotateMillisDirChange = (1 - next) * RotateMinimumMillisDirChange + next * RotateMaximumMillisDirChange;
-
-                            _logger.LogInformation($"Rotation change time reached, New rotation direction clockwise: {RotateDirection}, Next rotation swop in {RotateMillisDirChange}ms");
                         }
 
                         break;

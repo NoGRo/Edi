@@ -56,7 +56,7 @@ namespace Edi.Core.Device.Buttplug
                         : Convert.ToUInt16(DelayMin);
 
                     _logger.LogInformation($"Device loaded: {buttplugDevice.Name}, Actuator: {buttplugDevice.Actuator}, Delay: {delay}ms.");
-                    Task.Run(() => ExecuteDeviceCommandsAsync(buttplugDevice, delay, cts.Token));
+                    Task.Factory.StartNew(async () => await ExecuteDeviceCommandsAsync(buttplugDevice, delay, cts.Token), TaskCreationOptions.LongRunning);
                 }
             }
         }

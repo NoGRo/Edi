@@ -89,9 +89,6 @@ namespace Edi.Core.Device.OSR
 
             var script = new OSRScript(gallery.AxesCommands, seek);
             currentGallery = gallery;
-            if (IsPause)
-                speedRampUp = true;
-
             IsPause = false;
 
             PlayScript(script);

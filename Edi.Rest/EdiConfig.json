@@ -1,7 +1,7 @@
 {
   "Gallery": {
-    "GalleryPath": "D:\\pp\\playeables\\Goon Infinite Doble",
-    "GenerateDefinitionFromChapters": false,
+    "GalleryPath": "D:\\Juegos\\MaxTheElf\\Edi\\Gallery",
+    "GenerateDefinitionFromChapters": true,
     "GenerateChaptersFromDefinition": false
   },
   "GalleryBundler": {
@@ -57,7 +57,7 @@
   "Devices": {
     "Devices": {
       "The Handy [PiBnz]": {
-        "Variant": "default",
+        "Variant": "Linear",
         "Min": 0,
         "Max": 100
       },
@@ -67,12 +67,12 @@
         "Max": 100
       },
       "Lovense Dolce Vibrate: 1": {
-        "Variant": "vibro-breast-Ch2",
+        "Variant": "Vibrator Anal",
         "Min": 0,
         "Max": 100
       },
       "Lovense Dolce Vibrate: 2": {
-        "Variant": "vibro-breast-Ch2",
+        "Variant": "Vibrator Anal",
         "Min": 0,
         "Max": 100
       },
@@ -93,6 +93,46 @@
       },
       "Lovense Hush": {
         "Variant": "vibro-breast-Ch1",
+        "Min": 0,
+        "Max": 100
+      },
+      "TCode v0.3": {
+        "Variant": "Lineal Anal",
+        "Min": 0,
+        "Max": 100
+      },
+      "MOT: No current sense.MOT: Ready.funosr1 axis init success!configureAxis axis L0\nconfigureAxis axis R0\nupdate axis L0 limit min 0.100000 max 0.900000\nupdate axis R0 limit min 0.200000 max 0.800000\nsmoothMode is disabled!": {
+        "Variant": "Linear",
+        "Min": 0,
+        "Max": 100
+      },
+      "Failed to read temperature sensor.TCode v0.3": {
+        "Variant": "Linear",
+        "Min": 0,
+        "Max": 100
+      },
+      "Failed to read temperature sensor.": {
+        "Variant": "Lineal Anal",
+        "Min": 0,
+        "Max": 100
+      },
+      "FUNOSR-SSR1-V2.0": {
+        "Variant": "Lineal Anal",
+        "Min": 0,
+        "Max": 100
+      },
+      "Bluetooth name is FUNSR1-25529": {
+        "Variant": "Lineal Anal",
+        "Min": 0,
+        "Max": 100
+      },
+      "Twist received data: Twist disabled!System is Ready!FUNOSR-SSR1-V2.0": {
+        "Variant": "Lineal Anal",
+        "Min": 0,
+        "Max": 100
+      },
+      "The device started, now you can pair it with bluetooth![   558][E][esp32-hal-gpio.c:102] __pinMode(): Invalid pin selectedFUNOSR-SSR1-V2.0TCode v0.3debug mode is off!Arduino Stack was set to 8192 bytes\ngit version is cfd88e9cb77e\n": {
+        "Variant": "Lineal Anal",
         "Min": 0,
         "Max": 100
       }

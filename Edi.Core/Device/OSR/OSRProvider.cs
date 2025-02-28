@@ -1,5 +1,4 @@
-﻿
-using Buttplug.Client;
+﻿using Buttplug.Client;
 using Buttplug.Core;
 using Buttplug.Core.Messages;
 using Edi.Core.Device.Interfaces;
@@ -54,6 +53,7 @@ namespace Edi.Core.Device.OSR
 
         private async Task Connect()
         {
+            TimerPing.Stop();   
             await UnloadDevice();
             if (Config.COMPort == null)
             {
@@ -66,26 +66,29 @@ namespace Edi.Core.Device.OSR
             {
                 port.ReadTimeout = 1000;
                 port.WriteTimeout = 1000;
-                port.DtrEnable = true;
                 port.Open();
 
                 var readWaits = 0;
-                while (port.BytesToRead == 0 && readWaits < 10)
+                var maxWait = 10;  // 1s wait any random message
+                var initText = "";
+                while (readWaits < maxWait)
                 {
+                    if (port.BytesToRead > 0)
+                    {
+                        initText+= port.ReadExisting();
+                        readWaits = 0;
+                        maxWait = 20; // 2s Ensure read wait all Start-Up sequence 
+                        if (initText.Contains("System is Ready!\r\n")) // detect Start-Up sequence End 
+                            break;
+                    }
                     Thread.Sleep(100);
                     readWaits++;
                 }
+                logger.LogInformation(initText);
                 Thread.Sleep(100);
-                port.DiscardInBuffer();
-
+                port.DiscardInBuffer(); 
                 Device = new(port, Repository, Config, logger);
-                if (!Device.AlivePing())
-                {
-                    OnStatusChange("Device unverifiable as TCode device");
-                    logger.LogWarning($"Device '{Device.Name}' unverifiable as TCode device. Failed liveness check");
-                    return;
-                }
-
+                
                 _ = Device.ReturnToHome();
                 logger.LogInformation($"TCode device initialized on port {Config.COMPort}");
 
@@ -95,11 +98,15 @@ namespace Edi.Core.Device.OSR
             catch (Exception e)
             {
                 OnStatusChange("Error");
-                logger.LogError(e, "Error while attempting to connect TCode device");
+                logger.LogError(e, $"Error while attempting to connect TCode device: {e.Message}");
                 if (port.IsOpen)
                 {
                     port.Close();
+                    Device = null; 
                 }
+            }
+            finally {
+                TimerPing.Start();
             }
         }
 

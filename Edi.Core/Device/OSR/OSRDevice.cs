@@ -181,12 +181,7 @@ namespace Edi.Core.Device.OSR
         {
             try
             {
-                var name = GetDeviceName();
-
-                if (name == null)
-                    return false;
-                if (name.Contains("tcode", StringComparison.InvariantCultureIgnoreCase))
-                    return true;
+                return ValidateTCode();
 
             } catch (Exception e) {
                 logger.LogError(e, $"Error during liveness check for device '{Name}'");
@@ -195,33 +190,50 @@ namespace Edi.Core.Device.OSR
             return false;
         }
 
-        private string GetDeviceName()
+        private bool ValidateTCode()
         {
             if (!DevicePort.IsOpen)
-                return string.Empty;
+                return false;
 
-            while (DevicePort.BytesToRead > 0)
-            { 
-                DevicePort.ReadExisting();
-            }
+            DevicePort.DiscardInBuffer();
+
             DevicePort.Write("d1\n");
-            var name = ReadDeviceOutput();
-            return name.Replace("\r\n", "");
-        }
-
-        private string ReadDeviceOutput()
-        {
             var tryCount = 0;
+
             while (DevicePort.BytesToRead == 0)
             {
                 if (tryCount++ >= 5)
                     throw new Exception("Timeout waiting for TCode response");
                 Thread.Sleep(100);
             }
-            return DevicePort.ReadExisting();
-         }
+            var protocol = DevicePort.ReadExisting();
 
-        public async Task ReturnToHome()
+            return (protocol.Contains("tcode", StringComparison.OrdinalIgnoreCase));
+        }
+
+        private string GetDeviceName()
+        {
+            if (!DevicePort.IsOpen)
+                return string.Empty;
+
+            DevicePort.DiscardInBuffer();
+            DevicePort.Write("d0\n");
+            var tryCount = 0;
+
+            while (DevicePort.BytesToRead == 0)
+            {
+                if (tryCount++ >= 5)
+                    throw new Exception("Timeout waiting for TCode Name response");
+                Thread.Sleep(100);
+            }
+            var name = DevicePort.ReadExisting();
+            if (name.Count(c => c == '\n') > 1)
+                throw new Exception("Fail get valid Name response");
+            
+            return name.Replace("\r\n", "");
+        }
+
+         public async Task ReturnToHome()
         {
             var pos = OSRPosition.ZeroedPosition();
             pos.DeltaMillis = 1000;

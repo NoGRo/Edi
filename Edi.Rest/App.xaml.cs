@@ -19,19 +19,20 @@ namespace Edi.Forms
     /// </summary>
     public partial class App : Application
     {
-        private ServiceProvider serviceProvider;
-        private WebApplication webApp;
+        public static WebApplication webApp;
         public static IEdi Edi;
-
+        private string galleryPath;
         public App()
         {
-            Edi = EdiBuilder.Create("EdiConfig.json");
 
-            var galleryPath = Edi.ConfigurationManager.Get<GalleryConfig>().GalleryPath;
+            Edi = EdiBuilder.Create("EdiConfig.json");
+            galleryPath = Edi.ConfigurationManager.Get<GalleryConfig>().GalleryPath;
+
+
             BuildApi(galleryPath);
         }
 
-        private async Task BuildApi(string galleryPath)
+        private async Task<WebApplication> BuildApi(string galleryPath)
         {
 
             bool useHttps = Edi.ConfigurationManager.Get<EdiConfig>().UseHttps;
@@ -138,23 +139,28 @@ namespace Edi.Forms
                 endpoints.MapRazorPages();
             });
 
-            serviceProvider = services.BuildServiceProvider();
+            
+            return webApp;
         }
 
         protected override async void OnStartup(StartupEventArgs e)
         {
-            var galleryPath = Edi.ConfigurationManager.Get<GalleryConfig>().GalleryPath;
-
             await Edi.Init(galleryPath);
 
             var mainWindow = new MainWindow();
 
             mainWindow.Show();
 
-            base.OnStartup(e);
 
+            base.OnStartup(e);
+            Task.Run(async () =>
+            {
+                
+                await webApp.RunAsync();
+            });
+            Task.Run(Edi.InitDevices); 
             // Ejecuta el servidor web en un hilo separado para no bloquear la interfaz de usuario
-            Task.Run(async () => await webApp.RunAsync());
+
         }
     }
 }

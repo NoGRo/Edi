@@ -11,6 +11,7 @@ namespace Edi.Core
     {
         
         public Task Init(string path = null);
+        public Task InitDevices();
         public DeviceManager DeviceManager { get; }
         public ConfigurationManager ConfigurationManager { get; }
         public Trepo GetRepository<Trepo>() where Trepo : class, IRepository;

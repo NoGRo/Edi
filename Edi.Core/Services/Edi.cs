@@ -85,7 +85,10 @@ namespace Edi.Core
             {
                 await repo.Init(path);
             }
-
+            
+        }
+        public async Task InitDevices()
+        {
             await DeviceManager.Init();
         }
         public void CleanDirectory()

@@ -201,7 +201,7 @@ namespace Edi.Forms
             await Dispatcher.Invoke(async () =>
             {
                 loadOSRPorts();
-                await edi.DeviceManager.Init();
+                await edi.InitDevices();
             });
         }
 

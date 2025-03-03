@@ -5,12 +5,14 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using Edi.Core.Funscript;
+using Edi.Core.Services;
 using PropertyChanged;
 
 
 namespace Edi.Core.Device.OSR
 {
     [AddINotifyPropertyChangedInterface]
+    [UserConfig]
     public class OSRConfig
     {
         public string? COMPort { get; set; } = null;

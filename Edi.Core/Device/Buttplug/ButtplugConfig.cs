@@ -4,6 +4,7 @@ using System.ComponentModel;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using Edi.Core.Services;
 using PropertyChanged;
 
 
@@ -11,6 +12,7 @@ namespace Edi.Core.Device.Buttplug
 {
     
     [AddINotifyPropertyChangedInterface]
+    [UserConfig]
     public  class ButtplugConfig
     {
         public string Url { get; set; } = "ws://localhost:12345";

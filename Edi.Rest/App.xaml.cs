@@ -10,7 +10,10 @@ using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using System.Threading.Tasks;
 using System.Collections.Generic;
+using Serilog;
 using System.Net;
+using Microsoft.Extensions.Logging;
+
 
 namespace Edi.Forms
 {
@@ -20,12 +23,11 @@ namespace Edi.Forms
     public partial class App : Application
     {
         public static WebApplication webApp;
-        public static IEdi Edi;
+        public static readonly IEdi Edi = EdiBuilder.Create("EdiConfig.json");
         private string galleryPath;
         public App()
         {
 
-            Edi = EdiBuilder.Create("EdiConfig.json");
             galleryPath = Edi.ConfigurationManager.Get<GalleryConfig>().GalleryPath;
 
 

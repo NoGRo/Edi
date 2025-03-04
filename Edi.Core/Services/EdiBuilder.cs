@@ -59,8 +59,9 @@ namespace Edi.Core
             deviceManager.Providers.Add(new EStimProvider(audioRepository, configuration, deviceManager,logger));
 
             #endregion
+            var edi  = new Edi(deviceManager, definitionRepository,new IRepository[] { definitionRepository, funscriptRepository, indexRepository, audioRepository }, configuration, logger);
 
-            return new Edi(deviceManager, definitionRepository,new IRepository[] { definitionRepository, funscriptRepository, indexRepository, audioRepository }, configuration);
+            return edi;
 
         }
 

@@ -66,17 +66,20 @@
         </ComboBox>
 
         <!-- Botones Play, Stop, Pause, Resume -->
-        <Button HorizontalAlignment="Left" VerticalAlignment="Bottom" Margin="159,0,0,57" Width="30" Height="22" Grid.Column="0" ToolTip="Play" x:Name="btnPlay" Click="btnPlay_Click">
+        <Button HorizontalAlignment="Left" VerticalAlignment="Bottom" Margin="159,0,0,57" Width="23" Height="22" Grid.Column="0" ToolTip="Play" x:Name="btnPlay" Click="btnPlay_Click">
             <TextBlock Text="▶" FontSize="14"/>
         </Button>
-        <Button HorizontalAlignment="Left" VerticalAlignment="Bottom" Margin="194,0,0,57" Width="30" Height="22" Grid.Column="0" ToolTip="Stop" x:Name="btnStop" Click="btnStop_Click">
+        <Button HorizontalAlignment="Left" VerticalAlignment="Bottom" Margin="187,0,0,57" Width="23" Height="22" Grid.Column="0" ToolTip="Stop" x:Name="btnStop" Click="btnStop_Click">
             <TextBlock Text="■" FontSize="14"/>
         </Button>
-        <Button HorizontalAlignment="Left" VerticalAlignment="Bottom" Margin="229,0,0,57" Width="30" Height="22" Grid.Column="0" ToolTip="Pause" x:Name="btnPause" Click="btnPause_Click">
+        <Button HorizontalAlignment="Left" VerticalAlignment="Bottom" Margin="215,0,0,57" Width="23" Height="22" Grid.Column="0" ToolTip="Pause" x:Name="btnPause" Click="btnPause_Click">
             <TextBlock Text="❚❚" FontSize="14"/>
         </Button>
-        <Button HorizontalAlignment="Left" VerticalAlignment="Bottom" Margin="264,0,0,57" Width="30" Height="22" ToolTip="Resume" x:Name="btnResume" Click="btnResume_Click">
-            <TextBlock Text="►❚❚" FontSize="14"/>
+        <Button HorizontalAlignment="Left" VerticalAlignment="Bottom" Margin="243,0,0,57" Width="23" Height="22" ToolTip="Resume" x:Name="btnResume" Click="btnResume_Click">
+            <TextBlock Text="►❚❚" FontSize="14" Height="22" Width="17"/>
+        </Button>
+        <Button HorizontalAlignment="Left" VerticalAlignment="Bottom" Margin="271,0,0,57" Width="23" Height="22" ToolTip="Action Preview" x:Name="btnSimulator" Click="btnSimulator_Click">
+            <TextBlock Text="👁️" FontSize="13" Height="22" Width="17"/>
         </Button>
 
     </Grid>

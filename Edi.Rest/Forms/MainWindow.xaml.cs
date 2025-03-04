@@ -250,8 +250,24 @@ namespace Edi.Forms
             });
         }
 
-        
-        
+        private static SimulateGame _simulateGame; // Quitamos readonly y la inicialización inmediata
+
+        private void btnSimulator_Click(object sender, RoutedEventArgs e)
+        {
+            if (_simulateGame == null || !_simulateGame.IsLoaded)
+            {
+                _simulateGame = new SimulateGame();
+                _simulateGame.Closed += (s, args) => _simulateGame = null;
+                _simulateGame.Show();
+                _simulateGame.Activate();
+            }
+            else
+            {
+                _simulateGame.Close();
+            }
+        }
+
+
         public override async void EndInit()
         {
             await Dispatcher.Invoke(async () =>

@@ -2,6 +2,8 @@
 using Edi.Core.Device.Interfaces;
 using Edi.Core.Gallery;
 using Edi.Core.Gallery.Definition;
+using Microsoft.Extensions.Logging;
+using Serilog.Core;
 using System;
 using System.Collections.ObjectModel;
 
@@ -29,7 +31,7 @@ namespace Edi.Core
         public delegate void ChangeStatusHandler(string message);
         public event ChangeStatusHandler OnChangeStatus;
 
-
+        public ILogger Logger { get;  }
         public Task Repack();
     }
 }

@@ -14,6 +14,8 @@ using PropertyChanged;
 using System.ComponentModel;
 using System.Collections.ObjectModel;
 using Edi.Core.Device;
+using Serilog.Core;
+using Microsoft.Extensions.Logging;
 
 namespace Edi.Core
 {
@@ -33,7 +35,7 @@ namespace Edi.Core
 
 
         public ObservableCollection<IDevice> Devices => new ObservableCollection<IDevice>(DeviceManager.Devices);
-        public Edi(DeviceManager deviceManager, DefinitionRepository repository, IEnumerable<IRepository> repos, ConfigurationManager configuration)
+        public Edi(DeviceManager deviceManager, DefinitionRepository repository, IEnumerable<IRepository> repos, ConfigurationManager configuration, ILogger logger)
         {
             if (!Directory.Exists(OutputDir))  
                 Directory.CreateDirectory(OutputDir);
@@ -52,6 +54,7 @@ namespace Edi.Core
             TimerReactStop = new Timer();
             TimerReactStop.Elapsed += TimerReactStop_ElapsedAsync;
             ConfigurationManager = configuration;
+            Logger = logger;
             Config = configuration.Get<EdiConfig>();
        
 
@@ -77,6 +80,8 @@ namespace Edi.Core
         private Timer TimerReactStop { get; set; }
 
         public IEnumerable<DefinitionGallery> Definitions => _repository.GetAll();
+
+        public ILogger Logger { get; }
 
         public async Task Init(string path)
         {

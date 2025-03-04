@@ -12,14 +12,14 @@ public class Recorder
 {
     private Process ffmpegProcess;
 
-    private string outputFileName;
-    private string funscriptFileName;
-    private readonly FunScriptFile funscript = new();
+    private string outputFileName => Path.Combine(Edi.GalleryDir, config.OutputName + ".mp4");
+    private string funscriptFileName  => Path.ChangeExtension(outputFileName, ".funscript");
+    private FunScriptFile funscript = new();
     private DateTime recordingStartTime;
-    public bool IsRecording { get; set; }
 
-    
+    public bool IsRecording { get; set; }
     public RecorderConfig config { get; set; }
+
     private string currentChapter = "";
 
     public Recorder(ConfigurationManager configurationManager)
@@ -35,9 +35,8 @@ public class Recorder
             if (IsRecording)
                 throw new InvalidOperationException("Recording already in progress");
 
-            outputFileName = Path.Combine(Edi.GalleryDir, config.OutputName+ ".mp4");
+            
 
-            funscriptFileName = Path.ChangeExtension(outputFileName, ".funscript");
             funscript.path = funscriptFileName;
             funscript.filename = Path.GetFileNameWithoutExtension(funscriptFileName);
 
@@ -46,7 +45,7 @@ public class Recorder
                 StartInfo = new ProcessStartInfo
                 {
                     FileName = "ffmpeg",
-                    Arguments = $"-y  -f gdigrab -framerate 30 -offset_x {config.X} -offset_y {config.Y} -video_size {config.Width}x{config.Height} -i desktop {config.FfmpegCodec} \"{outputFileName}\"",
+                    Arguments = GenerateFfmpegCommand(),
                     UseShellExecute = false,
                     RedirectStandardError = true,
                     RedirectStandardInput = true, // Añadido para permitir enviar comandos como "q"
@@ -73,13 +72,22 @@ public class Recorder
             ffmpegProcess.BeginErrorReadLine();
         }
 
+    public string GenerateFfmpegCommand()
+    {
+        return $"-y -f gdigrab -framerate {config.FrameRate} -offset_x {config.X} -offset_y {config.Y} " +
+               $"-video_size {config.Width}x{config.Height} -i desktop {config.FfmpegCodec} \"{outputFileName}\"";
+    }
     public void Play(string name, long seek = 0)
     {
         if (!IsRecording) 
             throw new InvalidOperationException("No recording in progress");
 
-        if (!string.IsNullOrEmpty(currentChapter) && name != currentChapter) 
-            Stop();
+        if (!string.IsNullOrEmpty(currentChapter) && name != currentChapter)
+        {
+            var lastChapter = funscript.metadata.chapters.Find(c => c.name == currentChapter);
+            lastChapter.EndTimeMilis = (long)(DateTime.Now - recordingStartTime).TotalMilliseconds - (1000 / config.FrameRate); // Frame anterior (30 FPS)
+            currentChapter = "";
+        }
 
         if (funscript.metadata.chapters.Exists(c => c.name == name)) 
             return;
@@ -149,5 +157,25 @@ public class Recorder
 
         IsRecording = false;
         ffmpegProcess?.Dispose();
+    }
+    public void AdjustChaptersByFrames(int frameOffset)
+    {
+        funscript = FunScriptFile.TryRead(funscriptFileName);
+        if (funscript == null)
+            return;
+
+        if (funscript.metadata?.chapters == null || !funscript.metadata.chapters.Any())
+            return; // Nada que ajustar si no hay capítulos
+
+        double MsPerFrame = 1000.0 / config.FrameRate; // 30 FPS, precalculado
+        long offsetMs = (long)(frameOffset * MsPerFrame);
+
+        foreach (var chapter in funscript.metadata.chapters)
+        {
+            chapter.StartTimeMilis += offsetMs;
+            chapter.EndTimeMilis += offsetMs; // Simplificado: asumimos que siempre hay EndTimeMilis si es relevante
+        }
+
+        funscript.Save(funscriptFileName); // Guardar los cambios
     }
 }

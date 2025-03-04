@@ -52,6 +52,15 @@ namespace Edi.Forms
             }
         }
 
+        private void BtnCopyFfmpeg_Click(object sender, RoutedEventArgs e)
+        {
+            string command = "ffmpeg " + recorder.GenerateFfmpegCommand();
+            Application.Current.Dispatcher.Invoke(() =>
+            {
+                Clipboard.SetText(command);
+            });
+            txtStatus.Text = "FFmpeg command copied to clipboard";
+        }
         private double GetDpiScaleFactor()
         {
             // Get the DPI scale factor for the current window
@@ -61,6 +70,25 @@ namespace Edi.Forms
                 return source.CompositionTarget.TransformToDevice.M11; // Horizontal DPI scale
             }
             return 1.0; // Default to 1 if unable to determine
+        }
+        private void BtnAdjustFrames_Click(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                if (int.TryParse(txtFrameOffset.Text, out int frameOffset))
+                {
+                    recorder.AdjustChaptersByFrames(frameOffset);
+                    txtStatus.Text = $"Adjusted chapters by {frameOffset} frames";
+                }
+                else
+                {
+                    MessageBox.Show("Please enter a valid integer for frame offset.");
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Error adjusting frames: {ex.Message}");
+            }
         }
 
         private void BtnSelectArea_Click(object sender, RoutedEventArgs e)

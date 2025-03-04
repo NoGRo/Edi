@@ -14,6 +14,7 @@ namespace Edi.Core
         public int Y { get; set; } 
         public int Width { get; set; } 
         public int Height { get; set; }
+        public int FrameRate { get; set; } = 30;
         public string OutputName { get; set; } = "output";
         public string FfmpegCodec { get; set; } = "-c:v h264_nvenc -preset fast";
     }

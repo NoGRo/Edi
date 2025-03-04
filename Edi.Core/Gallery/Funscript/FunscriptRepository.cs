@@ -136,6 +136,8 @@ namespace Edi.Core.Gallery.Funscript
                 _logger.LogInformation($"Saving updated FunScript files. Total: {ToSave.Count}");
                 ToSave.Distinct().ToList().ForEach(x => x.Save(x.path));
             }
+            ToSave.Clear();
+            cacheFun.Clear(); 
         }
     }
 }

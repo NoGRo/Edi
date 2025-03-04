@@ -99,7 +99,7 @@ namespace Edi.Core.Device.AutoBlow
             }
 
             var connected = JsonConvert.DeserializeObject<ConnectedResponse>(await resp.Content.ReadAsStringAsync());
-            if (!connected.connected)
+            if (!connected?.connected == false)
             {
                 _logger.LogWarning($"Device with Key: {Key} is not connected. Removing from active devices.");
                 await Remove(Key);

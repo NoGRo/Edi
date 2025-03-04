@@ -53,6 +53,7 @@
         <Label Grid.Column="0" Content="Status:" Margin="10,0,0,25" x:Name="lblStatus" Width="652" Height="26" VerticalAlignment="Bottom" HorizontalAlignment="Left" Grid.ColumnSpan="2" />
 
         <Button Content="Reconnect" HorizontalAlignment="Left" Margin="222,142,0,0" VerticalAlignment="Top" x:Name="ReconnectButton" Click="ReconnectButton_ClickAsync" Height="22" Width="72" RenderTransformOrigin="5.083,-1.983"/>
+        
         <Button Content="Reload Galleries" HorizontalAlignment="Left" Margin="10,142,0,0" VerticalAlignment="Top" x:Name="ReloadButton"  Height="22" Width="103" Click="ReloadButton_Click"/>
 
         <Button Visibility="Hidden" Content="RePackButton" HorizontalAlignment="Left" Margin="10,125,0,0" VerticalAlignment="Top" x:Name="RePackButton"  Height="22" Width="103" Click="RePackButton_Click"/>
@@ -62,7 +63,7 @@
 
 
         <!-- ComboBox para las galerías -->
-        <ComboBox x:Name="cmbGallerie" HorizontalAlignment="Left" VerticalAlignment="Bottom" Width="144" Height="22" Margin="10,0,0,56" Grid.Column="0" DisplayMemberPath="Name" ItemsSource="{Binding galleries}">
+        <ComboBox x:Name="cmbGallerie" HorizontalAlignment="Left" VerticalAlignment="Bottom" Width="144" Height="22" Margin="10,0,0,57" Grid.Column="0" DisplayMemberPath="Name" ItemsSource="{Binding galleries}">
         </ComboBox>
 
         <!-- Botones Play, Stop, Pause, Resume -->
@@ -80,6 +81,9 @@
         </Button>
         <Button HorizontalAlignment="Left" VerticalAlignment="Bottom" Margin="271,0,0,57" Width="23" Height="22" ToolTip="Action Preview" x:Name="btnSimulator" Click="btnSimulator_Click">
             <TextBlock Text="👁️" FontSize="13" Height="22" Width="17"/>
+        </Button>
+        <Button HorizontalAlignment="Left" VerticalAlignment="Bottom" Margin="271,0,0,57" Width="23" Height="22" ToolTip="Recorder" x:Name="btnRecorder" Click="btnRecorder_Click">
+            <TextBlock Text="🎥" FontSize="13" Height="22" Width="17"/>
         </Button>
 
     </Grid>

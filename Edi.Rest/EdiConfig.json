@@ -1,6 +1,6 @@
 {
   "Gallery": {
-    "GalleryPath": "D:\\Juegos\\Agent_mirai-v3\\Gallery",
+    "GalleryPath": "D:\\Juegos\\MaxTheElf\\Edi\\Gallery",
     "GenerateDefinitionFromChapters": false,
     "GenerateChaptersFromDefinition": false
   },
@@ -24,6 +24,11 @@
       },
       "Preview Device": {
         "Variant": "mirai",
+        "Min": 0,
+        "Max": 100
+      },
+      "AutoBlow [ibjckz1x0q91]": {
+        "Variant": "Linear Simple",
         "Min": 0,
         "Max": 100
       }
@@ -70,5 +75,13 @@
   },
   "EStim": {
     "DeviceId": -1
+  },
+  "Recorder": {
+    "X": 199,
+    "Y": 909,
+    "Width": 1042,
+    "Height": 1229,
+    "OutputName": "output",
+    "FfmpegCodec": "-c:v h264_nvenc -preset fast"
   }
 }

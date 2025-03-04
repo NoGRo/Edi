@@ -33,5 +33,6 @@ namespace Edi.Core
 
         public ILogger Logger { get;  }
         public Task Repack();
+        public Recorder Recorder { get; }
     }
 }

@@ -7,6 +7,7 @@ using Edi.Core.Gallery.Definition;
 using Edi.Core.Gallery;
 using System.IO;
 using System.Security.Cryptography;
+using System.Xml.Linq;
 
 namespace Edi.Controllers
 {
@@ -24,6 +25,9 @@ namespace Edi.Controllers
         [HttpPost("Play/{name}")]
         public async Task Play([FromRoute] string name, [FromQuery] long seek = 0)
         {
+            if(_edi.Recorder.IsRecording)
+                _edi.Recorder.Play(name, seek);
+
             await _edi.Play(name, seek);
         }
 
@@ -33,6 +37,9 @@ namespace Edi.Controllers
         [HttpPost("Stop")]
         public async Task Stop()
         {
+            if (_edi.Recorder.IsRecording)
+                _edi.Recorder.Stop();
+
             await _edi.Stop();
         }
 

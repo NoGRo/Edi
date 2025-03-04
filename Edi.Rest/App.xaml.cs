@@ -25,6 +25,8 @@ namespace Edi.Forms
         public static WebApplication webApp;
         public static readonly IEdi Edi = EdiBuilder.Create("EdiConfig.json");
         private string galleryPath;
+
+
         public App()
         {
 

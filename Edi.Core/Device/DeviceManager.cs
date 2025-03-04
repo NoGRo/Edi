@@ -5,7 +5,7 @@ using PropertyChanged;
 namespace Edi.Core.Device
 {
 
-    [AddINotifyPropertyChangedInterface]
+
     public class DeviceManager
     {
         public List<IDevice> Devices { get; set; } = new List<IDevice>();

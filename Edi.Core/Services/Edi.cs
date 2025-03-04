@@ -30,6 +30,7 @@ namespace Edi.Core
         private long seekTime;
 
         public static string OutputDir => Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData) + "/Edi";
+        public static string GalleryDir = ".\\";
 
         public event IEdi.ChangeStatusHandler OnChangeStatus;
 
@@ -56,7 +57,8 @@ namespace Edi.Core
             ConfigurationManager = configuration;
             Logger = logger;
             Config = configuration.Get<EdiConfig>();
-       
+            Recorder  = new Recorder(ConfigurationManager);
+
 
         }
 
@@ -83,9 +85,12 @@ namespace Edi.Core
 
         public ILogger Logger { get; }
 
+        public Recorder Recorder { get; set; } 
+
         public async Task Init(string path)
         {
             path = path ?? ConfigurationManager.Get<GalleryConfig>()?.GalleryPath ?? "./" ;
+            GalleryDir = path;
             foreach (var repo in repos)
             {
                 await repo.Init(path);

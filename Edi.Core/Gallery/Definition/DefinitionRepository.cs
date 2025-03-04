@@ -23,6 +23,8 @@ namespace Edi.Core.Gallery.Definition
 
         public IEnumerable<string> Accept => new[] { "Definitions.csv", "Definitions_auto.csv" };
 
+        public bool IsInitialized {  get; set; }
+
         public async Task Init(string path)
         {
             path = path ?? Config.GalleryPath;
@@ -79,6 +81,7 @@ namespace Edi.Core.Gallery.Definition
 
                 dicDefinitions.Add(def.Name, def);
             }
+            IsInitialized = true;
         }
         
         private void GenerateDefinitions(string GalleryPath)
@@ -147,6 +150,9 @@ namespace Edi.Core.Gallery.Definition
             {
                 csv.WriteRecords(newDefinitionFile);
             }
+
+
+
         }
         private bool parseTimeField(string field, out long millis)
         {

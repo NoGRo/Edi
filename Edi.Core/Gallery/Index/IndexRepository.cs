@@ -33,9 +33,12 @@ namespace Edi.Core.Gallery.Index
         public FunscriptRepository funRepo { get; }
         public DefinitionRepository DefinitionRepository { get; }
 
+        public bool IsInitialized {set; get; }  
+
         public async Task Init(string path)
         {
             LoadGallery(path);
+            IsInitialized = true;
         }
 
         public FileInfo GetBundle(string variant, string format)

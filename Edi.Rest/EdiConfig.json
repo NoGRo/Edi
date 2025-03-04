@@ -1,6 +1,6 @@
 {
   "Gallery": {
-    "GalleryPath": "D:\\Juegos\\STEP3_V1.3\\Gallery",
+    "GalleryPath": "D:\\Juegos\\Agent_mirai-v3\\Gallery",
     "GenerateDefinitionFromChapters": false,
     "GenerateChaptersFromDefinition": false
   },
@@ -13,14 +13,24 @@
     "Filler": true,
     "Gallery": true,
     "Reactive": true,
-    "ExecuteOnReady": "D:\\Juegos\\Fapland Remastered clean\\Game.exe"
+    "ExecuteOnReady": ""
   },
   "Devices": {
     "Devices": {
+      "Simulator Device": {
+        "Variant": "vibro-breast-Ch1",
+        "Min": 0,
+        "Max": 100
+      },
+      "Preview Device": {
+        "Variant": "mirai",
+        "Min": 0,
+        "Max": 100
+      }
     }
   },
   "OSR": {
-    "COMPort": "COM3",
+    "COMPort": null,
     "EnableMultiAxis": true,
     "UpdateRate": 200,
     "RangeLimits": {
@@ -61,5 +71,4 @@
   "EStim": {
     "DeviceId": -1
   }
-
 }

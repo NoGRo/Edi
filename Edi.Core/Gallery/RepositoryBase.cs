@@ -31,6 +31,8 @@ namespace Edi.Core.Gallery
         protected Dictionary<string, List<T>> Galleries { get; set; } = new Dictionary<string, List<T>>(StringComparer.OrdinalIgnoreCase);
         protected DefinitionRepository Definition { get; }
 
+        public bool IsInitialized { get; set; }
+
         public virtual T Get(string name, string? variant = null)
         {
             _logger.LogInformation($"Fetching gallery with Name: {name}, Variant: {variant}.");
@@ -78,6 +80,9 @@ namespace Edi.Core.Gallery
             {
                 _logger.LogError($"Error during for {this.GetType().Name} initialization: {ex.Message}");
                 throw;
+            }
+            finally {
+                IsInitialized = true;
             }
         }
 

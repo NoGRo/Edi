@@ -5,7 +5,7 @@
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:local="clr-namespace:Edi.Forms"
         mc:Ignorable="d"
-        Title="Recorder" Height="450" Width="420" ResizeMode="NoResize">
+        Title="Recorder" Height="515" Width="420" ResizeMode="NoResize">
     <Grid Margin="10">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>
@@ -44,17 +44,26 @@
 
         <!-- Recording Options -->
         <GroupBox Grid.Row="1" Header="Options" Margin="0,0,0,10">
+            
             <StackPanel Margin="5">
+                
                 <Label Content="Output Filename (without extension):"/>
                 <TextBox x:Name="txtFilename" Text="{Binding OutputName, UpdateSourceTrigger=PropertyChanged}" 
                  Width="200" HorizontalAlignment="Left" Margin="0,0,0,5"/>
-                <Label Content="FFmpeg Codec:"/>
-                <TextBox x:Name="txtFfmpegCodec" Width="300" HorizontalAlignment="Left" 
-                 Text="{Binding FfmpegCodec, UpdateSourceTrigger=PropertyChanged}" Margin="0,0,0,5"/>
                 <StackPanel Orientation="Horizontal">
                     <Label Content="Frame Rate:" VerticalAlignment="Center" Margin="0,0,10,0"/>
                     <TextBox x:Name="txtFrameRate" Width="60" Text="{Binding FrameRate, UpdateSourceTrigger=PropertyChanged}" VerticalAlignment="Center"/>
                 </StackPanel>
+                <Label Content="FFmpeg Codec:"/>
+                <TextBox x:Name="txtFfmpegCodec" 
+                             Width="350" 
+                             Height="80" 
+                             Text="{Binding FfmpegFullCommand, UpdateSourceTrigger=PropertyChanged, Mode=TwoWay}" 
+                             AcceptsReturn="True" 
+                             AcceptsTab="True" 
+                             VerticalScrollBarVisibility="Auto" 
+                             TextWrapping="Wrap"/>
+                
                 <Button x:Name="btnCopyFfmpeg" Content="Copy FFmpeg Command" Width="150" 
                 HorizontalAlignment="Left" Margin="0,5,0,0" Click="BtnCopyFfmpeg_Click"/>
             </StackPanel>
@@ -71,7 +80,7 @@
                 <!-- Frame Offset -->
                 <StackPanel Orientation="Horizontal">
                     <TextBlock Text="Frame Offset:" VerticalAlignment="Center" Margin="0,0,10,0"/>
-                    <TextBox x:Name="txtFrameOffset" Width="60" Text="0" VerticalAlignment="Center" Margin="0,0,10,0"/>
+                    <TextBox x:Name="txtFrameOffset" Width="60" Text="{Binding FrameOffset, UpdateSourceTrigger=PropertyChanged}" VerticalAlignment="Center" Margin="0,0,10,0"/>
                     <Button x:Name="btnAdjustFrames" Content="Adjust Chapters" Width="100" Click="BtnAdjustFrames_Click"/>
                 </StackPanel>
             </StackPanel>

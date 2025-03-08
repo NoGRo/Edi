@@ -41,7 +41,7 @@ namespace Edi.Forms
         {
             try
             {
-                recorder.End();
+                recorder.Stop();
                 txtStatus.Text = "Recording stopped";
                 btnStart.IsEnabled = true;
                 btnEnd.IsEnabled = false;
@@ -54,7 +54,8 @@ namespace Edi.Forms
 
         private void BtnCopyFfmpeg_Click(object sender, RoutedEventArgs e)
         {
-            string command = "ffmpeg " + recorder.GenerateFfmpegCommand();
+            string command = txtFfmpegCodec.Text;
+
             Application.Current.Dispatcher.Invoke(() =>
             {
                 Clipboard.SetText(command);
@@ -77,7 +78,7 @@ namespace Edi.Forms
             {
                 if (int.TryParse(txtFrameOffset.Text, out int frameOffset))
                 {
-                    recorder.AdjustChaptersByFrames(frameOffset);
+                    recorder.AdjustByFrames(frameOffset);
                     txtStatus.Text = $"Adjusted chapters by {frameOffset} frames";
                 }
                 else

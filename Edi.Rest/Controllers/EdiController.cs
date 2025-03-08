@@ -26,7 +26,7 @@ namespace Edi.Controllers
         public async Task Play([FromRoute] string name, [FromQuery] long seek = 0)
         {
             if(_edi.Recorder.IsRecording)
-                _edi.Recorder.Play(name, seek);
+                _edi.Recorder.AddChapter(name, seek);
 
             await _edi.Play(name, seek);
         }
@@ -61,6 +61,9 @@ namespace Edi.Controllers
             await _edi.Resume(AtCurrentTime);
         }
 
+        /// <summary>
+        /// Set general max Intensity for all devices. 
+        /// </summary>
         [HttpPost("Intensity/{max}")]
         public async Task Intensity([Required,FromRoute,Range(0, 100)] int max = 100)
         {

@@ -93,14 +93,15 @@ namespace Edi.Core.Gallery.Index
 
 
         }
-        private List<BundleDefinition> GetBundleDefinition(string variant,string path)
+        private List<BundleDefinition> GetBundleDefinition(string variant, string path)
         {
             var bundlesDefault = new BundleDefinition() { Galleries = DefinitionRepository.GetAll().Select(x => x.Name).Distinct().ToList() };
 
 
             var GalleryDir = new DirectoryInfo(path);
 
-
+            if (GalleryDir?.Exists != true)
+                return new();
             var BundleDefinition = GalleryDir.EnumerateFiles("BundleDefinition*.txt").ToList();
             BundleDefinition.AddRange(GalleryDir.EnumerateDirectories().SelectMany(d => d.EnumerateFiles("BundleDefinition*.txt")));
 

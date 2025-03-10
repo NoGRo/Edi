@@ -2,6 +2,8 @@
 using Edi.Core.Device.Interfaces;
 using Edi.Core.Gallery;
 using Edi.Core.Gallery.Definition;
+using Microsoft.Extensions.Logging;
+using Serilog.Core;
 using System;
 using System.Collections.ObjectModel;
 
@@ -11,6 +13,7 @@ namespace Edi.Core
     {
         
         public Task Init(string path = null);
+        public Task InitDevices();
         public DeviceManager DeviceManager { get; }
         public ConfigurationManager ConfigurationManager { get; }
         public Trepo GetRepository<Trepo>() where Trepo : class, IRepository;
@@ -28,7 +31,7 @@ namespace Edi.Core
         public delegate void ChangeStatusHandler(string message);
         public event ChangeStatusHandler OnChangeStatus;
 
-
+        public ILogger Logger { get;  }
         public Task Repack();
     }
 }

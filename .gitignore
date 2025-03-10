@@ -236,7 +236,6 @@ ClientBin/
 *.dbmdl
 *.dbproj.schemaview
 *.jfm
-*.pfx
 *.publishsettings
 orleans.codegen.cs
 
@@ -361,4 +360,5 @@ MigrationBackup/
 
 # Fody - auto-generated XML schema
 FodyWeavers.xsd
-/Edi.Rest/Edilog20241207.txt
+#logs
+/Edi.Rest/Edilog*.txt

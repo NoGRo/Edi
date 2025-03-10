@@ -38,30 +38,22 @@ namespace Edi.Core.Gallery.Funscript
             if (funscript.metadata == null)
                 funscript.metadata = new FunScriptMetadata();
 
-            var chapter = funscript.metadata?.chapters?.FirstOrDefault(x => x.name == DefinitionGallery.Name);
+            var chapter = funscript.metadata?.chapters?.FirstOrDefault(x => x.name.StartsWith(DefinitionGallery.Name,StringComparison.InvariantCultureIgnoreCase));
 
-            if (chapter == null)
-            {
-                _logger.LogInformation($"Adding new chapter to FunScript: {DefinitionGallery.Name}, Start: {DefinitionGallery.StartTime}, End: {DefinitionGallery.EndTime}");
-                funscript.metadata.chapters.Add(new()
-                {
-                    name = DefinitionGallery.Name,
-                    StartTimeMilis = DefinitionGallery.StartTime,
-                    EndTimeMilis = DefinitionGallery.EndTime
-                });
-                ToSave.Add(funscript);
-            }
-            else
-            {
-                if (DefinitionGallery.StartTime != chapter.StartTimeMilis
-                 || DefinitionGallery.EndTime != chapter.EndTimeMilis)
-                {
-                    _logger.LogInformation($"Updating chapter for FunScript: {DefinitionGallery.Name}, Start: {DefinitionGallery.StartTime}, End: {DefinitionGallery.EndTime}");
-                    chapter.StartTimeMilis = DefinitionGallery.StartTime;
-                    chapter.EndTimeMilis = DefinitionGallery.EndTime;
-                    ToSave.Add(funscript);
-                }
-            }
+            string chapterName = $"{DefinitionGallery.Name}{(DefinitionGallery.Loop ? "" : "[nonLoop]")}{(DefinitionGallery.Type == "gallery" ? "" : $"[{DefinitionGallery.Type}]")}";
+
+            bool isNew = chapter == null;
+
+            _logger.LogInformation($"{(isNew ? "Adding new" : "Updating")} chapter to FunScript: {chapterName}, Start: {DefinitionGallery.StartTime}, End: {DefinitionGallery.EndTime}");
+
+            chapter ??= new();
+            chapter.name = chapterName;
+            chapter.StartTimeMilis = DefinitionGallery.StartTime;
+            chapter.EndTimeMilis = DefinitionGallery.EndTime;
+
+            if (isNew) funscript.metadata.chapters.Add(chapter);
+            ToSave.Add(funscript);
+
         }
 
         private static FunscriptGallery ParseActions(string variant, Axis axis, DefinitionGallery DefinitionGallery, ref IEnumerable<FunScriptAction> actions)
@@ -102,7 +94,7 @@ namespace Edi.Core.Gallery.Funscript
 
             if (funscript == null || funscript.actions?.Any() != true)
             {
-                _logger.LogWarning($"No actions found in FunScript file: {asset.File.FullName}");
+                _logger.LogWarning($"No actions found in FunScript file: {asset.File.FullName} for Gallery {definition.Name}");
                 return null;
             }
 
@@ -144,6 +136,8 @@ namespace Edi.Core.Gallery.Funscript
                 _logger.LogInformation($"Saving updated FunScript files. Total: {ToSave.Count}");
                 ToSave.Distinct().ToList().ForEach(x => x.Save(x.path));
             }
+            ToSave.Clear();
+            cacheFun.Clear(); 
         }
     }
 }

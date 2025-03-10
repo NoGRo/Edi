@@ -1,61 +1,43 @@
-﻿using Edi.Core;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+﻿using System.ComponentModel;
 using System.Windows;
-using System.Windows.Controls;
-using System.Windows.Data;
-using System.Windows.Documents;
-using System.Windows.Input;
-using System.Windows.Media;
-using System.Windows.Media.Imaging;
-using System.Windows.Shapes;
+using Edi.Core;
+using Edi.Core.Device.Simulator;
+using Edi.Core.Gallery.Funscript;
 
 namespace Edi.Forms
 {
-    /// <summary>
-    /// Lógica de interacción para SimulateGame.xaml
-    /// </summary>
     public partial class SimulateGame : Window
     {
         private readonly IEdi edi = App.Edi;
+        private SimulatorDevice SimulatorDevice;
+
         public SimulateGame()
         {
             InitializeComponent();
+            SimulatorDevice = new SimulatorDevice(edi.GetRepository<FunscriptRepository>(), edi.Logger);
+            this.DataContext = new { SimulatorDevice };
 
-            //SourceItem = edi.Definitions;
+            this.Loaded += SimulateGame_Loaded;
+            this.Closing += SimulateGame_Closing;
+
+            // Cargar posición guardada
 
         }
-        private async void PlayButton_Click(object sender, RoutedEventArgs e)
+
+        private void SimulateGame_Loaded(object sender, RoutedEventArgs e)
         {
-            await Dispatcher.Invoke(async () =>
-            {
-                await edi.Play("name");
-            });
+            edi.DeviceManager.LoadDevice(SimulatorDevice);
         }
-        private async void PlayRandomButton_Click(object sender, RoutedEventArgs e)
+
+        private void SimulateGame_Closing(object sender, CancelEventArgs e)
         {
-            await Dispatcher.Invoke(async () =>
+            SimulatorDevice?.StopGallery();
+            if (SimulatorDevice != null && edi.DeviceManager != null)
             {
-                await edi.Play("name");
-            });
+                edi.DeviceManager.UnloadDevice(SimulatorDevice);
+            }
+
+            SimulatorDevice = null;
         }
-        private async void StopButton_Click(object sender, RoutedEventArgs e)
-        {
-            await Dispatcher.Invoke(async () =>
-            {
-                await edi.Stop();
-            });
-        }
-        private async void PauseButton_Click(object sender, RoutedEventArgs e)
-        {
-            await Dispatcher.Invoke(async () =>
-            {
-                await edi.Pause();
-            });
-        }
-        
     }
 }

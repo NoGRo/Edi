@@ -76,6 +76,16 @@ namespace Edi.Core.Device.OSR
                 var currentPositionCommand = CmdLinear.GetCommandMillis((int)seekTime, Math.Round(lastPosition / 99.99f));
                 currentPositionCommand.AbsoluteTime = seekTime;
 
+                if (seekIdx >= 0)
+                {
+                    var beforeSeekCmd = commands[seekIdx];
+                    var afterSeekCmd = commands[seekIdx + 1];
+
+                    if (afterSeekCmd.AbsoluteTime - seekTime < seekTime - beforeSeekCmd.AbsoluteTime)
+                    {
+                        commands.RemoveAt(seekIdx + 1);
+                    }
+                }
                 commands.Insert(seekIdx + 1, currentPositionCommand);
 
                 processedCommands[axis] = commands;
@@ -95,10 +105,9 @@ namespace Edi.Core.Device.OSR
             ResetIndices();
         }
 
-        public OSRPosition? GetNextPosition()
+        public OSRPosition? GetNextPosition(int deltaMillis)
         {
             OSRPosition? pos = null;
-            var deltaMillis = 5;
             var nextMillis = CurrentTime + deltaMillis;
 
             if (playbackCommands == null || nextMillis > scriptLength)

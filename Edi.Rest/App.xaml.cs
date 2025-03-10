@@ -10,7 +10,10 @@ using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using System.Threading.Tasks;
 using System.Collections.Generic;
+using Serilog;
 using System.Net;
+using Microsoft.Extensions.Logging;
+
 
 namespace Edi.Forms
 {
@@ -19,22 +22,22 @@ namespace Edi.Forms
     /// </summary>
     public partial class App : Application
     {
-        private ServiceProvider serviceProvider;
-        private WebApplication webApp;
-        public static IEdi Edi;
-
+        public static WebApplication webApp;
+        public static readonly IEdi Edi = EdiBuilder.Create("EdiConfig.json");
+        private string galleryPath;
         public App()
         {
-            Edi = EdiBuilder.Create("EdiConfig.json");
 
-            var galleryPath = Edi.ConfigurationManager.Get<GalleryConfig>().GalleryPath;
+            galleryPath = Edi.ConfigurationManager.Get<GalleryConfig>().GalleryPath;
+
+
             BuildApi(galleryPath);
         }
 
-        private async Task BuildApi(string galleryPath)
+        private async Task<WebApplication> BuildApi(string galleryPath)
         {
 
-            bool useHttps = Edi.ConfigurationManager.Get<EdiConfig>().UseHtttps;
+            bool useHttps = Edi.ConfigurationManager.Get<EdiConfig>().UseHttps;
 
             galleryPath = new DirectoryInfo(galleryPath).FullName;
 
@@ -138,23 +141,28 @@ namespace Edi.Forms
                 endpoints.MapRazorPages();
             });
 
-            serviceProvider = services.BuildServiceProvider();
+            
+            return webApp;
         }
 
         protected override async void OnStartup(StartupEventArgs e)
         {
-            var galleryPath = Edi.ConfigurationManager.Get<GalleryConfig>().GalleryPath;
-
             await Edi.Init(galleryPath);
 
             var mainWindow = new MainWindow();
 
             mainWindow.Show();
 
-            base.OnStartup(e);
 
+            base.OnStartup(e);
+            Task.Run(async () =>
+            {
+                
+                await webApp.RunAsync();
+            });
+            Task.Run(Edi.InitDevices); 
             // Ejecuta el servidor web en un hilo separado para no bloquear la interfaz de usuario
-            Task.Run(async () => await webApp.RunAsync());
+
         }
     }
 }

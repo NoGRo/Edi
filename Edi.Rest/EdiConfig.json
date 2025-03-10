@@ -1,21 +1,13 @@
 {
   "Gallery": {
-    "GalleryPath": "C:\\Program Files (x86)\\Steam\\steamapps\\common\\Mira and the Mysteries of Alchemy\\Gallery",
+    "GalleryPath": "D:\\Juegos\\STEP3_V1.3\\Gallery",
     "GenerateDefinitionFromChapters": false,
     "GenerateChaptersFromDefinition": false
   },
   "GalleryBundler": {
-    "MinRepeatDuration": 60000,
-    "RepeatDuration": 6000,
-    "SpacerDuration": 5000
-  },
-  "Buttplug": {
-    "Url": "ws://localhost:12345",
-    "MinCommandDelay": 60,
-    "VibratorInercialDelay": 80
-  },
-  "Handy": {
-    "Key": "PiBnz, ppJdVv3V, ibjckz1x0q91, 92H0Y"
+    "MinRepeatDuration": 6000,
+    "RepeatDuration": 3000,
+    "SpacerDuration": 3000
   },
   "Edi": {
     "Filler": true,
@@ -23,9 +15,14 @@
     "Reactive": true,
     "ExecuteOnReady": "D:\\Juegos\\Fapland Remastered clean\\Game.exe"
   },
+  "Devices": {
+    "Devices": {
+    }
+  },
   "OSR": {
-    "COMPort": null,
+    "COMPort": "COM3",
     "EnableMultiAxis": true,
+    "UpdateRate": 200,
     "RangeLimits": {
       "Linear": {
         "LowerLimit": 0,
@@ -53,51 +50,16 @@
       }
     }
   },
-  "Devices": {
-    "Devices": {
-      "The Handy [PiBnz]": {
-        "Variant": "detail",
-        "Min": 0,
-        "Max": 100
-      },
-      "The Handy": {
-        "Variant": "default",
-        "Min": 0,
-        "Max": 100
-      },
-      "Lovense Dolce Vibrate: 1": {
-        "Variant": "vibro-breast-Ch2",
-        "Min": 0,
-        "Max": 100
-      },
-      "Lovense Dolce Vibrate: 2": {
-        "Variant": "vibro-breast-Ch2",
-        "Min": 0,
-        "Max": 100
-      },
-      "The Handy [ppJdVv3V]": {
-        "Variant": "hard",
-        "Min": 0,
-        "Max": 100
-      },
-      "AutoBlow [ibjckz1x0q91]": {
-        "Variant": "lineal-anal",
-        "Min": 0,
-        "Max": 100
-      },
-      "The Handy [92H0Y]": {
-        "Variant": "default",
-        "Min": 0,
-        "Max": 100
-      },
-      "Lovense Hush": {
-        "Variant": "vibro-breast-Ch1",
-        "Min": 0,
-        "Max": 100
-      }
-    }
+  "Buttplug": {
+    "Url": "ws://localhost:12345",
+    "MinCommandDelay": 60,
+    "VibratorInercialDelay": 80
+  },
+  "Handy": {
+    "Key": "PiBnz, ppJdVv3V, ibjckz1x0q91, 92H0Y"
   },
   "EStim": {
     "DeviceId": -1
   }
+
 }

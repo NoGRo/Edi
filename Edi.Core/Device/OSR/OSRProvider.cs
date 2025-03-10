@@ -1,10 +1,10 @@
-﻿
-using Buttplug.Client;
+﻿using Buttplug.Client;
 using Buttplug.Core;
 using Buttplug.Core.Messages;
 using Edi.Core.Device.Interfaces;
 using Edi.Core.Gallery;
 using Edi.Core.Gallery.Funscript;
+using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
 using System.IO.Ports;
@@ -22,13 +22,16 @@ namespace Edi.Core.Device.OSR
         public readonly OSRConfig Config;
         public event EventHandler<string> StatusChange;
 
+        private ILogger logger;
         private OSRDevice? Device;
         private DeviceManager DeviceManager;
         private FunscriptRepository Repository;
         private readonly Timer TimerPing = new(5000);
+        private int AliveCheckFails = 0;
 
-        public OSRProvider(FunscriptRepository repository, ConfigurationManager config, DeviceManager deviceManager)
+        public OSRProvider(FunscriptRepository repository, ConfigurationManager config, DeviceManager deviceManager, ILogger logger)
         {
+            this.logger = logger;
             Config = config.Get<OSRConfig>();
 
             this.DeviceManager = deviceManager;
@@ -50,6 +53,7 @@ namespace Edi.Core.Device.OSR
 
         private async Task Connect()
         {
+            TimerPing.Stop();   
             await UnloadDevice();
             if (Config.COMPort == null)
             {
@@ -64,24 +68,45 @@ namespace Edi.Core.Device.OSR
                 port.WriteTimeout = 1000;
                 port.Open();
 
-                Device = new(port, Repository, Config);
-                if (!Device.AlivePing())
+                var readWaits = 0;
+                var maxWait = 10;  // 1s wait any random message
+                var initText = "";
+                while (readWaits < maxWait)
                 {
-                    OnStatusChange("Device unverifiable as OSR");
-                    return;
+                    if (port.BytesToRead > 0)
+                    {
+                        initText+= port.ReadExisting();
+                        readWaits = 0;
+                        maxWait = 20; // 2s Ensure read wait all Start-Up sequence 
+                        if (initText.Contains("System is Ready!\r\n")) // detect Start-Up sequence End 
+                            break;
+                    }
+                    Thread.Sleep(100);
+                    readWaits++;
                 }
-
+                logger.LogInformation(initText);
+                Thread.Sleep(100);
+                port.DiscardInBuffer(); 
+                Device = new(port, Repository, Config, logger);
+                
                 _ = Device.ReturnToHome();
+                logger.LogInformation($"TCode device initialized on port {Config.COMPort}");
 
+                AliveCheckFails = 0;
                 DeviceManager.LoadDevice(Device);
             }
             catch (Exception e)
             {
                 OnStatusChange("Error");
+                logger.LogError(e, $"Error while attempting to connect TCode device: {e.Message}");
                 if (port.IsOpen)
                 {
                     port.Close();
+                    Device = null; 
                 }
+            }
+            finally {
+                TimerPing.Start();
             }
         }
 
@@ -92,7 +117,15 @@ namespace Edi.Core.Device.OSR
             else
             {
                 if (!Device.AlivePing())
-                    _  = UnloadDevice();
+                {
+                    logger.LogWarning($"TCode device liveness check failed");
+                    if  (++AliveCheckFails >= 3)
+                        _ = UnloadDevice();
+                }
+                else
+                {
+                    AliveCheckFails = 0;
+                }
             }
         }
 
@@ -104,6 +137,7 @@ namespace Edi.Core.Device.OSR
                 if (Device.DevicePort.IsOpen)
                     Device.DevicePort.Close();
                 await DeviceManager.UnloadDevice(Device);
+                logger.LogInformation("Unloaded TCode device");
             }
 
             Device = null;

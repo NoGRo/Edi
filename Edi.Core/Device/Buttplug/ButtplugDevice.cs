@@ -124,13 +124,7 @@ namespace Edi.Core.Device.Buttplug
                     return; // Exit the function if the task was canceled
                 }
 
-                currentCmdIndex = cmds.FindIndex(currentCmdIndex, x => x.AbsoluteTime > CurrentTime);
-                if (currentCmdIndex < 0)
-                {
-                    currentCmdIndex = cmds.FindIndex(x => x.AbsoluteTime > CurrentTime);
-                    if (currentCmdIndex < 0) 
-                        break; // Exit the loop if there are no more commands
-                }
+                currentCmdIndex++;
             }
             _logger.LogInformation($"PlayGallery completed for Device: {Name}");
         }
@@ -160,16 +154,17 @@ namespace Edi.Core.Device.Buttplug
                 || (DateTime.Now - lastCmdSendAt).TotalMilliseconds >= config.MinCommandDelay)
             {
                 lastCmdSendAt = DateTime.Now;
-                _logger.LogInformation($"Sending command for Device: {Name}, Actuator: {Actuator}, CurrentCmd: in-{ReminingCmdTime} pos-{CurrentCmd.GetValueInRange(Min, Max)} with AbsoluteTime: {CurrentCmd.AbsoluteTime}");
+                var remainingCmdTime = ReminingCmdTime;
+                _logger.LogInformation($"Sending command for Device: {Name}, Actuator: {Actuator}, CurrentCmd: in-{remainingCmdTime} pos-{CurrentCmd.GetValueInRange(Min, Max)} with AbsoluteTime: {CurrentCmd.AbsoluteTime}");
 
                 switch (Actuator)
                 {
                     case ActuatorType.Position:
-                        sendtask = Device.LinearAsync((uint)ReminingCmdTime, Math.Min(1.0, Math.Max(0, CurrentCmd.GetValueInRange(Min, Max) / (double)100)));
+                        sendtask = Device.LinearAsync((uint)remainingCmdTime, Math.Min(1.0, Math.Max(0, CurrentCmd.GetValueInRange(Min, Max) / (double)100)));
                         break;
                     case ActuatorType.Rotate:
-                        sendtask = Device.RotateAsync(Math.Min(1.0, Math.Max(0, CurrentCmd.Speed / 400f)), RotateDirection);
-                        RotateTotalMillis += ReminingCmdTime;
+                        sendtask = Device.RotateAsync(Math.Min(1.0, Math.Max(0, CurrentCmd.Speed / 450f)), RotateDirection);
+                        RotateTotalMillis += remainingCmdTime;
 
                         if (RotateMillisDirChange == null || RotateTotalMillis >= RotateMillisDirChange)
                         {

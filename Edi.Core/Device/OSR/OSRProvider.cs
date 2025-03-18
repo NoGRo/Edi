@@ -28,6 +28,7 @@ namespace Edi.Core.Device.OSR
         private FunscriptRepository Repository;
         private readonly Timer TimerPing = new(5000);
         private int AliveCheckFails = 0;
+        private int RetryCount = 0;
 
         public OSRProvider(FunscriptRepository repository, ConfigurationManager config, DeviceManager deviceManager, ILogger logger)
         {
@@ -66,6 +67,12 @@ namespace Edi.Core.Device.OSR
             {
                 port.ReadTimeout = 1000;
                 port.WriteTimeout = 1000;
+
+                //for romeo hardware
+                port.RtsEnable = (RetryCount == 3);
+                if (RetryCount == 3) 
+                    RetryCount = 0;
+
                 port.Open();
 
                 var readWaits = 0;
@@ -99,6 +106,7 @@ namespace Edi.Core.Device.OSR
             {
                 OnStatusChange("Error");
                 logger.LogError(e, $"Error while attempting to connect TCode device: {e.Message}");
+                RetryCount++;
                 if (port.IsOpen)
                 {
                     port.Close();

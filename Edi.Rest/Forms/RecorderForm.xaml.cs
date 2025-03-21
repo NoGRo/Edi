@@ -1,11 +1,13 @@
-﻿using Edi.Core;
-using System;
-using System.Text;
+﻿using System;
+using System.IO;
+using System.Media;
+using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
-using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Shapes;
+using Microsoft.Win32;
+using Path = System.IO.Path;
 
 namespace Edi.Forms
 {
@@ -19,145 +21,80 @@ namespace Edi.Forms
         {
             InitializeComponent();
             recorder = App.Edi.Recorder;
-            DataContext = recorder.config; // Bindear RecorderConfig al DataContext
+            DataContext = recorder.config;
+            recorder.StatusUpdated += Recorder_StatusUpdated;
+            txtStatus.Text = "Recorder ready";
+            txtOutputFile.Text = recorder.config.OutputName;
         }
 
-        private void BtnStart_Click(object sender, RoutedEventArgs e)
+        private void Recorder_StatusUpdated(object sender, string message)
         {
-            try
+            Dispatcher.Invoke(() =>
             {
-                recorder.StartRecord();
-                txtStatus.Text = "Recording...";
-                btnStart.IsEnabled = false;
-                btnEnd.IsEnabled = true;
-            }
-            catch (Exception ex)
-            {
-                MessageBox.Show($"Error starting recording: {ex.Message}");
-            }
-        }
-
-        private void BtnEnd_Click(object sender, RoutedEventArgs e)
-        {
-            try
-            {
-                recorder.Stop();
-                txtStatus.Text = "Recording stopped";
-                btnStart.IsEnabled = true;
-                btnEnd.IsEnabled = false;
-            }
-            catch (Exception ex)
-            {
-                MessageBox.Show($"Error ending recording: {ex.Message}");
-            }
-        }
-
-        private void BtnCopyFfmpeg_Click(object sender, RoutedEventArgs e)
-        {
-            string command = txtFfmpegCodec.Text;
-
-            Application.Current.Dispatcher.Invoke(() =>
-            {
-                Clipboard.SetText(command);
-            });
-            txtStatus.Text = "FFmpeg command copied to clipboard";
-        }
-        private double GetDpiScaleFactor()
-        {
-            // Get the DPI scale factor for the current window
-            PresentationSource source = PresentationSource.FromVisual(this);
-            if (source != null)
-            {
-                return source.CompositionTarget.TransformToDevice.M11; // Horizontal DPI scale
-            }
-            return 1.0; // Default to 1 if unable to determine
-        }
-        private void BtnAdjustFrames_Click(object sender, RoutedEventArgs e)
-        {
-            try
-            {
-                if (int.TryParse(txtFrameOffset.Text, out int frameOffset))
+                txtStatus.Text = message;
+                if (message == "Recording started")
                 {
-                    recorder.AdjustByFrames(frameOffset);
-                    txtStatus.Text = $"Adjusted chapters by {frameOffset} frames";
+                    txtStatus.Background = Brushes.Green;
+                    Task.Run(() => Console.Beep(500, 1000)); // Pitido en un hilo separado
+                    Task.Delay(1000).ContinueWith(_ => Dispatcher.Invoke(() => txtStatus.Background = null)); // Restaurar fondo después de 1 segundo
+                }
+            });
+        }
+
+        private async void BtnToggle_Click(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                if (!recorder.IsRecording)
+                {
+                    btnToggle.IsEnabled = false;
+                    for (int i = 3; i > 0; i--)
+                    {
+                        txtStatus.Text = $"Starting in {i}...";
+                        await Task.Delay(1000);
+                    }
+                    await Task.Run(() => recorder.Start()); // Solo inicia la grabación
+                    btnToggle.Content = new Rectangle { Width = 15, Height = 15, Fill = Brushes.Black };
                 }
                 else
                 {
-                    MessageBox.Show("Please enter a valid integer for frame offset.");
+                    recorder.Stop();
+                    btnToggle.Content = new Ellipse { Width = 15, Height = 15, Fill = Brushes.Red };
                 }
+                btnToggle.IsEnabled = true;
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"Error adjusting frames: {ex.Message}");
+                MessageBox.Show($"Error: {ex.Message}");
+                btnToggle.IsEnabled = true;
             }
         }
 
-        private void BtnSelectArea_Click(object sender, RoutedEventArgs e)
+        private void BtnSelectOutput_Click(object sender, RoutedEventArgs e)
         {
-            // Create a transparent window for area selection
-            selectionWindow = new Window
+            var saveFileDialog = new SaveFileDialog
             {
-                WindowStyle = WindowStyle.None,
-                AllowsTransparency = true,
-                Background = Brushes.Gray,
-                Opacity = 0.4,
-                Topmost = true,
-                WindowState = WindowState.Maximized
+                Filter = "Funscript files (*.funscript)|*.funscript|All files (*.*)|*.*",
+                DefaultExt = ".funscript",
+                FileName = Path.GetFileName(recorder.config.OutputName),
+                InitialDirectory = Path.GetDirectoryName(recorder.config.OutputName) ?? Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments)
             };
 
-            Canvas canvas = new Canvas();
-            selectionWindow.Content = canvas;
-
-            selectionRectangle = new Rectangle
+            if (saveFileDialog.ShowDialog() == true)
             {
-                Stroke = Brushes.Red,
-                StrokeThickness = 2
-            };
-            canvas.Children.Add(selectionRectangle);
+                recorder.config.OutputName = saveFileDialog.FileName;
+                txtOutputFile.Text = saveFileDialog.FileName;
+            }
+        }
 
-            Point startPoint = default;
-            bool isSelecting = false;
+        private void ChkAlwaysOnTop_Checked(object sender, RoutedEventArgs e)
+        {
+            Window.GetWindow(this).Topmost = true;
+        }
 
-            selectionWindow.MouseLeftButtonDown += (s, args) =>
-            {
-                startPoint = args.GetPosition(canvas);
-                isSelecting = true;
-                Canvas.SetLeft(selectionRectangle, startPoint.X);
-                Canvas.SetTop(selectionRectangle, startPoint.Y);
-            };
-
-            selectionWindow.MouseMove += (s, args) =>
-            {
-                if (!isSelecting) return;
-                Point currentPoint = args.GetPosition(canvas);
-                double width = Math.Abs(currentPoint.X - startPoint.X);
-                double height = Math.Abs(currentPoint.Y - startPoint.Y);
-                selectionRectangle.Width = width;
-                selectionRectangle.Height = height;
-                Canvas.SetLeft(selectionRectangle, Math.Min(startPoint.X, currentPoint.X));
-                Canvas.SetTop(selectionRectangle, Math.Min(startPoint.Y, currentPoint.Y));
-            };
-
-            selectionWindow.MouseLeftButtonUp += (s, args) =>
-            {
-                if (isSelecting)
-                {
-                    double dpiScale = GetDpiScaleFactor();
-                    double x = Canvas.GetLeft(selectionRectangle);
-                    double y = Canvas.GetTop(selectionRectangle);
-                    double width = selectionRectangle.Width;
-                    double height = selectionRectangle.Height;
-
-                    recorder.config.X = (int)(x * dpiScale);
-                    recorder.config.Y = (int)(y * dpiScale);
-                    recorder.config.Width = (int)(width * dpiScale);
-                    recorder.config.Height = (int)(height * dpiScale);
-
-                    selectionWindow.Close();
-                }
-            };
-
-            selectionWindow.Show();
+        private void ChkAlwaysOnTop_Unchecked(object sender, RoutedEventArgs e)
+        {
+            Window.GetWindow(this).Topmost = false;
         }
     }
 }

@@ -5,208 +5,160 @@ using Edi.Core.Funscript;
 using Edi.Core;
 using Newtonsoft.Json;
 using System.Net.WebSockets;
+using System.Xml.Linq;
 
-namespace Edi.Core;
-
-public class Recorder : IRecorder
+namespace Edi.Core
 {
-    private Process ffmpegProcess;
-
-    private string outputFileName => config.OutputName;
-    private string funscriptFileName => Path.ChangeExtension(outputFileName, ".funscript");
-    private FunScriptFile funscript = new();
-    private DateTime recordingStartTime;
-
-    public bool IsRecording { get; set; }
-    public RecorderConfig config { get; set; }
-
-    private string currentChapter = "";
-    private long currentTime => Convert.ToInt64(Math.Round((DateTime.Now - recordingStartTime).TotalMilliseconds / MsPerFrame) * (MsPerFrame));
-    private double MsPerFrame => (1000.0 / config.FrameRate);
-    private double frameRate => config.FrameRate;
-
-    private List<(DateTime arrivalTime, double ffmpegTimeMs)> timeSamples = new();
-    private const int REQUIRED_SAMPLES = 3; // Reducido de 5 a 3
-    private bool delayCalculated;
-
-
-    public Recorder(ConfigurationManager configurationManager)
+    public class Recorder : IRecorder
     {
-        config = configurationManager.Get<RecorderConfig>();
+        private string outputFileName => config.OutputName;
+        private string funscriptFileName => Path.ChangeExtension(outputFileName, ".funscript");
+        private FunScriptFile funscript = new();
+        private DateTime recordingStartTime;
 
-    }
-    private DateTime processStartTime;
-    private double estimatedDelayMs = 0;
-    public void StartRecord()
-    {
-        if (IsRecording)
-            throw new InvalidOperationException("Recording already in progress");
+        public bool IsRecording { get; set; }
+        public RecorderConfig config { get; set; }
+        public string CurrentChapter { get; set; } = "";
+        private long currentTime => Convert.ToInt64(Math.Round((DateTime.Now - recordingStartTime).TotalMilliseconds));
 
-        currentChapter = "";
-        funscript = new();
-        funscript.metadata ??= new FunScriptMetadata() { chapters = new() };
-        funscript.path = funscriptFileName;
-        funscript.actions = new();
-        funscript.filename = Path.GetFileNameWithoutExtension(funscriptFileName);
+        // Evento para actualizar el label de estado
+        public event EventHandler<string> StatusUpdated;
 
-        ffmpegProcess = new Process
+        public Recorder(ConfigurationManager configurationManager)
         {
-            StartInfo = new ProcessStartInfo
-            {
-                FileName = "ffmpeg",
-                Arguments = config.FfmpegFullCommand.Remove(0, 7),
-                UseShellExecute = false,
-                RedirectStandardError = true,
-                RedirectStandardInput = true, // Añadido para permitir enviar comandos como "q"
-                CreateNoWindow = true
-            },
-            EnableRaisingEvents = true
-        };
-        ffmpegProcess.ErrorDataReceived += (sender, e) =>
+            config = configurationManager.Get<RecorderConfig>();
+            UpdateStatus("Recorder ready");
+        }
+
+        public void Start()
         {
-            if (e.Data?.Contains("time=") != true || !TimeSpan.TryParse(e.Data.Split("time=")[1].Split(' ')[0], out var time))
-                return;
-
-            var sample = (DateTime.Now, time.TotalMilliseconds);
-            if (IsRecording) return;
-
-            timeSamples.Add(sample);
-            if (timeSamples.Count <= 1 || delayCalculated) return; // Salta el primer mensaje
-
-            if (timeSamples.Count > REQUIRED_SAMPLES)
+            if (IsRecording)
             {
-                estimatedDelayMs = timeSamples.Skip(1).Take(REQUIRED_SAMPLES)
-                    .Average(s => (s.arrivalTime - processStartTime).TotalMilliseconds - s.ffmpegTimeMs);
-                recordingStartTime = processStartTime.AddMilliseconds(-estimatedDelayMs);
-                IsRecording = delayCalculated = true;
-                Console.WriteLine($"Retraso promedio (muestras {REQUIRED_SAMPLES}): {estimatedDelayMs:F2} ms");
+                UpdateStatus("Recording already in progress");
             }
-        };
-        processStartTime = DateTime.Now;
-        ffmpegProcess.Start();
-        ffmpegProcess.BeginErrorReadLine();
-    }
 
-    public void AddChapter(string name, long seek = 0, int? addPointAtPosition = null)
-    {
-        if (!IsRecording)
-            throw new InvalidOperationException("No recording in progress");
+            CurrentChapter = "";
+            funscript = new();
+            funscript.metadata ??= new FunScriptMetadata() { chapters = new() };
+            funscript.path = funscriptFileName;
+            funscript.actions = new();
+            funscript.filename = Path.GetFileNameWithoutExtension(funscriptFileName);
 
-        if (!string.IsNullOrEmpty(currentChapter) && name != currentChapter)
-        {
-            var lastChapter = funscript.metadata.chapters.Find(c => c.name == currentChapter);
-            lastChapter.EndTimeMilis = Convert.ToInt64(currentTime - MsPerFrame - seek); // Frame anterior (30 FPS)
-            currentChapter = "";
+            recordingStartTime = DateTime.Now;
+            funscript.actions.AddRange(new[]
+            {
+                new FunScriptAction { at = 0, pos = 0 },
+                new FunScriptAction { at = 500, pos = 100 },
+                new FunScriptAction { at = 1000, pos = 0 }
+            });
+            IsRecording = true;
+
+            UpdateStatus("Recording started");
+
         }
 
-        if (addPointAtPosition != null)
-            AddPoint(addPointAtPosition.Value);
-
-        if (funscript.metadata.chapters.Exists(c => c.name == name))
-            return;
-
-        var chapter = new FunScriptChapter
+        public void AddChapter(string name, long seek = 0, int? addPointAtPosition = null)
         {
-            name = name,
-            StartTimeMilis = currentTime - seek
-        };
-
-        funscript.metadata.chapters.Add(chapter);
-        currentChapter = name;
-    }
-    public void AddPoint(int position)
-    {
-        if (!IsRecording)
-            throw new InvalidOperationException("No recording in progress");
-
-        funscript.actions.Add(new FunScriptAction
-        {
-            at = currentTime,
-            pos = position
-        });
-    }
-    public void EndChapter(int? addPointAtPosition = null)
-    {
-        if (!IsRecording)
-            throw new InvalidOperationException("No recording in progress");
-
-        if (addPointAtPosition != null)
-            AddPoint(addPointAtPosition.Value);
-
-
-        if (string.IsNullOrEmpty(currentChapter))
-            return;
-
-        var chapter = funscript.metadata.chapters.Find(c => c.name == currentChapter);
-
-        if (chapter == null)
-            return;
-
-        chapter.EndTimeMilis = currentTime;
-        currentChapter = "";
-    }
-    public void Stop()
-    {
-        if (!IsRecording)
-            throw new InvalidOperationException("No recording in progress");
-
-        // Finalizar el capítulo actual, si lo hay
-        EndChapter();
-        funscript.Save(funscriptFileName);
-
-        try
-        {
-            if ((ffmpegProcess?.HasExited) != false)
+            if (!IsRecording)
+            {
+                UpdateStatus("No recording in progress");
                 return;
+            }
 
-            ffmpegProcess.StandardInput.WriteLine("q");
-            ffmpegProcess.StandardInput.Flush();
+            if (!string.IsNullOrEmpty(CurrentChapter) && name != CurrentChapter)
+            {
+                var lastChapter = funscript.metadata.chapters.Find(c => c.name == CurrentChapter);
+                lastChapter.EndTimeMilis = Convert.ToInt64(currentTime - 1 - seek);
+                CurrentChapter = "";
+            }
 
-            if (!ffmpegProcess.WaitForExit(5000))
-                ffmpegProcess.Kill();
+            if (addPointAtPosition != null)
+            {
+                AddPoint(addPointAtPosition.Value, 1 - seek);
+            }
 
+            if (funscript.metadata.chapters.Exists(c => c.name == name))
+            {
+                UpdateStatus($"Chapter '{name}' already exists");
+                return;
+            }
 
+            var chapter = new FunScriptChapter
+            {
+                name = name,
+                StartTimeMilis = currentTime - seek
+            };
+
+            funscript.metadata.chapters.Add(chapter);
+            CurrentChapter = name;
+            UpdateStatus($"Chapter '{name}' { (addPointAtPosition.HasValue ? $" Point at {addPointAtPosition}" : "" )}");
         }
-        catch (Exception ex)
+
+        public void AddPoint(int position, long seek = 0)
         {
-            Debug.WriteLine($"Error al intentar finalizar FFmpeg: {ex.Message}");
-            ffmpegProcess?.Kill();
+            if (!IsRecording)
+            {
+                UpdateStatus("No recording in progress"); 
+                return;
+            }
+
+            var action = new FunScriptAction
+            {
+                at = currentTime - seek,
+                pos = position
+            };
+            funscript.actions.Add(action);
+            UpdateStatus($"Chapter '{currentTime}' Point at {position}");
         }
-        finally
+
+        public void EndChapter(int? addPointAtPosition = null, long seek = 0)
         {
+            if (!IsRecording)
+            {
+                UpdateStatus("No recording in progress");
+                return;
+            }
+
+            if (addPointAtPosition != null)
+            {
+                AddPoint(addPointAtPosition.Value, seek);
+            }
+
+            if (string.IsNullOrEmpty(CurrentChapter))
+            {
+                UpdateStatus("No active chapter");
+                return;
+            }
+
+            var chapter = funscript.metadata.chapters.Find(c => c.name == CurrentChapter);
+            if (chapter == null)
+            {
+                UpdateStatus($"Chapter '{CurrentChapter}' not found");
+                return;
+            }
+
+            chapter.EndTimeMilis = currentTime - seek;
+            UpdateStatus($"Chapter '{CurrentChapter}' ended");
+            CurrentChapter = "";
+        }
+
+        public void Stop()
+        {
+            if (!IsRecording)
+            {
+                UpdateStatus("No recording in progress");
+                throw new InvalidOperationException("No recording in progress");
+            }
+
+            EndChapter();
+            funscript.Save(funscriptFileName);
             IsRecording = false;
-            ffmpegProcess?.Dispose();
+            UpdateStatus($"Recording stopped - Saved as: {Path.GetFileName(funscriptFileName)}");
         }
-    }
 
-    // Método genérico para aplicar el ajuste
-    private void ApplyTimeAdjustment(long offsetMs)
-    {
-        funscript = FunScriptFile.TryRead(funscriptFileName);
-        if (funscript == null)
-            return;
-
-        if (funscript.metadata?.chapters == null || !funscript.metadata.chapters.Any())
-            return;
-
-        foreach (var chapter in funscript.metadata.chapters)
+        private void UpdateStatus(string message)
         {
-            chapter.StartTimeMilis += offsetMs;
-            if (chapter.EndTimeMilis != 0)
-                chapter.EndTimeMilis += offsetMs;
+            StatusUpdated?.Invoke(this, message);
         }
-
-        foreach (var action in funscript.actions)
-            action.at += offsetMs;
-
-        funscript.Save(funscriptFileName);
-    }
-
-    public void AdjustByFrames(int frameOffset)
-    {
-
-        long offsetMs = (long)(frameOffset * MsPerFrame);
-        ApplyTimeAdjustment(offsetMs);
-
     }
 }

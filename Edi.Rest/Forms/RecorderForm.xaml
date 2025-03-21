@@ -1,92 +1,28 @@
 ﻿<Window x:Class="Edi.Forms.Recorder"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
-        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
-        xmlns:local="clr-namespace:Edi.Forms"
-        mc:Ignorable="d"
-        Title="Recorder" Height="515" Width="420" ResizeMode="NoResize">
+        Title="Recorder" MinHeight="120" MinWidth="350" ResizeMode="CanResize">
     <Grid Margin="10">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>
-            <!-- Recording Area -->
-            <RowDefinition Height="Auto"/>
-            <!-- Recording Options -->
-            <RowDefinition Height="Auto"/>
-            <!-- Recording and Adjustments -->
             <RowDefinition Height="*"/>
-            <!-- Status -->
         </Grid.RowDefinitions>
 
-        <!-- Recording Area -->
-        <GroupBox Grid.Row="0" Header="Area" Margin="0,0,0,10">
-            <StackPanel Orientation="Horizontal" Margin="5">
-                <StackPanel Margin="0,0,10,0">
-                    <Label Content="X:"/>
-                    <TextBox x:Name="txtX" Width="60" Text="{Binding X, UpdateSourceTrigger=PropertyChanged}"/>
-                </StackPanel>
-                <StackPanel Margin="0,0,10,0">
-                    <Label Content="Y:"/>
-                    <TextBox x:Name="txtY" Width="60" Text="{Binding Y, UpdateSourceTrigger=PropertyChanged}"/>
-                </StackPanel>
-                <StackPanel Margin="0,0,10,0">
-                    <Label Content="Width:"/>
-                    <TextBox x:Name="txtWidth" Width="60" Text="{Binding Width, UpdateSourceTrigger=PropertyChanged}"/>
-                </StackPanel>
-                <StackPanel Margin="0,0,10,0">
-                    <Label Content="Height:"/>
-                    <TextBox x:Name="txtHeight" Width="60" Text="{Binding Height, UpdateSourceTrigger=PropertyChanged}"/>
-                </StackPanel>
-                <Button x:Name="btnSelectArea" Content="Select Area" VerticalAlignment="Bottom" 
-                        Margin="10,0,0,0" Click="BtnSelectArea_Click"/>
-            </StackPanel>
-        </GroupBox>
-
-        <!-- Recording Options -->
-        <GroupBox Grid.Row="1" Header="Options" Margin="0,0,0,10">
-            
-            <StackPanel Margin="5">
-                
-                <Label Content="Output Filename (without extension):"/>
-                <TextBox x:Name="txtFilename" Text="{Binding OutputName, UpdateSourceTrigger=PropertyChanged}" 
-                 Width="200" HorizontalAlignment="Left" Margin="0,0,0,5"/>
-                <StackPanel Orientation="Horizontal">
-                    <Label Content="Frame Rate:" VerticalAlignment="Center" Margin="0,0,10,0"/>
-                    <TextBox x:Name="txtFrameRate" Width="60" Text="{Binding FrameRate, UpdateSourceTrigger=PropertyChanged}" VerticalAlignment="Center"/>
-                </StackPanel>
-                <Label Content="FFmpeg Codec:"/>
-                <TextBox x:Name="txtFfmpegCodec" 
-                             Width="350" 
-                             Height="80" 
-                             Text="{Binding FfmpegFullCommand, UpdateSourceTrigger=PropertyChanged, Mode=TwoWay}" 
-                             AcceptsReturn="True" 
-                             AcceptsTab="True" 
-                             VerticalScrollBarVisibility="Auto" 
-                             TextWrapping="Wrap"/>
-                
-                <Button x:Name="btnCopyFfmpeg" Content="Copy FFmpeg Command" Width="150" 
-                HorizontalAlignment="Left" Margin="0,5,0,0" Click="BtnCopyFfmpeg_Click"/>
-            </StackPanel>
-        </GroupBox>
-
-        <!-- Recording and Adjustments -->
-        <GroupBox Grid.Row="2" Header="Recording and Adjustments" Margin="0,0,0,10">
-            <StackPanel Margin="5">
-                <!-- Recording Controls -->
-                <StackPanel Orientation="Horizontal" Margin="0,0,0,5">
-                    <Button x:Name="btnStart" Content="Start Recording" Width="100" Click="BtnStart_Click" Margin="0,0,10,0"/>
-                    <Button x:Name="btnEnd" Content="End Recording" Width="100" Click="BtnEnd_Click" IsEnabled="False"/>
-                </StackPanel>
-                <!-- Frame Offset -->
-                <StackPanel Orientation="Horizontal">
-                    <TextBlock Text="Frame Offset:" VerticalAlignment="Center" Margin="0,0,10,0"/>
-                    <TextBox x:Name="txtFrameOffset" Width="60" Text="{Binding FrameOffset, UpdateSourceTrigger=PropertyChanged}" VerticalAlignment="Center" Margin="0,0,10,0"/>
-                    <Button x:Name="btnAdjustFrames" Content="Adjust Chapters" Width="100" Click="BtnAdjustFrames_Click"/>
-                </StackPanel>
-            </StackPanel>
-        </GroupBox>
+        <!-- Recording Controls and Output Selector -->
+        <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="0,0,0,10">
+            <Button x:Name="btnToggle" Width="30" Height="30" Click="BtnToggle_Click" Margin="0,0,10,0">
+                <Ellipse Width="15" Height="15" Fill="Red"/>
+            </Button>
+            <CheckBox x:Name="chkAlwaysOnTop" Content="Always on Top" VerticalAlignment="Center" Margin="0,0,10,0"
+                      Checked="ChkAlwaysOnTop_Checked" Unchecked="ChkAlwaysOnTop_Unchecked"/>
+            <Button x:Name="btnSelectOutput" Content="Output" Width="60" Height="25" Click="BtnSelectOutput_Click" Margin="0,0,10,0"/>
+            <TextBox x:Name="txtOutputFile" Grid.Column="3" Text="{Binding OutputName, Mode=OneWay, UpdateSourceTrigger=PropertyChanged}" 
+                     VerticalAlignment="Center" FontSize="12" IsReadOnly="True" BorderThickness="0" Background="Transparent"
+                     HorizontalScrollBarVisibility="Hidden" TextWrapping="NoWrap" Loaded="TxtOutputFile_Loaded"/>
+        </StackPanel>
 
         <!-- Status -->
-        <TextBlock x:Name="txtStatus" Grid.Row="3" Text="Ready" VerticalAlignment="Top" Margin="0,5,0,0"/>
+        <TextBlock x:Name="txtStatus" Grid.Row="1" Text="Recorder ready" Padding="5" 
+                   VerticalAlignment="Center" TextWrapping="Wrap" FontSize="16" HorizontalAlignment="Stretch"/>
     </Grid>
 </Window>

@@ -20,29 +20,28 @@ namespace Edi.Controllers
         {
 
             Recorder.AddChapter(name, seek, addPointAtPosition);
-            return Ok(new { message = $"Chapter '{name}' added successfully" });
+            return Ok(new { message = $"Chapter '{name}' added" });
             
 
         }
 
         [HttpPost("AddPoint/{Position}")]
         public IActionResult AddPoint(
-            [FromRoute, Range(0, 100)] int? Position = null)
+            [FromRoute, Range(0, 100)] int? Position = null, [FromQuery]long Seek = 0)
         {
  
-            Recorder.AddPoint(Position ?? 0);
+            Recorder.AddPoint(Position ?? 0, Seek);
             return Ok(new { message = "Point added successfully" });
 
         }
 
         [HttpPost("EndChapter")]
         public IActionResult EndChapter(
-            [FromQuery, Range(0, 100)] int? addPointAtPosition = null)
+            [FromQuery, Range(0, 100)] int? addPointAtPosition = null, [FromQuery] long Seek = 0)
         {
 
-            Recorder.EndChapter(addPointAtPosition);
+            Recorder.EndChapter(addPointAtPosition, Seek);
             return Ok(new { message = "Chapter ended successfully" });
-
         }
 
         [HttpPost("Start")]
@@ -54,7 +53,7 @@ namespace Edi.Controllers
                 return BadRequest(new { error = "Recording is already in progress" });
             }
 
-            Recorder.StartRecord();
+            Recorder.Start();
             return Ok(new
             {
                 message = "Recording started successfully",

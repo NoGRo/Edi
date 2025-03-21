@@ -38,7 +38,7 @@ namespace Edi.Controllers
         public async Task Stop()
         {
             if (_edi.Recorder.IsRecording)
-                _edi.Recorder.Stop();
+                _edi.Recorder.EndChapter();
 
             await _edi.Stop();
         }

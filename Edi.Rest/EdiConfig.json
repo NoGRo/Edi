@@ -71,7 +71,7 @@
     "VibratorInercialDelay": 80
   },
   "Handy": {
-    "Key": "PiBnz, ppJdVv3V, ibjckz1x0q91, 92H0Y"
+    "Key": "PiBnz, ppJdVv3V, 92H0Y"
   },
   "EStim": {
     "DeviceId": -1
@@ -81,7 +81,9 @@
     "Y": 909,
     "Width": 1042,
     "Height": 1229,
-    "OutputName": "output",
-    "FfmpegCodec": "-c:v h264_nvenc -preset fast"
+    "FrameRate": 30,
+    "OutputName": "D:\\Juegos\\MaxTheElf\\Edi\\Gallery\\lvl2.funscript",
+    "FffmpegCodec": "-f dshow -i audio=\"CABLE Output (VB-Audio Virtual Cable)\" -c:v h264_nvenc -preset p4 -b:v 6M -c:a aac -b:a 128k",
+    "FfmpegFullCommand": "ffmpeg -y -f gdigrab -progress pipe:1 -framerate 30 -offset_x 199 -offset_y 909 -video_size 1042x1229 -i desktop -f dshow -i audio=\"CABLE Output (VB-Audio Virtual Cable)\" -c:v h264_nvenc -preset p4 -b:v 6M -c:a aac -b:a 128k \"D:\\Juegos\\MaxTheElf\\Edi\\Gallery\\lvl2.funscript\""
   }
 }

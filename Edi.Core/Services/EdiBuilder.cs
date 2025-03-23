@@ -31,7 +31,9 @@ namespace Edi.Core
             var configuration = new ConfigurationManager(ConfigurationPath);
 
             Log.Logger = new LoggerConfiguration()
-                .WriteTo.File("./Edilog.txt", rollingInterval: RollingInterval.Day)
+                .WriteTo.File("./Edilog.txt",
+                              rollingInterval: RollingInterval.Day,
+                              retainedFileCountLimit: 1) // Solo 1 archivo, el actual
                 .CreateLogger();
 
             // Integra Serilog con ILogger

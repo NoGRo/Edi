@@ -19,6 +19,7 @@ using System.Threading.Tasks;
 using Edi.Core.Device.AutoBlow;
 using Microsoft.Extensions.Logging;
 using Serilog;
+using Serilog.Events;
 
 namespace Edi.Core
 {
@@ -30,10 +31,12 @@ namespace Edi.Core
             #region Configuration
             var configuration = new ConfigurationManager(ConfigurationPath);
 
+            var edifconfig  = configuration.Get<EdiConfig>();
             Log.Logger = new LoggerConfiguration()
                 .WriteTo.File("./Edilog.txt",
                               rollingInterval: RollingInterval.Day,
                               retainedFileCountLimit: 1) // Solo 1 archivo, el actual
+                .Filter.ByIncludingOnly(evt => edifconfig.UseLogs)
                 .CreateLogger();
 
             // Integra Serilog con ILogger

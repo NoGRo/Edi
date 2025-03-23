@@ -13,24 +13,17 @@
     "Filler": true,
     "Gallery": true,
     "Reactive": true,
-    "ExecuteOnReady": ""
+    "ExecuteOnReady": "",
+    "UseHttps": false,
+    "UseLogs": false
   },
   "Devices": {
     "Devices": {
-      "Simulator Device": {
-        "Variant": "vibro-breast-Ch1",
-        "Min": 0,
-        "Max": 100
-      },
-      "Preview Device": {
-        "Variant": "mirai",
-        "Min": 0,
-        "Max": 100
-      }
+
     }
   },
   "OSR": {
-    "COMPort": null,
+    "COMPort": "COM3",
     "EnableMultiAxis": true,
     "UpdateRate": 200,
     "RangeLimits": {
@@ -66,7 +59,7 @@
     "VibratorInercialDelay": 80
   },
   "Handy": {
-    "Key": "PiBnz, ppJdVv3V, ibjckz1x0q91, 92H0Y"
+    "Key": ""
   },
   "EStim": {
     "DeviceId": -1

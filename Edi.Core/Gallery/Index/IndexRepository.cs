@@ -99,7 +99,8 @@ namespace Edi.Core.Gallery.Index
 
 
             var GalleryDir = new DirectoryInfo(path);
-
+            if (GalleryDir?.Exists != true)
+                return new();
 
             var BundleDefinition = GalleryDir.EnumerateFiles("BundleDefinition*.txt").ToList();
             BundleDefinition.AddRange(GalleryDir.EnumerateDirectories().SelectMany(d => d.EnumerateFiles("BundleDefinition*.txt")));

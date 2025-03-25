@@ -1,9 +1,11 @@
-﻿<Window x:Class="Edi.Forms.Recorder"
+﻿<Window x:Class="Edi.Forms.RecorderForm"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Title="Recorder" MinHeight="120" MinWidth="350" MaxHeight="120"  ResizeMode="CanResizeWithGrip">
+        Closing="Recorder_Closing"
+        Title="Recorder" MinHeight="150" MinWidth="350" MaxHeight="140" ResizeMode="CanResizeWithGrip">
     <Grid Margin="10">
         <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="*"/>
         </Grid.RowDefinitions>
@@ -13,16 +15,28 @@
             <Button x:Name="btnToggle" Width="30" Height="30" Click="BtnToggle_Click" Margin="0,0,10,0">
                 <Ellipse Width="15" Height="15" Fill="Red"/>
             </Button>
-            <CheckBox x:Name="chkAlwaysOnTop" Content="Always on Top" VerticalAlignment="Center" Margin="0,0,10,0"
-                      Checked="ChkAlwaysOnTop_Checked" Unchecked="ChkAlwaysOnTop_Unchecked"/>
+            <StackPanel Orientation="Vertical">
+                <CheckBox x:Name="chkAlwaysOnTop" Content="Always on Top" VerticalAlignment="Center" Margin="0,0,10,0"
+                          Checked="ChkAlwaysOnTop_Checked" Unchecked="ChkAlwaysOnTop_Unchecked"
+                          IsChecked="{Binding Config.AlwaysOnTop}"/>
+                <CheckBox x:Name="chkEnableBeep" Content="Enable Beep" VerticalAlignment="Center" Margin="0,2,10,0"
+                          IsChecked="{Binding Config.EnableBeep, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
+            </StackPanel>
             <Button x:Name="btnSelectOutput" Content="Output" Width="60" Height="25" Click="BtnSelectOutput_Click" Margin="0,0,10,0"/>
-            <TextBox x:Name="txtOutputFile" Grid.Column="3" Text="{Binding OutputName, Mode=OneWay, UpdateSourceTrigger=PropertyChanged}" 
+            <TextBox x:Name="txtOutputFile" Text="{Binding Config.OutputName, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" 
                      VerticalAlignment="Center" FontSize="12" IsReadOnly="True" BorderThickness="0" Background="Transparent"
                      HorizontalScrollBarVisibility="Hidden" TextWrapping="NoWrap" />
         </StackPanel>
 
+        <!-- Device Preview ProgressBar -->
+        <ProgressBar x:Name="deviceProgress" Grid.Row="1" Height="20
+                     " Margin="0,0,0,5"
+                     Minimum="0" Maximum="100" 
+                     Value="{Binding SimulatorDevice.ProgressValue, Mode=OneWay, UpdateSourceTrigger=PropertyChanged}"
+                     HorizontalAlignment="Stretch"/>
+
         <!-- Status -->
-        <TextBlock x:Name="txtStatus" Grid.Row="1" Text="Recorder ready" Padding="5" 
+        <TextBlock x:Name="txtStatus" Grid.Row="2" Text="Recorder ready" Padding="5" 
                    VerticalAlignment="Center" TextWrapping="Wrap" FontSize="16" HorizontalAlignment="Stretch"/>
     </Grid>
 </Window>

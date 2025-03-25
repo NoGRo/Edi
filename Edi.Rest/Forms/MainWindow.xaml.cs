@@ -252,12 +252,12 @@ namespace Edi.Forms
 
         
 
-        private static Recorder _recorder; // Quitamos readonly y la inicialización inmediata
+        private static RecorderForm _recorder; // Quitamos readonly y la inicialización inmediata
         private void btnRecorder_Click(object sender, RoutedEventArgs e)
         {
             if (_recorder == null || !_recorder.IsLoaded)
             {
-                _recorder = new Recorder();
+                _recorder = new RecorderForm();
                 _recorder.Closed += (s, args) => _recorder = null;
                 _recorder.Show();
                 _recorder.Activate();
@@ -265,21 +265,6 @@ namespace Edi.Forms
             else
             {
                 _recorder.Close();
-            }
-        }
-        private static SimulateGame _simulateGame; // Quitamos readonly y la inicialización inmediata
-        private void btnSimulator_Click(object sender, RoutedEventArgs e)
-        {
-            if (_simulateGame == null || !_simulateGame.IsLoaded)
-            {
-                _simulateGame = new SimulateGame();
-                _simulateGame.Closed += (s, args) => _simulateGame = null;
-                _simulateGame.Show();
-                _simulateGame.Activate();
-            }
-            else
-            {
-                _simulateGame.Close();
             }
         }
 

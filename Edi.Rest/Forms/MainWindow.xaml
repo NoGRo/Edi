@@ -79,9 +79,7 @@
         <Button HorizontalAlignment="Left" VerticalAlignment="Bottom" Margin="243,0,0,57" Width="23" Height="22" ToolTip="Resume" x:Name="btnResume" Click="btnResume_Click">
             <TextBlock Text="►❚❚" FontSize="14" Height="22" Width="17"/>
         </Button>
-        <Button HorizontalAlignment="Left" VerticalAlignment="Bottom" Margin="271,0,0,57" Width="23" Height="22" ToolTip="Action Preview" x:Name="btnSimulator" Click="btnSimulator_Click">
-            <TextBlock Text="👁️" FontSize="13" Height="22" Width="17"/>
-        </Button>
+        
         <Button HorizontalAlignment="Left" VerticalAlignment="Bottom" Margin="271,0,0,57" Width="23" Height="22" ToolTip="Recorder" x:Name="btnRecorder" Click="btnRecorder_Click">
             <TextBlock Text="🎥" FontSize="13" Height="22" Width="17"/>
         </Button>

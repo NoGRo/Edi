@@ -7,7 +7,7 @@ using PropertyChanged;
 namespace Edi.Core.Device.Simulator
 {
     [AddINotifyPropertyChangedInterface]
-    public class SimulatorDevice : DeviceBase<FunscriptRepository, FunscriptGallery>, IRange
+    public class VirtualDevice : DeviceBase<FunscriptRepository, FunscriptGallery>, IRange
     {
         private readonly ILogger _logger;
         private CmdLinear _currentCmd;
@@ -56,11 +56,11 @@ namespace Edi.Core.Device.Simulator
 
         private const int REFRESH_RATE_MS = 16; // ~60 FPS (1000ms / 60 ≈ 16.67ms)
 
-        public SimulatorDevice(FunscriptRepository repository, ILogger logger)
+        public VirtualDevice(FunscriptRepository repository, ILogger logger)
             : base(repository, logger)
         {
             _logger = logger;
-            Name = "Preview Device";
+            Name = "Virtual Device";
             lastUpdateAt = DateTime.Now;
             _logger.LogInformation($"ProgressBarSimulator initialized");
         }
@@ -100,14 +100,14 @@ namespace Edi.Core.Device.Simulator
                 }
                 catch (TaskCanceledException)
                 {
-                    _logger.LogWarning($"PlayGallery canceled for Simulator: {Name}");
-                    ProgressValue = 0;
-                    return;
+                    //_logger.LogWarning($"PlayGallery canceled for Simulator: {Name}");
+                    //ProgressValue = 0;
+                    return; 
                 }
             }
 
-            ProgressValue = 0; // Resetear al finalizar
-            _logger.LogInformation($"PlayGallery completed for Simulator: {Name}");
+            //ProgressValue = 0; // Resetear al finalizar
+            //_logger.LogInformation($"PlayGallery completed for Simulator: {Name}");
         }
 
         private async Task UpdateProgressBar()
@@ -119,12 +119,11 @@ namespace Edi.Core.Device.Simulator
             progress = Math.Clamp(progress, 0, 1);
 
             // Interpolar entre la posición anterior y la actual
-            double targetPosition = CurrentCmd.Value;
+            double targetPosition = CurrentCmd.GetValueInRange(Min, Max);
             double interpolatedPosition = lastPosition + (targetPosition - lastPosition) * progress;
 
             // Actualizar el valor del progress bar (0-100)
             ProgressValue = (int)Math.Round(interpolatedPosition);
-            ProgressValue = Math.Clamp(ProgressValue, Min, Max);
 
             lastUpdateAt = DateTime.Now;
             lastPosition = interpolatedPosition;

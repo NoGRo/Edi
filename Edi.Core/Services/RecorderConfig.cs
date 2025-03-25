@@ -44,6 +44,8 @@ namespace Edi.Core
             }
         }
 
+        public bool EnableBeep { get; set; } = true;
+
         // Generar comando con la concatenación ajustada
         private void UpdateCommand()
         {

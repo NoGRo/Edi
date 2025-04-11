@@ -2,23 +2,23 @@ using System.ComponentModel.DataAnnotations;
 using Microsoft.AspNetCore.Mvc;
 using Edi.Core;
 using Edi.Core.Device.Interfaces;
-using Edi.Forms;
 using Edi.Core.Gallery.Definition;
 using Edi.Core.Gallery;
 using System.IO;
 using System.Security.Cryptography;
+using Microsoft.AspNetCore.Http;
 
-namespace Edi.Controllers
+namespace Edi.Core.Controllers
 {
     [ApiController]
     [Route("[controller]")]
     public class EdiController : ControllerBase
     {
-        private readonly IEdi _edi = App.Edi;
+        private readonly IEdi _edi;
 
-        public EdiController()
+        public EdiController(IEdi edi)
         {
-
+            _edi = edi;
         }
 
         [HttpPost("Play/{name}")]

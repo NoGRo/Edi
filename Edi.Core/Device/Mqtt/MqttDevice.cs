@@ -4,7 +4,7 @@ using Edi.Core.Gallery;
 using Edi.Core.Gallery.Funscript;
 using Microsoft.Extensions.Logging;
 using MQTTnet;
-using MQTTnet.Client;
+
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -97,11 +97,11 @@ namespace Edi.Core.Device.Mqtt
 
         private async Task send(string topic, object payload, bool defaultToken = true)
         {
-           await mqttClient.PublishAsync(new()
-           {
-               Topic = this.topic + topic,
-               Payload = Encoding.UTF8.GetBytes(JsonSerializer.Serialize(payload))
-           }, playCancelTokenSource.Token);
+           //await mqttClient.PublishAsync(new()
+           //{
+           //    Topic = this.topic + topic,
+           //    Payload = Encoding.UTF8.GetBytes(JsonSerializer.Serialize(payload))
+           //}, playCancelTokenSource.Token);
         }
         private record play(string gallery, long seek, string variant);
         private record command(long millis, int value);

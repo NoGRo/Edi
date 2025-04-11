@@ -20,7 +20,7 @@ namespace Edi.Core.Device.Buttplug
     {
         private readonly ILogger _logger;
 
-        public ButtplugProvider(FunscriptRepository repository, ConfigurationManager config, DeviceManager deviceManager, ILogger logger)
+        public ButtplugProvider(FunscriptRepository repository, ConfigurationManager config, DeviceManager deviceManager, ILogger<ButtplugProvider> logger)
         {
             _logger = logger;
             Config = config.Get<ButtplugConfig>();

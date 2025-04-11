@@ -11,15 +11,14 @@ namespace Edi.Core.Device
         public List<IDevice> Devices { get; set; } = new List<IDevice>();
 
         [ActivatorUtilitiesConstructor]
-        public DeviceManager(IServiceProvider serviceProvider)
-        {
-            ServiceProvider = serviceProvider;
-        }
+        
 
-        public DeviceManager(ConfigurationManager configuration)
+        public DeviceManager(ConfigurationManager configuration, IServiceProvider serviceProvider)
         {
             Config = configuration.Get<DevicesConfig>();
             this.configuration = configuration;
+            this.serviceProvider = serviceProvider;
+            
         }
 
         internal DevicesConfig Config;
@@ -34,12 +33,12 @@ namespace Edi.Core.Device
 
         public List<IDeviceProvider> Providers { get; set; } = new List<IDeviceProvider>();
 
-        private IServiceProvider ServiceProvider { get; }
+        private IServiceProvider serviceProvider { get; }
 
         public async Task Init()
         {
-            if (!Providers.Any() && ServiceProvider != null)
-                Providers.AddRange(ServiceProvider.GetServices<IDeviceProvider>());
+            if (!Providers.Any() && serviceProvider != null)
+                Providers.AddRange(serviceProvider.GetServices<IDeviceProvider>());
 
             Providers.AsParallel().ForAll(async x => await x.Init());
         }

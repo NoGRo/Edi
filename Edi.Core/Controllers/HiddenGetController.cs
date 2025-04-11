@@ -2,22 +2,25 @@ using System.ComponentModel.DataAnnotations;
 using Microsoft.AspNetCore.Mvc;
 using Edi.Core;
 using Edi.Core.Device.Interfaces;
-using Edi.Forms;
 using Edi.Core.Gallery.Definition;
 using Edi.Core.Gallery;
 using System.IO;
 using System.Security.Cryptography;
 using System.Xml.Linq;
 
-namespace Edi.Controllers
+namespace Edi.Core.Controllers
 {
     [ApiController]
     [Route("Edi")]
     [ApiExplorerSettings(IgnoreApi = true)]
     public class HiddenEdiGetController : ControllerBase
     {
-        private readonly IEdi _edi = App.Edi;
+        private readonly IEdi _edi;
 
+        public HiddenEdiGetController(IEdi edi)
+        {
+            _edi = edi;
+        }
 
         [HttpGet("Play/{name}")]
         public async Task Play([FromRoute] string name, [FromQuery] long seek = 0)
@@ -71,7 +74,7 @@ namespace Edi.Controllers
     public class HiddenDevicesGetController : ControllerBase
     {
 
-        private readonly IEdi _edi = App.Edi;
+        private readonly IEdi _edi;
 
         [HttpGet("{deviceName}/Variant/{variantName}")]
         public async Task<IActionResult> SelectVarian([FromRoute, Required] string deviceName,

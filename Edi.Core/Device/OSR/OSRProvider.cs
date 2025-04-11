@@ -30,7 +30,7 @@ namespace Edi.Core.Device.OSR
         private int AliveCheckFails = 0;
         private int RetryCount = 0;
 
-        public OSRProvider(FunscriptRepository repository, ConfigurationManager config, DeviceManager deviceManager, ILogger logger)
+        public OSRProvider(FunscriptRepository repository, ConfigurationManager config, DeviceManager deviceManager, ILogger<OSRProvider> logger)
         {
             this.logger = logger;
             Config = config.Get<OSRConfig>();

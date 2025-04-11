@@ -19,7 +19,7 @@ namespace Edi.Core.Gallery.EStimAudio
 
     public class AudioRepository : RepositoryBase<AudioGallery>
     {
-        public AudioRepository(DefinitionRepository definitions, ILogger _logger) : base(definitions, _logger)
+        public AudioRepository(DefinitionRepository definitions, ILogger<AudioRepository> _logger) : base(definitions, _logger)
         {
 
         }

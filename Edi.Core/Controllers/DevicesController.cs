@@ -1,16 +1,22 @@
 ﻿using Edi.Core;
 using Edi.Core.Device;
 using Edi.Core.Device.Interfaces;
-using Edi.Forms;
 using Microsoft.AspNetCore.Mvc;
 using System.ComponentModel.DataAnnotations;
 
-namespace Edi.Controllers
+namespace Edi.Core.Controllers
 {
+    [ApiController]
     [Route("[controller]")]
     public class DevicesController : Controller
     {
-        private readonly IEdi _edi = App.Edi;
+
+        private readonly IEdi _edi;
+
+        public DevicesController(IEdi edi)
+        {
+            _edi = edi;
+        }
 
         [HttpGet()]
         public async Task<IEnumerable<DeviceDto>> GetDevices()

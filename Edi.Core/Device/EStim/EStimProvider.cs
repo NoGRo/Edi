@@ -13,7 +13,7 @@ namespace Edi.Core.Device.EStim
         private readonly ILogger _logger;
         private readonly List<EStimDevice> _devices = new List<EStimDevice>();
 
-        public EStimProvider(AudioRepository audioRepository, ConfigurationManager config, DeviceManager deviceManager, ILogger logger)
+        public EStimProvider(AudioRepository audioRepository, ConfigurationManager config, DeviceManager deviceManager, ILogger<EStimProvider> logger)
         {
             Config = config.Get<EStimConfig>();
             DeviceManager = deviceManager;

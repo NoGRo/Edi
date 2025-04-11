@@ -16,6 +16,7 @@ using System.Collections.ObjectModel;
 using Edi.Core.Device;
 using Serilog.Core;
 using Microsoft.Extensions.Logging;
+using Microsoft.AspNetCore.Builder;
 
 namespace Edi.Core
 {
@@ -24,27 +25,28 @@ namespace Edi.Core
     {
         public ConfigurationManager ConfigurationManager { get; set; }
         public DeviceManager DeviceManager { get; private set; }
-        private readonly DefinitionRepository _repository;
+        private DefinitionRepository _repository { get;  set; }
         private readonly IEnumerable<IRepository> repos;
+        public WebApplication Api { get; private set; }
+
         private long resumePauseAt;
         private long seekTime;
 
         public static string OutputDir => Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData) + "/Edi";
 
         public event IEdi.ChangeStatusHandler OnChangeStatus;
-
+                
 
         public ObservableCollection<IDevice> Devices => new ObservableCollection<IDevice>(DeviceManager.Devices);
-        public Edi(DeviceManager deviceManager, DefinitionRepository repository, IEnumerable<IRepository> repos, ConfigurationManager configuration, ILogger logger)
+        public Edi(DeviceManager deviceManager, IEnumerable<IRepository> repos, ConfigurationManager configuration, ILogger<Edi> logger)
         {
             if (!Directory.Exists(OutputDir))  
                 Directory.CreateDirectory(OutputDir);
                 
             DeviceManager = deviceManager;
-
             deviceManager.OnloadDevice += DeviceManager_OnloadDevice;
 
-            _repository = repository;
+            _repository = (DefinitionRepository)repos.First(x=> x is DefinitionRepository);
             this.repos = repos;
             
 
@@ -83,14 +85,17 @@ namespace Edi.Core
 
         public ILogger Logger { get; }
 
+        
+
         public async Task Init(string path)
         {
-            path = path ?? ConfigurationManager.Get<GalleryConfig>()?.GalleryPath ?? "./" ;
+            path = path ?? ConfigurationManager.Get<GalleryConfig>()?.GalleryPath ?? "./";
             foreach (var repo in repos)
             {
                 await repo.Init(path);
             }
-            
+
+            _ = Task.Run(InitDevices);
         }
         public async Task InitDevices()
         {

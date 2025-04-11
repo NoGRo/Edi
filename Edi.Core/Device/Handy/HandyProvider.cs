@@ -25,7 +25,7 @@ namespace Edi.Core.Device.Handy
         private DeviceManager deviceManager;
         private IndexRepository repository { get; }
 
-        public HandyProvider(IndexRepository repository, ConfigurationManager config, DeviceManager deviceManager, ILogger logger)
+        public HandyProvider(IndexRepository repository, ConfigurationManager config, DeviceManager deviceManager, ILogger<HandyProvider> logger)
         {
             _logger = logger;
             Config = config.Get<HandyConfig>();

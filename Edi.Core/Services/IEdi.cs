@@ -2,6 +2,7 @@
 using Edi.Core.Device.Interfaces;
 using Edi.Core.Gallery;
 using Edi.Core.Gallery.Definition;
+using Microsoft.AspNetCore.Builder;
 using Microsoft.Extensions.Logging;
 using Serilog.Core;
 using System;
@@ -11,8 +12,11 @@ namespace Edi.Core
 {
     public interface IEdi
     {
-        
+
         public Task Init(string path = null);
+
+        public WebApplication Api { get; }
+
         public Task InitDevices();
         public DeviceManager DeviceManager { get; }
         public ConfigurationManager ConfigurationManager { get; }

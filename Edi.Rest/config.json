@@ -1,14 +1,4 @@
 {
-  "Gallery": {
-    "GalleryPath": "D:\\Juegos\\Agent_mirai-v3\\Gallery",
-    "GenerateDefinitionFromChapters": false,
-    "GenerateChaptersFromDefinition": false
-  },
-  "GalleryBundler": {
-    "MinRepeatDuration": 6000,
-    "RepeatDuration": 3000,
-    "SpacerDuration": 3000
-  },
   "Edi": {
     "Filler": true,
     "Gallery": true,
@@ -18,17 +8,32 @@
     "UseLogs": false
   },
   "Devices": {
-    "Devices": {
-      "Preview Device": {
-        "Variant": "vibro-anal",
-        "Min": 0,
-        "Max": 100
-      }
-    }
+    "Devices": {}
+  },
+  "Gallery": {
+    "GalleryPath": null,
+    "GenerateDefinitionFromChapters": true,
+    "GenerateChaptersFromDefinition": false
+  },
+  "GalleryBundler": {
+    "MinRepeatDuration": 7000,
+    "RepeatDuration": 2000,
+    "SpacerDuration": 5000
+  },
+  "Handy": {
+    "Key": null
+  },
+  "Buttplug": {
+    "Url": "ws://localhost:12345",
+    "MinCommandDelay": 60,
+    "MotorInercialDelay": 50
+  },
+  "EStim": {
+    "DeviceId": -1
   },
   "OSR": {
-    "COMPort": "COM3",
-    "EnableMultiAxis": true,
+    "COMPort": null,
+    "EnableMultiAxis": false,
     "UpdateRate": 200,
     "RangeLimits": {
       "Linear": {
@@ -56,16 +61,5 @@
         "UpperLimit": 100
       }
     }
-  },
-  "Buttplug": {
-    "Url": "ws://localhost:12345",
-    "MinCommandDelay": 60,
-    "VibratorInercialDelay": 80
-  },
-  "Handy": {
-    "Key": ""
-  },
-  "EStim": {
-    "DeviceId": -1
   }
 }

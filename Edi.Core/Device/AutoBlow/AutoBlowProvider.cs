@@ -29,7 +29,7 @@ namespace Edi.Core.Device.AutoBlow
         private DeviceManager deviceManager;
         private IndexRepository repository { get; set; }
 
-        public AutoBlowProvider(IndexRepository repository, ConfigurationManager config, DeviceManager deviceManager, ILogger logger)
+        public AutoBlowProvider(IndexRepository repository, ConfigurationManager config, DeviceManager deviceManager, ILogger<AutoBlowProvider> logger)
         {
             _logger = logger;
             this.Config = config.Get<HandyConfig>();

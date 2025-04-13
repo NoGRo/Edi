@@ -51,9 +51,6 @@ namespace Edi.Core.Device.Simulator
         // Valor actual del progress bar (0-100)
         public double ProgressValue { get; set; }
 
-        // Última posición calculada
-        private double lastPosition;
-
         private const int REFRESH_RATE_MS = 16; // ~60 FPS (1000ms / 60 ≈ 16.67ms)
 
         public SimulatorDevice(FunscriptRepository repository, ILogger logger)
@@ -120,6 +117,7 @@ namespace Edi.Core.Device.Simulator
 
             // Interpolar entre la posición anterior y la actual
             double targetPosition = CurrentCmd.Value;
+            var lastPosition = CurrentCmd.InitialValue;
             double interpolatedPosition = lastPosition + (targetPosition - lastPosition) * progress;
 
             // Actualizar el valor del progress bar (0-100)
@@ -127,7 +125,6 @@ namespace Edi.Core.Device.Simulator
             ProgressValue = Math.Clamp(ProgressValue, Min, Max);
 
             lastUpdateAt = DateTime.Now;
-            lastPosition = interpolatedPosition;
         }
 
         public override async Task StopGallery()

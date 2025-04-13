@@ -224,10 +224,12 @@ namespace Edi.Core.Device.OSR
                 Thread.Sleep(100);
             }
             var name = DevicePort.ReadExisting();
-            if (name.Count(c => c == '\n') > 1)
+            var lineSplit = name.Split('\n').Where(x => !string.IsNullOrEmpty(x.Trim()));
+
+            if (lineSplit.Count() != 1)
                 throw new Exception("Fail get valid Name response");
-            
-            return name.Replace("\r\n", "");
+
+            return lineSplit.First();
         }
 
          public async Task ReturnToHome()

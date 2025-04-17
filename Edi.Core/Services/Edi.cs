@@ -85,6 +85,8 @@ namespace Edi.Core
 
         public ILogger Logger { get; }
 
+        
+
         public async Task Init(string path)
         {
             path = path ?? ConfigurationManager.Get<GalleryConfig>()?.GalleryPath ?? "./";

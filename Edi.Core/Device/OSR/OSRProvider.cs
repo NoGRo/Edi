@@ -1,17 +1,7 @@
-﻿using Buttplug.Client;
-using Buttplug.Core;
-using Buttplug.Core.Messages;
-using Edi.Core.Device.Interfaces;
-using Edi.Core.Gallery;
+﻿using Edi.Core.Device.Interfaces;
+using Edi.Core.Device.OSR.Connection;
 using Edi.Core.Gallery.Funscript;
 using Microsoft.Extensions.Logging;
-using System;
-using System.Collections.Generic;
-using System.IO.Ports;
-using System.Linq;
-using System.Text;
-using System.Threading;
-using System.Threading.Tasks;
 using System.Timers;
 using Timer = System.Timers.Timer;
 
@@ -29,6 +19,7 @@ namespace Edi.Core.Device.OSR
         private readonly Timer TimerPing = new(5000);
         private int AliveCheckFails = 0;
         private int RetryCount = 0;
+        private IOSRConnection Connection;
 
         public OSRProvider(FunscriptRepository repository, ConfigurationManager config, DeviceManager deviceManager, ILogger<OSRProvider> logger)
         {
@@ -43,6 +34,22 @@ namespace Edi.Core.Device.OSR
 
         public async Task Init()
         {
+            if (Connection != null)
+            {
+                Connection.Disconnect();
+            }
+
+            if (Config.COMPort != null)
+                Connection = new SerialConnection(Config.COMPort, logger);
+            else if (Config.UdpAddress != null)
+            {
+                var splitAddress = Config.UdpAddress.Split(':');
+                Connection = new UdpConnection(splitAddress[0].Trim(), int.Parse(splitAddress[1]), logger);
+            } else
+            {
+                Connection = null;
+            }
+
             TimerPing.Start();
             await Connect();
         }
@@ -56,48 +63,17 @@ namespace Edi.Core.Device.OSR
         {
             TimerPing.Stop();   
             await UnloadDevice();
-            if (Config.COMPort == null)
+            if (Connection == null)
             {
                 return;
             }
 
-            var port = new SerialPort(Config.COMPort, 115200, Parity.None, 8, StopBits.One);
-
             try
             {
-                port.ReadTimeout = 1000;
-                port.WriteTimeout = 1000;
-
-                //for romeo hardware
-                port.RtsEnable = (RetryCount == 3);
-                if (RetryCount == 3) 
-                    RetryCount = 0;
-
-                port.Open();
-
-                var readWaits = 0;
-                var maxWait = 10;  // 1s wait any random message
-                var initText = "";
-                while (readWaits < maxWait)
-                {
-                    if (port.BytesToRead > 0)
-                    {
-                        initText+= port.ReadExisting();
-                        readWaits = 0;
-                        maxWait = 20; // 2s Ensure read wait all Start-Up sequence 
-                        if (initText.Contains("System is Ready!\r\n")) // detect Start-Up sequence End 
-                            break;
-                    }
-                    Thread.Sleep(100);
-                    readWaits++;
-                }
-                logger.LogInformation(initText);
-                Thread.Sleep(100);
-                port.DiscardInBuffer(); 
-                Device = new(port, Repository, Config, logger);
+                Connection.Connect();
+                Device = new(Connection, Repository, Config, logger);
                 
                 _ = Device.ReturnToHome();
-                logger.LogInformation($"TCode device initialized on port {Config.COMPort}");
 
                 AliveCheckFails = 0;
                 DeviceManager.LoadDevice(Device);
@@ -106,10 +82,9 @@ namespace Edi.Core.Device.OSR
             {
                 OnStatusChange("Error");
                 logger.LogError(e, $"Error while attempting to connect TCode device: {e.Message}");
-                RetryCount++;
-                if (port.IsOpen)
+                if (Connection.IsReady)
                 {
-                    port.Close();
+                    Connection.Disconnect();
                     Device = null; 
                 }
             }
@@ -142,8 +117,7 @@ namespace Edi.Core.Device.OSR
             if (Device != null)
             {
                 await Device.Stop();
-                if (Device.DevicePort.IsOpen)
-                    Device.DevicePort.Close();
+                Connection.Disconnect();
                 await DeviceManager.UnloadDevice(Device);
                 logger.LogInformation("Unloaded TCode device");
             }

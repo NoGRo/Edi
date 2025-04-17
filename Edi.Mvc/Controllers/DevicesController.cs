@@ -4,7 +4,11 @@ using Edi.Core.Device.Interfaces;
 using Microsoft.AspNetCore.Mvc;
 using System.ComponentModel.DataAnnotations;
 
+<<<<<<<< HEAD:Edi.Mvc/Controllers/DevicesController.cs
 namespace Edi.Rest.Controllers
+========
+namespace Edi.Core.Controllers
+>>>>>>>> master:Edi.Core/Controllers/DevicesController.cs
 {
     [ApiController]
     [Route("[controller]")]

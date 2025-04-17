@@ -8,11 +8,7 @@ using System.IO;
 using System.Security.Cryptography;
 using Microsoft.AspNetCore.Http;
 
-<<<<<<<< HEAD:Edi.Mvc/Controllers/EdiController.cs
-namespace Edi.Rest.Controllers
-========
 namespace Edi.Core.Controllers
->>>>>>>> master:Edi.Core/Controllers/EdiController.cs
 {
     [ApiController]
     [Route("[controller]")]

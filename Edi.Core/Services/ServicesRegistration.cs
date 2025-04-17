@@ -29,8 +29,7 @@ namespace Edi.Core
 
             services.AddSingleton<ConfigurationManager>(x=> new(configPath));
 
-            services.AddSingleton<DefinitionRepository>();
-            services.AddSingleton<FunscriptRepository>();
+            services.AddSingleton<DefinitionRepository>(); ;
             services.AddSingleton<FunscriptRepository>();
             services.AddSingleton<IndexRepository>();
             services.AddSingleton<AudioRepository>();
@@ -42,13 +41,14 @@ namespace Edi.Core
 
 
 
+
             services.AddSingleton<GalleryBundler>();
 
             // Registrar Device Manager y Providers
             services.AddSingleton<DeviceManager>();
             services.AddSingleton<IDeviceProvider, ButtplugProvider>();
             services.AddSingleton<IDeviceProvider, AutoBlowProvider>();
-            services.AddSingleton<IDeviceProvider, HandyProvider>();
+            services.AddHandy();
             services.AddSingleton<IDeviceProvider, OSRProvider>();
             services.AddSingleton<IDeviceProvider, EStimProvider>();
             // Integra Serilog con el sistema de logging de Microsoft.Extensions.Logging

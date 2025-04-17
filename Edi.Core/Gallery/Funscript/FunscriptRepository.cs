@@ -24,6 +24,7 @@ namespace Edi.Core.Gallery.Funscript
         {
             _logger = logger;
             _logger.LogInformation("FunscriptRepository initialized.");
+            //Init(null).GetAwaiter().GetResult();
         }
 
         public override IEnumerable<string> Accept => new[] { "funscript" };

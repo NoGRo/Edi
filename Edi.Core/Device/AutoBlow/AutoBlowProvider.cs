@@ -15,6 +15,7 @@ using System.Timers;
 using Edi.Core.Device.Handy;
 using Microsoft.Extensions.Logging;
 using Timer = System.Timers.Timer;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace Edi.Core.Device.AutoBlow
 {
@@ -26,14 +27,16 @@ namespace Edi.Core.Device.AutoBlow
         public HandyConfig Config { get; set; }
         private List<string> Keys = new List<string>();
         private Dictionary<string, AutoBlowDevice> devices = new Dictionary<string, AutoBlowDevice>();
+        private readonly IServiceProvider serviceProvider;
         private DeviceManager deviceManager;
-        private IndexRepository repository { get; set; }
+        private IndexRepository _repository;
+        private IndexRepository repository => _repository ??= serviceProvider.GetRequiredService<IndexRepository>();
 
-        public AutoBlowProvider(IndexRepository repository, ConfigurationManager config, DeviceManager deviceManager, ILogger<AutoBlowProvider> logger)
+        public AutoBlowProvider(IServiceProvider serviceProvider, ConfigurationManager config, DeviceManager deviceManager, ILogger<AutoBlowProvider> logger)
         {
             _logger = logger;
             this.Config = config.Get<HandyConfig>();
-            this.repository = repository;
+            this.serviceProvider = serviceProvider;
             this.deviceManager = deviceManager;
 
             timerReconnect.Elapsed += TimerReconnect_Elapsed;
@@ -117,6 +120,8 @@ namespace Edi.Core.Device.AutoBlow
             resp = await Client.GetAsync("state");
 
             var status = JsonConvert.DeserializeObject<Status>(await resp.Content.ReadAsStringAsync());
+
+
             var device = new AutoBlowDevice(Client, repository,_logger);
 
             lock (devices)

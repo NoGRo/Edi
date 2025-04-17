@@ -1,0 +1,172 @@
+﻿@page
+@model             IndexModel
+@{
+}
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Video Player Page</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Página de Video</title>
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+    <style>
+        /* Estilos personalizados para ajustar el tamaño y espaciado de los botones */
+        .control-buttons .btn,
+        .control-buttons .form-check {
+            padding: 5px 10px;
+            margin: 0 0px; /* Reduce el espacio entre los botones */
+        }
+    </style>
+</head>
+<body>
+
+    <script src="https://code.jquery.com/jquery-3.5.1.min.js"></script>
+
+    <!-- Include jQuery UI after jQuery -->
+    <script src="https://code.jquery.com/ui/1.12.1/jquery-ui.js"></script>
+
+    <!-- Include Bootstrap JS if needed -->
+    <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
+
+    <div class="container text-center">
+        @Html.Partial("DeviceGridPartial")
+        <div class="mt-3">
+            <select id="videoSelect" class="form-control w-100 mx-auto"></select>
+        </div>
+        <div class="mt-3">
+            <div class="row justify-content-center control-buttons">
+                <div class="col-auto">
+                    <button id="pauseStop" class="btn btn-danger">Pause Stop</button>
+                </div>
+                <div class="col-auto">
+                    <button id="fullScreenPlay" class="btn btn-success">Full Screen Play</button>
+                </div>
+                <div class="col-auto">
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" id="autoplayCheck">
+                        <label class="form-check-label" for="autoplayCheck">Autoplay</label>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="mt-3">
+            <video id="videoPlayer" width="100%" preload="auto" controls></video>
+        </div>
+    </div>
+
+    <script>
+        $(document).ready(function () {
+            let autoplayEnabled = false;
+
+            // Cargar nombres de videos desde el endpoint
+            $.getJSON('./Edi/Definitions', function (data) {
+                let select = $('#videoSelect');
+                data.forEach(function (item) {
+                    select.append(new Option(item.name, item.name));
+                });
+                // Cargar el primer video
+                updateVideoSource(select.val());
+            });
+
+            // Actualizar la fuente del video cuando cambia el select
+            $('#videoSelect').change(function () {
+                updateVideoSource($(this).val());
+            });
+
+            function updateVideoSource(name) {
+                let videoSrc = `./edi/assets/${name}.mp4`;
+                $('#videoPlayer').attr('src', videoSrc);
+            }
+
+            // Botón Full Screen Play
+            $('#fullScreenPlay').click(function () {
+                let videoPlayer = $('#videoPlayer')[0];
+
+                // Iniciar reproducción antes de solicitar pantalla completa
+                videoPlayer.play().then(() => {
+                    if (videoPlayer.requestFullscreen) {
+                        videoPlayer.requestFullscreen();
+                    } else if (videoPlayer.mozRequestFullScreen) { // Firefox
+                        videoPlayer.mozRequestFullScreen();
+                    } else if (videoPlayer.webkitRequestFullscreen) { // Chrome, Safari y Opera
+                        videoPlayer.webkitRequestFullscreen();
+                    } else if (videoPlayer.msRequestFullscreen) { // IE/Edge
+                        videoPlayer.msRequestFullscreen();
+                    }
+                }).catch((error) => {
+                    console.error("Error al reproducir el video:", error);
+                });
+            });
+
+            // Pausar el video al salir de pantalla completa
+            function handleFullScreenChange() {
+                let videoPlayer = $('#videoPlayer')[0];
+                if (!document.fullscreenElement && !document.mozFullScreenElement && !document.webkitFullscreenElement) {
+                    videoPlayer.pause(); // Pausar al salir de pantalla completa
+                }
+            }
+
+            // Añadir listeners para cambios en pantalla completa
+            document.addEventListener("fullscreenchange", handleFullScreenChange);
+            document.addEventListener("mozfullscreenchange", handleFullScreenChange);
+            document.addEventListener("webkitfullscreenchange", handleFullScreenChange);
+            document.addEventListener("msfullscreenchange", handleFullScreenChange);
+
+            // Botón Pause Stop
+            $('#pauseStop').click(function () {
+                let videoPlayer = $('#videoPlayer')[0];
+                videoPlayer.pause();
+                videoPlayer.currentTime = 0; // Reiniciar al inicio
+            });
+
+            // Checkbox Autoplay
+            $('#autoplayCheck').change(function () {
+                autoplayEnabled = $(this).is(':checked');
+            });
+
+            // Manejar evento de finalización del video para autoplay
+            $('#videoPlayer').on('ended', function () {
+                if (autoplayEnabled) {
+                    let nextOption = $('#videoSelect option:selected').next();
+                    if (nextOption.length > 0) {
+                        $('#videoSelect').val(nextOption.val()).change(); // Cambiar al siguiente video
+                        $('#videoPlayer')[0].play(); // Iniciar reproducción del siguiente video
+                    }
+                }
+            });
+
+            // Manejar eventos del video
+            $('#videoPlayer').on('playing', function () {
+                let currentTime = Math.round(this.currentTime * 1000); // convertir a milisegundos
+                let name = $('#videoSelect').val();
+                let endpoint = `./Edi/Play/${name}?seek=${currentTime}`;
+
+                $.post(endpoint);
+            });
+
+            setInterval(() => {
+                let videoPlayer = $('#videoPlayer')[0];
+                if (videoPlayer.paused) {
+                    return;
+                }
+
+                let currentTime = Math.round(videoPlayer.currentTime * 1000); // convertir a milisegundos
+                let name = $('#videoSelect').val();
+                let endpoint = `./Edi/Play/${name}?seek=${currentTime}`;
+
+                $.post(endpoint);
+            }, 40000); // enviar cada 40 segundos
+
+            // Manejar evento de pausa del video
+            $('#videoPlayer').on('pause', function () {
+                let currentTime = Math.round(this.currentTime * 1000); // convertir a milisegundos
+                let name = $('#videoSelect').val();
+                let endpoint = `./Edi/Stop`;
+                $.post(endpoint);
+            });
+
+        });
+    </script>
+</body>
+</html>

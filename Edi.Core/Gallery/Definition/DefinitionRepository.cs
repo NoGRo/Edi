@@ -15,7 +15,8 @@ namespace Edi.Core.Gallery.Definition
 
         public DefinitionRepository(ConfigurationManager configuration)
         {
-            Config = configuration.Get<GalleryConfig>(); 
+            Config = configuration.Get<GalleryConfig>();
+            //Init(null).GetAwaiter().GetResult();
         }
         private List<string> Variants { get; set; } = new List<string>();
         public GalleryConfig Config { get; set; }

@@ -54,7 +54,7 @@ namespace Edi.Core.Controllers
                                                      [FromRoute, Range(0, 100)] int min,
                                                      [FromRoute, Range(0, 100)] int max)
         {
-            var device = _edi.Devices.FirstOrDefault(x => x.Name == deviceName);
+            var device = _edi.Devices.  FirstOrDefault(x => x.Name == deviceName);
 
             if (device == null)
                 return NotFound("Device not found");

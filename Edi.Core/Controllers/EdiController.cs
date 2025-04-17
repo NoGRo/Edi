@@ -60,10 +60,6 @@ namespace Edi.Core.Controllers
             await _edi.Intensity(max);
         }
 
-
-
-
-
         [HttpGet("Definitions")]
         public async Task<IEnumerable<DefinitionGallery>> GetDefinitions()
             => _edi.Definitions.ToArray();

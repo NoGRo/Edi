@@ -85,8 +85,6 @@ namespace Edi.Core
 
         public ILogger Logger { get; }
 
-        
-
         public async Task Init(string path)
         {
             path = path ?? ConfigurationManager.Get<GalleryConfig>()?.GalleryPath ?? "./";
@@ -130,22 +128,22 @@ namespace Edi.Core
             switch (gallery.Type)
             {
                 case "filler":
-                    if (Config.Filler)
-                    {
-                        await SetFiller(gallery);
-                    }
+                    if (!Config.Filler)
+                        break;
+                    
+                    await SetFiller(gallery);
                     break;
                 case "gallery":
-                    if (Config.Gallery)
-                    {
-                        await SendGallery(gallery, seek);
-                    }
+                    if (!Config.Gallery)
+                        break;
+                    
+                    await SendGallery(gallery, seek);
                     break;
                 case "reaction":
-                    if (Config.Reactive)
-                    {
-                        await PlayReaction(gallery);
-                    }
+                    if (!Config.Reactive)
+                        break;
+
+                    await PlayReaction(gallery);
                     break;
                 default:
                     break;

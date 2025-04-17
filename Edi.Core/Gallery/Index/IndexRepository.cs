@@ -24,14 +24,15 @@ namespace Edi.Core.Gallery.Index
             Bundler = bundler;
             this.funRepo = Cmdlineals;
             DefinitionRepository = definitionRepository;
+            //Init(Config.GalleryPath).GetAwaiter().GetResult();
         }
         public IEnumerable<string> Accept => new[] { "BundleDefinition*.txt" };
         private Dictionary<string, Dictionary<string, List<IndexGallery>>> Galleries { get; set; } = new Dictionary<string, Dictionary<string, List<IndexGallery>>>(StringComparer.OrdinalIgnoreCase);
 
         public GalleryConfig Config { get; set; }
         private GalleryBundler Bundler { get; set; }
-        public FunscriptRepository funRepo { get; }
-        public DefinitionRepository DefinitionRepository { get; }
+        private FunscriptRepository funRepo { get; }
+        private DefinitionRepository DefinitionRepository { get; }
 
         public bool IsInitialized {set; get; }  
 
@@ -129,8 +130,6 @@ namespace Edi.Core.Gallery.Index
             bundles.Add(bundlesDefault);
 
             return bundles;
-
-
         }
 
         private static List<BundleDefinition> ReadBundleConfig(string definitionPath)
@@ -177,13 +176,8 @@ namespace Edi.Core.Gallery.Index
             => Get(name, variant, "default");
         public IndexGallery? Get(string name, string variant, string bundle)
         {
-            //TODO: asset ovverride order priority similar minecraft texture packt 
-            
             var galls = Galleries.GetValueOrDefault(variant)?.GetValueOrDefault(name);
-
             return galls?.Find(x => x.Bundle == bundle) ?? galls?.FirstOrDefault();
-
-
         }
 
 

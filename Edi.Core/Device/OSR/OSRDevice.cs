@@ -1,4 +1,5 @@
 ﻿using Edi.Core.Device.Interfaces;
+using Edi.Core.Device.OSR.Connection;
 using Edi.Core.Gallery.Funscript;
 using Microsoft.Extensions.Logging;
 using PropertyChanged;
@@ -9,7 +10,7 @@ namespace Edi.Core.Device.OSR
     [AddINotifyPropertyChangedInterface]
     public class OSRDevice : IDevice, IRange
     {
-        public SerialPort DevicePort { get; private set; }
+        private IOSRConnection Connection { get; set; }
         public string Name { get; set; }
         public OSRConfig Config { get; private set; }
         public string SelectedVariant
@@ -25,7 +26,7 @@ namespace Edi.Core.Device.OSR
         }
         public IEnumerable<string> Variants => repository.GetVariants();
         public bool IsPause { get; private set; } = true;
-        public bool IsReady => DevicePort?.IsOpen == true;
+        public bool IsReady => Connection.IsReady == true;
 
         internal OSRPosition? LastPosition { get; private set; }
 
@@ -65,11 +66,11 @@ namespace Edi.Core.Device.OSR
         private Timer positionUpdateTimer;
         private int updateMs;
 
-        public OSRDevice(SerialPort devicePort, FunscriptRepository repository, OSRConfig config, ILogger logger)
+        public OSRDevice(IOSRConnection connection, FunscriptRepository repository, OSRConfig config, ILogger logger)
         {
             this.logger = logger;
-            DevicePort = devicePort;
-            Name = GetDeviceName();
+            Connection = connection;
+            Name = Connection.GetDeviceName();
 
             Config = config;
             this.repository = repository;
@@ -178,58 +179,13 @@ namespace Edi.Core.Device.OSR
         {
             try
             {
-                return ValidateTCode();
+                return Connection.ValidateTCode();
 
             } catch (Exception e) {
                 logger.LogError(e, $"Error during liveness check for device '{Name}'");
             }
 
             return false;
-        }
-
-        private bool ValidateTCode()
-        {
-            if (!DevicePort.IsOpen)
-                return false;
-
-            DevicePort.DiscardInBuffer();
-
-            DevicePort.Write("d1\n");
-            var tryCount = 0;
-
-            while (DevicePort.BytesToRead == 0)
-            {
-                if (tryCount++ >= 5)
-                    throw new Exception("Timeout waiting for TCode response");
-                Thread.Sleep(100);
-            }
-            var protocol = DevicePort.ReadExisting();
-
-            return (protocol.Contains("tcode", StringComparison.OrdinalIgnoreCase));
-        }
-
-        private string GetDeviceName()
-        {
-            if (!DevicePort.IsOpen)
-                return string.Empty;
-
-            DevicePort.DiscardInBuffer();
-            DevicePort.Write("d0\n");
-            var tryCount = 0;
-
-            while (DevicePort.BytesToRead == 0)
-            {
-                if (tryCount++ >= 5)
-                    throw new Exception("Timeout waiting for TCode Name response");
-                Thread.Sleep(100);
-            }
-            var name = DevicePort.ReadExisting();
-            var lineSplit = name.Split('\n').Where(x => !string.IsNullOrEmpty(x.Trim()));
-
-            if (lineSplit.Count() != 1)
-                throw new Exception("Fail get valid Name response");
-
-            return lineSplit.First();
         }
 
          public async Task ReturnToHome()
@@ -252,7 +208,7 @@ namespace Edi.Core.Device.OSR
 
         private void SendPos(OSRPosition pos)
         {
-            if (DevicePort == null)
+            if (Connection == null)
                 return;
 
             if (LastPosition != null)
@@ -266,7 +222,7 @@ namespace Edi.Core.Device.OSR
             {
                 try
                 {
-                    DevicePort.WriteLine(tCode);
+                    Connection.WriteLine(tCode);
                     LastPosition = pos;
                 } catch (Exception) { 
                     playbackCancellationTokenSource.Cancel();

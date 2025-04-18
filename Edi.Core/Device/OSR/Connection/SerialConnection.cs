@@ -85,13 +85,15 @@ namespace Edi.Core.Device.OSR.Connection
                     throw new Exception("Timeout waiting for TCode Name response");
                 Thread.Sleep(100);
             }
-            var name = SerialPort.ReadExisting();
-            var lineSplit = name.Split('\n').Where(x => !string.IsNullOrEmpty(x.Trim()));
+            var response = SerialPort.ReadExisting();
+            var name = response.Split('\n')
+                                .Select(x => x.Trim())
+                                .FirstOrDefault(x => !string.IsNullOrEmpty(x));
 
-            if (lineSplit.Count() != 1)
+            if (name == null)
                 throw new Exception("Fail get valid Name response");
 
-            return lineSplit.First();
+            return name;
         }
 
         public bool ValidateTCode()

@@ -22,7 +22,7 @@ using System.Threading.Tasks;
 
 namespace Edi.Core
 {
-    public static class ServicesRegistration
+    public static class EdiRegistration 
     {
         public static void AddEdi(this IServiceCollection services, string configPath)
         {

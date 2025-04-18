@@ -11,7 +11,7 @@ using Edi.Core;
 using Edi.Core.Device.Interfaces;
 
 
-namespace Edi.Consol.Commands
+namespace Edi.Consola.Commands
 {
     public static class EdiCommand
     {

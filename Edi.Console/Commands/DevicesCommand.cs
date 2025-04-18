@@ -9,7 +9,7 @@ using Edi.Core;
 using Edi.Core.Device.Interfaces;
 using Edi.Core.Device;
 
-namespace Edi.Consol.Commands
+namespace Edi.Consola.Commands
 {
 
     public static class DevicesCommand

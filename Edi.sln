@@ -9,7 +9,7 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Edi.Wpf", "Edi.Wpf\Edi.Wpf.
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Edi.Rest", "Edi.Mvc\Edi.Rest.csproj", "{3CC97B9C-89BA-492D-A98B-45C01AE40869}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Edi.Consol", "Edi.Console\Edi.Consol.csproj", "{7610E0B8-378E-4DD9-9B30-7AE3951857B2}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Edi.Consola", "Edi.Console\Edi.Consola.csproj", "{7610E0B8-378E-4DD9-9B30-7AE3951857B2}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution

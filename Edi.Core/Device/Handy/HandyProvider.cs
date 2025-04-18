@@ -142,10 +142,7 @@ namespace Edi.Core.Device.Handy
 
         private async Task Remove(string key)
         {
-            if (_clients.TryRemove(key, out var client))
-            {
-                // No hacemos Dispose(): IHttpClientFactory gestiona el pool de sockets
-            }
+            _clients.TryRemove(key, out var client);
 
             if (devices.TryGetValue(key, out var device))
             {

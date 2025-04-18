@@ -2,7 +2,7 @@
 using Microsoft.Extensions.Hosting;
 using System.CommandLine;
 using Edi.Core.Device.Interfaces;
-using Edi.Consol.Commands;
+using Edi.Consola.Commands;
 using Edi.Core;
 
 // Configuración de DI

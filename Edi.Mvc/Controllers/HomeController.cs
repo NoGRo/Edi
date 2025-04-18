@@ -2,7 +2,7 @@ using Edi.Rest.Models;
 using Microsoft.AspNetCore.Mvc;
 using System.Diagnostics;
 
-namespace Edi.Rest.Controllers
+namespace Edi.Mvc.Controllers
 {
     public class HomeController : Controller
     {

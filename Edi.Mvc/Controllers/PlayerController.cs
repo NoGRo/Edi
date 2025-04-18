@@ -1,6 +1,6 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 
-namespace Edi.Rest.Controllers
+namespace Edi.Mvc.Controllers
 {
     public class PlayerController : Controller
     {

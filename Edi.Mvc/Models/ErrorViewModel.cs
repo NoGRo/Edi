@@ -1,4 +1,4 @@
-namespace Edi.Rest.Models
+namespace Edi.Mvc.Models
 {
     public class ErrorViewModel
     {

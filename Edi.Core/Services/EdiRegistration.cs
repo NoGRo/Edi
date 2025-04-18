@@ -38,10 +38,6 @@ namespace Edi.Core
             services.AddSingleton<IRepository>(sp => sp.GetRequiredService<IndexRepository>());
             services.AddSingleton<IRepository>(sp => sp.GetRequiredService<AudioRepository>());
 
-
-
-
-
             services.AddSingleton<GalleryBundler>();
 
             // Registrar Device Manager y Providers
@@ -57,6 +53,5 @@ namespace Edi.Core
 
             services.AddHostedService<EdiHostedService>();
         }
-             
     }
 }

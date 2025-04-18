@@ -1,6 +1,6 @@
 {
   "Gallery": {
-    "GalleryPath": "D:\\Programacion\\Mage Kanade’s Futanari Dungeon Quest\\BepInEx\\plugins\\Gallery",
+    "GalleryPath": "D:\\Juegos\\STEP3_V1.3\\Gallery",
     "GenerateDefinitionFromChapters": false,
     "GenerateChaptersFromDefinition": false
   },
@@ -25,6 +25,11 @@
         "Max": 100
       },
       "FUNOSR-SSR1-V2.0": {
+        "Variant": "detailed",
+        "Min": 0,
+        "Max": 100
+      },
+      "FUNOSR-SSR1-V2.0\r": {
         "Variant": "detailed",
         "Min": 0,
         "Max": 100

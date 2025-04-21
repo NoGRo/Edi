@@ -12,10 +12,12 @@ namespace Edi.Core.Device.Interfaces
     {
 
         string SelectedVariant { get; set; }
-        public string ResolveDefaultVariant();
+        string Channel { get; set; }
+
+        public string DefaultVariant();
 
         IEnumerable<string> Variants { get; }
-        
+
         string Name { get; set; }
         public bool IsReady { get; }
         public Task PlayGallery(string name, long seek = 0);

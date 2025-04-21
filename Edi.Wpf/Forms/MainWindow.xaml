@@ -55,8 +55,7 @@
         <Button Content="Reconnect" HorizontalAlignment="Left" Margin="222,142,0,0" VerticalAlignment="Top" x:Name="ReconnectButton" Click="ReconnectButton_ClickAsync" Height="22" Width="72" RenderTransformOrigin="5.083,-1.983"/>
         <Button Content="Reload Galleries" HorizontalAlignment="Left" Margin="10,142,0,0" VerticalAlignment="Top" x:Name="ReloadButton"  Height="22" Width="103" Click="ReloadButton_Click"/>
 
-        <Button Visibility="Hidden" Content="RePackButton" HorizontalAlignment="Left" Margin="10,125,0,0" VerticalAlignment="Top" x:Name="RePackButton"  Height="22" Width="103" Click="RePackButton_Click"/>
-
+        
         <Label Content="Intensity:" HorizontalAlignment="Left" Margin="4,0,0,81" VerticalAlignment="Bottom"/>
         <Slider  x:Name="sliderIntensity" HorizontalAlignment="Left" Margin="62,0,0,83" VerticalAlignment="Bottom" Value="100" Maximum="100" Width="90"  ValueChanged="Slider_ValueChanged"/>
 

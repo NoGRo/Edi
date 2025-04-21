@@ -6,8 +6,8 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using Edi.Core;
-using Edi.Core.Device.Interfaces;
 using Edi.Core.Device;
+using Edi.Core.Device.Interfaces;
 
 namespace Edi.Consola.Commands
 {
@@ -60,7 +60,7 @@ namespace Edi.Consola.Commands
                 {
                     Console.WriteLine("❌ Device or variant not found"); return;
                 }
-                await edi.DeviceManager.SelectVariant(d, variant);
+                await edi.DeviceConfiguration.SelectVariant(d, variant);
                 Console.WriteLine($"✅ Variant '{variant}' set on '{device}'");
             });
             cmd.AddCommand(variantCmd);
@@ -81,7 +81,7 @@ namespace Edi.Consola.Commands
                 {
                     Console.WriteLine("❌ Range must be between 0 and 100, and min ≤ max"); return;
                 }
-                await edi.DeviceManager.SelectRange(d, min, max);
+                await edi.DeviceConfiguration.SelectRange(d, min, max);
                 Console.WriteLine($"✅ Range {min}-{max} set on '{device}'");
             });
             cmd.AddCommand(rangeCmd);

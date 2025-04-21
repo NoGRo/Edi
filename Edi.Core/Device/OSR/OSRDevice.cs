@@ -12,6 +12,7 @@ namespace Edi.Core.Device.OSR
     {
         private IOSRConnection Connection { get; set; }
         public string Name { get; set; }
+        public string Channel { get; set; }
         public OSRConfig Config { get; private set; }
         public string SelectedVariant
         {
@@ -20,8 +21,6 @@ namespace Edi.Core.Device.OSR
             {
                 selectedVariant = value;
                 logger.LogInformation($"Setting variant on device '{Name}' with SelectedVariant: {SelectedVariant}.");
-                if (currentGallery != null && playbackScript != null && !IsPause)
-                    PlayGallery(currentGallery.Name, playbackScript.CurrentTime).GetAwaiter();
             }
         }
         public IEnumerable<string> Variants => repository.GetVariants();
@@ -50,17 +49,23 @@ namespace Edi.Core.Device.OSR
         private int targetMin = 0;
         private int targetMax = 100;
 
-        public int Min { get => targetMin; set {
+        public int Min
+        {
+            get => targetMin; set
+            {
                 targetMin = value;
                 logger.LogInformation($"Applying range for device: {Name}, Min: {Min}");
                 _ = ApplyRange();
             }
         }
-        public int Max { get => targetMax; set { 
+        public int Max
+        {
+            get => targetMax; set
+            {
                 targetMax = value;
                 logger.LogInformation($"Applying range for device: {Name}, Max: {Max}");
                 _ = ApplyRange();
-            } 
+            }
         }
 
         private Timer positionUpdateTimer;
@@ -83,7 +88,7 @@ namespace Edi.Core.Device.OSR
 
         public async Task PlayGallery(string name, long seek = 0)
         {
-            logger.LogInformation($"Starting gallery '{name}' on device: {this.Name} with seek: {seek}");
+            logger.LogInformation($"Starting gallery '{name}' on device: {Name} with seek: {seek}");
             var gallery = repository.Get(name, SelectedVariant);
             if (gallery == null)
                 return;
@@ -154,7 +159,7 @@ namespace Edi.Core.Device.OSR
 
                         if (adjustment > 0)
                         {
-                            var easeAmount = Math.Sin(((rampUpDuration - adjustment) / rampUpDuration * Math.PI) / 2);
+                            var easeAmount = Math.Sin((rampUpDuration - adjustment) / rampUpDuration * Math.PI / 2);
                             adjustment = (1 - easeAmount) * 1000;
                             pos.DeltaMillis += (int)adjustment;
                         }
@@ -168,8 +173,9 @@ namespace Edi.Core.Device.OSR
                     SendPos(pos);
                 }
 
-                
-            } finally
+
+            }
+            finally
             {
                 Monitor.Exit(positionUpdateTimer);
             }
@@ -181,14 +187,16 @@ namespace Edi.Core.Device.OSR
             {
                 return Connection.ValidateTCode();
 
-            } catch (Exception e) {
+            }
+            catch (Exception e)
+            {
                 logger.LogError(e, $"Error during liveness check for device '{Name}'");
             }
 
             return false;
         }
 
-         public async Task ReturnToHome()
+        public async Task ReturnToHome()
         {
             var pos = OSRPosition.ZeroedPosition();
             pos.DeltaMillis = 1000;
@@ -224,7 +232,9 @@ namespace Edi.Core.Device.OSR
                 {
                     Connection.WriteLine(tCode);
                     LastPosition = pos;
-                } catch (Exception) { 
+                }
+                catch (Exception)
+                {
                     playbackCancellationTokenSource.Cancel();
                 }
             }
@@ -311,7 +321,7 @@ namespace Edi.Core.Device.OSR
             }
         }
 
-        public string ResolveDefaultVariant()
+        public string DefaultVariant()
         => Variants.FirstOrDefault("");
     }
 }

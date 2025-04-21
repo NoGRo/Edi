@@ -1,10 +1,11 @@
 ﻿using Buttplug.Client;
 using Buttplug.Core.Messages;
-using Edi.Core.Device.Interfaces;
 using Edi.Core.Funscript;
 using PropertyChanged;
 using Edi.Core.Gallery.Funscript;
 using Microsoft.Extensions.Logging;
+using Edi.Core.Device;
+using Edi.Core.Device.Interfaces;
 
 namespace Edi.Core.Device.Buttplug
 {
@@ -37,7 +38,7 @@ namespace Edi.Core.Device.Buttplug
                 Interlocked.CompareExchange(ref localCmd, _currentCmd, null);
                 return localCmd == null
                     ? 0
-                    : Math.Min(localCmd.Millis, Convert.ToInt32(this.CurrentTime - (localCmd.AbsoluteTime - localCmd.Millis)));
+                    : Math.Min(localCmd.Millis, Convert.ToInt32(CurrentTime - (localCmd.AbsoluteTime - localCmd.Millis)));
             }
         }
 
@@ -49,7 +50,7 @@ namespace Edi.Core.Device.Buttplug
                 Interlocked.CompareExchange(ref localCmd, _currentCmd, null);
                 return localCmd == null
                     ? 0
-                    : Math.Max(0, Convert.ToInt32(localCmd.AbsoluteTime - this.CurrentTime));
+                    : Math.Max(0, Convert.ToInt32(localCmd.AbsoluteTime - CurrentTime));
             }
         }
 
@@ -68,11 +69,11 @@ namespace Edi.Core.Device.Buttplug
             : base(repository, logger)
         {
             _logger = logger;
-            this.Device = device;
-            Name = device.Name + (device.GenericAcutatorAttributes(actuator).Count() > 1 
-                                    ? $" {actuator}: {channel+1}" 
-                                    : "" );
-            
+            Device = device;
+            Name = device.Name + (device.GenericAcutatorAttributes(actuator).Count() > 1
+                                    ? $" {actuator}: {channel + 1}"
+                                    : "");
+
             Actuator = actuator;
             Channel = channel;
             var acutators = Device.GenericAcutatorAttributes(Actuator);
@@ -82,15 +83,15 @@ namespace Edi.Core.Device.Buttplug
 
             if (vibroSteps == 0)
                 vibroSteps = 1;
-            vibroSteps = (100.0 / vibroSteps);
+            vibroSteps = 100.0 / vibroSteps;
 
             this.config = config;
             _logger.LogInformation($"ButtplugDevice initialized with Device: {Name}, Actuator: {Actuator}, Channel: {Channel}");
         }
 
-        public override string ResolveDefaultVariant()
+        public override string DefaultVariant()
         => Variants.FirstOrDefault(x => x.Contains(Actuator.ToString(), StringComparison.OrdinalIgnoreCase))
-            ?? base.ResolveDefaultVariant();
+            ?? base.DefaultVariant();
 
         public override async Task PlayGallery(FunscriptGallery gallery, long seek = 0)
         {
@@ -203,11 +204,11 @@ namespace Edi.Core.Device.Buttplug
             var currVal = Math.Abs(Math.Max(0, Math.Min(100, initialValue + Convert.ToInt16(travel))));
 
             var speed = (int)Math.Round(currVal / vibroSteps) * vibroSteps;
-            speed = Math.Min(1.0, Math.Max(0, speed / (double)100));
+            speed = Math.Min(1.0, Math.Max(0, speed / 100));
 
             // Calculate the time until the next change.
             // We assume the time until the next change is proportional to the distance to the next vibroStep.
-            var nextStepDistance = vibroSteps - (currVal % vibroSteps);
+            var nextStepDistance = vibroSteps - currVal % vibroSteps;
             var nextStepFraction = nextStepDistance / distanceToTravel;
             var timeUntilNextChange = (elapsedFraction + nextStepFraction) * CurrentCmd.Millis - CurrentCmdTime;
 

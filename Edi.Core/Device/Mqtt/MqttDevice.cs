@@ -1,4 +1,5 @@
 ﻿using Buttplug.Core.Messages;
+using Edi.Core.Device;
 using Edi.Core.Funscript;
 using Edi.Core.Gallery;
 using Edi.Core.Gallery.Funscript;
@@ -22,10 +23,10 @@ namespace Edi.Core.Device.Mqtt
         private readonly string topic;
         public int CurrentCmdTime => CurrentCmd == null
                     ? 0
-                    : Math.Min(CurrentCmd.Millis, Convert.ToInt32(this.CurrentTime - (CurrentCmd.AbsoluteTime - CurrentCmd.Millis)));
+                    : Math.Min(CurrentCmd.Millis, Convert.ToInt32(CurrentTime - (CurrentCmd.AbsoluteTime - CurrentCmd.Millis)));
         public int ReminingCmdTime => CurrentCmd == null
                     ? 0
-                    : Math.Max(0, Convert.ToInt32(CurrentCmd.AbsoluteTime - this.CurrentTime));
+                    : Math.Max(0, Convert.ToInt32(CurrentCmd.AbsoluteTime - CurrentTime));
         private CmdLinear _currentCmd;
 
         public CmdLinear CurrentCmd
@@ -35,17 +36,17 @@ namespace Edi.Core.Device.Mqtt
         }
         private DateTime lastCmdSendAt { get; set; }
         public int currentCmdIndex { get; set; }
-        public MqttDevice(FunscriptRepository repository, MqttClient mqttClient,string topic, ILogger logger) : base(repository, logger)
+        public MqttDevice(FunscriptRepository repository, MqttClient mqttClient, string topic, ILogger logger) : base(repository, logger)
         {
             this.mqttClient = mqttClient;
             this.topic = topic;
-            Name = topic;   
+            Name = topic;
         }
 
         internal override Task applyRange()
         {
             _ = send("range", new range(Min, Max), false);
-            return  Task.CompletedTask;
+            return Task.CompletedTask;
         }
         internal override void SetVariant()
         {
@@ -53,7 +54,7 @@ namespace Edi.Core.Device.Mqtt
         }
         public override Task PlayGallery(string name, long seek = 0)
         {
-            var task =  base.PlayGallery(name, seek);
+            var task = base.PlayGallery(name, seek);
             _ = send("play", new play(name, seek, selectedVariant));
             return task;
         }
@@ -82,8 +83,8 @@ namespace Edi.Core.Device.Mqtt
 
                 currentCmdIndex = cmds.FindIndex(currentCmdIndex, x => x.AbsoluteTime > CurrentTime);
                 if (currentCmdIndex != -1)
-                    continue; 
-               
+                    continue;
+
                 currentCmdIndex = cmds.FindIndex(x => x.AbsoluteTime > CurrentTime);
                 if (currentCmdIndex < 0)
                     break; // Si aún así no hay más comandos, sale del bucle.
@@ -97,11 +98,11 @@ namespace Edi.Core.Device.Mqtt
 
         private async Task send(string topic, object payload, bool defaultToken = true)
         {
-           //await mqttClient.PublishAsync(new()
-           //{
-           //    Topic = this.topic + topic,
-           //    Payload = Encoding.UTF8.GetBytes(JsonSerializer.Serialize(payload))
-           //}, playCancelTokenSource.Token);
+            //await mqttClient.PublishAsync(new()
+            //{
+            //    Topic = this.topic + topic,
+            //    Payload = Encoding.UTF8.GetBytes(JsonSerializer.Serialize(payload))
+            //}, playCancelTokenSource.Token);
         }
         private record play(string gallery, long seek, string variant);
         private record command(long millis, int value);

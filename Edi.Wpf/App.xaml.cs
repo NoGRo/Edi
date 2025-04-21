@@ -22,11 +22,12 @@ namespace Edi.Forms
     public partial class App : Application
     {
         public static IEdi Edi { get; private set; }
-        
+        public static IServiceProvider ServiceProvider { get; private set; }
 
-        public App(IEdi edi)
+        public App(IEdi edi, IServiceProvider serviceProvider)
         {
-            Edi = edi;  
+            Edi = edi;
+            ServiceProvider = serviceProvider;
         }
 
 

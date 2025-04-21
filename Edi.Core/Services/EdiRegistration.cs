@@ -11,6 +11,7 @@ using Edi.Core.Gallery.Definition;
 using Edi.Core.Gallery.EStimAudio;
 using Edi.Core.Gallery.Funscript;
 using Edi.Core.Gallery.Index;
+using Edi.Core.Players;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Serilog;
@@ -41,7 +42,14 @@ namespace Edi.Core
             services.AddSingleton<GalleryBundler>();
 
             // Registrar Device Manager y Providers
-            services.AddSingleton<DeviceManager>();
+            services.AddSingleton<DeviceCollector>();
+
+            services.AddSingleton<SyncPlaybackFactory>();
+            services.AddSingleton<DevicePlayer>();
+            services.AddSingleton<RfgPlayer>();
+            services.AddSingleton<MultiRfgPlayer>();
+            services.AddSingleton<DeviceConfiguration>();
+
             services.AddSingleton<IDeviceProvider, ButtplugProvider>();
             services.AddSingleton<IDeviceProvider, AutoBlowProvider>();
             services.AddHandy();

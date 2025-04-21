@@ -6,7 +6,7 @@ using System.Text;
 using System.Threading.Tasks;
 
 namespace Edi.Core.Device.Mqtt
-{ 
+{
     [AddINotifyPropertyChangedInterface]
     public class MqttConfig
     {

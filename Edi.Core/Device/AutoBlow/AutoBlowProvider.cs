@@ -1,6 +1,4 @@
-﻿using Edi.Core.Device.AutoBlow;
-using Edi.Core.Device.Buttplug;
-using Edi.Core.Device.Interfaces;
+﻿using Edi.Core.Device.Buttplug;
 using Edi.Core.Gallery;
 using Edi.Core.Gallery.Index;
 using NAudio.CoreAudioApi;
@@ -12,10 +10,12 @@ using System.Runtime.CompilerServices;
 using System.Text;
 using System.Threading.Tasks;
 using System.Timers;
-using Edi.Core.Device.Handy;
 using Microsoft.Extensions.Logging;
 using Timer = System.Timers.Timer;
 using Microsoft.Extensions.DependencyInjection;
+using Edi.Core.Device;
+using Edi.Core.Device.Handy;
+using Edi.Core.Device.Interfaces;
 
 namespace Edi.Core.Device.AutoBlow
 {
@@ -28,16 +28,16 @@ namespace Edi.Core.Device.AutoBlow
         private List<string> Keys = new List<string>();
         private Dictionary<string, AutoBlowDevice> devices = new Dictionary<string, AutoBlowDevice>();
         private readonly IServiceProvider serviceProvider;
-        private DeviceManager deviceManager;
+        private DeviceCollector deviceCollector;
         private IndexRepository _repository;
         private IndexRepository repository => _repository ??= serviceProvider.GetRequiredService<IndexRepository>();
 
-        public AutoBlowProvider(IServiceProvider serviceProvider, ConfigurationManager config, DeviceManager deviceManager, ILogger<AutoBlowProvider> logger)
+        public AutoBlowProvider(IServiceProvider serviceProvider, ConfigurationManager config, DeviceCollector deviceCollector, ILogger<AutoBlowProvider> logger)
         {
             _logger = logger;
-            this.Config = config.Get<HandyConfig>();
+            Config = config.Get<HandyConfig>();
             this.serviceProvider = serviceProvider;
-            this.deviceManager = deviceManager;
+            this.deviceCollector = deviceCollector;
 
             timerReconnect.Elapsed += TimerReconnect_Elapsed;
 
@@ -122,7 +122,7 @@ namespace Edi.Core.Device.AutoBlow
             var status = JsonConvert.DeserializeObject<Status>(await resp.Content.ReadAsStringAsync());
 
 
-            var device = new AutoBlowDevice(Client, repository,_logger);
+            var device = new AutoBlowDevice(Client, repository, _logger);
 
             lock (devices)
             {
@@ -133,7 +133,7 @@ namespace Edi.Core.Device.AutoBlow
                 }
 
                 devices.Add(Key, device);
-                deviceManager.LoadDevice(device);
+                deviceCollector.LoadDevice(device);
                 _logger.LogInformation($"Device with Key: {Key} successfully connected and loaded.");
             }
         }
@@ -152,7 +152,7 @@ namespace Edi.Core.Device.AutoBlow
             if (devices.ContainsKey(Key))
             {
                 _logger.LogInformation($"Removing device with Key: {Key}");
-                await deviceManager.UnloadDevice(devices[Key]);
+                await deviceCollector.UnloadDevice(devices[Key]);
                 devices.Remove(Key);
             }
         }

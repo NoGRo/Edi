@@ -10,32 +10,21 @@ using System.Collections.ObjectModel;
 
 namespace Edi.Core
 {
-    public interface IEdi
+    public interface IEdi 
     {
 
         public Task Init(string path = null);
-
-        public WebApplication Api { get; }
-
         public Task InitDevices();
-        public DeviceManager DeviceManager { get; }
-        public ConfigurationManager ConfigurationManager { get; }
-        public Trepo GetRepository<Trepo>() where Trepo : class, IRepository;
-        public IEnumerable<DefinitionGallery> Definitions { get; }
+        public IPlayBack Player { get; }
 
-        
-        public ObservableCollection<IDevice> Devices { get;  }
-        public Task Play(string Name, long Seek = 0);
-        public Task Stop();
-        public Task Pause();
-        public Task Resume(bool atCurrentTime);
-        
-        public Task Intensity(int Max);
-        
+        public DeviceCollector DeviceCollector { get; }
+        public DeviceConfiguration DeviceConfiguration { get; }
+
+        public ConfigurationManager ConfigurationManager { get; }
+        public IEnumerable<DefinitionGallery> Definitions { get; }
+        public ObservableCollection<IDevice> Devices { get; }
+                               
         public delegate void ChangeStatusHandler(string message);
         public event ChangeStatusHandler OnChangeStatus;
-
-        public ILogger Logger { get;  }
-        public Task Repack();
     }
 }

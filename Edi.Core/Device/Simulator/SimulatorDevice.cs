@@ -1,4 +1,5 @@
-﻿using Edi.Core.Device.Interfaces;
+﻿using Edi.Core.Device;
+using Edi.Core.Device.Interfaces;
 using Edi.Core.Funscript;
 using Edi.Core.Gallery.Funscript;
 using Microsoft.Extensions.Logging;
@@ -29,7 +30,7 @@ namespace Edi.Core.Device.Simulator
                 Interlocked.CompareExchange(ref localCmd, _currentCmd, null);
                 return localCmd == null
                     ? 0
-                    : Math.Min(localCmd.Millis, Convert.ToInt32(this.CurrentTime - (localCmd.AbsoluteTime - localCmd.Millis)));
+                    : Math.Min(localCmd.Millis, Convert.ToInt32(CurrentTime - (localCmd.AbsoluteTime - localCmd.Millis)));
             }
         }
 
@@ -41,7 +42,7 @@ namespace Edi.Core.Device.Simulator
                 Interlocked.CompareExchange(ref localCmd, _currentCmd, null);
                 return localCmd == null
                     ? 0
-                    : Math.Max(0, Convert.ToInt32(localCmd.AbsoluteTime - this.CurrentTime));
+                    : Math.Max(0, Convert.ToInt32(localCmd.AbsoluteTime - CurrentTime));
             }
         }
 
@@ -53,7 +54,7 @@ namespace Edi.Core.Device.Simulator
 
         private const int REFRESH_RATE_MS = 16; // ~60 FPS (1000ms / 60 ≈ 16.67ms)
 
-        public SimulatorDevice(FunscriptRepository repository, ILogger logger)
+        public SimulatorDevice(FunscriptRepository repository, ILogger<SimulatorDevice> logger)
             : base(repository, logger)
         {
             _logger = logger;
@@ -62,8 +63,8 @@ namespace Edi.Core.Device.Simulator
             _logger.LogInformation($"ProgressBarSimulator initialized");
         }
 
-        public override string ResolveDefaultVariant()
-            => Variants.FirstOrDefault() ?? base.ResolveDefaultVariant();
+        public override string DefaultVariant()
+            => Variants.FirstOrDefault() ?? base.DefaultVariant();
 
         public override async Task PlayGallery(FunscriptGallery gallery, long seek = 0)
         {

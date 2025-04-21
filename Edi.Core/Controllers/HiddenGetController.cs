@@ -25,7 +25,7 @@ namespace Edi.Core.Controllers
         [HttpGet("Play/{name}")]
         public async Task Play([FromRoute] string name, [FromQuery] long seek = 0)
         {
-            await _edi.Play(name, seek);
+            await _edi.Player.Play(name, seek);
         }
 
         /// <summary>
@@ -34,16 +34,16 @@ namespace Edi.Core.Controllers
         [HttpGet("Stop")]
         public async Task Stop()
         {
-            await _edi.Stop();
+            await _edi.Player.Stop();
         }
 
         /// <summary>
         /// Pauses the playback of the current gallery of multimedia content.
         /// </summary>
         [HttpGet("Pause")]
-        public async Task Pause()
+        public async Task Pause(bool untilResume = false)
         {
-            await _edi.Pause();
+            await _edi.Player.Pause(untilResume);
         }
 
         /// <summary>
@@ -52,7 +52,7 @@ namespace Edi.Core.Controllers
         [HttpGet("Resume")]
         public async Task Resume([FromQuery] bool AtCurrentTime = false)
         {
-            await _edi.Resume(AtCurrentTime);
+            await _edi.Player.Resume(AtCurrentTime);
         }
 
         /// <summary>
@@ -61,7 +61,7 @@ namespace Edi.Core.Controllers
         [HttpGet("Intensity/{max}")]
         public async Task Intensity([Required, FromRoute, Range(0, 100)] int max = 100)
         {
-            await _edi.Intensity(max);
+            await _edi.Player.Intensity(max);
         }
 
 
@@ -88,7 +88,7 @@ namespace Edi.Core.Controllers
             if (!device.Variants.Contains(variantName))
                 return NotFound("Variant not found");
 
-            await _edi.DeviceManager.SelectVariant(device, variantName);
+            await _edi.DeviceConfiguration.SelectVariant(device, variantName);
             return Ok();
         }
 
@@ -104,7 +104,7 @@ namespace Edi.Core.Controllers
             if (max < min)
                 return BadRequest("Max must be greater than Min");
 
-            await _edi.DeviceManager.SelectRange(device, min, max);
+            await _edi.DeviceConfiguration.SelectRange(device, min, max);
             return Ok();
         }
     }

@@ -1,6 +1,5 @@
 ﻿using Buttplug.Client;
 using Buttplug.Core.Messages;
-using Edi.Core.Device.Interfaces;
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
@@ -10,32 +9,34 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
+using Edi.Core.Device;
+using Edi.Core.Device.Interfaces;
 
 namespace Edi.Core.Device.Buttplug
 {
     public class ButtplugController
     {
         private readonly ButtplugConfig config;
-        private readonly DeviceManager deviceManager;
+        private readonly DeviceCollector deviceCollector;
         private readonly Dictionary<ButtplugClientDevice, (ActuatorType, ICollection<(uint, double)>)> lastCommands = new();
         private readonly ConcurrentDictionary<ButtplugClientDevice, CancellationTokenSource> customDelayDevices = new();
         private readonly ILogger _logger;
 
         public int DelayMin => config.MinCommandDelay;
 
-        public ButtplugController(ButtplugConfig config, DeviceManager deviceManager, ILogger logger)
+        public ButtplugController(ButtplugConfig config, DeviceCollector deviceCollector, ILogger logger)
         {
             this.config = config;
-            this.deviceManager = deviceManager;
+            this.deviceCollector = deviceCollector;
             _logger = logger;
 
-            deviceManager.OnloadDevice += DeviceManager_OnloadDevice;
-            deviceManager.OnUnloadDevice += DeviceManager_OnUnloadDevice;
+            deviceCollector.OnloadDevice += DeviceCollector_OnloadDevice;
+            deviceCollector.OnUnloadDevice += DeviceCollector_OnUnloadDevice;
 
             _logger.LogInformation("ButtplugController initialized.");
         }
 
-        private void DeviceManager_OnUnloadDevice(IDevice device, List<IDevice> devices)
+        private void DeviceCollector_OnUnloadDevice(IDevice device, List<IDevice> devices)
         {
             if (device is ButtplugDevice buttplugDevice && customDelayDevices.TryRemove(buttplugDevice.Device, out var cts))
             {
@@ -44,7 +45,7 @@ namespace Edi.Core.Device.Buttplug
             }
         }
 
-        private void DeviceManager_OnloadDevice(IDevice device, List<IDevice> devices)
+        private void DeviceCollector_OnloadDevice(IDevice device, List<IDevice> devices)
         {
             if (device is ButtplugDevice buttplugDevice && buttplugDevice.Actuator is ActuatorType.Vibrate or ActuatorType.Oscillate)
             {
@@ -67,7 +68,7 @@ namespace Edi.Core.Device.Buttplug
 
             while (!cancellationToken.IsCancellationRequested)
             {
-                var commands = deviceManager.Devices
+                var commands = deviceCollector.Devices
                     .OfType<ButtplugDevice>()
                     .Where(x => x.Device == device.Device && !x.IsPause && x.CurrentCmd != null)
                     .Select(x => new
@@ -104,7 +105,7 @@ namespace Edi.Core.Device.Buttplug
                     if (cmdValue.RemainingTime / DelayMin < 2)
                         nextDelay = Math.Max(DelayMin, cmdValue.RemainingTime);
                 }
-               
+
                 await Task.Delay(nextDelay, cancellationToken);
             }
 

@@ -42,13 +42,14 @@ namespace Edi.Core.Device.OSR.Connection
         {
             try
             {
-                if  (UdpClient != null)
+                if (UdpClient != null)
                 {
                     UdpClient.Close();
                     UdpClient.Dispose();
                     UdpClient = null;
                 }
-            } catch { }
+            }
+            catch { }
         }
 
         public string GetDeviceName()

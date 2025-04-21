@@ -12,19 +12,13 @@ namespace Edi.Core.Controllers
 {
     [ApiController]
     [Route("[controller]")]
-    public class EdiController : ControllerBase
+    public class EdiController(IEdi edi, ConfigurationManager configurationManager) : ControllerBase
     {
-        private readonly IEdi _edi;
-
-        public EdiController(IEdi edi)
-        {
-            _edi = edi;
-        }
-
+        
         [HttpPost("Play/{name}")]
         public async Task Play([FromRoute] string name, [FromQuery] long seek = 0)
         {
-            await _edi.Play(name, seek);
+            await edi.Player.Play(name, seek);
         }
 
         /// <summary>
@@ -33,7 +27,7 @@ namespace Edi.Core.Controllers
         [HttpPost("Stop")]
         public async Task Stop()
         {
-            await _edi.Stop();
+            await edi.Player.Stop();
         }
 
         /// <summary>
@@ -42,7 +36,7 @@ namespace Edi.Core.Controllers
         [HttpPost("Pause")]
         public async Task Pause()
         {
-            await _edi.Pause();
+            await edi.Player.Pause();
         }
 
         /// <summary>
@@ -51,13 +45,13 @@ namespace Edi.Core.Controllers
         [HttpPost("Resume")]
         public async Task Resume([FromQuery] bool AtCurrentTime = false)
         {
-            await _edi.Resume(AtCurrentTime);
+            await edi.Player.Resume(AtCurrentTime);
         }
 
         [HttpPost("Intensity/{max}")]
         public async Task Intensity([Required,FromRoute,Range(0, 100)] int max = 100)
         {
-            await _edi.Intensity(max);
+            await edi.Player.Intensity(max);
         }
 
 
@@ -66,13 +60,13 @@ namespace Edi.Core.Controllers
 
         [HttpGet("Definitions")]
         public async Task<IEnumerable<DefinitionGallery>> GetDefinitions()
-            => _edi.Definitions.ToArray();
+            => edi.Definitions.ToArray();
 
         [HttpGet("Assets")]
         public IActionResult Get()
         {
 
-            var galleryPath = _edi.ConfigurationManager.Get<GalleryConfig>().GalleryPath.Trim();
+            var galleryPath = configurationManager.Get<GalleryConfig>().GalleryPath.Trim();
 
             var uploadPath = Path.Combine(Core.Edi.OutputDir, "Upload");
 
@@ -132,12 +126,12 @@ namespace Edi.Core.Controllers
                 {
                     // Podrías manejar de manera diferente los errores de cada archivo.
                 }
-                // Proceso con _edi.LoadFile si es necesario
+                // Proceso con edi.LoadFile si es necesario
                
             }
-            await _edi.Init(folderPath);
+            await edi.Init(folderPath);
 
-            return Ok(_edi.Definitions);
+            return Ok(edi.Definitions);
         }
     
     }

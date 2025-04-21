@@ -1,10 +1,5 @@
 ﻿using Edi.Core;
 using Edi.Core.Device;
-using Edi.Core.Device.Buttplug;
-using Edi.Core.Device.EStim;
-using Edi.Core.Device.Handy;
-using Edi.Core.Device.Interfaces;
-using Edi.Core.Device.OSR;
 using NAudio.Wave;
 using System;
 using System.Collections.Generic;
@@ -25,6 +20,11 @@ using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using System.Windows.Navigation;
 using System.Windows.Shapes;
+using Edi.Core.Device.Buttplug;
+using Edi.Core.Device.EStim;
+using Edi.Core.Device.Handy;
+using Edi.Core.Device.Interfaces;
+using Edi.Core.Device.OSR;
 
 namespace Edi.Forms
 {
@@ -45,7 +45,7 @@ namespace Edi.Forms
         {
             Dispatcher.Invoke(async () =>
             {
-                if (edi.DeviceManager.Devices.Any(x => x.IsReady))
+                if (edi.DeviceCollector.Devices.Any(x => x.IsReady))
                 {
 
                     if (!launched
@@ -93,8 +93,8 @@ namespace Edi.Forms
             };
             InitializeComponent();
 
-            edi.DeviceManager.OnloadDevice += DeviceManager_OnloadDeviceAsync;
-            edi.DeviceManager.OnUnloadDevice += DeviceManager_OnUnloadDevice;
+            edi.DeviceCollector.OnloadDevice += DeviceCollector_OnloadDeviceAsync;
+            edi.DeviceCollector.OnUnloadDevice += DeviceCollector_OnUnloadDevice;
             edi.OnChangeStatus += Edi_OnChangeStatus;
 
             timer = new Timer(RefrehGrid);
@@ -140,7 +140,7 @@ namespace Edi.Forms
             });
         }
 
-        private async void DeviceManager_OnUnloadDevice(IDevice device, List<IDevice> devices)
+        private async void DeviceCollector_OnUnloadDevice(IDevice device, List<IDevice> devices)
         {
             Thread.Sleep(1000);
             await Dispatcher.InvokeAsync(async () =>
@@ -152,7 +152,7 @@ namespace Edi.Forms
 
         }
 
-        private async void DeviceManager_OnloadDeviceAsync(IDevice device, List<IDevice> devices)
+        private async void DeviceCollector_OnloadDeviceAsync(IDevice device, List<IDevice> devices)
         {
             Thread.Sleep(500);
 
@@ -169,7 +169,7 @@ namespace Edi.Forms
             ComboBox comboBox = (sender as ComboBox);
             
             var device = comboBox.DataContext as IDevice;
-            edi.DeviceManager.SelectVariant(device, (string)comboBox.SelectedValue);
+            edi.DeviceConfiguration.SelectVariant(device, (string)comboBox.SelectedValue);
         }
 
 
@@ -181,14 +181,7 @@ namespace Edi.Forms
             });
            
         }    
-        private async void RePackButton_Click(object sender, RoutedEventArgs e)
-        {
-            await Dispatcher.Invoke(async () =>
-            {
-                await edi.Repack();
-            });
-           
-        }
+
 
         private async void ReconnectButton_ClickAsync(object sender, RoutedEventArgs e)
         {
@@ -213,7 +206,7 @@ namespace Edi.Forms
                 if (selected == "(Random)")
                     selected = edi.Definitions.OrderBy(x => Guid.NewGuid()).FirstOrDefault()?.Name ?? "";
 
-                await edi.Play(selected, 0);
+                await edi.Player.Play(selected, 0);
             });
         }
 
@@ -221,7 +214,7 @@ namespace Edi.Forms
         {
             await Dispatcher.Invoke(async () =>
             {
-                await edi.Stop();
+                await edi.Player.Stop();
             });
         }
 
@@ -229,7 +222,7 @@ namespace Edi.Forms
         {
             await Dispatcher.Invoke(async () =>
             {
-                await edi.Pause();
+                await edi.Player.Pause();
             });
         }
 
@@ -237,7 +230,7 @@ namespace Edi.Forms
         {
             await Dispatcher.Invoke(async () =>
             {
-                await edi.Resume(false);
+                await edi.Player.Resume(false);
             });
         }
 
@@ -263,7 +256,7 @@ namespace Edi.Forms
         {
             await Dispatcher.Invoke(async () =>
             {
-                await edi.Pause();
+                await edi.Player.Pause();
             });
             await Task.Delay(1000); 
             base.EndInit();
@@ -273,7 +266,7 @@ namespace Edi.Forms
         {
             await Dispatcher.Invoke(async () =>
             {
-                await edi.Intensity(Convert.ToInt32(sliderIntensity.Value));
+                await edi.Player.Intensity(Convert.ToInt32(sliderIntensity.Value));
             });
         }
 
@@ -282,7 +275,7 @@ namespace Edi.Forms
         {
             await Dispatcher.Invoke(async () =>
             {
-                await edi.Pause();
+                await edi.Player.Pause();
             });
             await Task.Delay(1000);  
         }

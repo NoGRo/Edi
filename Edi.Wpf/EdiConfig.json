@@ -20,19 +20,16 @@
   "Devices": {
     "Devices": {
       "Preview Device": {
-        "Variant": "detail",
+        "Variant": "detailed",
         "Min": 0,
-        "Max": 100
+        "Max": 100,
+        "Channel": null
       },
       "FUNOSR-SSR1-V2.0": {
         "Variant": "detailed",
         "Min": 0,
-        "Max": 100
-      },
-      "FUNOSR-SSR1-V2.0\r": {
-        "Variant": "detailed",
-        "Min": 0,
-        "Max": 100
+        "Max": 100,
+        "Channel": null
       }
     }
   },

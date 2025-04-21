@@ -20,5 +20,7 @@ namespace Edi.Core.Device
 
         public int Min { get; set; } = 0;
         public int Max { get; set; } = 100;
+
+        public string Channel { get; set; }
     }
 }

@@ -1,5 +1,4 @@
 ﻿using Edi.Core.Device.Buttplug;
-using Edi.Core.Device.Interfaces;
 using Edi.Core.Gallery;
 using Edi.Core.Gallery.Index;
 using NAudio.CoreAudioApi;
@@ -15,6 +14,8 @@ using Microsoft.Extensions.Logging;
 using Timer = System.Timers.Timer;
 using Microsoft.Extensions.DependencyInjection;
 using System.Collections.Concurrent;
+using Edi.Core.Device;
+using Edi.Core.Device.Interfaces;
 
 namespace Edi.Core.Device.Handy
 {
@@ -26,9 +27,9 @@ namespace Edi.Core.Device.Handy
         private List<string> Keys = new List<string>();
         private Dictionary<string, HandyDevice> devices = new Dictionary<string, HandyDevice>();
         private readonly IServiceProvider _serviceProvider;
-        private DeviceManager _deviceManager;
+        private DeviceCollector _deviceCollector;
         private IndexRepository _repository;
-        private IndexRepository repository  => _repository ??= _serviceProvider.GetRequiredService<IndexRepository>();
+        private IndexRepository repository => _repository ??= _serviceProvider.GetRequiredService<IndexRepository>();
         private readonly IHttpClientFactory _httpClientFactory;
 
         // Re‑usamos un solo HttpClient por key
@@ -36,14 +37,14 @@ namespace Edi.Core.Device.Handy
 
         public HandyProvider(IServiceProvider serviceProvider,
                              ConfigurationManager config,
-                             DeviceManager deviceManager,
+                             DeviceCollector deviceCollector,
                              IHttpClientFactory httpClientFactory,
                              ILogger<HandyProvider> logger)
         {
             _logger = logger;
             Config = config.Get<HandyConfig>();
             _serviceProvider = serviceProvider;
-            _deviceManager = deviceManager;
+            _deviceCollector = deviceCollector;
             _httpClientFactory = httpClientFactory;
             timerReconnect.Elapsed += TimerReconnect_Elapsed;
         }
@@ -123,7 +124,7 @@ namespace Edi.Core.Device.Handy
                 lock (devices)
                 {
                     devices[key] = handyDevice;
-                    _deviceManager.LoadDevice(handyDevice);
+                    _deviceCollector.LoadDevice(handyDevice);
                     _logger.LogInformation($"Device {handyDevice.Name} loaded with Key: {key}");
                 }
 
@@ -146,7 +147,7 @@ namespace Edi.Core.Device.Handy
 
             if (devices.TryGetValue(key, out var device))
             {
-                await _deviceManager.UnloadDevice(device);
+                await _deviceCollector.UnloadDevice(device);
                 devices.Remove(key);
                 _logger.LogInformation($"Device removed with Key: {key}");
             }
@@ -165,9 +166,7 @@ namespace Edi.Core.Device.Handy
 
         private void TimerReconnect_Elapsed(object? sender, ElapsedEventArgs e)
         {
-
-                ConnectAll();
-
+            ConnectAll();
         }
     }
 }

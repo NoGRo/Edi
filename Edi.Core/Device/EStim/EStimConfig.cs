@@ -8,9 +8,9 @@ using System.Threading.Tasks;
 namespace Edi.Core.Device.EStim
 {
     [AddINotifyPropertyChangedInterface]
-    public  class EStimConfig
+    public class EStimConfig
     {
         public int DeviceId { get; set; } = -1;
-        
+
     }
 }

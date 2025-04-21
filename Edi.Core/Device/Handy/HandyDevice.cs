@@ -23,6 +23,7 @@ using System.ComponentModel.DataAnnotations;
 using System.Xml.Linq;
 using System.Reflection;
 using Microsoft.Extensions.Logging;
+using Edi.Core.Device;
 
 namespace Edi.Core.Device.Handy
 {
@@ -38,7 +39,7 @@ namespace Edi.Core.Device.Handy
         private string CurrentBundle = "default";
         private bool isStopCalled;
         public HandyDevice(HttpClient client, IndexRepository repository, ILogger logger) : base(repository, logger)
-        { 
+        {
 
 
             _logger = logger;
@@ -222,15 +223,15 @@ namespace Edi.Core.Device.Handy
     }
 
 
-public static class ServerTimeSync
+    public static class ServerTimeSync
     {
         private static double _estimatedAverageOffset = 0;
         private static DateTime _estimatedDatetime;
         private static int offsetRefreshMinutes = 10;
 
 
-        
-        
+
+
         public static async Task<long> SyncServerTimeAsync()
         {
             var client = new HttpClient();
@@ -244,12 +245,12 @@ public static class ServerTimeSync
                 var tStart = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
                 var response = await client.GetAsync("https://www.handyfeeling.com/api/handy/v2/servertime");
                 var tEnd = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
-                
+
                 var data = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
                 var tServer = data.RootElement.GetProperty("serverTime").GetInt64();
-                
+
                 var tRtd = tEnd - tStart;
-                var tOffset = (tServer + (tRtd / 2.0)) - tEnd;
+                var tOffset = tServer + tRtd / 2.0 - tEnd;
                 offsetAggregated.Add(tOffset);
             }
             offsetAggregated.Sort();
@@ -257,7 +258,7 @@ public static class ServerTimeSync
 
             // Calcular el promedio de los offsets sin los extremos
             _estimatedAverageOffset = Math.Round(trimmedOffsets.Average());
-            return Convert.ToInt64( _estimatedAverageOffset);
+            return Convert.ToInt64(_estimatedAverageOffset);
         }
 
     }

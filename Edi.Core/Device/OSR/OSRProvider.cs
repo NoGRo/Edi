@@ -1,6 +1,8 @@
-﻿using Edi.Core.Device.Interfaces;
+﻿using Edi.Core.Device;
+using Edi.Core.Device.Interfaces;
 using Edi.Core.Device.OSR.Connection;
 using Edi.Core.Gallery.Funscript;
+using Edi.Core.Device.OSR.Connection;
 using Microsoft.Extensions.Logging;
 using System.Timers;
 using Timer = System.Timers.Timer;
@@ -14,20 +16,20 @@ namespace Edi.Core.Device.OSR
 
         private ILogger logger;
         private OSRDevice? Device;
-        private DeviceManager DeviceManager;
+        private DeviceCollector DeviceCollector;
         private FunscriptRepository Repository;
         private readonly Timer TimerPing = new(5000);
         private int AliveCheckFails = 0;
         private int RetryCount = 0;
         private IOSRConnection Connection;
 
-        public OSRProvider(FunscriptRepository repository, ConfigurationManager config, DeviceManager deviceManager, ILogger<OSRProvider> logger)
+        public OSRProvider(FunscriptRepository repository, ConfigurationManager config, DeviceCollector deviceCollector, ILogger<OSRProvider> logger)
         {
             this.logger = logger;
             Config = config.Get<OSRConfig>();
 
-            this.DeviceManager = deviceManager;
-            this.Repository = repository;
+            DeviceCollector = deviceCollector;
+            Repository = repository;
 
             TimerPing.Elapsed += TimerPingEvent;
         }
@@ -45,7 +47,8 @@ namespace Edi.Core.Device.OSR
             {
                 var splitAddress = Config.UdpAddress.Split(':');
                 Connection = new UdpConnection(splitAddress[0].Trim(), int.Parse(splitAddress[1]), logger);
-            } else
+            }
+            else
             {
                 Connection = null;
             }
@@ -61,7 +64,7 @@ namespace Edi.Core.Device.OSR
 
         private async Task Connect()
         {
-            TimerPing.Stop();   
+            TimerPing.Stop();
             await UnloadDevice();
             if (Connection == null)
             {
@@ -72,11 +75,11 @@ namespace Edi.Core.Device.OSR
             {
                 Connection.Connect();
                 Device = new(Connection, Repository, Config, logger);
-                
+
                 _ = Device.ReturnToHome();
 
                 AliveCheckFails = 0;
-                DeviceManager.LoadDevice(Device);
+                DeviceCollector.LoadDevice(Device);
             }
             catch (Exception e)
             {
@@ -85,10 +88,11 @@ namespace Edi.Core.Device.OSR
                 if (Connection.IsReady)
                 {
                     Connection.Disconnect();
-                    Device = null; 
+                    Device = null;
                 }
             }
-            finally {
+            finally
+            {
                 TimerPing.Start();
             }
         }
@@ -102,7 +106,7 @@ namespace Edi.Core.Device.OSR
                 if (!Device.AlivePing())
                 {
                     logger.LogWarning($"TCode device liveness check failed");
-                    if  (++AliveCheckFails >= 3)
+                    if (++AliveCheckFails >= 3)
                         _ = UnloadDevice();
                 }
                 else
@@ -118,7 +122,7 @@ namespace Edi.Core.Device.OSR
             {
                 await Device.Stop();
                 Connection.Disconnect();
-                await DeviceManager.UnloadDevice(Device);
+                await DeviceCollector.UnloadDevice(Device);
                 logger.LogInformation("Unloaded TCode device");
             }
 

@@ -10,8 +10,8 @@ using Microsoft.Extensions.Logging;
 using Newtonsoft.Json;
 using System.Timers;
 using PropertyChanged;
-using Edi.Core.Device.Interfaces;
 using Newtonsoft.Json.Linq;
+using Edi.Core.Device.Interfaces;
 
 namespace Edi.Core.Device
 {
@@ -37,6 +37,8 @@ namespace Edi.Core.Device
         public virtual bool IsReady { get; set; } = true;
         internal virtual bool SelfManagedLoop { get; set; } = false;
 
+        public string Channel { get; set; }
+
         internal string selectedVariant;
         public virtual string SelectedVariant
         {
@@ -47,17 +49,6 @@ namespace Edi.Core.Device
                 {
                     _logger.LogInformation($"Device '{Name}': SelectedVariant changed from '{selectedVariant}' to '{value}'.");
                     selectedVariant = value;
-                    if (value == "None")
-                    {
-                        _ = StopGallery();
-
-                    }
-                    else
-                    {
-                        SetVariant();
-                        Resume();
-                    }
-                    
                 }
             }
         }
@@ -111,7 +102,7 @@ namespace Edi.Core.Device
             if (TimerRangeTask != null)
                 await TimerRangeTask;
 
-            if(!isStopRange(min, max))
+            if (!isStopRange(min, max))
                 TimerRangeTask = applyRange();
 
             if (currentGallery == null)
@@ -123,7 +114,7 @@ namespace Edi.Core.Device
             {
                 _ = StopGallery();
             }
-                
+
 
 
         }
@@ -158,6 +149,8 @@ namespace Edi.Core.Device
             }
         }
 
+
+
         internal CancellationTokenSource playCancelTokenSource = new CancellationTokenSource();
         public virtual async Task PlayGallery(string name, long seek = 0)
         {
@@ -166,7 +159,7 @@ namespace Edi.Core.Device
             _logger.LogInformation($"Device '{Name}': Playing gallery '{name}' with seek: {seek}.");
 
             var gallery = repository.Get(name, SelectedVariant);
-            if (gallery == null || SelectedVariant == "None" || this.Max == 0)
+            if (gallery == null || Max == 0)
             {
                 _logger.LogInformation($"Device '{Name}': Gallery is null or unplayable (name: '{name}', variant: '{SelectedVariant}', max: {Max}). Stopping playback.");
                 await Stop();
@@ -178,7 +171,7 @@ namespace Edi.Core.Device
             currentGallery = gallery;
             IsPause = false;
 
-            if (!isStopRange(Min, Max) && SelectedVariant != "None")
+            if (!isStopRange(Min, Max))
                 _ = PlayGallery(gallery, seek);
 
             if (SelfManagedLoop)
@@ -199,7 +192,7 @@ namespace Edi.Core.Device
 
             if (token.IsCancellationRequested)
                 return;
-                  
+
             if (currentGallery?.Loop == true && !IsPause)
             {
                 _logger.LogInformation($"Device '{Name}': Looping gallery playback for '{currentGallery.Name}'.");
@@ -227,7 +220,7 @@ namespace Edi.Core.Device
 
         public abstract Task StopGallery();
 
-        public virtual string ResolveDefaultVariant()
+        public virtual string DefaultVariant()
             => Variants.FirstOrDefault("");
     }
 }

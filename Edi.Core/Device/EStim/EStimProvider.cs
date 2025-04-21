@@ -1,4 +1,5 @@
-﻿using Edi.Core.Device.Interfaces;
+﻿using Edi.Core.Device;
+using Edi.Core.Device.Interfaces;
 using Edi.Core.Gallery.EStimAudio;
 using Microsoft.Extensions.Logging;
 using NAudio.Wave;
@@ -13,10 +14,10 @@ namespace Edi.Core.Device.EStim
         private readonly ILogger _logger;
         private readonly List<EStimDevice> _devices = new List<EStimDevice>();
 
-        public EStimProvider(AudioRepository audioRepository, ConfigurationManager config, DeviceManager deviceManager, ILogger<EStimProvider> logger)
+        public EStimProvider(AudioRepository audioRepository, ConfigurationManager config, DeviceCollector deviceCollector, ILogger<EStimProvider> logger)
         {
             Config = config.Get<EStimConfig>();
-            DeviceManager = deviceManager;
+            DeviceCollector = deviceCollector;
             AudioRepository = audioRepository;
             _logger = logger;
 
@@ -24,7 +25,7 @@ namespace Edi.Core.Device.EStim
         }
 
         public EStimConfig Config { get; }
-        public DeviceManager DeviceManager { get; }
+        public DeviceCollector DeviceCollector { get; }
         public AudioRepository AudioRepository { get; }
 
         public async Task Init()
@@ -35,7 +36,7 @@ namespace Edi.Core.Device.EStim
             foreach (var eStimDevice in _devices)
             {
                 _logger.LogInformation($"Unloading device: {eStimDevice}");
-                await DeviceManager.UnloadDevice(eStimDevice);
+                await DeviceCollector.UnloadDevice(eStimDevice);
             }
             _devices.Clear();
 
@@ -51,7 +52,7 @@ namespace Edi.Core.Device.EStim
                 var outputDevice = new WaveOutEvent() { DeviceNumber = Config.DeviceId };
                 var device = new EStimDevice(AudioRepository, outputDevice, _logger);
 
-                DeviceManager.LoadDevice(device);
+                DeviceCollector.LoadDevice(device);
                 _devices.Add(device);
 
                 _logger.LogInformation($"Device loaded successfully: {device}");

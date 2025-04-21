@@ -24,11 +24,11 @@ namespace Edi.Core.Device.OSR.Connection
             try
             {
                 SerialPort.ReadTimeout = 1000;
-                SerialPort.WriteTimeout = 1000;               
+                SerialPort.WriteTimeout = 1000;
 
                 //for romeo hardware
-                SerialPort.RtsEnable = (RetryCount == 3);
-                SerialPort.DtrEnable = (RetryCount == 3);
+                SerialPort.RtsEnable = RetryCount == 3;
+                SerialPort.DtrEnable = RetryCount == 3;
                 if (RetryCount == 3)
                     RetryCount = 0;
 
@@ -114,7 +114,7 @@ namespace Edi.Core.Device.OSR.Connection
             }
             var protocol = SerialPort.ReadExisting();
 
-            return (protocol.Contains("tcode", StringComparison.OrdinalIgnoreCase));
+            return protocol.Contains("tcode", StringComparison.OrdinalIgnoreCase);
         }
 
         public void WriteLine(string message)

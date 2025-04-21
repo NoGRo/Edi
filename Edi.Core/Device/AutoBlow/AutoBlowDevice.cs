@@ -23,6 +23,7 @@ using PropertyChanged;
 using System.Timers;
 using System.ComponentModel.DataAnnotations;
 using System.Xml.Linq;
+using Edi.Core.Device;
 
 namespace Edi.Core.Device.AutoBlow
 {

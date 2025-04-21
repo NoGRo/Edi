@@ -28,25 +28,26 @@ using static Edi.Core.Device.Handy.HandyV3Device;
 using System.Net;
 using Edi.Core.Gallery.Funscript;
 using Microsoft.Extensions.Logging;
+using Edi.Core.Device;
 
 namespace Edi.Core.Device.Handy
 {
     [AddINotifyPropertyChangedInterface]
-    internal class HandyV3Device : DeviceBase<FunscriptRepository,FunscriptGallery> 
+    internal class HandyV3Device : DeviceBase<FunscriptRepository, FunscriptGallery>
     {
 
         public string Key { get; set; }
 
-        
+
         private static long timeSyncAvrageOffset;
-        
+
         public HttpClient Client = null;
 
 
 
 
         private string CurrentBundle = "default";
-        public HandyV3Device(HttpClient Client, FunscriptRepository repository,ILogger logger): base(repository, logger) 
+        public HandyV3Device(HttpClient Client, FunscriptRepository repository, ILogger logger) : base(repository, logger)
         {
             Key = Client.DefaultRequestHeaders.GetValues("X-Connection-Key").First();
             //make unique nane 
@@ -55,7 +56,7 @@ namespace Edi.Core.Device.Handy
             this.Client = Client;
         }
 
-    
+
         internal override async Task applyRange()
         {
             Debug.WriteLine($"Handy: {Key} Slide {Min}-{Max}");
@@ -66,7 +67,7 @@ namespace Edi.Core.Device.Handy
         public override async Task PlayGallery(FunscriptGallery gallery, long seek = 0)
         {
 
-            var loop = gallery.Loop 
+            var loop = gallery.Loop
                         && seek > gallery.Commands.Take(100).Last().AbsoluteTime;
             //seek is in inital bufer time, in this case manage self loop True
             var index = 0;
@@ -80,7 +81,7 @@ namespace Edi.Core.Device.Handy
             if (totalBufferTime >= currentGallery.Duration && loop)
                 return;
 
-            while (totalBufferTime < (gallery.Duration - seek))
+            while (totalBufferTime < gallery.Duration - seek)
             {
                 buf = currentGallery.Commands.Skip(index + buf.Count()).Take(100);
                 //await SendPoints(buf, false);
@@ -117,11 +118,11 @@ namespace Edi.Core.Device.Handy
             Debug.WriteLine($"Handy: [Offset {timeSyncAvrageOffset}]");
         }
 
-      
-        private long ServerTime => DateTimeOffset.UtcNow.ToUnixTimeMilliseconds() +  timeSyncAvrageOffset;
-        
-        
-        
+
+        private long ServerTime => DateTimeOffset.UtcNow.ToUnixTimeMilliseconds() + timeSyncAvrageOffset;
+
+
+
 
 
     }

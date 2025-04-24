@@ -178,7 +178,6 @@ namespace Edi.Core.Device.Handy
                     }
 
                     IsReady = true;
-                    Resume();
                     _logger.LogInformation($"Upload completed and device is ready for Key: {Key}.");
                 }
                 catch (TaskCanceledException)

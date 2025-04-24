@@ -27,14 +27,14 @@ namespace Edi.Core
         public ConfigurationManager ConfigurationManager { get; set; }
         public DeviceCollector DeviceCollector { get; private set; }
         public DeviceConfiguration DeviceConfiguration { get; private set; }
-        public IPlayBack Player { get; private set; }
-        public Edi(DeviceCollector deviceCollector, RfgPlayer devicePlayer, IEnumerable<IRepository> repos, ConfigurationManager configuration, DeviceConfiguration deviceConfiguration)
+        public IPlayBackChannels Player { get; private set; }
+        public Edi(DeviceCollector deviceCollector, IPlayBackChannels player, IEnumerable<IRepository> repos, ConfigurationManager configuration, DeviceConfiguration deviceConfiguration)
         {
             if (!Directory.Exists(OutputDir))
                 Directory.CreateDirectory(OutputDir);
 
             DeviceCollector = deviceCollector;
-            Player = devicePlayer;
+            Player = player;
 
             _repository = (DefinitionRepository)repos.First(x => x is DefinitionRepository);
             this.repos = repos;

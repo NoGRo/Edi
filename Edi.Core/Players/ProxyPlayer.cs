@@ -7,17 +7,20 @@ using System.Threading.Tasks;
 
 namespace Edi.Core.Players
 {
-    public class BaseProxyPlayer : IPlayBack
+    public abstract class ProxyPlayer : IPlayBack
     {
         protected readonly IPlayBack upperLayerPlayer;
 
-        public BaseProxyPlayer(IPlayBack upperLayerPlayer)
+        public ProxyPlayer(IPlayBack upperLayerPlayer)
         {
             this.upperLayerPlayer = upperLayerPlayer;
         }
+        public virtual void Add(IDevice device)
+            => upperLayerPlayer.Add(device);
 
-        public virtual void UseChannels(params string[] channelNames)
-            => upperLayerPlayer.UseChannels(channelNames);
+        public virtual void Remove(IDevice device)
+            => upperLayerPlayer.Remove(device);
+
 
         public virtual Task Play(string name, long seek = 0)
             => upperLayerPlayer.Play(name, seek);
@@ -34,6 +37,6 @@ namespace Edi.Core.Players
         public virtual Task Intensity(int Max)
             => upperLayerPlayer.Intensity(Max);
 
-        
+
     }
 }

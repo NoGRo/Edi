@@ -16,43 +16,33 @@ namespace Edi.Core.Controllers
     {
         
         [HttpPost("Play/{name}")]
-        public async Task Play([FromRoute] string name, [FromQuery] long seek = 0)
-        {
-            await edi.Player.Play(name, seek);
-        }
+        public async Task Play([FromRoute,Required] string name, [FromQuery] long seek = 0, [FromQuery] string[] channels = null)
+        => await edi.Player.Play(name, seek, channels);
 
         /// <summary>
         /// Stops the playback of the current gallery of multimedia content.
         /// </summary>
         [HttpPost("Stop")]
-        public async Task Stop()
-        {
-            await edi.Player.Stop();
-        }
+        public async Task Stop([FromQuery] string[] channels = null)
+        => await edi.Player.Stop(channels);
 
         /// <summary>
         /// Pauses the playback of the current gallery of multimedia content.
         /// </summary>
         [HttpPost("Pause")]
-        public async Task Pause()
-        {
-            await edi.Player.Pause();
-        }
+        public async Task Pause([FromQuery] bool untilResume = false, [FromQuery] string[] channels = null)
+        => await edi.Player.Pause(untilResume, channels);
 
         /// <summary>
         /// Resumes the playback of the current gallery of multimedia content.
         /// </summary>
         [HttpPost("Resume")]
-        public async Task Resume([FromQuery] bool AtCurrentTime = false)
-        {
-            await edi.Player.Resume(AtCurrentTime);
-        }
+        public async Task Resume([FromQuery] bool AtCurrentTime = false, [FromQuery] string[] channels = null)
+        => await edi.Player.Resume(AtCurrentTime, channels);
 
         [HttpPost("Intensity/{max}")]
-        public async Task Intensity([Required,FromRoute,Range(0, 100)] int max = 100)
-        {
-            await edi.Player.Intensity(max);
-        }
+        public async Task Intensity([Required, FromRoute, Range(0, 100)] int max = 100, [FromQuery] string[] channels = null)
+        => await edi.Player.Intensity(max, channels);
 
 
 

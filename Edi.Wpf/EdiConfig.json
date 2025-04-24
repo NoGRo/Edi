@@ -29,7 +29,7 @@
         "Variant": "detailed",
         "Min": 0,
         "Max": 100,
-        "Channel": null
+        "Channel": "dffd2"
       }
     }
   },

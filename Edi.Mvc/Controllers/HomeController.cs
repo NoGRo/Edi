@@ -1,4 +1,4 @@
-using Edi.Rest.Models;
+using Edi.Mvc.Models;
 using Microsoft.AspNetCore.Mvc;
 using System.Diagnostics;
 

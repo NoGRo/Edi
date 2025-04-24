@@ -44,10 +44,15 @@ namespace Edi.Core
             // Registrar Device Manager y Providers
             services.AddSingleton<DeviceCollector>();
 
+            
+            services.AddSingleton<IPlayBackChannels,MultiPlayer>();
+            services.AddTransient<RfgPlayer>();
+            services.AddTransient<DevicePlayer>();
+
+            services.AddSingleton(sp => new ChannelManager<IPlayBack>(() => sp.GetRequiredService<RfgPlayer>()));
+            
             services.AddSingleton<SyncPlaybackFactory>();
-            services.AddSingleton<DevicePlayer>();
-            services.AddSingleton<RfgPlayer>();
-            services.AddSingleton<MultiRfgPlayer>();
+
             services.AddSingleton<DeviceConfiguration>();
 
             services.AddSingleton<IDeviceProvider, ButtplugProvider>();

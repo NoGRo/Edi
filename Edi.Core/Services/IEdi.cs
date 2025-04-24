@@ -2,6 +2,7 @@
 using Edi.Core.Device.Interfaces;
 using Edi.Core.Gallery;
 using Edi.Core.Gallery.Definition;
+using Edi.Core.Players;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.Extensions.Logging;
 using Serilog.Core;
@@ -15,7 +16,7 @@ namespace Edi.Core
 
         public Task Init(string path = null);
         public Task InitDevices();
-        public IPlayBack Player { get; }
+        public IPlayBackChannels Player { get; }
 
         public DeviceCollector DeviceCollector { get; }
         public DeviceConfiguration DeviceConfiguration { get; }

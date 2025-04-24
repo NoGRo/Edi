@@ -8,16 +8,23 @@ using System.Xml.Linq;
 
 namespace Edi.Core.Players
 {
-    public class CompositePlayer : BaseProxyPlayer
+    public class CompositePlayer : ProxyPlayer
     {
         private readonly List<IPlayBack> players = new();
 
         public CompositePlayer() : base(null) { }
 
-        public void Add(IPlayBack player) => players.Add(player);
+        public  void Add(IPlayBack player) => players.Add(player);
 
-        public override void UseChannels(params string[] channelNames)
-            => players.ToList().ForEach(p => p.UseChannels(channelNames));
+        public void Remove(IPlayBack player) => players.Add(player);
+
+
+        public override void Add(IDevice device)
+            => players.ForEach(p => p.Add(device));
+
+        public override void Remove(IDevice device)
+            => players.ForEach(p => p.Remove(device));
+
 
         public override Task Play(string name, long seek = 0)
             => Task.WhenAll(players.Select(p => p.Play(name, seek)));

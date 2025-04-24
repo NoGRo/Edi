@@ -49,6 +49,7 @@ namespace Edi.Core.Device
             configuration.Save(config);
             device.SelectedVariant = variant;
         }
+
         public async Task SelectChannel(IDevice device, string channel)
         {
             var deviceName = deviceCollector.Devices.FirstOrDefault(x => x == device)?.Name;
@@ -60,11 +61,11 @@ namespace Edi.Core.Device
                 return;
 
             config.Devices[deviceName].Channel = channel;
-            
+
             configuration.Save(config);
-
-
+            device.Channel = channel;
         }
+
         public async Task SelectRange(IDevice device, int min, int max)
         {
             var deviceName = deviceCollector.Devices.FirstOrDefault(x => x == device)?.Name;

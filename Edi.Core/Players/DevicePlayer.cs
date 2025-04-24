@@ -1,127 +1,71 @@
 ﻿using Edi.Core.Device;
 using Edi.Core.Device.Interfaces;
 using Edi.Core.Gallery;
-using MQTTnet.Implementations;
+using NAudio.CoreAudioApi;
+using NAudio.Wave;
 using System.Collections.Concurrent;
 using System.ComponentModel;
-using System.Runtime.CompilerServices;
-using System.Threading.Channels;
 
 namespace Edi.Core.Players
 {
-
     public class DevicePlayer : IPlayBack
     {
-        public DevicePlayer(DeviceCollector deviceCollector, ConfigurationManager configuration, SyncPlaybackFactory syncFactory)
+        private readonly SyncPlaybackFactory syncFactory;
+        private readonly DevicesConfig config;
+        public DevicePlayer(
+            SyncPlaybackFactory syncFactory,
+            ConfigurationManager configuration)
         {
-            this.deviceCollector = deviceCollector;
             this.syncFactory = syncFactory;
             config = configuration.Get<DevicesConfig>();
-            deviceCollector.OnloadDevice += DeviceCollector_OnloadDevice;
-            channels = new();
-
-            EnsureChannel(MAIN_CHANNEL);
-            activeChannels = new List<string> { MAIN_CHANNEL };
 
         }
-        public static string MAIN_CHANNEL = "main";
-        private class PlaybackState
+
+        private List<IDevice> Devices = new();
+        private bool isHardPause;
+        private bool isPause;
+        private SyncPlayback syncPlayback;
+
+        public void Add(IDevice device)
         {
-            public bool isHardPause { get; set; }
-            public SyncPlayback syncPlayback { get; set; }
-        }
-        private readonly DeviceCollector deviceCollector;
-        private readonly SyncPlaybackFactory syncFactory;
-        private DevicesConfig config;
+            Devices.Add(device);
+            _ = Sync(device);
 
-        private readonly ConcurrentDictionary<string, PlaybackState> channels;
-        public List<string> Channels => channels.Keys.ToList();
-        private List<string> activeChannels;
-
-        private void EnsureChannel(string name)
-        {
-            if (channels.ContainsKey(name)) 
-                return;
-
-            channels[name] = new();
-        }
-
-        public void UseChannels(params string[] channelNames)
-        {
-            lock (activeChannels)
-            {
-                var namesToUse = (channelNames == null || channelNames.Length == 0)
-                    ? channels.Keys.ToList()
-                    : channelNames.Distinct().ToList();
-
-                if (!channels.ContainsKey(MAIN_CHANNEL) && namesToUse.Count > 0 && namesToUse.First() != MAIN_CHANNEL)
-                {
-                    // cuando se crea un nuevo canal por primera vez
-                    // el main y todos los dispositivos sin canal van a parar al canal nuevo 
-                    var status = channels[MAIN_CHANNEL];
-                    channels.Clear();
-
-                    var newChannel = namesToUse.First();
-                    channels[newChannel] = status;
-                    deviceCollector.Devices
-                        .Where(d=> string.IsNullOrEmpty(d.Channel))
-                        .Select(d => d.Channel = newChannel).ToList();
-                }
-
-                foreach (var name in namesToUse)
-                EnsureChannel(name);
-
-                activeChannels = namesToUse;
-            }
-        }
-        private IEnumerable<IDevice> Devices
-        {
-            get
-            {
-                lock (activeChannels)
-                {
-                    return activeChannels?.Any() != true
-                        ? deviceCollector.Devices
-                        : deviceCollector.Devices.Where(d => activeChannels.Contains(d.Channel) || activeChannels.Count == 1 && activeChannels.First() == MAIN_CHANNEL);
-                }
-            }
-        }
-
-        private async void DeviceCollector_OnloadDevice(IDevice device, List<IDevice> devices)
-        {
-            if (device is not INotifyPropertyChanged notifier) 
+            if (device is not INotifyPropertyChanged notifier)
                 return;
             
             notifier.PropertyChanged += async (sender, args) =>
             {
-                if (sender is not IDevice d ||
-                    args.PropertyName is not nameof(IDevice.SelectedVariant)
-                        and not nameof(IDevice.Channel))
+                if (sender is not IDevice d 
+                        || args.PropertyName is not nameof(IDevice.SelectedVariant) 
+                                             and not nameof(IDevice.IsReady)
+                                            // and not nameof(IRange.Max)
+                        || !Devices.Contains(d))
                     return;
 
                 await Sync(d);
             };
-            device.Channel = channels.Keys.First();
+
+        }
+        public void Remove(IDevice device)
+        {
+            Devices.Remove(device);
         }
 
         private bool isStopState(IDevice device)
         {
-            var devicRange = device as IRange;
             return device.SelectedVariant == "None"
-                || devicRange != null && devicRange.Min == devicRange.Max;
+                || device is IRange r && r.Min == r.Max;
         }
+
 
         public async Task Sync(IDevice device = null, bool atCurrentTime = true)
         {
-            var devices = device != null ? new[] { device } : Devices;
-
-            foreach (var d in devices)
+            var targets = device != null ? new List<IDevice> { device } : Devices;
+            foreach (var d in targets.Where(x=> x.IsReady))
             {
-                EnsureChannel(d.Channel);
-                var state = channels[d.Channel];
-
-                if (!state.isHardPause && state.syncPlayback?.IsFinished == false && !isStopState(d))
-                    _ = d.PlayGallery(state.syncPlayback.GalleryName, atCurrentTime ? state.syncPlayback.CurrentTime : state.syncPlayback.Seek);
+                if (!isHardPause && !isPause && syncPlayback?.IsFinished == false && !isStopState(d))
+                    _ = d.PlayGallery(syncPlayback.GalleryName, atCurrentTime ? syncPlayback.CurrentTime : syncPlayback.Seek);
                 else
                     _ = d.Stop();
             }
@@ -129,41 +73,38 @@ namespace Edi.Core.Players
 
         public async Task Stop()
         {
-            foreach (var channel in activeChannels)
-                channels[channel].syncPlayback = null;
+            syncPlayback = null;
 
             _ = Devices.Select(d => d.Stop()).ToList();
         }
 
         public async Task Play(string name, long seek = 0)
         {
-            foreach (var channel in activeChannels)
-                channels[channel].syncPlayback = syncFactory.Create(name, seek);
+            syncPlayback = syncFactory.Create(name, seek);
+            if (isHardPause)
+                return;
 
+            isPause = false;
             _ = Devices.Where(d =>
-                    !isStopState(d) &&
-                    !channels[d.Channel].isHardPause)
+                    !isStopState(d))
                 .Select(d => d.PlayGallery(name, seek)).ToList();
         }
 
         public async Task Pause(bool untilResume = false)
         {
-            foreach (var channel in activeChannels)
-            {
-                var state = channels[channel];
-                state.isHardPause = untilResume;
-                if (state.syncPlayback != null)
-                    state.syncPlayback = syncFactory.Create(state.syncPlayback.GalleryName, state.syncPlayback.CurrentTime);
-            }
+            isHardPause = untilResume;
+            isPause = true;
+            if (syncPlayback != null)
+                syncPlayback = syncFactory.Create(syncPlayback.GalleryName, syncPlayback.CurrentTime);
+
 
             _ = Devices.Select(d => d.Stop()).ToList();
         }
 
         public async Task Resume(bool atCurrentTime = false)
         {
-            foreach (var channel in activeChannels)
-                channels[channel].isHardPause = false;
-
+            isHardPause = false;
+            isPause = false;
             await Sync(atCurrentTime: atCurrentTime);
         }
 

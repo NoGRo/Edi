@@ -20,6 +20,7 @@ namespace Edi.Core.Controllers
                 IsReady = x.IsReady,
                 Name = x.Name,
                 Variants = x.Variants.ToArray(),
+                Channel = x.Channel,
                 SelectedVariant = x.SelectedVariant,
                 Min = (x as IRange)?.Min ?? 0,
                 Max = (x as IRange)?.Max ?? 100
@@ -48,7 +49,7 @@ namespace Edi.Core.Controllers
                                                      [FromRoute, Range(0, 100)] int min,
                                                      [FromRoute, Range(0, 100)] int max)
         {
-            var device = edi.Devices.  FirstOrDefault(x => x.Name == deviceName);
+            var device = edi.Devices.FirstOrDefault(x => x.Name == deviceName);
 
             if (device == null)
                 return NotFound("Device not found");
@@ -56,6 +57,18 @@ namespace Edi.Core.Controllers
                 return BadRequest("Max must be greater than Min");
 
             await edi.DeviceConfiguration.SelectRange(device, min, max);
+            return Ok();
+        }
+
+        [HttpPost("{deviceName}/Channel/{channelName}")]
+        public async Task<IActionResult> SelectRange([FromRoute, Required] string deviceName, [FromRoute, Required] string channelName)
+        {
+            var device = edi.Devices.FirstOrDefault(x => x.Name == deviceName);
+
+            if (device == null)
+                return NotFound("Device not found");
+
+            await edi.DeviceConfiguration.SelectChannel(device, channelName);
             return Ok();
         }
     }

@@ -13,6 +13,7 @@ namespace Edi.Core.Device
         public IEnumerable<string> Variants { get; set; }
         public bool IsReady { get; set; }
         public string SelectedVariant { get; set; }
+        public string Channel { get; set; }
         public int Min { get; set; }
         public int Max { get; set; }
     }

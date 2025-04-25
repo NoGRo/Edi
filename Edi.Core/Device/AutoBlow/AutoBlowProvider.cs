@@ -166,7 +166,7 @@ namespace Edi.Core.Device.AutoBlow
             return Client;
         }
 
-        private async void TimerReconnect_Elapsed(object? sender, ElapsedEventArgs e)
+        private void TimerReconnect_Elapsed(object? sender, ElapsedEventArgs e)
         {
             ConnectAll();
         }

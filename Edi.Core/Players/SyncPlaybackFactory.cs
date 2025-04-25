@@ -20,6 +20,11 @@ namespace Edi.Core.Players
 
             return new SyncPlayback(gallery, seek);
         }
+        public SyncPlayback Create(DefinitionGallery gallery, long seek)
+        {
+
+            return new SyncPlayback(gallery, seek);
+        }
     }
 
     public class SyncPlayback

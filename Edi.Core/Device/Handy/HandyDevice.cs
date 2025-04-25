@@ -228,9 +228,6 @@ namespace Edi.Core.Device.Handy
         private static DateTime _estimatedDatetime;
         private static int offsetRefreshMinutes = 10;
 
-
-
-
         public static async Task<long> SyncServerTimeAsync()
         {
             var client = new HttpClient();

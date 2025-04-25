@@ -167,17 +167,17 @@ namespace Edi.Core.Device.Buttplug
                         sendtask = Device.RotateAsync(Math.Min(1.0, Math.Max(0, CurrentCmd.Speed / 450f)), RotateDirection);
                         RotateTotalMillis += remainingCmdTime;
 
-                        if (RotateMillisDirChange == null || RotateTotalMillis >= RotateMillisDirChange)
+                        if (RotateMillisDirChange != null && !(RotateTotalMillis >= RotateMillisDirChange))
+                            break;
+                        
+                        if (RotateMillisDirChange != null)
                         {
-                            if (RotateMillisDirChange != null)
-                            {
-                                RotateTotalMillis = 0;
-                                RotateDirection = !RotateDirection;
-                            }
-
-                            var next = RandomRotate.NextSingle();
-                            RotateMillisDirChange = (1 - next) * RotateMinimumMillisDirChange + next * RotateMaximumMillisDirChange;
+                            RotateTotalMillis = 0;
+                            RotateDirection = !RotateDirection;
                         }
+
+                        var next = RandomRotate.NextSingle();
+                        RotateMillisDirChange = (1 - next) * RotateMinimumMillisDirChange + next * RotateMaximumMillisDirChange;
 
                         break;
                 }

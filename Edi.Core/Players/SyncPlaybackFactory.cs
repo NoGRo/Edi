@@ -36,7 +36,8 @@ namespace Edi.Core.Players
         }
 
         public string GalleryName => _gallery.Name;
-        public long Seek => _seek;
+        public DefinitionGallery Gallery => _gallery;
+        public long Seek => _gallery.Loop ? _seek % _gallery.Duration: _seek;
         public DateTime SendTime => _sendTime;
         public bool IsLoop => _gallery.Loop;
         public int Duration => _gallery.Duration;

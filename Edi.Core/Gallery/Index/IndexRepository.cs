@@ -60,7 +60,6 @@ namespace Edi.Core.Gallery.Index
                                                                 && bundle.Galleries.Contains(x.Name))
                                                        .ToDictionary(x => x.Name, x => x);
 
-                    
 
                     var variantbundleGalleries = variantGalleries.Where(x => bundle.Galleries.Contains(x.Name)).ToList();
 
@@ -86,13 +85,10 @@ namespace Edi.Core.Gallery.Index
                             Galleries[variant].Add(gallery.Name, new() { indexGallery });
                         else
                             Galleries[variant][gallery.Name].Add(indexGallery);
-                        
                     }
                     Bundler.GenerateBundle($"{bundle.BundleName}.{variant}");
                 }
             }
-
-
         }
         private List<BundleDefinition> GetBundleDefinition(string variant,string path)
         {

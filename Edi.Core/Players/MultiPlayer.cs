@@ -30,7 +30,7 @@ namespace Edi.Core.Players
         }
 
         private void Manager_OnFirstCustomChannelCreated(string obj)
-            => deviceChannel.Keys.ToList().ForEach(d => d.Channel = obj);
+            => deviceChannel.Keys.ToList().ForEach(d => d.Channel = obj);//TODO: algo mal aca dispositivos ya configurados en un cannal
             
         private Dictionary<IDevice, string> deviceChannel = new();
 
@@ -72,7 +72,7 @@ namespace Edi.Core.Players
         public Task Pause(bool untilResume = false, string[]? channels = null)
             => Manager.WithChannels(channels, c => c.Pause(untilResume));
 
-        public  Task Resume(bool atCurrentTime = false, string[]? channels = null)
+        public Task Resume(bool atCurrentTime = false, string[]? channels = null)
             => Manager.WithChannels(channels, c => c.Resume(atCurrentTime));
 
         public Task Intensity(int Max, string[]? channels = null)

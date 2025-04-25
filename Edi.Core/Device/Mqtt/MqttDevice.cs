@@ -7,6 +7,7 @@ using Microsoft.Extensions.Logging;
 using MQTTnet;
 
 using System;
+using System.Buffers;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -34,7 +35,6 @@ namespace Edi.Core.Device.Mqtt
             get => _currentCmd;
             set => Interlocked.Exchange(ref _currentCmd, value);
         }
-        private DateTime lastCmdSendAt { get; set; }
         public int currentCmdIndex { get; set; }
         public MqttDevice(FunscriptRepository repository, MqttClient mqttClient, string topic, ILogger logger) : base(repository, logger)
         {
@@ -98,11 +98,11 @@ namespace Edi.Core.Device.Mqtt
 
         private async Task send(string topic, object payload, bool defaultToken = true)
         {
-            //await mqttClient.PublishAsync(new()
-            //{
-            //    Topic = this.topic + topic,
-            //    Payload = Encoding.UTF8.GetBytes(JsonSerializer.Serialize(payload))
-            //}, playCancelTokenSource.Token);
+            await mqttClient.PublishAsync(new()
+            {
+                Topic = this.topic + topic,
+                Payload = new ReadOnlySequence<byte>(JsonSerializer.SerializeToUtf8Bytes(payload))
+            }, playCancelTokenSource.Token);
         }
         private record play(string gallery, long seek, string variant);
         private record command(long millis, int value);

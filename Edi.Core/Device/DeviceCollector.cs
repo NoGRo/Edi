@@ -63,15 +63,12 @@ namespace Edi.Core.Device
 
         public async Task UnloadDevice(IDevice device)
         {
-
             lock (Devices)
             {
                 Devices.RemoveAll(x => x.Name == device.Name);
 
             }
             OnUnloadDevice?.Invoke(device, Devices);
-
-
         }
     }
 

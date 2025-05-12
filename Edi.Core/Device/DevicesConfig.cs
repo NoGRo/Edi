@@ -17,10 +17,11 @@ namespace Edi.Core.Device
     public class DeviceConfig : IRange
     {
         public string Variant { get; set; }
-
+        public string Channel { get; set; }
+        
         public int Min { get; set; } = 0;
         public int Max { get; set; } = 100;
 
-        public string Channel { get; set; }
+
     }
 }

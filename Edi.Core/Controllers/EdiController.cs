@@ -70,7 +70,7 @@ namespace Edi.Core.Controllers
 
         [HttpGet("Definitions")]
         [SwaggerOperation(Summary = "Gets the list of available gallery definitions.")]
-        public async Task<IEnumerable<DefinitionGallery>> GetDefinitions()
+        public  IEnumerable<DefinitionGallery> GetDefinitions()
             => edi.Definitions.ToArray();
 
         [HttpGet("Assets")]
@@ -113,18 +113,13 @@ namespace Edi.Core.Controllers
                 {
                     System.IO.File.Delete(filePath);
                 }
-                try
+
+                using (var stream = new FileStream(filePath, FileMode.Create))
                 {
-                    using (var stream = new FileStream(filePath, FileMode.Create))
-                    {
-                        await file.CopyToAsync(stream);
-                    }
-                    uploadedFiles.Add(file.FileName);
+                    await file.CopyToAsync(stream);
                 }
-                catch (Exception ex)
-                {
-                    // Handle file-specific errors if needed
-                }
+                uploadedFiles.Add(file.FileName);
+
             }
             await edi.Init(folderPath);
             return Ok(edi.Definitions);

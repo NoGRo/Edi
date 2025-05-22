@@ -42,6 +42,7 @@ namespace Edi.Core
             {
                 c.SwaggerDoc("v1", new OpenApiInfo { Title = "Edi Rest", Version = "v1" });
                 c.OperationFilter<SwaggerChannelsParameterOperationFilter>();
+                c.EnableAnnotations(); // Enable Swagger annotations for summaries and descriptions
             });
             
 

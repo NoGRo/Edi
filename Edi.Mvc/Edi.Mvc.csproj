@@ -10,4 +10,8 @@
     <ProjectReference Include="..\Edi.Core\Edi.Core.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <PackageReference Include="Swashbuckle.AspNetCore.Annotations" Version="8.1.1" />
+  </ItemGroup>
+
 </Project>

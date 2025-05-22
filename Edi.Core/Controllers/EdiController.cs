@@ -47,14 +47,14 @@ namespace Edi.Core.Controllers
 
         [HttpPost("Pause")]
         [SwaggerOperation(Summary = "Pauses the playback of the current multimedia gallery.")]
-        public async Task Pause([FromQuery] bool untilResume = false)
+        public async Task Pause([FromQuery, SwaggerParameter("If true, playback will remain paused until an explicit resume command is received. If false, playback may resume automatically depending on the context.")] bool untilResume = false)
         {
             await edi.Player.Pause(untilResume, GetChannels());
         }
 
         [HttpPost("Resume")]
         [SwaggerOperation(Summary = "Resumes the playback of the current multimedia gallery.")]
-        public async Task Resume([FromQuery] bool AtCurrentTime = false)
+        public async Task Resume([FromQuery, SwaggerParameter("If true, playback resumes from the current position. If false, resumes from the last seek position.")] bool AtCurrentTime = false)
         {
             await edi.Player.Resume(AtCurrentTime, GetChannels());
         }

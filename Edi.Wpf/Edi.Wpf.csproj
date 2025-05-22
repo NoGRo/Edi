@@ -17,18 +17,14 @@
   </ItemGroup>
 
   <ItemGroup>
-
-	  <PackageReference Include="Fody" Version="6.9.2">
-		  <PrivateAssets>all</PrivateAssets>
-		  <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
-	  </PackageReference>
-
-	<PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="9.0.4" />
-	<PackageReference Include="PropertyChanged.Fody" Version="4.1.0" />
-	<PackageReference Include="Serilog" Version="4.2.0" />
-	<PackageReference Include="Serilog.AspNetCore" Version="9.0.0" />
-	<PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="9.0.4" />
-	<PackageReference Include="Swashbuckle.AspNetCore.Annotations" Version="8.1.1" />
+    <PackageReference Include="Fody" Version="6.9.2">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
+    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="9.0.4" />
+    <PackageReference Include="PropertyChanged.Fody" Version="4.1.0" />
+    <PackageReference Include="Serilog" Version="4.2.0" />
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="9.0.4" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\Edi.Core\Edi.Core.csproj" />
@@ -45,4 +41,3 @@
   </ItemGroup>
 
 </Project>
-	

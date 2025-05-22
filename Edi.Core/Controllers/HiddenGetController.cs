@@ -17,6 +17,21 @@ namespace Edi.Core.Controllers
     public class HiddenEdiGetController : ControllerBase
     {
         private readonly IEdi _edi;
+        private string[] GetChannels()
+        {
+            // Primero intenta obtener channels de la query string
+            if (Request.Query.TryGetValue("channels", out var queryChannels) && !string.IsNullOrWhiteSpace(queryChannels))
+            {
+                return queryChannels.ToString().Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+            }
+            // Si no hay en query, busca en el header
+            var header = Request.Headers["channels"].ToString();
+            if (!string.IsNullOrWhiteSpace(header))
+            {
+                return header.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+            }
+            return null;
+        }
 
         public HiddenEdiGetController(IEdi edi)
         {
@@ -26,7 +41,7 @@ namespace Edi.Core.Controllers
         [HttpGet("Play/{name}")]
         public async Task Play([FromRoute] string name, [FromQuery] long seek = 0)
         {
-            await _edi.Player.Play(name, seek);
+            await _edi.Player.Play(name, seek, GetChannels());
         }
 
         /// <summary>
@@ -35,7 +50,7 @@ namespace Edi.Core.Controllers
         [HttpGet("Stop")]
         public async Task Stop()
         {
-            await _edi.Player.Stop();
+            await _edi.Player.Stop(GetChannels());
         }
 
         /// <summary>
@@ -44,7 +59,7 @@ namespace Edi.Core.Controllers
         [HttpGet("Pause")]
         public async Task Pause(bool untilResume = false)
         {
-            await _edi.Player.Pause(untilResume);
+            await _edi.Player.Pause(untilResume, GetChannels());
         }
 
         /// <summary>
@@ -53,7 +68,7 @@ namespace Edi.Core.Controllers
         [HttpGet("Resume")]
         public async Task Resume([FromQuery] bool AtCurrentTime = false)
         {
-            await _edi.Player.Resume(AtCurrentTime);
+            await _edi.Player.Resume(AtCurrentTime, GetChannels());
         }
 
         /// <summary>
@@ -62,7 +77,7 @@ namespace Edi.Core.Controllers
         [HttpGet("Intensity/{max}")]
         public async Task Intensity([Required, FromRoute, Range(0, 100)] int max = 100)
         {
-            await _edi.Player.Intensity(max);
+            await _edi.Player.Intensity(max, GetChannels());
         }
 
 
@@ -112,8 +127,7 @@ namespace Edi.Core.Controllers
             await _edi.DeviceConfiguration.SelectRange(device, min, max);
             return Ok();
         }
-        [HttpPost("{deviceName}/Channel/{channelName}")]
-        [SwaggerOperation(Summary = "Assigns a channel to the specified device.")]
+        [HttpGet("{deviceName}/Channel/{channelName}")]
         public async Task<IActionResult> SelectRange([FromRoute, Required] string deviceName, [FromRoute, Required] string channelName)
         {
             var device = _edi.Devices.FirstOrDefault(x => x.Name == deviceName);

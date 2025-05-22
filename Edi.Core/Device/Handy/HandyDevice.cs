@@ -225,8 +225,6 @@ namespace Edi.Core.Device.Handy
     public static class ServerTimeSync
     {
         private static double _estimatedAverageOffset = 0;
-        private static DateTime _estimatedDatetime;
-        private static int offsetRefreshMinutes = 10;
 
         public static async Task<long> SyncServerTimeAsync()
         {

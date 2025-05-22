@@ -1,9 +1,10 @@
-using System.ComponentModel.DataAnnotations;
-using Microsoft.AspNetCore.Mvc;
 using Edi.Core;
 using Edi.Core.Device.Interfaces;
-using Edi.Core.Gallery.Definition;
 using Edi.Core.Gallery;
+using Edi.Core.Gallery.Definition;
+using Microsoft.AspNetCore.Mvc;
+using Swashbuckle.AspNetCore.Annotations;
+using System.ComponentModel.DataAnnotations;
 using System.IO;
 using System.Security.Cryptography;
 using System.Xml.Linq;
@@ -73,8 +74,12 @@ namespace Edi.Core.Controllers
     [ApiExplorerSettings(IgnoreApi = true)]
     public class HiddenDevicesGetController : ControllerBase
     {
-
         private readonly IEdi _edi;
+
+        public HiddenDevicesGetController(IEdi edi)
+        {
+            _edi = edi;
+        }
 
         [HttpGet("{deviceName}/Variant/{variantName}")]
         public async Task<IActionResult> SelectVarian([FromRoute, Required] string deviceName,
@@ -105,6 +110,16 @@ namespace Edi.Core.Controllers
                 return BadRequest("Max must be greater than Min");
 
             await _edi.DeviceConfiguration.SelectRange(device, min, max);
+            return Ok();
+        }
+        [HttpPost("{deviceName}/Channel/{channelName}")]
+        [SwaggerOperation(Summary = "Assigns a channel to the specified device.")]
+        public async Task<IActionResult> SelectRange([FromRoute, Required] string deviceName, [FromRoute, Required] string channelName)
+        {
+            var device = _edi.Devices.FirstOrDefault(x => x.Name == deviceName);
+            if (device == null)
+                return NotFound("Device not found");
+            await _edi.DeviceConfiguration.SelectChannel(device, channelName);
             return Ok();
         }
     }

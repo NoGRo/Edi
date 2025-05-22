@@ -71,7 +71,7 @@ namespace Edi.Core.Device.Buttplug
 
                 client.Dispose();
                 client = null;
-                await RemoveAllDevices();
+                RemoveAllDevices();
                 _logger.LogInformation("Existing client disposed and devices removed.");
             }
 
@@ -102,7 +102,7 @@ namespace Edi.Core.Device.Buttplug
             }
         }
 
-        private async Task RemoveAllDevices()
+        private void RemoveAllDevices()
         {
             _logger.LogInformation("Removing all devices.");
             foreach (var devicerm in devices)
@@ -154,20 +154,20 @@ namespace Edi.Core.Device.Buttplug
 
             for (uint i = 0; i < Device.LinearAttributes.Count; i++)
             {
-                rmdevices.Add(devices.FirstOrDefault(x => x.Device == Device && x.Actuator == ActuatorType.Position && x.Channel == i));
+                rmdevices.Add(devices.FirstOrDefault(x => x.Device == Device && x.Actuator == ActuatorType.Position && x.DeviceChannel == i));
             }
 
             for (uint i = 0; i < Device.VibrateAttributes.Count; i++)
             {
-                rmdevices.Add(devices.FirstOrDefault(x => x.Device == Device && x.Actuator == ActuatorType.Vibrate && x.Channel == i));
+                rmdevices.Add(devices.FirstOrDefault(x => x.Device == Device && x.Actuator == ActuatorType.Vibrate && x.DeviceChannel == i));
             }
             for (uint i = 0; i < Device.RotateAttributes.Count; i++)
             {
-                rmdevices.Add(devices.FirstOrDefault(x => x.Device == Device && x.Actuator == ActuatorType.Rotate && x.Channel == i));
+                rmdevices.Add(devices.FirstOrDefault(x => x.Device == Device && x.Actuator == ActuatorType.Rotate && x.DeviceChannel == i));
             }
             for (uint i = 0; i < Device.OscillateAttributes.Count; i++)
             {
-                rmdevices.Add(devices.FirstOrDefault(x => x.Device == Device && x.Actuator == ActuatorType.Oscillate && x.Channel == i));
+                rmdevices.Add(devices.FirstOrDefault(x => x.Device == Device && x.Actuator == ActuatorType.Oscillate && x.DeviceChannel == i));
             }
 
             foreach (var devicerm in rmdevices.Where(x => x != null))

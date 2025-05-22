@@ -13,7 +13,7 @@ namespace Edi.Core.Controllers
     {
         [HttpGet()]
         [SwaggerOperation(Summary = "Gets the list of connected devices and their properties.")]
-        public async Task<IEnumerable<DeviceDto>> GetDevices()
+        public IEnumerable<DeviceDto> GetDevices()
         {
             return edi.Devices.Select(x => new DeviceDto
             {

@@ -76,14 +76,14 @@ namespace Edi.Core.Device.Buttplug
                         x.Device,
                         x.Actuator,
                         RemainingTime = x.CalculateSpeed().TimeUntilNextChange,
-                        Cmd = (x.Channel, x.CalculateSpeed().Speed)
+                        Cmd = (x.DeviceChannel, x.CalculateSpeed().Speed)
                     })
                     .GroupBy(x => new { x.Device, x.Actuator })
                     .ToImmutableDictionary(
                         g => g.Key,
                         g => new
                         {
-                            Commands = g.OrderBy(x => x.Cmd.Channel).Select(x => x.Cmd).ToImmutableArray(),
+                            Commands = g.OrderBy(x => x.Cmd.DeviceChannel).Select(x => x.Cmd).ToImmutableArray(),
                             RemainingTime = g.Min(x => x.RemainingTime)
                         });
 

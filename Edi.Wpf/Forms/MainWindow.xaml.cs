@@ -142,8 +142,8 @@ namespace Edi.Forms
 
         private async void DeviceCollector_OnUnloadDevice(IDevice device, List<IDevice> devices)
         {
-            Thread.Sleep(1000);
-            await Dispatcher.InvokeAsync(async () =>
+            await Task.Delay(1000);
+            await Dispatcher.InvokeAsync(() =>
             {
                 DevicesGrid.ItemsSource = edi.Devices;
 
@@ -154,9 +154,9 @@ namespace Edi.Forms
 
         private async void DeviceCollector_OnloadDeviceAsync(IDevice device, List<IDevice> devices)
         {
-            Thread.Sleep(500);
+            await Task.Delay(500);
 
-            await Dispatcher.InvokeAsync(async () =>
+            await Dispatcher.InvokeAsync(() =>
             {
                 DevicesGrid.ItemsSource = edi.Devices;
                 //DevicesGrid.Items.Refresh();

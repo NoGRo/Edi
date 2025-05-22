@@ -22,7 +22,6 @@ namespace Edi.Core.Device.AutoBlow
     public class AutoBlowProvider : IDeviceProvider
     {
         private readonly ILogger _logger;
-        private AutoBlowDevice device;
         private Timer timerReconnect = new Timer(40000);
         public HandyConfig Config { get; set; }
         private List<string> Keys = new List<string>();
@@ -54,7 +53,7 @@ namespace Edi.Core.Device.AutoBlow
 
             _logger.LogInformation("Initializing AutoBlowProvider...");
             await Task.Delay(500);
-            await RemoveAll();
+            RemoveAll();
 
             Keys = Config.Key.Split(',')
                              .Where(x => !string.IsNullOrWhiteSpace(x) && x.Trim().Length == 12)
@@ -97,7 +96,7 @@ namespace Edi.Core.Device.AutoBlow
             if (resp?.StatusCode != System.Net.HttpStatusCode.OK)
             {
                 _logger.LogWarning($"Device with Key: {Key} not responding. Removing from active devices.");
-                await Remove(Key);
+                Remove(Key);
                 return;
             }
 
@@ -105,7 +104,7 @@ namespace Edi.Core.Device.AutoBlow
             if (!connected.connected)
             {
                 _logger.LogWarning($"Device with Key: {Key} is not connected. Removing from active devices.");
-                await Remove(Key);
+                Remove(Key);
                 return;
             }
 
@@ -138,16 +137,16 @@ namespace Edi.Core.Device.AutoBlow
             }
         }
 
-        private async Task RemoveAll()
+        private void RemoveAll()
         {
             _logger.LogInformation("Removing all devices.");
             foreach (var key in Keys)
             {
-                await Remove(key);
+                Remove(key);
             }
         }
 
-        private async Task Remove(string Key)
+        private void Remove(string Key)
         {
             if (devices.ContainsKey(Key))
             {

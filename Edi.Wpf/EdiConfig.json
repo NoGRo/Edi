@@ -21,15 +21,21 @@
     "Devices": {
       "Preview Device": {
         "Variant": "detailed",
+        "Channel": null,
         "Min": 0,
-        "Max": 100,
-        "Channel": null
+        "Max": 100
       },
       "FUNOSR-SSR1-V2.0": {
         "Variant": "Linear",
+        "Channel": "dffd2",
         "Min": 0,
-        "Max": 100,
-        "Channel": "dffd2"
+        "Max": 100
+      },
+      "Lovense Hush": {
+        "Variant": "Lineal Anal",
+        "Channel": null,
+        "Min": 0,
+        "Max": 100
       }
     }
   },

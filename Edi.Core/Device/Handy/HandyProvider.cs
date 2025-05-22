@@ -61,7 +61,7 @@ namespace Edi.Core.Device.Handy
             }
 
             await Task.Delay(500);
-            await RemoveAll();
+            RemoveAll();
 
             Keys = Config.Key.Split(',')
                              .Where(x => !string.IsNullOrWhiteSpace(x))
@@ -97,14 +97,14 @@ namespace Edi.Core.Device.Handy
             catch (Exception ex)
             {
                 _logger.LogError($"Connection failed for Key: {key} - {ex.Message}");
-                await Remove(key);
+                Remove(key);
                 return;
             }
 
             if (resp?.StatusCode != System.Net.HttpStatusCode.OK)
             {
                 _logger.LogWarning($"Device with Key: {key} not reachable, removing.");
-                await Remove(key);
+                Remove(key);
                 return;
             }
 
@@ -112,7 +112,7 @@ namespace Edi.Core.Device.Handy
             if (!status.connected)
             {
                 _logger.LogWarning($"Device with Key: {key} not connected, removing.");
-                await Remove(key);
+                Remove(key);
                 return;
             }
 
@@ -132,16 +132,16 @@ namespace Edi.Core.Device.Handy
             }
         }
 
-        private async Task RemoveAll()
+        private void RemoveAll()
         {
             _logger.LogInformation("Removing all devices.");
             foreach (var key in Keys)
             {
-                await Remove(key);
+                Remove(key);
             }
         }
 
-        private async Task Remove(string key)
+        private void Remove(string key)
         {
             _clients.TryRemove(key, out var client);
 

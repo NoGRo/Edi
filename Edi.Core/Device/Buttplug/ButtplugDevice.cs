@@ -17,7 +17,7 @@ namespace Edi.Core.Device.Buttplug
         public ButtplugClientDevice Device { get; private set; }
         private ButtplugConfig config { get; set; }
         public ActuatorType Actuator { get; }
-        public uint Channel { get; }
+        public uint DeviceChannel { get; }
 
         private CmdLinear _currentCmd;
 
@@ -73,18 +73,18 @@ namespace Edi.Core.Device.Buttplug
                                     : "");
 
             Actuator = actuator;
-            Channel = channel;
+            DeviceChannel = channel;
             var acutators = Device.GenericAcutatorAttributes(Actuator);
 
             if (acutators.Any())
-                vibroSteps = Device.GenericAcutatorAttributes(Actuator)[(int)Channel].StepCount;
+                vibroSteps = Device.GenericAcutatorAttributes(Actuator)[(int)DeviceChannel].StepCount;
 
             if (vibroSteps == 0)
                 vibroSteps = 1;
             vibroSteps = 100.0 / vibroSteps;
 
             this.config = config;
-            _logger.LogInformation($"ButtplugDevice initialized with Device: {Name}, Actuator: {Actuator}, Channel: {Channel}");
+            _logger.LogInformation($"ButtplugDevice initialized with Device: {Name}, Actuator: {Actuator}, Channel: {DeviceChannel}");
         }
 
         public override string DefaultVariant()

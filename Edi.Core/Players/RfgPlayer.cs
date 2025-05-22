@@ -36,8 +36,8 @@ namespace Edi.Core.Players
             syncPlaybackFactory = spf;
             config = cfg.Get<EdiConfig>();
 
-            galleryStoper = SetupTimer(() => StopGallery());
-            reactStoper = SetupTimer(() => StopReaction());
+            galleryStoper = SetupTimer(StopGallery);
+            reactStoper = SetupTimer(StopReaction);
         }
 
         private Timer SetupTimer(Func<Task> action)

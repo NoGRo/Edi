@@ -45,7 +45,7 @@ namespace Edi.Core.Device.Mqtt
 
         internal override Task applyRange()
         {
-            _ = send("range", new range(Min, Max), false);
+            _ = send("range", new Range(Min, Max), false);
             return Task.CompletedTask;
         }
         internal override void SetVariant()
@@ -55,7 +55,7 @@ namespace Edi.Core.Device.Mqtt
         public override Task PlayGallery(string name, long seek = 0)
         {
             var task = base.PlayGallery(name, seek);
-            _ = send("play", new play(name, seek, selectedVariant));
+            _ = send("play", new Play(name, seek, selectedVariant));
             return task;
         }
         public override async Task PlayGallery(FunscriptGallery gallery, long seek = 0)
@@ -72,7 +72,7 @@ namespace Edi.Core.Device.Mqtt
 
                 try
                 {
-                    _ = send("command", new command(CurrentCmd.Millis, CurrentCmd.GetValueInRange(Min, Max)));
+                    await send("command", new Command(CurrentCmd.Millis, CurrentCmd.GetValueInRange(Min, Max)));
                     // Usa el nuevo token de cancelación aquí
                     await Task.Delay(Math.Max(0, ReminingCmdTime), playCancelTokenSource.Token);
                 }
@@ -93,7 +93,7 @@ namespace Edi.Core.Device.Mqtt
 
         public override async Task StopGallery()
         {
-            _ = send("stop", "stop");
+            await send("stop", "stop");
         }
 
         private async Task send(string topic, object payload, bool defaultToken = true)
@@ -104,8 +104,8 @@ namespace Edi.Core.Device.Mqtt
                 Payload = new ReadOnlySequence<byte>(JsonSerializer.SerializeToUtf8Bytes(payload))
             }, playCancelTokenSource.Token);
         }
-        private record play(string gallery, long seek, string variant);
-        private record command(long millis, int value);
-        private record range(int min, int max);
+        private record Play(string gallery, long seek, string variant);
+        private record Command(long millis, int value);
+        private record Range(int min, int max);
     }
 }

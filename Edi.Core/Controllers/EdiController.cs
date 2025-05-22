@@ -14,39 +14,60 @@ namespace Edi.Core.Controllers
     [Route("[controller]")]
     public class EdiController(IEdi edi, ConfigurationManager configurationManager) : ControllerBase
     {
-        
+        private string[]? GetChannels()
+        {
+            // Primero intenta obtener channels de la query string
+            if (Request.Query.TryGetValue("channels", out var queryChannels) && !string.IsNullOrWhiteSpace(queryChannels))
+            {
+                return queryChannels.ToString().Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+            }
+            // Si no hay en query, busca en el header
+            var header = Request.Headers["channels"].ToString();
+            if (!string.IsNullOrWhiteSpace(header))
+            {
+                return header.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+            }
+            return null;
+        }
+
         [HttpPost("Play/{name}")]
-        public async Task Play([FromRoute,Required] string name, [FromQuery] long seek = 0, [FromQuery] string[] channels = null)
-        => await edi.Player.Play(name, seek, channels);
+        public async Task Play([FromRoute,Required] string name, [FromQuery] long seek = 0)
+        {
+            await edi.Player.Play(name, seek, GetChannels());
+        }
 
         /// <summary>
         /// Stops the playback of the current gallery of multimedia content.
         /// </summary>
         [HttpPost("Stop")]
-        public async Task Stop([FromQuery] string[] channels = null)
-        => await edi.Player.Stop(channels);
+        public async Task Stop()
+        {
+            await edi.Player.Stop(GetChannels());
+        }
 
         /// <summary>
         /// Pauses the playback of the current gallery of multimedia content.
         /// </summary>
         [HttpPost("Pause")]
-        public async Task Pause([FromQuery] bool untilResume = false, [FromQuery] string[] channels = null)
-        => await edi.Player.Pause(untilResume, channels);
+        public async Task Pause([FromQuery] bool untilResume = false)
+        {
+            await edi.Player.Pause(untilResume, GetChannels());
+        }
 
         /// <summary>
         /// Resumes the playback of the current gallery of multimedia content.
         /// </summary>
         [HttpPost("Resume")]
-        public async Task Resume([FromQuery] bool AtCurrentTime = false, [FromQuery] string[] channels = null)
-        => await edi.Player.Resume(AtCurrentTime, channels);
+        public async Task Resume([FromQuery] bool AtCurrentTime = false)
+        {
+            await edi.Player.Resume(AtCurrentTime, GetChannels());
+        }
 
         [HttpPost("Intensity/{max}")]
-        public async Task Intensity([Required, FromRoute, Range(0, 100)] int max = 100, [FromQuery] string[] channels = null)
-        => await edi.Player.Intensity(max, channels);
-
-
-
-
+        public async Task Intensity([Required, FromRoute, Range(0, 100)] int max = 100)
+        {
+            await edi.Player.Intensity(max, GetChannels());
+        }
 
         [HttpGet("Definitions")]
         public async Task<IEnumerable<DefinitionGallery>> GetDefinitions()

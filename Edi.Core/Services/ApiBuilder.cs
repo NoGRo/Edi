@@ -41,6 +41,7 @@ namespace Edi.Core
             services.AddSwaggerGen(c =>
             {
                 c.SwaggerDoc("v1", new OpenApiInfo { Title = "Edi Rest", Version = "v1" });
+                c.OperationFilter<SwaggerChannelsParameterOperationFilter>();
             });
             
 

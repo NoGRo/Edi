@@ -27,14 +27,14 @@ namespace Edi.Core.Device.OSR
         public bool IsPause { get; private set; } = true;
         public bool IsReady => Connection.IsReady == true;
 
-        internal OSRPosition? LastPosition { get; private set; }
+        internal OSRPosition LastPosition { get; private set; }
 
         private readonly ILogger logger;
         private FunscriptRepository repository { get; set; }
         private string selectedVariant;
 
-        private FunscriptGallery? currentGallery;
-        private OSRScript? playbackScript { get; set; }
+        private FunscriptGallery currentGallery;
+        private OSRScript playbackScript { get; set; }
         private bool speedRampUp { get; set; } = false;
         private DateTime? speedRampUpTime { get; set; }
 

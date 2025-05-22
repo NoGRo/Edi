@@ -46,9 +46,6 @@ namespace Edi.Core.Device.Simulator
             }
         }
 
-        public int Min { get; set; } = 0;
-        public int Max { get; set; } = 100;
-
         // Valor actual del progress bar (0-100)
         public double ProgressValue { get; set; }
 

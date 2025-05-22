@@ -14,7 +14,7 @@ public class ChannelManager<T>
         EnsureChannel(MAIN_CHANNEL);
     }
 
-    public event Action<string>? OnFirstCustomChannelCreated;
+    public event Action<string> OnFirstCustomChannelCreated;
 
     public IEnumerable<string> Channels => channels.Keys;
     public List<string> ActiveChannels => activeChannels;
@@ -28,7 +28,7 @@ public class ChannelManager<T>
     }
     private readonly SemaphoreSlim semaphore = new(1, 1);
 
-    private void UseChannels(params string[]? requestedChannels)
+    private void UseChannels(params string[] requestedChannels)
     {
         var names = (requestedChannels == null || requestedChannels.FirstOrDefault() == null)
             ? channels.Keys.ToList()
@@ -62,7 +62,7 @@ public class ChannelManager<T>
             return Task.CompletedTask;
         });
     }
-    public async Task WithChannels(string[]? channelNames, Func<T, Task> action)
+    public async Task WithChannels(string[] channelNames, Func<T, Task> action)
     {
         await semaphore.WaitAsync();
         try

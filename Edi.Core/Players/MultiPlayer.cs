@@ -63,19 +63,19 @@ namespace Edi.Core.Players
         }
 
 
-        public Task Play(string name, long seek = 0, string[]? channels = null)
+        public Task Play(string name, long seek = 0, string[] channels = null)
             => Manager.WithChannels(channels,c => c.Play(name, seek));
 
-        public Task Stop(string[]? channels   = null)
+        public Task Stop(string[] channels   = null)
             => Manager.WithChannels(channels, c => c.Stop());
 
-        public Task Pause(bool untilResume = false, string[]? channels = null)
+        public Task Pause(bool untilResume = false, string[] channels = null)
             => Manager.WithChannels(channels, c => c.Pause(untilResume));
 
-        public Task Resume(bool atCurrentTime = false, string[]? channels = null)
+        public Task Resume(bool atCurrentTime = false, string[] channels = null)
             => Manager.WithChannels(channels, c => c.Resume(atCurrentTime));
 
-        public Task Intensity(int Max, string[]? channels = null)
+        public Task Intensity(int Max, string[] channels = null)
             => Manager.WithChannels(channels, c => c.Intensity(Max));
     }
 }

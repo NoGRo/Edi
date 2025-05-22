@@ -23,9 +23,9 @@ namespace Edi.Core.Device
         public List<IDevice> Devices { get; set; } = new List<IDevice>();
         public delegate void OnUnloadDeviceHandler(IDevice device, List<IDevice> devices);
         public delegate void OnloadDeviceHandler(IDevice device, List<IDevice> devices);
-        public event OnUnloadDeviceHandler? OnUnloadDevice;
-        public event OnloadDeviceHandler? OnloadDevice;
-        public async void LoadDevice(IDevice device)
+        public event OnUnloadDeviceHandler OnUnloadDevice;
+        public event OnloadDeviceHandler OnloadDevice;
+        public void LoadDevice(IDevice device)
         {
 
             DevicesConfig Config = configuration.Get<DevicesConfig>();
@@ -61,7 +61,7 @@ namespace Edi.Core.Device
             device.Name = NewName;
         }
 
-        public async Task UnloadDevice(IDevice device)
+        public void UnloadDevice(IDevice device)
         {
             lock (Devices)
             {

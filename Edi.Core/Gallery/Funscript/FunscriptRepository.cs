@@ -30,7 +30,7 @@ namespace Edi.Core.Gallery.Funscript
         public override IEnumerable<string> Accept => new[] { "funscript" };
         public override IEnumerable<string> Reserve => Enum.GetNames(typeof(Axis));
 
-        private void SyncChapterInfo(DefinitionGallery DefinitionGallery, FunScriptFile? funscript)
+        private void SyncChapterInfo(DefinitionGallery DefinitionGallery, FunScriptFile funscript)
         {
             if (!Definition.Config.GenerateChaptersFromDefinition)
             {

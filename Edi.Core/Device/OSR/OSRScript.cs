@@ -90,7 +90,7 @@ namespace Edi.Core.Device.OSR
 
                 processedCommands[axis] = commands;
 
-                CmdLinear? prevCmd = null;
+                CmdLinear prevCmd = null;
                 foreach (var cmd in processedCommands[axis])
                 {
                     if (prevCmd != null)
@@ -105,9 +105,9 @@ namespace Edi.Core.Device.OSR
             ResetIndices();
         }
 
-        public OSRPosition? GetNextPosition(int deltaMillis)
+        public OSRPosition GetNextPosition(int deltaMillis)
         {
-            OSRPosition? pos = null;
+            OSRPosition pos = null;
             var nextMillis = CurrentTime + deltaMillis;
 
             if (playbackCommands == null || nextMillis > scriptLength)

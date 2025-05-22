@@ -36,7 +36,7 @@ namespace Edi.Core.Device.EStim
             foreach (var eStimDevice in _devices)
             {
                 _logger.LogInformation($"Unloading device: {eStimDevice}");
-                await DeviceCollector.UnloadDevice(eStimDevice);
+                DeviceCollector.UnloadDevice(eStimDevice);
             }
             _devices.Clear();
 

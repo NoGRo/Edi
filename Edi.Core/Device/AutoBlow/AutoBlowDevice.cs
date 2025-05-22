@@ -33,11 +33,8 @@ namespace Edi.Core.Device.AutoBlow
         private readonly ILogger _logger;
 
         public string Key { get; set; }
-        private static long timeSyncAvrageOffset;
-        private static long timeSyncInitialOffset;
         public HttpClient Client = null;
         private string CurrentBundle = "default";
-        private Task uploadTask { get; set; }
         private CancellationTokenSource uploadCancellationTokenSource;
 
         public AutoBlowDevice(HttpClient Client, IndexRepository repository, ILogger logger)

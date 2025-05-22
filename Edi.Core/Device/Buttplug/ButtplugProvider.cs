@@ -107,7 +107,7 @@ namespace Edi.Core.Device.Buttplug
             _logger.LogInformation("Removing all devices.");
             foreach (var devicerm in devices)
             {
-                await DeviceCollector.UnloadDevice(devicerm);
+                DeviceCollector.UnloadDevice(devicerm);
             }
             devices.Clear();
             _logger.LogInformation("All devices removed.");
@@ -218,7 +218,7 @@ namespace Edi.Core.Device.Buttplug
             if (!client.Connected)
             {
                 _logger.LogInformation("Reconnection timer triggered. Attempting to reconnect.");
-                Connect();
+                _ = Connect();
             }
             else
             {

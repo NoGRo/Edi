@@ -168,9 +168,9 @@ namespace Edi.Core.Gallery.Index
             => funRepo.GetVariants();
         public List<IndexGallery> GetAll()
             => Galleries.Values.SelectMany(x => x.Values.SelectMany(y => y)).ToList();
-        public IndexGallery? Get(string name, string variant = null)
+        public IndexGallery Get(string name, string variant = null)
             => Get(name, variant, "default");
-        public IndexGallery? Get(string name, string variant, string bundle)
+        public IndexGallery Get(string name, string variant, string bundle)
         {
             var galls = Galleries.GetValueOrDefault(variant)?.GetValueOrDefault(name);
             return galls?.Find(x => x.Bundle == bundle) ?? galls?.FirstOrDefault();

@@ -23,7 +23,6 @@ namespace Edi.Core.Device.EStim
     {
         private readonly AudioRepository _repository;
         private readonly IWavePlayer _wavePlayer;
-        private AudioGallery _currentGallery;
         private Mp3FileReader _curentAudioFile { get; set; }
 
         private Dictionary<string, Mp3FileReader> _inMemoryMp3;

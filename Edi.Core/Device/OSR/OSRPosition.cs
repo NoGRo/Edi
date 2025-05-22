@@ -60,7 +60,7 @@ namespace Edi.Core.Device.OSR
             A1 ??= other.A1;
         }
 
-        public string OSRCommandString(OSRPosition? prevPos = null)
+        public string OSRCommandString(OSRPosition prevPos = null)
         {
             if (DeltaMillis == null)
                 return string.Empty;

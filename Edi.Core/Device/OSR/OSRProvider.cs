@@ -15,7 +15,7 @@ namespace Edi.Core.Device.OSR
         public event EventHandler<string> StatusChange;
 
         private ILogger logger;
-        private OSRDevice? Device;
+        private OSRDevice Device;
         private DeviceCollector DeviceCollector;
         private FunscriptRepository Repository;
         private readonly Timer TimerPing = new(5000);
@@ -122,7 +122,7 @@ namespace Edi.Core.Device.OSR
             {
                 await Device.Stop();
                 Connection.Disconnect();
-                await DeviceCollector.UnloadDevice(Device);
+                DeviceCollector.UnloadDevice(Device);
                 logger.LogInformation("Unloaded TCode device");
             }
 

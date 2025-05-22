@@ -175,7 +175,7 @@ namespace Edi.Core.Gallery.Definition
         public List<DefinitionGallery> GetAll()
             => dicDefinitions.Values.ToList();
 
-        public DefinitionGallery? Get(string name, string variant = null)
+        public DefinitionGallery Get(string name, string variant = null)
             => dicDefinitions.GetValueOrDefault(name);
 
 

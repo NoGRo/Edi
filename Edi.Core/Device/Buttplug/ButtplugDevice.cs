@@ -54,8 +54,6 @@ namespace Edi.Core.Device.Buttplug
             }
         }
 
-        public int Min { get; set; }
-        public int Max { get; set; } = 100;
         private double vibroSteps;
 
         private readonly Random RandomRotate = new((int)DateTime.Now.Ticks);

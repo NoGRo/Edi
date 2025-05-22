@@ -166,10 +166,10 @@ namespace Edi.Forms
 
         private void Variants_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
-            ComboBox comboBox = (sender as ComboBox);
+            ComboBox? comboBox = sender as ComboBox;
             
             var device = comboBox.DataContext as IDevice;
-            edi.DeviceConfiguration.SelectVariant(device, (string)comboBox.SelectedValue);
+            _ = edi.DeviceConfiguration.SelectVariant(device, (string)comboBox.SelectedValue);
         }
 
 

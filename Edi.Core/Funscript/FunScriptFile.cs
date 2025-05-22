@@ -110,12 +110,12 @@ namespace Edi.Core.Funscript
         public static FunScriptFile Read(string path)
         {
             path = Path.GetFullPath(path);
-            FunScriptFile? result;
+            FunScriptFile result;
             try
             {
                 result  = JsonConvert.DeserializeObject<FunScriptFile>(File.ReadAllText(path));
             }
-            catch (Exception ex) {
+            catch {
                 return null;
             }
             result.path = path;

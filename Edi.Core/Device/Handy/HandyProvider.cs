@@ -147,7 +147,7 @@ namespace Edi.Core.Device.Handy
 
             if (devices.TryGetValue(key, out var device))
             {
-                await _deviceCollector.UnloadDevice(device);
+                _deviceCollector.UnloadDevice(device);
                 devices.Remove(key);
                 _logger.LogInformation($"Device removed with Key: {key}");
             }
@@ -164,7 +164,7 @@ namespace Edi.Core.Device.Handy
             });
         }
 
-        private void TimerReconnect_Elapsed(object? sender, ElapsedEventArgs e)
+        private void TimerReconnect_Elapsed(object sender, ElapsedEventArgs e)
         {
             ConnectAll();
         }

@@ -15,7 +15,7 @@ namespace Edi.Core.Controllers
     [Route("[controller]")]
     public class EdiController(IEdi edi, ConfigurationManager configurationManager) : ControllerBase
     {
-        private string[]? GetChannels()
+        private string[] GetChannels()
         {
             // Primero intenta obtener channels de la query string
             if (Request.Query.TryGetValue("channels", out var queryChannels) && !string.IsNullOrWhiteSpace(queryChannels))

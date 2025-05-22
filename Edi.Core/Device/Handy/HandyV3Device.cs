@@ -46,7 +46,6 @@ namespace Edi.Core.Device.Handy
 
 
 
-        private string CurrentBundle = "default";
         public HandyV3Device(HttpClient Client, FunscriptRepository repository, ILogger logger) : base(repository, logger)
         {
             Key = Client.DefaultRequestHeaders.GetValues("X-Connection-Key").First();

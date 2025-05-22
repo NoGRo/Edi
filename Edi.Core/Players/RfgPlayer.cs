@@ -84,7 +84,7 @@ namespace Edi.Core.Players
         }
 
 
-        private async Task PlayGallery(DefinitionGallery? gallery, long seek = 0)
+        private async Task PlayGallery(DefinitionGallery gallery, long seek = 0)
         {
             if (gallery == null || gallery.Duration <= 0)
                 return;

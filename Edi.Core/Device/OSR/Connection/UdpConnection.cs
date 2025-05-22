@@ -8,7 +8,7 @@ namespace Edi.Core.Device.OSR.Connection
 {
     class UdpConnection : IOSRConnection
     {
-        private UdpClient? UdpClient;
+        private UdpClient UdpClient;
         private string Address;
         private int Port;
         private ILogger Logger;

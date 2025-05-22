@@ -152,7 +152,7 @@ namespace Edi.Core.Device.AutoBlow
             if (devices.ContainsKey(Key))
             {
                 _logger.LogInformation($"Removing device with Key: {Key}");
-                await deviceCollector.UnloadDevice(devices[Key]);
+                deviceCollector.UnloadDevice(devices[Key]);
                 devices.Remove(Key);
             }
         }
@@ -166,7 +166,7 @@ namespace Edi.Core.Device.AutoBlow
             return Client;
         }
 
-        private void TimerReconnect_Elapsed(object? sender, ElapsedEventArgs e)
+        private void TimerReconnect_Elapsed(object sender, ElapsedEventArgs e)
         {
             ConnectAll();
         }

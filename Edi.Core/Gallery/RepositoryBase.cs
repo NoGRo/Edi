@@ -33,7 +33,7 @@ namespace Edi.Core.Gallery
 
         public bool IsInitialized { get; set; }
 
-        public virtual T Get(string name, string? variant = null)
+        public virtual T Get(string name, string variant = null)
         {
             _logger.LogInformation($"Fetching gallery with Name: {name}, Variant: {variant}.");
             var variants = Galleries.GetValueOrDefault(name);
@@ -137,6 +137,6 @@ namespace Edi.Core.Gallery
             }
         }
 
-        public abstract T? ReadGallery(AssetEdi asset, DefinitionGallery definition);
+        public abstract T ReadGallery(AssetEdi asset, DefinitionGallery definition);
     }
 }

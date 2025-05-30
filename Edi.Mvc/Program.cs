@@ -1,6 +1,9 @@
+using Edi.Core;
+
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
+builder.Services.AddEdi("./EdiConfig.json");
 builder.Services.AddControllersWithViews();
 
 var app = builder.Build();

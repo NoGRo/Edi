@@ -1,4 +1,5 @@
 ﻿using Edi.Core.Controllers;
+using Edi.Core.Controllers.Parameters;
 using Edi.Core.Gallery;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
@@ -57,6 +58,18 @@ namespace Edi.Core
 
             var galleryPath = new DirectoryInfo(config.Get<GalleryConfig>().GalleryPath).FullName;
 
+            
+            app.UseSwagger();
+            app.UseSwaggerUI(c =>
+            {
+                c.SwaggerEndpoint("/swagger/v1/swagger.json", "Edi Rest v1");
+                c.RoutePrefix = "swagger"; // Esto hace que sea accesible desde /swagger
+            });
+
+            app.UseCors("AllowSpecificOrigin");
+            app.UseRouting();
+
+            app.MapControllers();
             app.UseStaticFiles(new StaticFileOptions
             {
                 FileProvider = new PhysicalFileProvider(galleryPath),
@@ -70,21 +83,8 @@ namespace Edi.Core
                 FileProvider = new PhysicalFileProvider(uploadPath),
                 RequestPath = "/Edi/Upload",
                 ServeUnknownFileTypes = true,
-                ContentTypeProvider = new FileExtensionContentTypeProvider(new Dictionary<string,string>() { { ".funscript", "application/json" } })
+                ContentTypeProvider = new FileExtensionContentTypeProvider(new Dictionary<string, string>() { { ".funscript", "application/json" } })
             });
-
-            app.UseSwagger();
-            app.UseSwaggerUI(c =>
-            {
-                c.SwaggerEndpoint("/swagger/v1/swagger.json", "Edi Rest v1");
-                c.RoutePrefix = "swagger"; // Esto hace que sea accesible desde /swagger
-            });
-
-            app.UseCors("AllowSpecificOrigin");
-            app.UseRouting();
-
-            app.MapControllers();
-
             return app;
         }
 

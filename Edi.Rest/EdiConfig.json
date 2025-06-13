@@ -1,7 +1,7 @@
 {
   "Gallery": {
-    "GalleryPath": "D:\\Juegos\\STEP3_V1.3\\Gallery",
-    "GenerateDefinitionFromChapters": false,
+    "GalleryPath": "C:\\temp\\GOON FOR LILY LOU",
+    "GenerateDefinitionFromChapters": true,
     "GenerateChaptersFromDefinition": false
   },
   "GalleryBundler": {
@@ -13,16 +13,36 @@
     "Filler": true,
     "Gallery": true,
     "Reactive": true,
-    "ExecuteOnReady": "D:\\Juegos\\Fapland Remastered clean\\Game.exe"
+    "ExecuteOnReady": ""
   },
   "Devices": {
     "Devices": {
+      "Preview Device": {
+        "Variant": "default",
+        "Min": 0,
+        "Max": 100
+      },
+      "Lovense Dolce Vibrate: 1": {
+        "Variant": "Stroke1",
+        "Min": 0,
+        "Max": 100
+      },
+      "Lovense Dolce Vibrate: 2": {
+        "Variant": "Stroke1",
+        "Min": 0,
+        "Max": 100
+      },
+      "FUNOSR-SSR1-V2.0": {
+        "Variant": "default",
+        "Min": 0,
+        "Max": 100
+      }
     }
   },
   "OSR": {
     "COMPort": "COM3",
     "EnableMultiAxis": true,
-    "UpdateRate": 200,
+    "UpdateRate": 220,
     "RangeLimits": {
       "Linear": {
         "LowerLimit": 0,
@@ -60,6 +80,20 @@
   },
   "EStim": {
     "DeviceId": -1
+  },
+  "Assist": {
+    "Model": "gpt-4o",
+    "ApiEndpoint": "https://api.openai.com/v1",
+    "ApiKey": "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",
+    "AssistantId": "asst_KbdMQJQ0iaL3L468WyRPN9qQ",
+    "Prompts": [
+      "DeviceBasic.md",
+      "EdgeControl.md",
+      "LilyGoon.md",
+      "Scripts.md"
+    ],
+    "SessionId": "",
+    "MaxTokens": null,
+    "Temperature": 1.2
   }
-
 }

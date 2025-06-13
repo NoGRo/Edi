@@ -1,6 +1,4 @@
-﻿using Edi.Core.Device.AutoBlow;
-using Edi.Core.Device.Buttplug;
-using Edi.Core.Device.Interfaces;
+﻿using Edi.Core.Device.Buttplug;
 using Edi.Core.Gallery;
 using Edi.Core.Gallery.Index;
 using NAudio.CoreAudioApi;
@@ -12,29 +10,33 @@ using System.Runtime.CompilerServices;
 using System.Text;
 using System.Threading.Tasks;
 using System.Timers;
-using Edi.Core.Device.Handy;
 using Microsoft.Extensions.Logging;
 using Timer = System.Timers.Timer;
+using Microsoft.Extensions.DependencyInjection;
+using Edi.Core.Device;
+using Edi.Core.Device.Handy;
+using Edi.Core.Device.Interfaces;
 
 namespace Edi.Core.Device.AutoBlow
 {
     public class AutoBlowProvider : IDeviceProvider
     {
         private readonly ILogger _logger;
-        private AutoBlowDevice device;
         private Timer timerReconnect = new Timer(40000);
         public HandyConfig Config { get; set; }
         private List<string> Keys = new List<string>();
         private Dictionary<string, AutoBlowDevice> devices = new Dictionary<string, AutoBlowDevice>();
-        private DeviceManager deviceManager;
-        private IndexRepository repository { get; set; }
+        private readonly IServiceProvider serviceProvider;
+        private DeviceCollector deviceCollector;
+        private IndexRepository _repository;
+        private IndexRepository repository => _repository ??= serviceProvider.GetRequiredService<IndexRepository>();
 
-        public AutoBlowProvider(IndexRepository repository, ConfigurationManager config, DeviceManager deviceManager, ILogger logger)
+        public AutoBlowProvider(IServiceProvider serviceProvider, ConfigurationManager config, DeviceCollector deviceCollector, ILogger<AutoBlowProvider> logger)
         {
             _logger = logger;
-            this.Config = config.Get<HandyConfig>();
-            this.repository = repository;
-            this.deviceManager = deviceManager;
+            Config = config.Get<HandyConfig>();
+            this.serviceProvider = serviceProvider;
+            this.deviceCollector = deviceCollector;
 
             timerReconnect.Elapsed += TimerReconnect_Elapsed;
 
@@ -51,7 +53,7 @@ namespace Edi.Core.Device.AutoBlow
 
             _logger.LogInformation("Initializing AutoBlowProvider...");
             await Task.Delay(500);
-            await RemoveAll();
+            RemoveAll();
 
             Keys = Config.Key.Split(',')
                              .Where(x => !string.IsNullOrWhiteSpace(x) && x.Trim().Length == 12)
@@ -94,7 +96,7 @@ namespace Edi.Core.Device.AutoBlow
             if (resp?.StatusCode != System.Net.HttpStatusCode.OK)
             {
                 _logger.LogWarning($"Device with Key: {Key} not responding. Removing from active devices.");
-                await Remove(Key);
+                Remove(Key);
                 return;
             }
 
@@ -102,7 +104,7 @@ namespace Edi.Core.Device.AutoBlow
             if (!connected.connected)
             {
                 _logger.LogWarning($"Device with Key: {Key} is not connected. Removing from active devices.");
-                await Remove(Key);
+                Remove(Key);
                 return;
             }
 
@@ -117,7 +119,9 @@ namespace Edi.Core.Device.AutoBlow
             resp = await Client.GetAsync("state");
 
             var status = JsonConvert.DeserializeObject<Status>(await resp.Content.ReadAsStringAsync());
-            var device = new AutoBlowDevice(Client, repository,_logger);
+
+
+            var device = new AutoBlowDevice(Client, repository, _logger);
 
             lock (devices)
             {
@@ -128,26 +132,26 @@ namespace Edi.Core.Device.AutoBlow
                 }
 
                 devices.Add(Key, device);
-                deviceManager.LoadDevice(device);
+                deviceCollector.LoadDevice(device);
                 _logger.LogInformation($"Device with Key: {Key} successfully connected and loaded.");
             }
         }
 
-        private async Task RemoveAll()
+        private void RemoveAll()
         {
             _logger.LogInformation("Removing all devices.");
             foreach (var key in Keys)
             {
-                await Remove(key);
+                Remove(key);
             }
         }
 
-        private async Task Remove(string Key)
+        private void Remove(string Key)
         {
             if (devices.ContainsKey(Key))
             {
                 _logger.LogInformation($"Removing device with Key: {Key}");
-                await deviceManager.UnloadDevice(devices[Key]);
+                deviceCollector.UnloadDevice(devices[Key]);
                 devices.Remove(Key);
             }
         }
@@ -161,7 +165,7 @@ namespace Edi.Core.Device.AutoBlow
             return Client;
         }
 
-        private async void TimerReconnect_Elapsed(object? sender, ElapsedEventArgs e)
+        private void TimerReconnect_Elapsed(object sender, ElapsedEventArgs e)
         {
             ConnectAll();
         }

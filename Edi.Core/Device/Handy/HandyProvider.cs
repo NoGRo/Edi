@@ -1,5 +1,4 @@
 ﻿using Edi.Core.Device.Buttplug;
-using Edi.Core.Device.Interfaces;
 using Edi.Core.Gallery;
 using Edi.Core.Gallery.Index;
 using NAudio.CoreAudioApi;
@@ -13,28 +12,43 @@ using System.Threading.Tasks;
 using System.Timers;
 using Microsoft.Extensions.Logging;
 using Timer = System.Timers.Timer;
+using Microsoft.Extensions.DependencyInjection;
+using System.Collections.Concurrent;
+using Edi.Core.Device;
+using Edi.Core.Device.Interfaces;
 
 namespace Edi.Core.Device.Handy
 {
     public class HandyProvider : IDeviceProvider
     {
+
         private readonly ILogger _logger;
         private Timer timerReconnect = new Timer(40000);
         private List<string> Keys = new List<string>();
         private Dictionary<string, HandyDevice> devices = new Dictionary<string, HandyDevice>();
-        private DeviceManager deviceManager;
-        private IndexRepository repository { get; }
+        private readonly IServiceProvider _serviceProvider;
+        private DeviceCollector _deviceCollector;
+        private IndexRepository _repository;
+        private IndexRepository repository => _repository ??= _serviceProvider.GetRequiredService<IndexRepository>();
+        private readonly IHttpClientFactory _httpClientFactory;
 
-        public HandyProvider(IndexRepository repository, ConfigurationManager config, DeviceManager deviceManager, ILogger logger)
+        // Re‑usamos un solo HttpClient por key
+        private readonly ConcurrentDictionary<string, HttpClient> _clients = new();
+
+        public HandyProvider(IServiceProvider serviceProvider,
+                             ConfigurationManager config,
+                             DeviceCollector deviceCollector,
+                             IHttpClientFactory httpClientFactory,
+                             ILogger<HandyProvider> logger)
         {
             _logger = logger;
             Config = config.Get<HandyConfig>();
-            this.repository = repository;
-            this.deviceManager = deviceManager;
+            _serviceProvider = serviceProvider;
+            _deviceCollector = deviceCollector;
+            _httpClientFactory = httpClientFactory;
             timerReconnect.Elapsed += TimerReconnect_Elapsed;
-
-            _logger.LogInformation("HandyProvider initialized.");
         }
+
 
         public HandyConfig Config { get; set; }
 
@@ -47,7 +61,7 @@ namespace Edi.Core.Device.Handy
             }
 
             await Task.Delay(500);
-            await RemoveAll();
+            RemoveAll();
 
             Keys = Config.Key.Split(',')
                              .Where(x => !string.IsNullOrWhiteSpace(x))
@@ -69,87 +83,90 @@ namespace Edi.Core.Device.Handy
             });
         }
 
-        private async Task Connect(string Key)
+        private async Task Connect(string key)
         {
-            _logger.LogInformation($"Connecting to device with Key: {Key}");
+            _logger.LogInformation($"Connecting to device with Key: {key}");
 
-            HttpClient Client = devices.ContainsKey(Key) ? devices[Key].Client : NewClient(Key);
-            HttpResponseMessage resp = null;
+            var client = GetOrCreateClient(key);
 
+            HttpResponseMessage resp;
             try
             {
-                resp = await Client.GetAsync("connected");
+                resp = await client.GetAsync("connected");
             }
             catch (Exception ex)
             {
-                _logger.LogError($"Connection failed for Key: {Key} - {ex.Message}");
-                await Remove(Key);
+                _logger.LogError($"Connection failed for Key: {key} - {ex.Message}");
+                Remove(key);
                 return;
             }
 
             if (resp?.StatusCode != System.Net.HttpStatusCode.OK)
             {
-                _logger.LogWarning($"Device with Key: {Key} not reachable, removing.");
-                await Remove(Key);
+                _logger.LogWarning($"Device with Key: {key} not reachable, removing.");
+                Remove(key);
                 return;
             }
 
             var status = JsonConvert.DeserializeObject<ConnectedResponse>(await resp.Content.ReadAsStringAsync());
             if (!status.connected)
             {
-                _logger.LogWarning($"Device with Key: {Key} not connected, removing.");
-                await Remove(Key);
+                _logger.LogWarning($"Device with Key: {key} not connected, removing.");
+                Remove(key);
                 return;
             }
 
-            if (!devices.ContainsKey(Key))
+            if (!devices.ContainsKey(key))
             {
-                _ = await Client.PutAsync("mode", new StringContent(JsonConvert.SerializeObject(new ModeRequest(1)), Encoding.UTF8, "application/json"));
+                _ = await client.PutAsync("mode", new StringContent(JsonConvert.SerializeObject(new ModeRequest(1)), Encoding.UTF8, "application/json"));
 
-                var handyDevice = new HandyDevice(Client, repository, _logger);
+                var handyDevice = new HandyDevice(client, repository, _logger);
                 lock (devices)
                 {
-                    devices[Key] = handyDevice;
-                    deviceManager.LoadDevice(handyDevice);
-                    _logger.LogInformation($"Device {handyDevice.Name} loaded with Key: {Key}");
+                    devices[key] = handyDevice;
+                    _deviceCollector.LoadDevice(handyDevice);
+                    _logger.LogInformation($"Device {handyDevice.Name} loaded with Key: {key}");
                 }
 
                 await handyDevice.updateServerTime();
             }
         }
 
-        private async Task RemoveAll()
+        private void RemoveAll()
         {
             _logger.LogInformation("Removing all devices.");
             foreach (var key in Keys)
             {
-                await Remove(key);
+                Remove(key);
             }
         }
 
-        private async Task Remove(string Key)
+        private void Remove(string key)
         {
-            if (devices.TryGetValue(Key, out var device))
+            _clients.TryRemove(key, out var client);
+
+            if (devices.TryGetValue(key, out var device))
             {
-                await deviceManager.UnloadDevice(device);
-                devices.Remove(Key);
-                _logger.LogInformation($"Device removed with Key: {Key}");
+                _deviceCollector.UnloadDevice(device);
+                devices.Remove(key);
+                _logger.LogInformation($"Device removed with Key: {key}");
             }
         }
-
-        public static HttpClient NewClient(string Key)
+        private HttpClient GetOrCreateClient(string key)
         {
-            var Client = new HttpClient { BaseAddress = new Uri("https://www.handyfeeling.com/api/handy/v2/") };
-            Client.DefaultRequestHeaders.Remove("X-Connection-Key");
-            Client.DefaultRequestHeaders.Add("X-Connection-Key", Key);
-            return Client;
+            // Thread‑safe cache; creates the client only once per key
+            return _clients.GetOrAdd(key, k =>
+            {
+                var client = _httpClientFactory.CreateClient("HandyAPI");
+                client.DefaultRequestHeaders.Remove("X-Connection-Key");
+                client.DefaultRequestHeaders.Add("X-Connection-Key", k);
+                return client;
+            });
         }
 
-        private void TimerReconnect_Elapsed(object? sender, ElapsedEventArgs e)
+        private void TimerReconnect_Elapsed(object sender, ElapsedEventArgs e)
         {
-
-                ConnectAll();
-
+            ConnectAll();
         }
     }
 }

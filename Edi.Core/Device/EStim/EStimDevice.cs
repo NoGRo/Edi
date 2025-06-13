@@ -13,6 +13,7 @@ using PropertyChanged;
 using System.Xml.Linq;
 using Serilog.Core;
 using Microsoft.Extensions.Logging;
+using Edi.Core.Device;
 
 namespace Edi.Core.Device.EStim
 {
@@ -22,18 +23,17 @@ namespace Edi.Core.Device.EStim
     {
         private readonly AudioRepository _repository;
         private readonly IWavePlayer _wavePlayer;
-        private AudioGallery _currentGallery;
         private Mp3FileReader _curentAudioFile { get; set; }
 
         private Dictionary<string, Mp3FileReader> _inMemoryMp3;
-        public EStimDevice(AudioRepository repository, WaveOutEvent wavePlayer,ILogger _logger) : base(repository, _logger)
+        public EStimDevice(AudioRepository repository, WaveOutEvent wavePlayer, ILogger _logger) : base(repository, _logger)
         {
             Name = $"SEstim ({wavePlayer.DeviceNumber})";
             _repository = repository;
             _wavePlayer = wavePlayer;
 
-            _inMemoryMp3 = _repository.GetAll().Select(x=> x.AudioPath).Distinct().ToDictionary(x=> x, y => new Mp3FileReader(y));
-            
+            _inMemoryMp3 = _repository.GetAll().Select(x => x.AudioPath).Distinct().ToDictionary(x => x, y => new Mp3FileReader(y));
+
         }
         internal override Task applyRange()
         {

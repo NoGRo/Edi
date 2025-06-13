@@ -5,7 +5,7 @@
 
 
         Task Init(string path);
-
+        bool IsInitialized { get; }
         // File format: {Name}.{variant}.{axis?}.{extension}
         // Example: Punch-1.simple.sway.funscript 
         // [Name] Punch-1

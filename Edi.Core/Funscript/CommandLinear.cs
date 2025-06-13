@@ -85,11 +85,14 @@ namespace Edi.Core.Funscript
 
         public long AbsoluteTime { get; set; }
         public int Millis { get; set; }
-        public int Speed => Millis == 0 ? 0 : Convert.ToInt32(Math.Abs(InitialValue - Value) / (double)Millis * 1000);
-
-        public bool Direction => Value > InitialValue;
         public double Value { get; set; }
 
+
+        public int Speed => Millis == 0 ? 0 : Convert.ToInt32(Math.Abs(InitialValue - Value) / (double)Millis * 1000);
+        public uint buttplugMillis => (uint)Millis;
+        public short Distance => (short)Math.Abs(Direction ? Value - InitialValue : InitialValue - Value);
+        public bool Direction => Value > InitialValue;
+        
         private double initialValue;
         public double InitialValue
         {
@@ -97,21 +100,10 @@ namespace Edi.Core.Funscript
             set => initialValue = value;
         }
 
-        public double LinearValue => Math.Min(1.0, Math.Max(0, Value / (double)100));
-        public double VibrateValue => Math.Min(1.0, Math.Max(0, Speed / (double)SpeedLimit));
 
-        public uint buttplugMillis => (uint)Millis;
-
-        public DateTime? Sent { get; set; }
-        public bool Cancel { get; set; }
-        public short Distance => (short)Math.Abs(Direction ? Value - InitialValue : InitialValue - Value);
         public int GetValueInRange(int min, int max)
         {
             return Convert.ToInt32(min + ((max - min) / ((double)100) * Value));
-            /*
-                        if (CurrentCmd.Value == Min && CurrentCmd.Value == Max && CurrentCmd.Prev?.Value == Min)
-                            CurrentCmd.Cancel = true;
-            */
 
         }
         public CmdLinear Clone()

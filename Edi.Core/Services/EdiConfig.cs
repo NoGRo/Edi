@@ -15,5 +15,6 @@ namespace Edi.Core
         public bool Reactive { get; set; } = true;
         public string ExecuteOnReady { get; set; } = "";
         public bool UseHttps { get; set; } = false;
+        public bool UseLogs { get;  set; } = false;
     }
 }

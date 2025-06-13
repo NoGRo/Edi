@@ -1,11 +1,13 @@
 ﻿using Buttplug.Core.Messages;
+using Edi.Core.Device;
 using Edi.Core.Funscript;
 using Edi.Core.Gallery;
 using Edi.Core.Gallery.Funscript;
 using Microsoft.Extensions.Logging;
 using MQTTnet;
-using MQTTnet.Client;
+
 using System;
+using System.Buffers;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -22,10 +24,10 @@ namespace Edi.Core.Device.Mqtt
         private readonly string topic;
         public int CurrentCmdTime => CurrentCmd == null
                     ? 0
-                    : Math.Min(CurrentCmd.Millis, Convert.ToInt32(this.CurrentTime - (CurrentCmd.AbsoluteTime - CurrentCmd.Millis)));
+                    : Math.Min(CurrentCmd.Millis, Convert.ToInt32(CurrentTime - (CurrentCmd.AbsoluteTime - CurrentCmd.Millis)));
         public int ReminingCmdTime => CurrentCmd == null
                     ? 0
-                    : Math.Max(0, Convert.ToInt32(CurrentCmd.AbsoluteTime - this.CurrentTime));
+                    : Math.Max(0, Convert.ToInt32(CurrentCmd.AbsoluteTime - CurrentTime));
         private CmdLinear _currentCmd;
 
         public CmdLinear CurrentCmd
@@ -33,19 +35,18 @@ namespace Edi.Core.Device.Mqtt
             get => _currentCmd;
             set => Interlocked.Exchange(ref _currentCmd, value);
         }
-        private DateTime lastCmdSendAt { get; set; }
         public int currentCmdIndex { get; set; }
-        public MqttDevice(FunscriptRepository repository, MqttClient mqttClient,string topic, ILogger logger) : base(repository, logger)
+        public MqttDevice(FunscriptRepository repository, MqttClient mqttClient, string topic, ILogger logger) : base(repository, logger)
         {
             this.mqttClient = mqttClient;
             this.topic = topic;
-            Name = topic;   
+            Name = topic;
         }
 
         internal override Task applyRange()
         {
-            _ = send("range", new range(Min, Max), false);
-            return  Task.CompletedTask;
+            _ = send("range", new Range(Min, Max), false);
+            return Task.CompletedTask;
         }
         internal override void SetVariant()
         {
@@ -53,8 +54,8 @@ namespace Edi.Core.Device.Mqtt
         }
         public override Task PlayGallery(string name, long seek = 0)
         {
-            var task =  base.PlayGallery(name, seek);
-            _ = send("play", new play(name, seek, selectedVariant));
+            var task = base.PlayGallery(name, seek);
+            _ = send("play", new Play(name, seek, selectedVariant));
             return task;
         }
         public override async Task PlayGallery(FunscriptGallery gallery, long seek = 0)
@@ -71,7 +72,7 @@ namespace Edi.Core.Device.Mqtt
 
                 try
                 {
-                    _ = send("command", new command(CurrentCmd.Millis, CurrentCmd.GetValueInRange(Min, Max)));
+                    await send("command", new Command(CurrentCmd.Millis, CurrentCmd.GetValueInRange(Min, Max)));
                     // Usa el nuevo token de cancelación aquí
                     await Task.Delay(Math.Max(0, ReminingCmdTime), playCancelTokenSource.Token);
                 }
@@ -82,8 +83,8 @@ namespace Edi.Core.Device.Mqtt
 
                 currentCmdIndex = cmds.FindIndex(currentCmdIndex, x => x.AbsoluteTime > CurrentTime);
                 if (currentCmdIndex != -1)
-                    continue; 
-               
+                    continue;
+
                 currentCmdIndex = cmds.FindIndex(x => x.AbsoluteTime > CurrentTime);
                 if (currentCmdIndex < 0)
                     break; // Si aún así no hay más comandos, sale del bucle.
@@ -92,19 +93,19 @@ namespace Edi.Core.Device.Mqtt
 
         public override async Task StopGallery()
         {
-            _ = send("stop", "stop");
+            await send("stop", "stop");
         }
 
         private async Task send(string topic, object payload, bool defaultToken = true)
         {
-           await mqttClient.PublishAsync(new()
-           {
-               Topic = this.topic + topic,
-               Payload = Encoding.UTF8.GetBytes(JsonSerializer.Serialize(payload))
-           }, playCancelTokenSource.Token);
+            await mqttClient.PublishAsync(new()
+            {
+                Topic = this.topic + topic,
+                Payload = new ReadOnlySequence<byte>(JsonSerializer.SerializeToUtf8Bytes(payload))
+            }, playCancelTokenSource.Token);
         }
-        private record play(string gallery, long seek, string variant);
-        private record command(long millis, int value);
-        private record range(int min, int max);
+        private record Play(string gallery, long seek, string variant);
+        private record Command(long millis, int value);
+        private record Range(int min, int max);
     }
 }

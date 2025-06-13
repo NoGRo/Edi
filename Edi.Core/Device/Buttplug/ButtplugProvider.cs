@@ -1,7 +1,6 @@
 ﻿using Buttplug.Client;
 using Buttplug.Core;
 using Buttplug.Core.Messages;
-using Edi.Core.Device.Interfaces;
 using Edi.Core.Gallery;
 using Edi.Core.Gallery.Funscript;
 using System;
@@ -13,6 +12,8 @@ using System.Threading.Tasks;
 using System.Timers;
 using Microsoft.Extensions.Logging;
 using Timer = System.Timers.Timer;
+using Edi.Core.Device;
+using Edi.Core.Device.Interfaces;
 
 namespace Edi.Core.Device.Buttplug
 {
@@ -20,13 +21,13 @@ namespace Edi.Core.Device.Buttplug
     {
         private readonly ILogger _logger;
 
-        public ButtplugProvider(FunscriptRepository repository, ConfigurationManager config, DeviceManager deviceManager, ILogger logger)
+        public ButtplugProvider(FunscriptRepository repository, ConfigurationManager config, DeviceCollector deviceCollector, ILogger<ButtplugProvider> logger)
         {
             _logger = logger;
             Config = config.Get<ButtplugConfig>();
             this.repository = repository;
-            DeviceManager = deviceManager;
-            Controller = new ButtplugController(Config, deviceManager, _logger);
+            DeviceCollector = deviceCollector;
+            Controller = new ButtplugController(Config, deviceCollector, _logger);
 
             _logger.LogInformation("ButtplugProvider initialized with repository and device manager.");
         }
@@ -34,7 +35,7 @@ namespace Edi.Core.Device.Buttplug
         public readonly ButtplugConfig Config;
         private Timer timerReconnect = new Timer(20000);
         private List<ButtplugDevice> devices = new List<ButtplugDevice>();
-        private DeviceManager DeviceManager;
+        private DeviceCollector DeviceCollector;
         public ButtplugClient client { get; set; }
         public ButtplugController Controller { get; set; }
         private FunscriptRepository repository { get; }
@@ -70,7 +71,7 @@ namespace Edi.Core.Device.Buttplug
 
                 client.Dispose();
                 client = null;
-                await RemoveAllDevices();
+                RemoveAllDevices();
                 _logger.LogInformation("Existing client disposed and devices removed.");
             }
 
@@ -101,12 +102,12 @@ namespace Edi.Core.Device.Buttplug
             }
         }
 
-        private async Task RemoveAllDevices()
+        private void RemoveAllDevices()
         {
             _logger.LogInformation("Removing all devices.");
             foreach (var devicerm in devices)
             {
-                await DeviceManager.UnloadDevice(devicerm);
+                DeviceCollector.UnloadDevice(devicerm);
             }
             devices.Clear();
             _logger.LogInformation("All devices removed.");
@@ -121,7 +122,7 @@ namespace Edi.Core.Device.Buttplug
 
             for (uint i = 0; i < Device.LinearAttributes.Count; i++)
             {
-                newdevices.Add(new ButtplugDevice(Device, ActuatorType.Position, i, repository, Config,_logger));
+                newdevices.Add(new ButtplugDevice(Device, ActuatorType.Position, i, repository, Config, _logger));
             }
 
             for (uint i = 0; i < Device.VibrateAttributes.Count; i++)
@@ -141,7 +142,7 @@ namespace Edi.Core.Device.Buttplug
 
             foreach (var device in newdevices)
             {
-                DeviceManager.LoadDevice(device);
+                DeviceCollector.LoadDevice(device);
                 _logger.LogInformation($"Device loaded: {device.Name}");
             }
         }
@@ -153,26 +154,26 @@ namespace Edi.Core.Device.Buttplug
 
             for (uint i = 0; i < Device.LinearAttributes.Count; i++)
             {
-                rmdevices.Add(devices.FirstOrDefault(x => x.Device == Device && x.Actuator == ActuatorType.Position && x.Channel == i));
+                rmdevices.Add(devices.FirstOrDefault(x => x.Device == Device && x.Actuator == ActuatorType.Position && x.DeviceChannel == i));
             }
 
             for (uint i = 0; i < Device.VibrateAttributes.Count; i++)
             {
-                rmdevices.Add(devices.FirstOrDefault(x => x.Device == Device && x.Actuator == ActuatorType.Vibrate && x.Channel == i));
+                rmdevices.Add(devices.FirstOrDefault(x => x.Device == Device && x.Actuator == ActuatorType.Vibrate && x.DeviceChannel == i));
             }
             for (uint i = 0; i < Device.RotateAttributes.Count; i++)
             {
-                rmdevices.Add(devices.FirstOrDefault(x => x.Device == Device && x.Actuator == ActuatorType.Rotate && x.Channel == i));
+                rmdevices.Add(devices.FirstOrDefault(x => x.Device == Device && x.Actuator == ActuatorType.Rotate && x.DeviceChannel == i));
             }
             for (uint i = 0; i < Device.OscillateAttributes.Count; i++)
             {
-                rmdevices.Add(devices.FirstOrDefault(x => x.Device == Device && x.Actuator == ActuatorType.Oscillate && x.Channel == i));
+                rmdevices.Add(devices.FirstOrDefault(x => x.Device == Device && x.Actuator == ActuatorType.Oscillate && x.DeviceChannel == i));
             }
 
             foreach (var devicerm in rmdevices.Where(x => x != null))
             {
                 devices.Remove(devicerm);
-                DeviceManager.UnloadDevice(devicerm);
+                DeviceCollector.UnloadDevice(devicerm);
                 _logger.LogInformation($"Device removed: {devicerm.Name}");
             }
         }
@@ -217,7 +218,7 @@ namespace Edi.Core.Device.Buttplug
             if (!client.Connected)
             {
                 _logger.LogInformation("Reconnection timer triggered. Attempting to reconnect.");
-                Connect();
+                _ = Connect();
             }
             else
             {

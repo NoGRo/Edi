@@ -18,18 +18,18 @@ namespace Edi.Core.Device.OSR
         public long? DeltaMillis { get; set; }
 
         public static OSRPosition ZeroedPosition() => new OSRPosition
-            {
-                L0 = 0,
-                V0 = 0,
+        {
+            L0 = 0,
+            V0 = 0,
 
-                L1 = 5000,
-                L2 = 5000,
-                R0 = 5000,
-                R1 = 5000,
-                R2 = 5000,
-                A0 = 5000,
-                A1 = 5000
-            };
+            L1 = 5000,
+            L2 = 5000,
+            R0 = 5000,
+            R1 = 5000,
+            R2 = 5000,
+            A0 = 5000,
+            A1 = 5000
+        };
 
         public static OSRPosition FromAxisDictionary(Dictionary<Axis, ushort?> axisValues)
         {
@@ -60,10 +60,10 @@ namespace Edi.Core.Device.OSR
             A1 ??= other.A1;
         }
 
-        public string OSRCommandString(OSRPosition? prevPos = null)
+        public string OSRCommandString(OSRPosition prevPos = null)
         {
             if (DeltaMillis == null)
-                return String.Empty;
+                return string.Empty;
 
             StringBuilder sb = new();
             if (L0.HasValue && (prevPos == null || L0 != prevPos.L0))
@@ -108,22 +108,22 @@ namespace Edi.Core.Device.OSR
         public void UpdateRanges(RangeConfiguration ranges)
         {
             if (L0.HasValue)
-                L0 = (ushort) Math.Min(9999, (ranges.Linear.LowerLimit / 100f * 9999) + (ranges.Linear.RangeDelta() / 100f * L0.GetValueOrDefault()));
+                L0 = (ushort)Math.Min(9999, ranges.Linear.LowerLimit / 100f * 9999 + ranges.Linear.RangeDelta() / 100f * L0.GetValueOrDefault());
 
             if (L1.HasValue)
-                L1 = (ushort)Math.Min(9999, (ranges.Surge.LowerLimit / 100f * 9999f) + (ranges.Surge.RangeDelta() / 100f * L1.GetValueOrDefault()));
+                L1 = (ushort)Math.Min(9999, ranges.Surge.LowerLimit / 100f * 9999f + ranges.Surge.RangeDelta() / 100f * L1.GetValueOrDefault());
 
             if (L2.HasValue)
-                L2 = (ushort)Math.Min(9999, (ranges.Sway.LowerLimit / 100f * 9999f) + (ranges.Sway.RangeDelta() / 100f * L2.GetValueOrDefault()));
+                L2 = (ushort)Math.Min(9999, ranges.Sway.LowerLimit / 100f * 9999f + ranges.Sway.RangeDelta() / 100f * L2.GetValueOrDefault());
 
             if (R0.HasValue)
-                R0 = (ushort)Math.Min(9999, (ranges.Twist.LowerLimit / 100f * 9999f) + (ranges.Twist.RangeDelta() / 100f * R0.GetValueOrDefault()));
+                R0 = (ushort)Math.Min(9999, ranges.Twist.LowerLimit / 100f * 9999f + ranges.Twist.RangeDelta() / 100f * R0.GetValueOrDefault());
 
             if (R1.HasValue)
-                R1 = (ushort)Math.Min(9999, (ranges.Roll.LowerLimit / 100f * 9999f) + (ranges.Roll.RangeDelta() / 100f * R1.GetValueOrDefault()));
+                R1 = (ushort)Math.Min(9999, ranges.Roll.LowerLimit / 100f * 9999f + ranges.Roll.RangeDelta() / 100f * R1.GetValueOrDefault());
 
             if (R2.HasValue)
-                R2 = (ushort)Math.Min(9999, (ranges.Pitch.LowerLimit / 100f * 9999f) + (ranges.Pitch.RangeDelta() / 100f * R2.GetValueOrDefault()));
+                R2 = (ushort)Math.Min(9999, ranges.Pitch.LowerLimit / 100f * 9999f + ranges.Pitch.RangeDelta() / 100f * R2.GetValueOrDefault());
         }
 
         public ushort? GetAxisValue(Axis axis)

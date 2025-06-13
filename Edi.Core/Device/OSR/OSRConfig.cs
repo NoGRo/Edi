@@ -13,7 +13,8 @@ namespace Edi.Core.Device.OSR
     [AddINotifyPropertyChangedInterface]
     public class OSRConfig
     {
-        public string? COMPort { get; set; } = null;
+        public string COMPort { get; set; } = null;
+        public string UdpAddress { get; set; } = null;
         public bool EnableMultiAxis { get; set; } = false;
         public int UpdateRate { get; set; } = 200;
         public RangeConfiguration RangeLimits { get; set; } = new RangeConfiguration();

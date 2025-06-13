@@ -15,13 +15,16 @@ namespace Edi.Core.Gallery.Definition
 
         public DefinitionRepository(ConfigurationManager configuration)
         {
-            Config = configuration.Get<GalleryConfig>(); 
+            Config = configuration.Get<GalleryConfig>();
+            //Init(null).GetAwaiter().GetResult();
         }
         private List<string> Variants { get; set; } = new List<string>();
         public GalleryConfig Config { get; set; }
         private Dictionary<string, DefinitionGallery> dicDefinitions { get; set; } = new Dictionary<string, DefinitionGallery>(StringComparer.OrdinalIgnoreCase);
 
         public IEnumerable<string> Accept => new[] { "Definitions.csv", "Definitions_auto.csv" };
+
+        public bool IsInitialized {  get; set; }
 
         public async Task Init(string path)
         {
@@ -79,6 +82,7 @@ namespace Edi.Core.Gallery.Definition
 
                 dicDefinitions.Add(def.Name, def);
             }
+            IsInitialized = true;
         }
         
         private void GenerateDefinitions(string GalleryPath)
@@ -147,6 +151,9 @@ namespace Edi.Core.Gallery.Definition
             {
                 csv.WriteRecords(newDefinitionFile);
             }
+
+
+
         }
         private bool parseTimeField(string field, out long millis)
         {
@@ -168,7 +175,7 @@ namespace Edi.Core.Gallery.Definition
         public List<DefinitionGallery> GetAll()
             => dicDefinitions.Values.ToList();
 
-        public DefinitionGallery? Get(string name, string variant = null)
+        public DefinitionGallery Get(string name, string variant = null)
             => dicDefinitions.GetValueOrDefault(name);
 
 

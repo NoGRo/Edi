@@ -20,10 +20,10 @@ namespace Edi.Core
         private List<DefinitionGallery> galleries =  new();
         
         private string targetFolderPath;
-        private DefinitionRepository defRepo => edi.GetRepository<DefinitionRepository>();
-        private FunscriptRepository funRepo => edi.GetRepository<FunscriptRepository>();
+        private DefinitionRepository defRepo;// => edi.GetRepository<DefinitionRepository>();
+        private FunscriptRepository funRepo;// => edi.GetRepository<FunscriptRepository>();
 
-        public async Task Repack(string videoName = "", List<DefinitionGallery>? _galleries = null)
+        public async Task Repack(string videoName = "", List<DefinitionGallery> _galleries = null)
         {
             galleries = _galleries ?? edi.Definitions.ToList();
            

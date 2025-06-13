@@ -31,7 +31,9 @@ namespace Edi.Core.Gallery
         protected Dictionary<string, List<T>> Galleries { get; set; } = new Dictionary<string, List<T>>(StringComparer.OrdinalIgnoreCase);
         protected DefinitionRepository Definition { get; }
 
-        public virtual T Get(string name, string? variant = null)
+        public bool IsInitialized { get; set; }
+
+        public virtual T Get(string name, string variant = null)
         {
             _logger.LogInformation($"Fetching gallery with Name: {name}, Variant: {variant}.");
             var variants = Galleries.GetValueOrDefault(name);
@@ -78,6 +80,9 @@ namespace Edi.Core.Gallery
             {
                 _logger.LogError($"Error during for {this.GetType().Name} initialization: {ex.Message}");
                 throw;
+            }
+            finally {
+                IsInitialized = true;
             }
         }
 
@@ -132,6 +137,6 @@ namespace Edi.Core.Gallery
             }
         }
 
-        public abstract T? ReadGallery(AssetEdi asset, DefinitionGallery definition);
+        public abstract T ReadGallery(AssetEdi asset, DefinitionGallery definition);
     }
 }

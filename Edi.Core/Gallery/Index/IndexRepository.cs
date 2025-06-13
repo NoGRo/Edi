@@ -24,18 +24,22 @@ namespace Edi.Core.Gallery.Index
             Bundler = bundler;
             this.funRepo = Cmdlineals;
             DefinitionRepository = definitionRepository;
+            //Init(Config.GalleryPath).GetAwaiter().GetResult();
         }
         public IEnumerable<string> Accept => new[] { "BundleDefinition*.txt" };
         private Dictionary<string, Dictionary<string, List<IndexGallery>>> Galleries { get; set; } = new Dictionary<string, Dictionary<string, List<IndexGallery>>>(StringComparer.OrdinalIgnoreCase);
 
         public GalleryConfig Config { get; set; }
         private GalleryBundler Bundler { get; set; }
-        public FunscriptRepository funRepo { get; }
-        public DefinitionRepository DefinitionRepository { get; }
+        private FunscriptRepository funRepo { get; }
+        private DefinitionRepository DefinitionRepository { get; }
+
+        public bool IsInitialized {set; get; }  
 
         public async Task Init(string path)
         {
             LoadGallery(path);
+            IsInitialized = true;
         }
 
         public FileInfo GetBundle(string variant, string format)
@@ -56,7 +60,6 @@ namespace Edi.Core.Gallery.Index
                                                                 && bundle.Galleries.Contains(x.Name))
                                                        .ToDictionary(x => x.Name, x => x);
 
-                    
 
                     var variantbundleGalleries = variantGalleries.Where(x => bundle.Galleries.Contains(x.Name)).ToList();
 
@@ -82,13 +85,10 @@ namespace Edi.Core.Gallery.Index
                             Galleries[variant].Add(gallery.Name, new() { indexGallery });
                         else
                             Galleries[variant][gallery.Name].Add(indexGallery);
-                        
                     }
                     Bundler.GenerateBundle($"{bundle.BundleName}.{variant}");
                 }
             }
-
-
         }
         private List<BundleDefinition> GetBundleDefinition(string variant,string path)
         {
@@ -126,8 +126,6 @@ namespace Edi.Core.Gallery.Index
             bundles.Add(bundlesDefault);
 
             return bundles;
-
-
         }
 
         private static List<BundleDefinition> ReadBundleConfig(string definitionPath)
@@ -170,17 +168,12 @@ namespace Edi.Core.Gallery.Index
             => funRepo.GetVariants();
         public List<IndexGallery> GetAll()
             => Galleries.Values.SelectMany(x => x.Values.SelectMany(y => y)).ToList();
-        public IndexGallery? Get(string name, string variant = null)
+        public IndexGallery Get(string name, string variant = null)
             => Get(name, variant, "default");
-        public IndexGallery? Get(string name, string variant, string bundle)
+        public IndexGallery Get(string name, string variant, string bundle)
         {
-            //TODO: asset ovverride order priority similar minecraft texture packt 
-            
             var galls = Galleries.GetValueOrDefault(variant)?.GetValueOrDefault(name);
-
             return galls?.Find(x => x.Bundle == bundle) ?? galls?.FirstOrDefault();
-
-
         }
 
 

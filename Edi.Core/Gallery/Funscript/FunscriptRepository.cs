@@ -20,16 +20,17 @@ namespace Edi.Core.Gallery.Funscript
         private List<FunScriptFile> ToSave = new List<FunScriptFile>();
         private Dictionary<string, FunScriptFile> cacheFun = new();
 
-        public FunscriptRepository(DefinitionRepository definition, ILogger logger) : base(definition, logger)
+        public FunscriptRepository(DefinitionRepository definition, ILogger<FunscriptRepository> logger) : base(definition, logger)
         {
             _logger = logger;
             _logger.LogInformation("FunscriptRepository initialized.");
+            //Init(null).GetAwaiter().GetResult();
         }
 
         public override IEnumerable<string> Accept => new[] { "funscript" };
         public override IEnumerable<string> Reserve => Enum.GetNames(typeof(Axis));
 
-        private void SyncChapterInfo(DefinitionGallery DefinitionGallery, FunScriptFile? funscript)
+        private void SyncChapterInfo(DefinitionGallery DefinitionGallery, FunScriptFile funscript)
         {
             if (!Definition.Config.GenerateChaptersFromDefinition)
             {

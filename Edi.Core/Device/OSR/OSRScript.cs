@@ -90,7 +90,7 @@ namespace Edi.Core.Device.OSR
 
                 processedCommands[axis] = commands;
 
-                CmdLinear? prevCmd = null;
+                CmdLinear prevCmd = null;
                 foreach (var cmd in processedCommands[axis])
                 {
                     if (prevCmd != null)
@@ -105,9 +105,9 @@ namespace Edi.Core.Device.OSR
             ResetIndices();
         }
 
-        public OSRPosition? GetNextPosition(int deltaMillis)
+        public OSRPosition GetNextPosition(int deltaMillis)
         {
-            OSRPosition? pos = null;
+            OSRPosition pos = null;
             var nextMillis = CurrentTime + deltaMillis;
 
             if (playbackCommands == null || nextMillis > scriptLength)
@@ -145,7 +145,8 @@ namespace Edi.Core.Device.OSR
 
                     positionValues[axis] = (ushort)(value * 99.99f);
                     hasScript = true;
-                } else
+                }
+                else
                 {
                     positionValues[axis] = null;
                 }
@@ -154,7 +155,7 @@ namespace Edi.Core.Device.OSR
             if (hasScript)
             {
                 pos = OSRPosition.FromAxisDictionary(positionValues);
-                pos.DeltaMillis = deltaMillis;            
+                pos.DeltaMillis = deltaMillis;
             }
 
             return pos;
@@ -196,7 +197,7 @@ namespace Edi.Core.Device.OSR
                 while (previous2Command.AbsoluteTime > previousCommand.AbsoluteTime)
                     previous2Command.AbsoluteTime -= lastCommand.AbsoluteTime;
 
-                var nextCommand = loopedCommands[(i) % loopedCommands.Count].Clone();
+                var nextCommand = loopedCommands[i % loopedCommands.Count].Clone();
                 while (nextCommand.AbsoluteTime < currentCommand.AbsoluteTime)
                     nextCommand.AbsoluteTime += lastCommand.AbsoluteTime;
 

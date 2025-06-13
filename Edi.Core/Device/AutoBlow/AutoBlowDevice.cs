@@ -23,6 +23,7 @@ using PropertyChanged;
 using System.Timers;
 using System.ComponentModel.DataAnnotations;
 using System.Xml.Linq;
+using Edi.Core.Device;
 
 namespace Edi.Core.Device.AutoBlow
 {
@@ -32,11 +33,8 @@ namespace Edi.Core.Device.AutoBlow
         private readonly ILogger _logger;
 
         public string Key { get; set; }
-        private static long timeSyncAvrageOffset;
-        private static long timeSyncInitialOffset;
         public HttpClient Client = null;
         private string CurrentBundle = "default";
-        private Task uploadTask { get; set; }
         private CancellationTokenSource uploadCancellationTokenSource;
 
         public AutoBlowDevice(HttpClient Client, IndexRepository repository, ILogger logger)
@@ -75,34 +73,36 @@ namespace Edi.Core.Device.AutoBlow
 
         private async Task Seek(long timeMs)
         {
-            if (IsReady)
+            if (!IsReady)
             {
-                _logger.LogInformation($"Seeking on {Name} to time {timeMs} for gallery {currentGallery?.Name ?? ""}");
-                try
-                {
-                    var req = new SyncPlayRequest(timeMs);
-                    await Client.PutAsync("sync-script/start", new StringContent(JsonConvert.SerializeObject(req), Encoding.UTF8, "application/json"));
-                }
-                catch (Exception ex)
-                {
-                    _logger.LogError($"Error during Seek on {Name}: {ex.Message}");
-                }
+                return;
+            }
+            _logger.LogInformation($"Seeking on {Name} to time {timeMs} for gallery {currentGallery?.Name ?? ""}");
+            try
+            {
+                var req = new SyncPlayRequest(timeMs);
+                await Client.PutAsync("sync-script/start", new StringContent(JsonConvert.SerializeObject(req), Encoding.UTF8, "application/json"));
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError($"Error during Seek on {Name}: {ex.Message}");
             }
         }
 
         public override async Task StopGallery()
         {
-            if (IsReady)
+            if (!IsReady)
             {
-                _logger.LogInformation($"Stopping gallery on {Name}");
-                try
-                {
-                    await Client.PutAsync("sync-script/stop", null);
-                }
-                catch (Exception ex)
-                {
-                    _logger.LogError($"Error during StopGallery on {Name}: {ex.Message}");
-                }
+                return;
+            }
+            _logger.LogInformation($"Stopping gallery on {Name}");
+            try
+            {
+                await Client.PutAsync("sync-script/stop", null);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError($"Error during StopGallery on {Name}: {ex.Message}");
             }
         }
 
@@ -149,7 +149,6 @@ namespace Edi.Core.Device.AutoBlow
                     var status = JsonConvert.DeserializeObject<Status>(await resp.Content.ReadAsStringAsync());
                     _logger.LogInformation($"Upload successful for {Name}. Device is now ready.");
                     IsReady = true;
-                    Resume();
                 }
                 catch (TaskCanceledException)
                 {

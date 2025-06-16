@@ -1,6 +1,10 @@
+using Edi.Core;
+using Edi.Core.Gallery;
+
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
+builder.Services.AddEdi("./EdiConfig.json");
 builder.Services.AddControllersWithViews();
 
 var app = builder.Build();
@@ -23,5 +27,7 @@ app.UseAuthorization();
 app.MapControllerRoute(
     name: "default",
     pattern: "{controller=Home}/{action=Index}/{id?}");
+app.UseFiles();
+
 
 app.Run();

@@ -1,4 +1,5 @@
 ﻿using Edi.Core.Controllers;
+using Edi.Core.Controllers.Parameters;
 using Edi.Core.Gallery;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
@@ -44,7 +45,7 @@ namespace Edi.Core
                 c.OperationFilter<SwaggerChannelsParameterOperationFilter>();
                 c.EnableAnnotations(); // Enable Swagger annotations for summaries and descriptions
             });
-            
+
 
             services.AddCors(options =>
             {
@@ -57,21 +58,6 @@ namespace Edi.Core
 
             var galleryPath = new DirectoryInfo(config.Get<GalleryConfig>().GalleryPath).FullName;
 
-            app.UseStaticFiles(new StaticFileOptions
-            {
-                FileProvider = new PhysicalFileProvider(galleryPath),
-                RequestPath = "/Edi/Assets",
-                ServeUnknownFileTypes = true,
-                ContentTypeProvider = new FileExtensionContentTypeProvider(new Dictionary<string, string>() { { ".funscript", "application/json" } })
-            });
-
-            app.UseStaticFiles(new StaticFileOptions
-            {
-                FileProvider = new PhysicalFileProvider(uploadPath),
-                RequestPath = "/Edi/Upload",
-                ServeUnknownFileTypes = true,
-                ContentTypeProvider = new FileExtensionContentTypeProvider(new Dictionary<string,string>() { { ".funscript", "application/json" } })
-            });
 
             app.UseSwagger();
             app.UseSwaggerUI(c =>
@@ -84,9 +70,33 @@ namespace Edi.Core
             app.UseRouting();
 
             app.MapControllers();
-
+            app.UseFiles();
             return app;
         }
 
+
+
+
+
+        public static void UseFiles(this WebApplication app)
+        {
+
+            var galleryPath = app.Services.GetService<ConfigurationManager>().Get<GalleryConfig>().GalleryPath;
+            app.UseStaticFiles(new StaticFileOptions
+            {
+                FileProvider = new PhysicalFileProvider(new DirectoryInfo(galleryPath).FullName),
+                RequestPath = "/Edi/Assets",
+                ServeUnknownFileTypes = true,
+                ContentTypeProvider = new FileExtensionContentTypeProvider(new Dictionary<string, string>() { { ".funscript", "application/json" } })
+            });
+
+            app.UseStaticFiles(new StaticFileOptions
+            {
+                FileProvider = new PhysicalFileProvider(Path.Combine(Edi.OutputDir, "Upload")),
+                RequestPath = "/Edi/Upload",
+                ServeUnknownFileTypes = true,
+                ContentTypeProvider = new FileExtensionContentTypeProvider(new Dictionary<string, string>() { { ".funscript", "application/json" } })
+            });
+        }
     }
 }

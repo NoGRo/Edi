@@ -2,7 +2,7 @@ using Microsoft.OpenApi.Models;
 using Swashbuckle.AspNetCore.SwaggerGen;
 using Microsoft.AspNetCore.Mvc.Controllers;
 
-namespace Edi.Core.Controllers
+namespace Edi.Core.Controllers.Parameters
 {
     public class SwaggerChannelsParameterOperationFilter : IOperationFilter
     {

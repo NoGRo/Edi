@@ -1,5 +1,4 @@
-﻿
-using System.Text.Json;
+﻿using System.Text.Json;
 using System.Globalization;
 using CsvHelper;
 using System.Reflection.Metadata.Ecma335;
@@ -110,7 +109,7 @@ namespace Edi.Core.Gallery.Definition
                 var type = matchFile.Groups["type"].Success ? matchFile.Groups["type"].Value.ToLower() : "gallery";
 
                 var funscript = FunScriptFile.Read(file.FullName);
-                if (funscript?.metadata?.chapters?.Any() == true && Config.GenerateDefinitionFromChapters)
+                if (Config.GenerateDefinitionFromChapters && funscript?.metadata?.chapters?.Any() == true )
                 {
                     newDefinitionFile.AddRange(
                         funscript.metadata.chapters.Select(x => 
@@ -131,7 +130,7 @@ namespace Edi.Core.Gallery.Definition
                         }).ToArray());
                     
                 }
-                else
+                else if(funscript?.actions.Any() == true)
                 {
                     newDefinitionFile.Add( new() {
                             Name = fileName,
@@ -139,7 +138,7 @@ namespace Edi.Core.Gallery.Definition
                             Type = type,
                             Loop = loop,
                             StartTime = "0",
-                            EndTime = (funscript?.actions.Max(x => x.at) ?? 0).ToString(),
+                            EndTime = (funscript?.actions?.Max(x => x.at) ?? 0).ToString(),
                     });
                 }
             }

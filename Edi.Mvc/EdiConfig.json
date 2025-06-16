@@ -1,7 +1,7 @@
 {
   "Gallery": {
-    "GalleryPath": "C:\\temp\\FORL",
-    "GenerateDefinitionFromChapters": true,
+    "GalleryPath": "C:\\Users\\NoGro\\Downloads\\Season",
+    "GenerateDefinitionFromChapters": false,
     "GenerateChaptersFromDefinition": false
   },
   "GalleryBundler": {
@@ -13,30 +13,50 @@
     "Filler": true,
     "Gallery": true,
     "Reactive": true,
-    "ExecuteOnReady": ""
+    "ExecuteOnReady": "",
+    "UseHttps": false,
+    "UseLogs": false
   },
   "Devices": {
     "Devices": {
       "Preview Device": {
-        "Variant": "default",
-        "Channel": null,
-        "Min": 0,
-        "Max": 100
-      },
-      "Lovense Dolce Vibrate: 1": {
-        "Variant": "Stroke1",
-        "Channel": null,
-        "Min": 0,
-        "Max": 100
-      },
-      "Lovense Dolce Vibrate: 2": {
-        "Variant": "Stroke1",
+        "Variant": "detailed",
         "Channel": null,
         "Min": 0,
         "Max": 100
       },
       "FUNOSR-SSR1-V2.0": {
-        "Variant": "default",
+        "Variant": "Stroke1",
+        "Channel": "dffd2",
+        "Min": 0,
+        "Max": 100
+      },
+      "Lovense Hush": {
+        "Variant": "Vibe1",
+        "Channel": null,
+        "Min": 0,
+        "Max": 100
+      },
+      "Lovense Dolce Vibrate: 1": {
+        "Variant": "Vibe1",
+        "Channel": null,
+        "Min": 0,
+        "Max": 100
+      },
+      "Lovense Dolce Vibrate: 2": {
+        "Variant": "Vibe1",
+        "Channel": null,
+        "Min": 0,
+        "Max": 100
+      },
+      "Lovense Hush (1)": {
+        "Variant": "Stroke1",
+        "Channel": null,
+        "Min": 0,
+        "Max": 100
+      },
+      "AutoBlow [ibjckz1x0q91]": {
+        "Variant": "None",
         "Channel": null,
         "Min": 0,
         "Max": 100
@@ -46,7 +66,7 @@
   "OSR": {
     "COMPort": "COM3",
     "EnableMultiAxis": true,
-    "UpdateRate": 220,
+    "UpdateRate": 200,
     "RangeLimits": {
       "Linear": {
         "LowerLimit": 0,
@@ -76,26 +96,13 @@
   },
   "Buttplug": {
     "Url": "ws://localhost:12345",
-    "MinCommandDelay": 70,
-    "VibratorInercialDelay": 80
+    "MinCommandDelay": 60,
+    "VibratorInercialDelay": 60
   },
   "Handy": {
-    "Key": "PiBnz, ppJdVv3V, ibjckz1x0q91, 92H0Y"
+    "Key": "ibjckz1x0q91"
   },
   "EStim": {
     "DeviceId": -1
-  },
-  "Assist": {
-    "Model": "gpt-4o",
-    "ApiEndpoint": "https://api.openai.com/v1",
-    "Prompts": [
-      "DeviceBasic.md",
-      "EdgeControl.md",
-      "LilyGoon.md",
-      "Scripts.md"
-    ],
-    "SessionId": "",
-    "MaxTokens": null,
-    "Temperature": 1.2
   }
 }

@@ -1,4 +1,5 @@
 using Edi.Core;
+using Edi.Core.Gallery;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -26,5 +27,7 @@ app.UseAuthorization();
 app.MapControllerRoute(
     name: "default",
     pattern: "{controller=Home}/{action=Index}/{id?}");
+app.UseFiles();
+
 
 app.Run();

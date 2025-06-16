@@ -1,6 +1,6 @@
 {
   "Gallery": {
-    "GalleryPath": "D:\\Juegos\\MaxTheElf\\Edi\\Gallery",
+    "GalleryPath": "C:\\Users\\NoGro\\Downloads\\Season",
     "GenerateDefinitionFromChapters": false,
     "GenerateChaptersFromDefinition": false
   },
@@ -20,7 +20,7 @@
   "Devices": {
     "Devices": {
       "Preview Device": {
-        "Variant": "detailed",
+        "Variant": "default",
         "Channel": null,
         "Min": 0,
         "Max": 100
@@ -32,7 +32,19 @@
         "Max": 100
       },
       "Lovense Hush": {
-        "Variant": "Lineal Anal",
+        "Variant": "Vibe1",
+        "Channel": null,
+        "Min": 0,
+        "Max": 100
+      },
+      "AutoBlow [ibjckz1x0q91]": {
+        "Variant": "Stroke1",
+        "Channel": null,
+        "Min": 0,
+        "Max": 100
+      },
+      "Lovense Hush (1)": {
+        "Variant": "Stroke1",
         "Channel": null,
         "Min": 0,
         "Max": 100
@@ -72,11 +84,11 @@
   },
   "Buttplug": {
     "Url": "ws://localhost:12345",
-    "MinCommandDelay": 60,
+    "MinCommandDelay": 70,
     "VibratorInercialDelay": 80
   },
   "Handy": {
-    "Key": ""
+    "Key": "ibjckz1x0q91"
   },
   "EStim": {
     "DeviceId": -1

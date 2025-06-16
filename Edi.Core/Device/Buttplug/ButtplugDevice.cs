@@ -154,7 +154,7 @@ namespace Edi.Core.Device.Buttplug
             {
                 lastCmdSendAt = DateTime.Now;
                 var remainingCmdTime = ReminingCmdTime;
-                _logger.LogInformation($"Sending command for Device: {Name}, Actuator: {Actuator}, CurrentCmd: in-{remainingCmdTime} pos-{CurrentCmd.GetValueInRange(Min, Max)} with AbsoluteTime: {CurrentCmd.AbsoluteTime}");
+                //_logger.LogInformation($"Sending command for Device: {Name}, Actuator: {Actuator}, CurrentCmd: in-{remainingCmdTime} pos-{CurrentCmd.GetValueInRange(Min, Max)} with AbsoluteTime: {CurrentCmd.AbsoluteTime}");
 
                 switch (Actuator)
                 {

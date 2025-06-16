@@ -89,30 +89,50 @@
                 devices.forEach(function (device, index) {
                     let isMuted = (device.min === 0 && device.max === 0);
 
+                    let variantOptions = '';
+                    if (device.variants && device.variants.length > 0) {
+                        device.variants.forEach(function (variant) {
+                            variantOptions += `<option value="${variant}"${variant === device.selectedVariant ? ' selected' : ''}>${variant}</option>`;
+                        });
+                    }
+                    let variantDropdown = '';
+                    if (variantOptions) {
+                        variantDropdown = `<select class="form-select variant-select" data-device-name="${device.name}" style="max-width: 120px; display: inline-block; margin-top: 4px;">${variantOptions}</select>`;
+                    }
+
                     let deviceRow = $(`
-                            <div class="device-row list-group-item" data-device-name="${device.name}">
-                                <div class="row align-items-center">
-                                    <div class="col-md-2">
-                                        <strong>${device.name}</strong>
-                                    </div>
-                                    <div class="col-md-5">
-                                        <div id="slider-${index}" class="slider-range"></div>
-                                    </div>
-                                    <div class="col-md-3">
-                                        <div class="btn-group" role="group">
-                                            <button class="btn btn-${isMuted ? 'success' : 'danger'} mute-button">${isMuted ? 'Unmute' : 'Mute'}</button>
-                                            <button class="btn btn-primary set-range-button" data-range="100">100%</button>
-                                            <button class="btn btn-primary set-range-button" data-range="70">70%</button>
-                                        </div>
-                                    </div>
-                                    <div class="col-md-2">
-                                        Min: <span id="min-${index}">${device.min}</span>, Max: <span id="max-${index}">${device.max}</span>
+                        <div class="device-row list-group-item" data-device-name="${device.name}">
+                            <div class="row align-items-center">
+                                <div class="col-md-2">
+                                    <strong>${device.name}</strong><br/>
+                                    
+                                </div>
+                                <div class="col-md-5">
+                                    <div id="slider-${index}" class="slider-range"></div>
+                                     ${variantDropdown}
+                                    
+                                </div>
+                                <div class="col-md-3">
+                                    <div class="btn-group" role="group">
+                                       
+                                        <button class="btn btn-${isMuted ? 'success' : 'danger'} mute-button">${isMuted ? 'Unmute' : 'Mute'}</button>
+                                        <button class="btn btn-primary set-range-button" data-range="100">100%</button>
+                                        <button class="btn btn-primary set-range-button" data-range="70">70%</button>
                                     </div>
                                 </div>
+                                <div class="col-md-2">
+                                    Min: <span id="min-${index}">${device.min}</span>, Max: <span id="max-${index}">${device.max}</span>
+                                </div>
                             </div>
-                        `);
-
+                        </div>
+                    `);
                     devicesGrid.append(deviceRow);
+                    // Handler para el cambio de variante
+                    deviceRow.find('.variant-select').change(function () {
+                        let deviceName = $(this).data('device-name');
+                        let selectedVariant = $(this).val();
+                        $.post(`/Devices/${deviceName}/Variant/${selectedVariant}`);
+                    });
 
                     // Store the current range
                     if (!deviceRanges[device.name] && !isMuted) {
@@ -120,6 +140,7 @@
                     }
 
                     // Initialize slider
+                    /*
                     $(`#slider-${index}`).slider({
                         range: true,
                         min: 0,
@@ -160,7 +181,7 @@
                             }
                         }
                     });
-
+                    */
                     // Mute button click handler
                     // Manejador del botón Mute
                     deviceRow.find('.mute-button').click(function () {

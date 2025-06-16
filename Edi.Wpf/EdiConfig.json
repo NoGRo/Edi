@@ -1,6 +1,6 @@
 {
   "Gallery": {
-    "GalleryPath": "C:\\temp\\GOON FOR LILY LOU",
+    "GalleryPath": "C:\\temp\\FORL",
     "GenerateDefinitionFromChapters": true,
     "GenerateChaptersFromDefinition": false
   },
@@ -19,21 +19,25 @@
     "Devices": {
       "Preview Device": {
         "Variant": "default",
+        "Channel": null,
         "Min": 0,
         "Max": 100
       },
       "Lovense Dolce Vibrate: 1": {
         "Variant": "Stroke1",
+        "Channel": null,
         "Min": 0,
         "Max": 100
       },
       "Lovense Dolce Vibrate: 2": {
         "Variant": "Stroke1",
+        "Channel": null,
         "Min": 0,
         "Max": 100
       },
       "FUNOSR-SSR1-V2.0": {
         "Variant": "default",
+        "Channel": null,
         "Min": 0,
         "Max": 100
       }
@@ -84,8 +88,7 @@
   "Assist": {
     "Model": "gpt-4o",
     "ApiEndpoint": "https://api.openai.com/v1",
-    "ApiKey": "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",
-    "AssistantId": "asst_KbdMQJQ0iaL3L468WyRPN9qQ",
+    
     "Prompts": [
       "DeviceBasic.md",
       "EdgeControl.md",

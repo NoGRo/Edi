@@ -1,7 +1,6 @@
 ﻿using Edi.Core;
 using Edi.Core.Device;
 using Edi.Core.Device.Interfaces;
-using Edi.Forms;
 using Microsoft.AspNetCore.Mvc;
 using System.ComponentModel.DataAnnotations;
 using static System.Net.WebRequestMethods;
@@ -11,21 +10,21 @@ using System.Text;
 using Edi.Core.Gallery;
 using System.IO;
 
-namespace Edi.Controllers
+namespace Edi.Core.Controllers
 {
     [Route("[controller]")]
     public class AssistController : Controller
     {
-        private readonly IEdi _edi = App.Edi;
+        private readonly IEdi _edi;
         private readonly AssistConfig _config;
         private readonly GalleryConfig _ediConfig;
         private readonly HttpClient _http;
         private static List<(string Role, string Content)> _sessionHistories = new();
         public record PromptRequest([Required]string Message, string Memory);
-        public AssistController()
+        public AssistController(IEdi edi)
         {
-            _config = App.Edi.ConfigurationManager.Get<AssistConfig>();
-            _ediConfig = App.Edi.ConfigurationManager.Get<GalleryConfig>(); 
+            _config = edi.ConfigurationManager.Get<AssistConfig>();
+            _ediConfig = edi.ConfigurationManager.Get<GalleryConfig>(); 
             _http = new HttpClient
             {
                 DefaultRequestHeaders = {
@@ -33,7 +32,7 @@ namespace Edi.Controllers
                         { "OpenAI-Beta", "assistants=v2" }
                     }
             };
-
+            _edi = edi;
         }
 
         [HttpPost("assistant")]

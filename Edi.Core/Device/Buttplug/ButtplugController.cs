@@ -21,6 +21,7 @@ namespace Edi.Core.Device.Buttplug
         private CancellationTokenSource globalCts;
         private Task globalDeviceTask;
         private readonly ILogger _logger;
+        private readonly object _lock = new();
 
         public int DelayMin => config.MinCommandDelay;
 
@@ -41,26 +42,29 @@ namespace Edi.Core.Device.Buttplug
 
         private void DeviceCollector_OnUnloadDevice(IDevice device, List<IDevice> devices)
         {
-            if (!devices.OfType<ButtplugDevice>().Any(IsValidActuator))
+            lock (_lock)
             {
-                globalCts?.Cancel(true);
-                globalCts = null;
-                globalDeviceTask = null;
-                _logger.LogInformation($"No remaining devices of correct actuator type. Global device thread stopped.");
+                if (!devices.OfType<ButtplugDevice>().Any(IsValidActuator))
+                {
+                    globalCts?.Cancel(true);
+                    globalCts = null;
+                    globalDeviceTask = null;
+                    _logger.LogInformation($"No remaining devices of correct actuator type. Global device thread stopped.");
+                }
             }
         }
 
         private void DeviceCollector_OnloadDevice(IDevice device, List<IDevice> devices)
         {
-            if (device is ButtplugDevice && devices.OfType<ButtplugDevice>().Any(IsValidActuator)
-                && globalDeviceTask == null || globalDeviceTask.IsCompleted)
+            lock (_lock)
             {
-                globalCts = new CancellationTokenSource();
-                var delay = Convert.ToUInt16(DelayMin); //devices.OfType<ButtplugDevice>().FirstOrDefault(IsValidActuator)?.Device.MessageTimingGap ?? Convert.ToUInt16(DelayMin);
-                _logger.LogInformation($"Starting global device thread. Delay: {delay}ms.");
-                globalDeviceTask = Task.Factory.StartNew(async () => await ExecuteDeviceCommandsAsync(globalCts.Token), TaskCreationOptions.LongRunning);
+                if (device is ButtplugDevice && devices.OfType<ButtplugDevice>().Any(IsValidActuator)
+                    && (globalDeviceTask == null || globalDeviceTask.IsCompleted))
+                {
+                    globalCts = new CancellationTokenSource();
+                    globalDeviceTask = Task.Factory.StartNew(async () => await ExecuteDeviceCommandsAsync(globalCts.Token), TaskCreationOptions.LongRunning);
+                }
             }
-            
         }
 
         private async Task ExecuteDeviceCommandsAsync(CancellationToken cancellationToken)

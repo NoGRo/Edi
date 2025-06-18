@@ -38,13 +38,13 @@ namespace Edi.Core.Device.Buttplug
         }
 
         // Método auxiliar para evitar repeticiones
-        private static bool IsValidActuator(ButtplugDevice x) => x.Actuator is ActuatorType.Vibrate or ActuatorType.Oscillate;
+        private static bool IsInterpolatedActuator(ButtplugDevice x) => x.Actuator is ActuatorType.Vibrate or ActuatorType.Oscillate;
 
         private void DeviceCollector_OnUnloadDevice(IDevice device, List<IDevice> devices)
         {
             lock (_lock)
             {
-                if (!devices.OfType<ButtplugDevice>().Any(IsValidActuator))
+                if (!devices.OfType<ButtplugDevice>().Any(IsInterpolatedActuator))
                 {
                     globalCts?.Cancel(true);
                     globalCts = null;
@@ -58,21 +58,21 @@ namespace Edi.Core.Device.Buttplug
         {
             lock (_lock)
             {
-                if (device is ButtplugDevice && devices.OfType<ButtplugDevice>().Any(IsValidActuator)
+                if (device is ButtplugDevice && devices.OfType<ButtplugDevice>().Any(IsInterpolatedActuator)
                     && (globalDeviceTask == null || globalDeviceTask.IsCompleted))
                 {
                     globalCts = new CancellationTokenSource();
-                    globalDeviceTask = Task.Factory.StartNew(async () => await ExecuteDeviceCommandsAsync(globalCts.Token), TaskCreationOptions.LongRunning);
+                    globalDeviceTask = Task.Factory.StartNew(async () => await ProcessInterpolatedCommandsAsync(globalCts.Token), TaskCreationOptions.LongRunning);
                 }
             }
         }
 
-        private async Task ExecuteDeviceCommandsAsync(CancellationToken cancellationToken)
+        private async Task ProcessInterpolatedCommandsAsync(CancellationToken cancellationToken)
         {
             while (!cancellationToken.IsCancellationRequested)
             {
                 // Agrupar todos los ButtplugDevice por su ButtplugClientDevice y ActuatorType
-                var allDevices = deviceCollector.Devices.OfType<ButtplugDevice>().Where(IsValidActuator).ToList();
+                var allDevices = deviceCollector.Devices.OfType<ButtplugDevice>().Where(IsInterpolatedActuator).ToList();
                 var grouped = allDevices
                     .GroupBy(x => (x.Device, x.Actuator))
                     .ToList();

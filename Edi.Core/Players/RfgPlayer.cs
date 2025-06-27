@@ -56,8 +56,15 @@ namespace Edi.Core.Players
                 return;
             }
 
-            if (!IsTypeEnabled(gallery.Type)) 
+            if (!IsTypeEnabled(gallery.Type))
+            {
+                if (gallery.Type == "filler")
+                {
+                    Log($"Filler [{name}] not enabled, stopping playback");
+                    await devicePlayer.Stop();
+                }
                 return;
+            }
 
             switch (gallery.Type)
             {

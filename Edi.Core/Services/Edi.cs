@@ -27,8 +27,10 @@ namespace Edi.Core
         public ConfigurationManager ConfigurationManager { get; set; }
         public DeviceCollector DeviceCollector { get; private set; }
         public DeviceConfiguration DeviceConfiguration { get; private set; }
-        public IPlayBackChannels Player { get; private set; }
-        public Edi(DeviceCollector deviceCollector, IPlayBackChannels player, IEnumerable<IRepository> repos, ConfigurationManager configuration, DeviceConfiguration deviceConfiguration)
+        public IPlayerChannels Player { get; private set; }
+        
+        public IEnumerable<IRepository> repos { get; private set; }
+        public Edi(DeviceCollector deviceCollector, IPlayerChannels player, IEnumerable<IRepository> repos, ConfigurationManager configuration, DeviceConfiguration deviceConfiguration)
         {
             if (!Directory.Exists(OutputDir))
                 Directory.CreateDirectory(OutputDir);
@@ -71,7 +73,7 @@ namespace Edi.Core
             Directory.CreateDirectory(Path.Combine(OutputDir, "Upload"));
         }
 
-        private readonly IEnumerable<IRepository> repos;
+       
         public static string OutputDir => Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData) + "/Edi";
 
         public ObservableCollection<IDevice> Devices => new ObservableCollection<IDevice>(DeviceCollector.Devices);
@@ -83,6 +85,9 @@ namespace Edi.Core
 
         private DefinitionRepository _repository { get; set; }
         public IEnumerable<DefinitionGallery> Definitions => _repository.GetAll();
+
+        
+
         public event IEdi.ChangeStatusHandler OnChangeStatus;
         
 

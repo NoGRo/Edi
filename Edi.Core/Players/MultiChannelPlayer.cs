@@ -12,25 +12,21 @@ using System.Xml.Linq;
 
 namespace Edi.Core.Players
 {
-    public class MultiPlayer : ProxyPlayer, IPlayBackChannels
+    public class MultiChannelPlayer : ProxyPlayer, IPlayerChannels
     {
-        private readonly IServiceProvider serviceProvider;
-        private readonly ChannelManager<IPlayBack> Manager;
-        private readonly DeviceCollector deviceCollector;
+        private readonly ChannelManager<IPlayer> Manager;
 
-        public MultiPlayer(IServiceProvider serviceProvider, ChannelManager<IPlayBack> channelManager, DeviceCollector deviceCollector)
+        public MultiChannelPlayer(IServiceProvider serviceProvider, ChannelManager<IPlayer> channelManager, DeviceCollector deviceCollector)
             : base(null)
         {
-            this.serviceProvider = serviceProvider;
             this.Manager = channelManager;
-            this.deviceCollector = deviceCollector;
             Manager.OnFirstCustomChannelCreated += Manager_OnFirstCustomChannelCreated;
             deviceCollector.OnloadDevice += DeviceCollector_OnloadDevice;
             deviceCollector.OnUnloadDevice += DeviceCollector_OnUnloadDevice;
         }
 
-        private void Manager_OnFirstCustomChannelCreated(string obj)
-            => deviceChannel.Keys.ToList().ForEach(d => d.Channel = obj);//TODO: algo mal aca dispositivos ya configurados en un cannal
+        private void Manager_OnFirstCustomChannelCreated(string newChannel)
+            => deviceChannel.Keys.ToList().ForEach(d => d.Channel = newChannel);
             
         private Dictionary<IDevice, string> deviceChannel = new();
 
@@ -53,7 +49,6 @@ namespace Edi.Core.Players
                 deviceChannel[device] = device.Channel;
                 Manager.WithChannel(d.Channel, c => c.Add(device));
             };
-            
         }
 
         private void DeviceCollector_OnUnloadDevice(IDevice device, List<IDevice> devices)

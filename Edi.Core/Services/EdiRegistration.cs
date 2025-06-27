@@ -28,7 +28,7 @@ namespace Edi.Core
         public static void AddEdi(this IServiceCollection services, string configPath)
         {
 
-            services.AddSingleton<ConfigurationManager>(x=> new(configPath));
+            services.AddSingleton<ConfigurationManager>(x => new(configPath));
 
             services.AddSingleton<DefinitionRepository>(); ;
             services.AddSingleton<FunscriptRepository>();
@@ -44,14 +44,7 @@ namespace Edi.Core
             // Registrar Device Manager y Providers
             services.AddSingleton<DeviceCollector>();
 
-            
-            services.AddSingleton<IPlayBackChannels,MultiPlayer>();
-            services.AddTransient<RfgPlayer>();
-            services.AddTransient<DevicePlayer>();
-
-            services.AddSingleton(sp => new ChannelManager<IPlayBack>(() => sp.GetRequiredService<RfgPlayer>()));
-            
-            services.AddSingleton<SyncPlaybackFactory>();
+            services.AddPlayers();
 
             services.AddSingleton<DeviceConfiguration>();
 
@@ -66,5 +59,7 @@ namespace Edi.Core
 
             services.AddHostedService<EdiHostedService>();
         }
+
+
     }
 }

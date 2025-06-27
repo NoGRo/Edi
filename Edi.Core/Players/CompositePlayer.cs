@@ -10,13 +10,13 @@ namespace Edi.Core.Players
 {
     public class CompositePlayer : ProxyPlayer
     {
-        private readonly List<IPlayBack> players = new();
+        private readonly List<IPlayer> players = new();
 
         public CompositePlayer() : base(null) { }
 
-        public  void Add(IPlayBack player) => players.Add(player);
+        public  void Add(IPlayer player) => players.Add(player);
 
-        public void Remove(IPlayBack player) => players.Add(player);
+        public void Remove(IPlayer player) => players.Add(player);
 
 
         public override void Add(IDevice device)

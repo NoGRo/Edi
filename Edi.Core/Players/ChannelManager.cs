@@ -26,8 +26,9 @@ public class ChannelManager<T>
     { 
         channels.TryAdd(name, factory());
     }
-    private readonly SemaphoreSlim semaphore = new(1, 1);
 
+    // Sets the active channels to the requested ones, creating them if needed.
+    // If switching away from the main channel, the old main channel instance is reused.
     private void UseChannels(params string[] requestedChannels)
     {
         var names = (requestedChannels == null || requestedChannels.FirstOrDefault() == null)
@@ -36,13 +37,13 @@ public class ChannelManager<T>
 
         string newChannel = null;
 
-        if (channels.ContainsKey(MAIN_CHANNEL) && names.Count > 0 && names.First() != MAIN_CHANNEL)
+        // se sale del estado default para crear un canal nuevo
+        if (names.Any() && names.First() != MAIN_CHANNEL && channels.ContainsKey(MAIN_CHANNEL)) 
         {
             var oldMain = channels[MAIN_CHANNEL];
             channels.Clear();
             newChannel = names.First();
             channels[newChannel] = oldMain;
-           
         }
 
         foreach (var name in names)
@@ -62,6 +63,8 @@ public class ChannelManager<T>
             return Task.CompletedTask;
         });
     }
+
+    private readonly SemaphoreSlim semaphore = new(1, 1);
     public async Task WithChannels(string[] channelNames, Func<T, Task> action)
     {
         await semaphore.WaitAsync();

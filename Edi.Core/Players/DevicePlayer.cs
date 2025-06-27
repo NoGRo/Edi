@@ -8,7 +8,7 @@ using System.ComponentModel;
 
 namespace Edi.Core.Players
 {
-    public class DevicePlayer : IPlayBack
+    public class DevicePlayer : IPlayer
     {
         private readonly SyncPlaybackFactory syncFactory;
         private readonly DevicesConfig config;

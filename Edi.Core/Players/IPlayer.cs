@@ -2,7 +2,7 @@
 
 namespace Edi.Core.Players
 {
-    public interface IPlayBack
+    public interface IPlayer
     {
         void Add(IDevice device);
         void Remove(IDevice device);
@@ -16,7 +16,7 @@ namespace Edi.Core.Players
    
     }
 
-    public interface IPlayBackChannels
+    public interface IPlayerChannels
     {
         public 
         Task Play(string name, long seek = 0, string[] channels = null);

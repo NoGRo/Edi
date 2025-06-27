@@ -16,10 +16,11 @@ namespace Edi.Core
 
         public Task Init(string path = null);
         public Task InitDevices();
-        public IPlayBackChannels Player { get; }
+        public IPlayerChannels Player { get; }
 
         public DeviceCollector DeviceCollector { get; }
         public DeviceConfiguration DeviceConfiguration { get; }
+        public IEnumerable<IRepository> repos { get; }
 
         public ConfigurationManager ConfigurationManager { get; }
         public IEnumerable<DefinitionGallery> Definitions { get; }

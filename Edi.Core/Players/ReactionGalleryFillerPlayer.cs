@@ -12,10 +12,10 @@ using System.Diagnostics;
 namespace Edi.Core.Players
 {
 
-    public class RfgPlayer : ProxyPlayer
+    public class ReactionGalleryFillerPlayer : ProxyPlayer
     {
         private readonly DefinitionRepository repository;
-        private readonly IPlayBack devicePlayer;
+        private readonly IPlayer devicePlayer;
         private readonly SyncPlaybackFactory syncPlaybackFactory;
         private readonly EdiConfig config;
 
@@ -28,7 +28,7 @@ namespace Edi.Core.Players
         public event IEdi.ChangeStatusHandler OnChangeStatus;
         private DefinitionGallery CurrentFiller;
 
-        public RfgPlayer(DefinitionRepository repo, DevicePlayer dp, ConfigurationManager cfg, SyncPlaybackFactory spf)
+        public ReactionGalleryFillerPlayer(DefinitionRepository repo, DevicePlayer dp, ConfigurationManager cfg, SyncPlaybackFactory spf)
             : base(dp)
         {
             repository = repo;
@@ -61,7 +61,7 @@ namespace Edi.Core.Players
                 if (gallery.Type == "filler")
                 {
                     Log($"Filler [{name}] not enabled, stopping playback");
-                    await devicePlayer.Stop();
+                    await StopGallery();
                 }
                 return;
             }

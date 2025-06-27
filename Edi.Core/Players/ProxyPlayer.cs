@@ -7,11 +7,11 @@ using System.Threading.Tasks;
 
 namespace Edi.Core.Players
 {
-    public abstract class ProxyPlayer : IPlayBack
+    public abstract class ProxyPlayer : IPlayer
     {
-        protected readonly IPlayBack upperLayerPlayer;
+        protected readonly IPlayer upperLayerPlayer;
 
-        public ProxyPlayer(IPlayBack upperLayerPlayer)
+        public ProxyPlayer(IPlayer upperLayerPlayer)
         {
             this.upperLayerPlayer = upperLayerPlayer;
         }

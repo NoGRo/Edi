@@ -165,7 +165,8 @@ namespace Edi.Core.Controllers
                 model = _config.Model,
                 messages,
                 max_tokens = _config.MaxTokens ?? 2048,
-                temperature = _config.Temperature ?? 0.8
+                temperature = _config.Temperature ?? 0.8,
+                //frequency_penalty = _config.FrequencyPenalty
             };
 
 

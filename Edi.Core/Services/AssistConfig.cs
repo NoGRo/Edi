@@ -11,8 +11,9 @@ namespace Edi.Core
         public object AssistantId { get; set; } 
         public string? SessionId { get; set; }
 
-        public int? MaxTokens { get; internal set; }
-        public double? Temperature { get; internal set; }
+        public int? MaxTokens { get;  set; }
+        public double? Temperature { get; set; }
+        public double? FrequencyPenalty { get; set; }
         public int? MaxHistory { get; set; }
         public IEnumerable<string> Prompts { get; set; }
     }

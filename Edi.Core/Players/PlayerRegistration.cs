@@ -20,6 +20,7 @@ namespace Edi.Core.Players
                                             ));
 
             services.AddSingleton<SyncPlaybackFactory>();
+            services.AddSingleton<PlayerLogService>();
         }
     }
 }

@@ -8,6 +8,7 @@ using System.Text;
 using System.Threading.Tasks;
 using System.Timers;
 using System.Diagnostics;
+using System.Collections.Concurrent;
 
 namespace Edi.Core.Players
 {
@@ -18,6 +19,7 @@ namespace Edi.Core.Players
         private readonly IPlayer devicePlayer;
         private readonly SyncPlaybackFactory syncPlaybackFactory;
         private readonly EdiConfig config;
+        private readonly PlayerLogService logService;
 
         private SyncPlayback gallerySync;
         private bool isReactionMode;
@@ -28,12 +30,13 @@ namespace Edi.Core.Players
         public event IEdi.ChangeStatusHandler OnChangeStatus;
         private DefinitionGallery CurrentFiller;
 
-        public ReactionGalleryFillerPlayer(DefinitionRepository repo, DevicePlayer dp, ConfigurationManager cfg, SyncPlaybackFactory spf)
+        public ReactionGalleryFillerPlayer(DefinitionRepository repo, DevicePlayer dp, ConfigurationManager cfg, SyncPlaybackFactory spf, PlayerLogService logService)
             : base(dp)
         {
             repository = repo;
             devicePlayer = dp;
             syncPlaybackFactory = spf;
+            this.logService = logService;
             config = cfg.Get<EdiConfig>();
 
             galleryStoper = SetupTimer(StopGallery);
@@ -130,7 +133,7 @@ namespace Edi.Core.Players
                 reactStoper.Interval = gallery.Duration;
                 reactStoper.Start();
             }
-            
+
             Log($"Device Reaction [{gallery.Name}], loop:{gallery.Loop}");
             await devicePlayer.Play(gallery.Name);
         }
@@ -163,8 +166,7 @@ namespace Edi.Core.Players
                 await PlayGallery(filler, seek);
         }
 
-        private void Log(string msg) => Debug.WriteLine($"[{DateTime.Now:T}] {msg}");
-
-   }
+        private void Log(string msg) => logService.AddLog($"[{DateTime.Now:T}] {msg}");
+    }
 
 }

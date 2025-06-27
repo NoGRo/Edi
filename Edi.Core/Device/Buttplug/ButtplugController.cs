@@ -44,13 +44,14 @@ namespace Edi.Core.Device.Buttplug
         {
             lock (_lock)
             {
-                if (!devices.OfType<ButtplugDevice>().Any(IsInterpolatedActuator))
+                if (devices.OfType<ButtplugDevice>().Any(IsInterpolatedActuator))
                 {
-                    globalCts?.Cancel(true);
-                    globalCts = null;
-                    globalDeviceTask = null;
-                    _logger.LogInformation($"No remaining devices of correct actuator type. Global device thread stopped.");
+                    return;
                 }
+                globalCts?.Cancel(true);
+                globalCts = null;
+                globalDeviceTask = null;
+                _logger.LogInformation($"No remaining devices of correct actuator type. Global device thread stopped.");
             }
         }
 
@@ -58,12 +59,13 @@ namespace Edi.Core.Device.Buttplug
         {
             lock (_lock)
             {
-                if (device is ButtplugDevice && devices.OfType<ButtplugDevice>().Any(IsInterpolatedActuator)
-                    && (globalDeviceTask == null || globalDeviceTask.IsCompleted))
+                if (device is not ButtplugDevice || !devices.OfType<ButtplugDevice>().Any(IsInterpolatedActuator)
+                    || globalDeviceTask != null && !globalDeviceTask.IsCompleted)
                 {
-                    globalCts = new CancellationTokenSource();
-                    globalDeviceTask = Task.Factory.StartNew(async () => await ProcessInterpolatedCommandsAsync(globalCts.Token), TaskCreationOptions.LongRunning);
+                    return;
                 }
+                globalCts = new CancellationTokenSource();
+                globalDeviceTask = Task.Factory.StartNew(async () => await ProcessInterpolatedCommandsAsync(globalCts.Token), TaskCreationOptions.LongRunning);
             }
         }
 

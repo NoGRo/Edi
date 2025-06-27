@@ -149,39 +149,42 @@ namespace Edi.Core.Device.Buttplug
             }
 
             Task sendtask = Task.CompletedTask;
-            if (CurrentCmd.Millis >= config.MinCommandDelay
-                || (DateTime.Now - lastCmdSendAt).TotalMilliseconds >= config.MinCommandDelay)
+            if (CurrentCmd.Millis < config.MinCommandDelay
+                && (DateTime.Now - lastCmdSendAt).TotalMilliseconds < config.MinCommandDelay)
             {
-                lastCmdSendAt = DateTime.Now;
-                var remainingCmdTime = ReminingCmdTime;
-                //_logger.LogInformation($"Sending command for Device: {Name}, Actuator: {Actuator}, CurrentCmd: in-{remainingCmdTime} pos-{CurrentCmd.GetValueInRange(Min, Max)} with AbsoluteTime: {CurrentCmd.AbsoluteTime}");
-
-                switch (Actuator)
-                {
-                    case ActuatorType.Position:
-                        sendtask = Device.LinearAsync((uint)remainingCmdTime, Math.Min(1.0, Math.Max(0, CurrentCmd.GetValueInRange(Min, Max) / (double)100)));
-                        break;
-                    case ActuatorType.Rotate:
-                        sendtask = Device.RotateAsync(Math.Min(1.0, Math.Max(0, CurrentCmd.Speed / 450f)), RotateDirection);
-                        RotateTotalMillis += remainingCmdTime;
-
-                        if (RotateMillisDirChange != null && !(RotateTotalMillis >= RotateMillisDirChange))
-                            break;
-                        
-                        if (RotateMillisDirChange != null)
-                        {
-                            RotateTotalMillis = 0;
-                            RotateDirection = !RotateDirection;
-                        }
-
-                        var next = RandomRotate.NextSingle();
-                        RotateMillisDirChange = (1 - next) * RotateMinimumMillisDirChange + next * RotateMaximumMillisDirChange;
-
-                        break;
-                }
+                return;
             }
+            
+            lastCmdSendAt = DateTime.Now;
+            var remainingCmdTime = ReminingCmdTime;
+            //_logger.LogInformation($"Sending command for Device: {Name}, Actuator: {Actuator}, CurrentCmd: in-{remainingCmdTime} pos-{CurrentCmd.GetValueInRange(Min, Max)} with AbsoluteTime: {CurrentCmd.AbsoluteTime}");
 
+            switch (Actuator)
+            {
+                case ActuatorType.Position:
+                    sendtask = Device.LinearAsync((uint)remainingCmdTime, Math.Min(1.0, Math.Max(0, CurrentCmd.GetValueInRange(Min, Max) / (double)100)));
+                    break;
+                case ActuatorType.Rotate:
+                    sendtask = Device.RotateAsync(Math.Min(1.0, Math.Max(0, CurrentCmd.Speed / 450f)), RotateDirection);
+                    RotateTotalMillis += remainingCmdTime;
+
+                    if (RotateMillisDirChange != null && !(RotateTotalMillis >= RotateMillisDirChange))
+                        break;
+
+                    if (RotateMillisDirChange != null)
+                    {
+                        RotateTotalMillis = 0;
+                        RotateDirection = !RotateDirection;
+                    }
+
+                    var next = RandomRotate.NextSingle();
+                    RotateMillisDirChange = (1 - next) * RotateMinimumMillisDirChange + next * RotateMaximumMillisDirChange;
+
+                    break;
+            }
             await sendtask.ConfigureAwait(false);
+
+
             //_logger.LogInformation($"Command sent successfully for Device: {Name}, Actuator: {Actuator}");
         }
 

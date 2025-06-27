@@ -44,9 +44,12 @@ namespace Edi.Core.Device.Buttplug
         {
             _logger.LogInformation("Initializing ButtplugProvider...");
             timerReconnect.Elapsed += timerReconnectevent;
-            timerReconnect.Start();
 
             await Connect();
+
+            
+
+            
             _logger.LogInformation("ButtplugProvider initialization complete.");
         }
 
@@ -59,28 +62,30 @@ namespace Edi.Core.Device.Buttplug
         public async Task Connect()
         {
             _logger.LogInformation("Attempting to connect to Buttplug client.");
-            timerReconnect.Enabled = false;
+            timerReconnect.Stop();
 
-            if (client != null)
+            if (client == null)
             {
-                if (client.Connected)
-                {
-                    await client.DisconnectAsync();
-                    _logger.LogInformation("Disconnected existing client connection.");
-                }
+                client = new ButtplugClient("Edi");
 
-                client.Dispose();
-                client = null;
-                RemoveAllDevices();
-                _logger.LogInformation("Existing client disposed and devices removed.");
+                client.DeviceAdded += Client_DeviceAdded;
+                client.DeviceRemoved += Client_DeviceRemoved;
+                client.ErrorReceived += Client_ErrorReceived;
+                client.ServerDisconnect += Client_ServerDisconnect;
             }
 
-            client = new ButtplugClient("Edi");
+            if (client.Connected)
+            {
+                await client.DisconnectAsync();
+                _logger.LogInformation("Disconnected existing client connection.");
+            }
 
-            client.DeviceAdded += Client_DeviceAdded;
-            client.DeviceRemoved += Client_DeviceRemoved;
-            client.ErrorReceived += Client_ErrorReceived;
-            client.ServerDisconnect += Client_ServerDisconnect;
+
+            RemoveAllDevices();
+            _logger.LogInformation("Existing client disposed and devices removed.");
+
+
+            
 
             try
             {
@@ -98,7 +103,10 @@ namespace Edi.Core.Device.Buttplug
             catch (ButtplugClientConnectorException ex)
             {
                 _logger.LogError($"Failed to connect to client: {ex.Message}");
-                timerReconnect.Enabled = true;
+            }
+            finally
+            {
+                timerReconnect.Start();
             }
         }
 
@@ -180,7 +188,7 @@ namespace Edi.Core.Device.Buttplug
 
         private void Client_ServerDisconnect(object sender, EventArgs e)
         {
-            timerReconnect.Enabled = true;
+            timerReconnect.Start();
             OnStatusChange("Disconnect");
             _logger.LogWarning("Server disconnected. Reconnection timer started.");
         }
@@ -215,15 +223,13 @@ namespace Edi.Core.Device.Buttplug
 
         private void timerReconnectevent(object sender, ElapsedEventArgs e)
         {
-            if (!client.Connected)
+            if (client.Connected)
             {
-                _logger.LogInformation("Reconnection timer triggered. Attempting to reconnect.");
-                _ = Connect();
+                return;
             }
-            else
-            {
-                timerReconnect.Enabled = false;
-            }
+
+            _logger.LogInformation("Reconnection timer triggered. Attempting to reconnect.");
+            _ = Connect();
         }
     }
 }

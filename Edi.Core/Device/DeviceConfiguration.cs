@@ -19,11 +19,6 @@ namespace Edi.Core.Device
         private readonly DevicePlayer devicePlayer;
         private DevicesConfig config;
 
-        private void DeviceCollector_OnloadDevice(IDevice device, List<IDevice> devices)
-        {
-            _ = devicePlayer.Sync(device);
-        }
-
         public async Task SelectVariant(IDevice device, string variant)
         {
             if (device.SelectedVariant == variant)

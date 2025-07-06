@@ -11,8 +11,7 @@ namespace Edi.Core.Device
             this.configuration = configuration;
             this.devicePlayer = devicePlayer;
             config = configuration.Get<DevicesConfig>();
-            deviceCollector.OnloadDevice += DeviceCollector_OnloadDevice;
-
+            
         }
         private readonly DeviceCollector deviceCollector;
         private readonly ConfigurationManager configuration;

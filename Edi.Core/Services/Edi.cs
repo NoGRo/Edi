@@ -30,7 +30,9 @@ namespace Edi.Core
         public IPlayerChannels Player { get; private set; }
         
         public IEnumerable<IRepository> repos { get; private set; }
-        public Edi(DeviceCollector deviceCollector, IPlayerChannels player, IEnumerable<IRepository> repos, ConfigurationManager configuration, DeviceConfiguration deviceConfiguration)
+        private readonly PlayerLogService _logService;
+
+        public Edi(DeviceCollector deviceCollector, IPlayerChannels player, IEnumerable<IRepository> repos, ConfigurationManager configuration, DeviceConfiguration deviceConfiguration, PlayerLogService rfgLogService = null)
         {
             if (!Directory.Exists(OutputDir))
                 Directory.CreateDirectory(OutputDir);
@@ -41,10 +43,13 @@ namespace Edi.Core
             _repository = (DefinitionRepository)repos.First(x => x is DefinitionRepository);
             this.repos = repos;
 
-
             ConfigurationManager = configuration;
             Config = configuration.Get<EdiConfig>();
             DeviceConfiguration = deviceConfiguration;
+            _logService = rfgLogService;
+
+            _logService.OnLogReceived += (msg) => OnChangeStatus?.Invoke(msg);
+            
         }
 
 
@@ -73,7 +78,6 @@ namespace Edi.Core
             Directory.CreateDirectory(Path.Combine(OutputDir, "Upload"));
         }
 
-       
         public static string OutputDir => Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData) + "/Edi";
 
         public ObservableCollection<IDevice> Devices => new ObservableCollection<IDevice>(DeviceCollector.Devices);
@@ -85,9 +89,6 @@ namespace Edi.Core
 
         private DefinitionRepository _repository { get; set; }
         public IEnumerable<DefinitionGallery> Definitions => _repository.GetAll();
-
-        
-
         public event IEdi.ChangeStatusHandler OnChangeStatus;
         
 

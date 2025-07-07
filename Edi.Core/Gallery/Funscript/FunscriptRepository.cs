@@ -57,7 +57,7 @@ namespace Edi.Core.Gallery.Funscript
 
         }
 
-        private static FunscriptGallery ParseActions(string variant, Axis axis, DefinitionGallery DefinitionGallery, ref IEnumerable<FunScriptAction> actions)
+        private static FunscriptGallery ParseActions(string variant, Axis axis, DefinitionGallery DefinitionGallery, ref List<FunScriptAction> actions)
         {
             var sb = new ScriptBuilder();
             foreach (var action in actions)
@@ -99,16 +99,23 @@ namespace Edi.Core.Gallery.Funscript
                 return null;
             }
 
+
+
             var actions = funscript.actions
                 .Where(x => x.at >= definition.StartTime
-                            && x.at <= definition.EndTime);
+                            && x.at <= definition.EndTime)
+                            .OrderBy(x => x.at)
+                            .ToList();
 
             if (!actions.Any())
             {
                 _logger.LogWarning($"Filtered actions are empty for Definition: {definition.Name}, File: {asset.File.FullName}");
                 return null;
             }
-
+         
+            actions = inproveLoopAccion(actions, funscript.actions, definition);
+           
+            
             SyncChapterInfo(definition, funscript);
 
             var gallery = ParseActions(asset.Variant, funscript.axis, definition, ref actions);
@@ -126,6 +133,62 @@ namespace Edi.Core.Gallery.Funscript
 
            // _logger.LogInformation($"Gallery created for Definition: {definition.Name}, Variant: {gallery.Variant}");
             return gallery;
+        }
+
+        // Adjusts or inserts start/end points for loop actions.
+        private List<FunScriptAction> inproveLoopAccion(List<FunScriptAction> actionsFiltred, List<FunScriptAction> allActions, DefinitionGallery definition)
+        {
+            if (!Definition.Config.InproveLoopDetection
+                || actionsFiltred.Count == 0 
+                || !definition.Loop)
+                return actionsFiltred;
+
+            const int tolerance = 100;
+
+            // Validación: si el loop ya es perfecto (primer y último punto coinciden en tiempo y posición)
+            if (actionsFiltred.First().at == definition.StartTime &&
+                actionsFiltred.Last().at == definition.EndTime &&
+                actionsFiltred.First().pos == actionsFiltred.Last().pos)
+            {
+                return actionsFiltred;
+            }
+
+            // Ajustar o insertar el primer punto
+            if (Math.Abs(actionsFiltred.First().at - definition.StartTime) > tolerance)
+            {
+                // Buscar la acción previa antes de StartTime dentro de la tolerancia
+                var prev = allActions
+                    .Where(x => x.at < definition.StartTime && Math.Abs(x.at - definition.StartTime) <= tolerance)
+                    .OrderByDescending(x => x.at)
+                    .FirstOrDefault();
+                actionsFiltred.Insert(0, new FunScriptAction { at = definition.StartTime, pos = prev?.pos ?? actionsFiltred.First().pos });
+            }
+            else
+            {
+                actionsFiltred.First().at = definition.StartTime;
+            }
+
+            // Adjust or insert the last point
+            int lastIdx = actionsFiltred.Count - 1;
+            if (Math.Abs(actionsFiltred.Last().at - definition.EndTime) > tolerance)
+            {
+                // Find the next action after EndTime within tolerance
+                var next = allActions
+                    .Where(x => x.at > definition.EndTime && Math.Abs(x.at - definition.EndTime) <= tolerance) // Get actions after EndTime within tolerance
+                    .FirstOrDefault(); // Take the closest next action
+                actionsFiltred.Add(new FunScriptAction { at = definition.EndTime, pos = next?.pos ?? actionsFiltred.Last().pos });
+                lastIdx = actionsFiltred.Count - 1;
+            }
+            else
+            {
+                actionsFiltred.Last().at = definition.EndTime;
+            }
+
+            // Match position for loop
+            if (actionsFiltred.First().pos != actionsFiltred.Last().pos)
+                actionsFiltred.Last().pos = actionsFiltred.First().pos;
+
+            return actionsFiltred;
         }
 
         protected override void ReadEnd()

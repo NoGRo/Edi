@@ -14,5 +14,6 @@ namespace Edi.Core.Gallery
         public string GalleryPath { get; set; }
         public bool GenerateDefinitionFromChapters { get; set; } = true;
         public bool GenerateChaptersFromDefinition { get; set; } = false;
+        public bool InproveLoopDetection { get; internal set; } = true;
     }
 }

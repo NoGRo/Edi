@@ -1,3 +1,4 @@
+using Serilog;
 using System.Collections.Concurrent;
 // ...existing code...
 namespace Edi.Core.Players
@@ -8,9 +9,11 @@ namespace Edi.Core.Players
         public event Action<string> OnLogReceived;
 
         public void AddLog(string log)
-        {
-            _logQueue.Enqueue(log);
-            OnLogReceived?.Invoke(log);
+        { 
+
+            var _log = $"[{DateTime.Now:T}] {log}";
+            _logQueue.Enqueue(_log);
+            OnLogReceived?.Invoke(_log);
         }
 
         public IEnumerable<string> GetLogs()

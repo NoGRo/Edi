@@ -55,7 +55,7 @@ namespace Edi.Core.Players
             var gallery = repository.Get(name);
             if (gallery == null)
             {
-                Log($"Ignored not found [{name}]");
+                logService.AddLog($"Ignored not found [{name}]");
                 return;
             }
 
@@ -63,7 +63,7 @@ namespace Edi.Core.Players
             {
                 if (gallery.Type == "filler")
                 {
-                    Log($"Filler [{name}] not enabled, stopping playback");
+                    logService.AddLog($"Filler [{name}] not enabled, stopping playback");
                     await StopGallery();
                 }
                 return;
@@ -104,7 +104,7 @@ namespace Edi.Core.Players
             reactStoper.Stop();
 
             gallerySync = syncPlaybackFactory.Create(gallery.Name, seek);
-            if (gallerySync.IsFinished)
+            if (gallerySync.IsFinished())
             {
                 gallerySync = null;
                 await Stop();
@@ -118,7 +118,7 @@ namespace Edi.Core.Players
                 galleryStoper.Start();
             }
 
-            Log($"Device Play [{gallery.Name}] at {seek}, Type:[{gallery.Type}], Loop:[{gallery.Loop}]");
+            logService.AddLog($"Play [{gallery.Name}] at {seek}, Type:[{gallery.Type}], Loop:[{gallery.Loop}]");
             await devicePlayer.Play(gallery.Name, seek);
         }
 
@@ -134,7 +134,7 @@ namespace Edi.Core.Players
                 reactStoper.Start();
             }
 
-            Log($"Device Reaction [{gallery.Name}], loop:{gallery.Loop}");
+            logService.AddLog($"Reaction [{gallery.Name}], loop:{gallery.Loop}");
             await devicePlayer.Play(gallery.Name);
         }
 
@@ -142,9 +142,9 @@ namespace Edi.Core.Players
         {
             reactStoper.Stop();
             isReactionMode = false;
-            Log("Stop Reaction");
+            logService.AddLog("Stop Reaction");
 
-            if (gallerySync?.IsFinished == false)
+            if (gallerySync?.IsFinished() == false)
                 await PlayGallery(gallerySync.Gallery, gallerySync.CurrentTime);
             else
                 await StopGallery();
@@ -153,7 +153,7 @@ namespace Edi.Core.Players
         private async Task StopGallery()
         {
             gallerySync = null;
-            Log("Stop Gallery");
+            logService.AddLog("Stop Gallery");
             await SendFiller(CurrentFiller);
         }
 
@@ -165,8 +165,5 @@ namespace Edi.Core.Players
             else
                 await PlayGallery(filler, seek);
         }
-
-        private void Log(string msg) => logService.AddLog($"[{DateTime.Now:T}] {msg}");
     }
-
 }

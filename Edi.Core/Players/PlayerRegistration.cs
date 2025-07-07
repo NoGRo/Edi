@@ -12,13 +12,13 @@ namespace Edi.Core.Players
         public static void AddPlayers(this IServiceCollection services)
         {
             services.AddSingleton<IPlayerChannels, MultiChannelPlayer>();
+            services.AddSingleton(sp => new ChannelManager<IPlayer>(
+                        () => sp.GetRequiredService<ReactionGalleryFillerPlayer>()// Default player for new channels
+                    ));
 
             services.AddTransient<ReactionGalleryFillerPlayer>();
             services.AddTransient<DevicePlayer>();
-            services.AddSingleton(sp => new ChannelManager<IPlayer>(
-                                                () => sp.GetRequiredService<ReactionGalleryFillerPlayer>()// Default player for new channels
-                                            ));
-
+           
             services.AddSingleton<SyncPlaybackFactory>();
             services.AddSingleton<PlayerLogService>();
         }

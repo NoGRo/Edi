@@ -3,6 +3,7 @@ using Edi.Core.Device.Interfaces;
 using Edi.Core.Gallery;
 using NAudio.CoreAudioApi;
 using NAudio.Wave;
+using Serilog;
 using System.Collections.Concurrent;
 using System.ComponentModel;
 
@@ -11,12 +12,15 @@ namespace Edi.Core.Players
     public class DevicePlayer : IPlayer
     {
         private readonly SyncPlaybackFactory syncFactory;
+        private readonly PlayerLogService logService;
         private readonly DevicesConfig config;
         public DevicePlayer(
             SyncPlaybackFactory syncFactory,
-            ConfigurationManager configuration)
+            ConfigurationManager configuration,
+            PlayerLogService logService)
         {
             this.syncFactory = syncFactory;
+            this.logService = logService;
             config = configuration.Get<DevicesConfig>();
 
         }
@@ -62,10 +66,11 @@ namespace Edi.Core.Players
         public async Task Sync(IDevice device = null, bool atCurrentTime = true)
         {
             var targets = device != null ? new List<IDevice> { device } : Devices;
-            foreach (var d in targets.Where(x=> x.IsReady))
+
+            foreach (var d in targets.Where(x => x.IsReady))
             {
-                if (!isHardPause && !isPause && syncPlayback?.IsFinished == false && !isStopState(d))
-                    _ = d.PlayGallery(syncPlayback.GalleryName, atCurrentTime ? syncPlayback.CurrentTime : syncPlayback.Seek);
+                if (!isHardPause && !isPause && syncPlayback?.IsFinished(atCurrentTime) == false && !isStopState(d))
+                    _ = d.PlayGallery(syncPlayback.GalleryName, syncPlayback.RresumeTime(atCurrentTime));
                 else
                     _ = d.Stop();
             }
@@ -98,6 +103,8 @@ namespace Edi.Core.Players
                 syncPlayback = syncFactory.Create(syncPlayback.GalleryName, syncPlayback.CurrentTime);
 
 
+            logService.AddLog($"Pause, until resume: {untilResume}");
+
             _ = Devices.Select(d => d.Stop()).ToList();
         }
 
@@ -105,7 +112,13 @@ namespace Edi.Core.Players
         {
             isHardPause = false;
             isPause = false;
+            if (syncPlayback?.IsFinished(atCurrentTime) == false)
+                logService.AddLog($"Resume [{syncPlayback.GalleryName}] at {syncPlayback.RresumeTime(atCurrentTime)}");
+            else
+                logService.AddLog($"Resume, Stop");
             await Sync(atCurrentTime: atCurrentTime);
+
+
         }
 
         public async Task Intensity(int Max)
@@ -117,6 +130,7 @@ namespace Edi.Core.Players
                     range.Max = defRange.Min + (defRange.Max - defRange.Min) * Max / 100;
             }
         }
+
     }
  
 }

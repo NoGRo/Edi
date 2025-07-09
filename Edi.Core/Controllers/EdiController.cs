@@ -8,6 +8,7 @@ using System.IO;
 using System.Security.Cryptography;
 using Microsoft.AspNetCore.Http;
 using Swashbuckle.AspNetCore.Annotations;
+using Edi.Core.Gallery.Funscript;
 
 namespace Edi.Core.Controllers
 {
@@ -33,7 +34,7 @@ namespace Edi.Core.Controllers
 
         [HttpPost("Play/{name}")]
         [SwaggerOperation(Summary = "Starts playback of a gallery by name.")]
-        public async Task Play([FromRoute,Required] string name, [FromQuery] long seek = 0)
+        public async Task Play([FromRoute, Required] string name, [FromQuery] long seek = 0)
         {
             await edi.Player.Play(name, seek, GetChannels());
         }
@@ -70,9 +71,38 @@ namespace Edi.Core.Controllers
 
         [HttpGet("Definitions")]
         [SwaggerOperation(Summary = "Gets the list of available gallery definitions.")]
-        public  IEnumerable<DefinitionGallery> GetDefinitions()
+        public IEnumerable<DefinitionGallery> GetDefinitions()
             => edi.Definitions.ToArray();
 
+
+        [HttpGet("DefinitionsForIA")]
+        [SwaggerOperation(Summary = "Gets the list of available gallery definitions.")]
+        public IEnumerable<DefinitionGallery> GetDefinitionsIA()
+        {
+            var funscriptRepository = (FunscriptRepository)edi.repos.First(x => x is FunscriptRepository);
+            foreach (var def in edi.Definitions)
+            {
+                if (def.Speed != 0)
+                {
+                    continue;
+                }
+                var commands = funscriptRepository.Get(def.Name, "default")?.Commands;
+                if (commands == null || !commands.Any())
+                {
+                    def.Speed = -1;
+                    continue;
+                }
+                
+                // Promedio ponderado por millis
+                var totalMillis = def.Duration;
+                def.Speed = totalMillis > 0
+                    ? (int)(commands.Sum(x => x.Speed * x.Millis) / totalMillis)
+                    : -1;
+                
+            }
+
+            return edi.Definitions.ToArray();
+        }
         [HttpGet("Assets")]
         [SwaggerOperation(Summary = "Gets the list of available multimedia files in the gallery and uploads.")]
         public IActionResult Get()

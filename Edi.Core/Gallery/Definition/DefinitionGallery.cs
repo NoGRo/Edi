@@ -25,5 +25,6 @@ namespace Edi.Core.Gallery.Definition
         public int Duration => Convert.ToInt32(EndTime - StartTime);
         public bool Loop { get; set; }
         public string Variant { get; set; }
+        public int Speed { get; set; } = 0;
     }
 }

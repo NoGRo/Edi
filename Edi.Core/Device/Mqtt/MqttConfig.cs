@@ -8,6 +8,7 @@ using System.Threading.Tasks;
 namespace Edi.Core.Device.Mqtt
 {
     [AddINotifyPropertyChangedInterface]
+    [UserConfig]
     public class MqttConfig
     {
         public string Server { get; set; } = "localhost:1883";

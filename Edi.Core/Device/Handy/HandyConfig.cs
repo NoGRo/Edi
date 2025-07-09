@@ -8,6 +8,7 @@ using System.Threading.Tasks;
 namespace Edi.Core.Device.Handy
 {
     [AddINotifyPropertyChangedInterface]
+    [UserConfig]
     public class HandyConfig
     {
         public string Key { get; set; }

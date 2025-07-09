@@ -11,6 +11,7 @@ namespace Edi.Core.Device.Buttplug
 {
 
     [AddINotifyPropertyChangedInterface]
+    [UserConfig]
     public class ButtplugConfig
     {
         public string Url { get; set; } = "ws://localhost:12345";

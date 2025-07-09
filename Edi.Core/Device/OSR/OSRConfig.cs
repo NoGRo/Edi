@@ -11,6 +11,7 @@ using PropertyChanged;
 namespace Edi.Core.Device.OSR
 {
     [AddINotifyPropertyChangedInterface]
+    [UserConfig]
     public class OSRConfig
     {
         public string COMPort { get; set; } = null;

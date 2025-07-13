@@ -70,7 +70,7 @@ namespace Edi.Core.Players
             foreach (var d in targets.Where(x => x.IsReady))
             {
                 if (!isHardPause && !isPause && syncPlayback?.IsFinished(atCurrentTime) == false && !isStopState(d))
-                    _ = d.PlayGallery(syncPlayback.GalleryName, syncPlayback.RresumeTime(atCurrentTime));
+                    _ = d.PlayGallery(syncPlayback.GalleryName, syncPlayback.ResumeTime(atCurrentTime));
                 else
                     _ = d.Stop();
             }
@@ -112,7 +112,7 @@ namespace Edi.Core.Players
             isHardPause = false;
             isPause = false;
             if (syncPlayback?.IsFinished(atCurrentTime) == false)
-                logService.AddLog($"Resume [{syncPlayback.GalleryName}] at {syncPlayback.RresumeTime(atCurrentTime)}");
+                logService.AddLog($"Resume [{syncPlayback.GalleryName}] at {syncPlayback.ResumeTime(atCurrentTime)}");
             else
                 logService.AddLog($"Resume, Stop");
             await Sync(atCurrentTime: atCurrentTime);

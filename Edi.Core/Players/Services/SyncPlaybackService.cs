@@ -46,7 +46,7 @@ namespace Edi.Core.Players
         public bool IsLoop => _gallery.Loop;
         public int Duration => _gallery.Duration;
 
-        public long RresumeTime(bool atCurrentTime = true)
+        public long ResumeTime(bool atCurrentTime = true)
             => atCurrentTime ? CurrentTime : Seek;
 
         public long CurrentTime
@@ -63,6 +63,6 @@ namespace Edi.Core.Players
         }
 
         public bool IsFinished(bool atCurrentTime = true) => !_gallery.Loop 
-                                                        && RresumeTime(atCurrentTime) >= _gallery.Duration;
+                                                        && ResumeTime(atCurrentTime) >= _gallery.Duration;
     }
 }

@@ -16,6 +16,7 @@ namespace Edi.Core.Controllers
     public class AssistController : Controller
     {
         private readonly IEdi _edi;
+        private readonly UserAssistConfig _userConfig;
         private readonly AssistConfig _config;
         private readonly GalleryConfig _ediConfig;
         private readonly HttpClient _http;
@@ -24,11 +25,12 @@ namespace Edi.Core.Controllers
         public AssistController(IEdi edi)
         {
             _config = edi.ConfigurationManager.Get<AssistConfig>();
+            _userConfig = edi.ConfigurationManager.Get<UserAssistConfig>();
             _ediConfig = edi.ConfigurationManager.Get<GalleryConfig>(); 
             _http = new HttpClient
             {
                 DefaultRequestHeaders = {
-                        { "Authorization", $"Bearer {_config.ApiKey}" },
+                        { "Authorization", $"Bearer {_userConfig.ApiKey}" },
                         { "OpenAI-Beta", "assistants=v2" }
                     }
             };
@@ -46,23 +48,23 @@ namespace Edi.Core.Controllers
 
 
             // Crear thread si no hay
-            if (string.IsNullOrEmpty(_config.SessionId))
+            if (string.IsNullOrEmpty(_userConfig.SessionId))
             {
-                var threadRes = await _http.PostAsync($"{_config.ApiEndpoint}/threads", new StringContent("{}", Encoding.UTF8, "application/json"));
+                var threadRes = await _http.PostAsync($"{_userConfig.ApiEndpoint}/threads", new StringContent("{}", Encoding.UTF8, "application/json"));
                 if (!threadRes.IsSuccessStatusCode) return StatusCode((int)threadRes.StatusCode, await threadRes.Content.ReadAsStringAsync());
 
                 var json = await threadRes.Content.ReadAsStringAsync();
-                _config.SessionId = JsonDocument.Parse(json).RootElement.GetProperty("id").GetString();
+                _userConfig.SessionId = JsonDocument.Parse(json).RootElement.GetProperty("id").GetString();
             }
 
             // Enviar mensaje
             var msg = JsonSerializer.Serialize(new { role = "user", content = message });
-            var res1 = await _http.PostAsync($"{_config.ApiEndpoint}/threads/{_config.SessionId}/messages", new StringContent(msg, Encoding.UTF8, "application/json"));
+            var res1 = await _http.PostAsync($"{_userConfig.ApiEndpoint}/threads/{_userConfig.SessionId}/messages", new StringContent(msg, Encoding.UTF8, "application/json"));
             if (!res1.IsSuccessStatusCode) return StatusCode((int)res1.StatusCode, await res1.Content.ReadAsStringAsync());
 
             // Iniciar run
             var run = JsonSerializer.Serialize(new { assistant_id = _config.AssistantId });
-            var res2 = await _http.PostAsync($"{_config.ApiEndpoint}/threads/{_config.SessionId}/runs", new StringContent(run, Encoding.UTF8, "application/json"));
+            var res2 = await _http.PostAsync($"{_userConfig.ApiEndpoint}/threads/{_userConfig.SessionId}/runs", new StringContent(run, Encoding.UTF8, "application/json"));
             if (!res2.IsSuccessStatusCode) return StatusCode((int)res2.StatusCode, await res2.Content.ReadAsStringAsync());
 
             var runId = JsonDocument.Parse(await res2.Content.ReadAsStringAsync()).RootElement.GetProperty("id").GetString();
@@ -72,12 +74,12 @@ namespace Edi.Core.Controllers
             while (status is "queued" or "in_progress")
             {
                 await Task.Delay(1000);
-                var res = await _http.GetAsync($"{_config.ApiEndpoint}/threads/{_config.SessionId}/runs/{runId}");
+                var res = await _http.GetAsync($"{_userConfig.ApiEndpoint}/threads/{_userConfig.SessionId}/runs/{runId}");
                 status = JsonDocument.Parse(await res.Content.ReadAsStringAsync()).RootElement.GetProperty("status").GetString();
             }
 
             // Obtener última respuesta
-            var res3 = await _http.GetAsync($"{_config.ApiEndpoint}/threads/{_config.SessionId}/messages");
+            var res3 = await _http.GetAsync($"{_userConfig.ApiEndpoint}/threads/{_userConfig.SessionId}/messages");
             var messages = JsonDocument.Parse(await res3.Content.ReadAsStringAsync()).RootElement.GetProperty("data");
 
             var assistantMsg = messages.EnumerateArray().FirstOrDefault(m => m.GetProperty("role").GetString() == "assistant");
@@ -97,7 +99,7 @@ namespace Edi.Core.Controllers
             string memory = input.Memory;
 
             // Configurable: límite de historial
-            int maxHistory = _config.MaxHistory ?? 10;
+            int maxHistory = _config.MaxMesagesHistory ?? 10;
 
             // Inicializa si es necesario
             if (_sessionHistories == null)
@@ -162,7 +164,7 @@ namespace Edi.Core.Controllers
 
             var requestBody = new
             {
-                model = _config.Model,
+                model = _userConfig.Model,
                 messages,
                 max_tokens = _config.MaxTokens ?? 2048,
                 temperature = _config.Temperature ?? 0.8,
@@ -174,7 +176,7 @@ namespace Edi.Core.Controllers
 
             var json = JsonSerializer.Serialize(requestBody);
             var content = new StringContent(json, Encoding.UTF8, "application/json");
-            var response = await _http.PostAsync($"{_config.ApiEndpoint}/chat/completions", content);
+            var response = await _http.PostAsync($"{_userConfig.ApiEndpoint}/chat/completions", content);
 
             if (!response.IsSuccessStatusCode)
                 return StatusCode((int)response.StatusCode, await response.Content.ReadAsStringAsync());

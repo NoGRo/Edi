@@ -3,18 +3,21 @@
 namespace Edi.Core
 {
     //[AddINotifyPropertyChangedInterface]
+    [UserConfig]
+    public class UserAssistConfig
+    {
+        public string? Model { get; set; } = "gpt4-o";
+        public string ApiEndpoint { get; set; } = "https://api.openai.com/v1";
+        public string ApiKey { get; set; }
+        public string? SessionId { get; set; }
+    }
     public class AssistConfig
     {
-        public string? Model { get;  set; } = "gpt4-o";
-        public object ApiEndpoint { get; set; } = "https://api.openai.com/v1";
-        public object ApiKey { get; set; } 
-        public object AssistantId { get; set; } 
-        public string? SessionId { get; set; }
-
-        public int? MaxTokens { get;  set; }
+        public string AssistantId { get; set; } 
         public double? Temperature { get; set; }
         public double? FrequencyPenalty { get; set; }
-        public int? MaxHistory { get; set; }
+        public int? MaxTokens { get; set; }
+        public int? MaxMesagesHistory { get; set; }
         public IEnumerable<string> Prompts { get; set; }
     }
 }

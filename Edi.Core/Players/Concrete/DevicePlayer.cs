@@ -102,7 +102,6 @@ namespace Edi.Core.Players
             if (syncPlayback != null)
                 syncPlayback = syncFactory.Create(syncPlayback.GalleryName, syncPlayback.CurrentTime);
 
-
             logService.AddLog($"Pause, until resume: {untilResume}");
 
             _ = Devices.Select(d => d.Stop()).ToList();

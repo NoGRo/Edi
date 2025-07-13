@@ -82,6 +82,12 @@ namespace Edi.Core
         {
 
             var galleryPath = app.Services.GetService<ConfigurationManager>().Get<GalleryConfig>().GalleryPath;
+
+            if (!new DirectoryInfo(galleryPath).Exists)
+            {
+                throw new DirectoryNotFoundException($"Gallery path '{galleryPath}' does not exist.");
+            }
+
             app.UseStaticFiles(new StaticFileOptions
             {
                 FileProvider = new PhysicalFileProvider(new DirectoryInfo(galleryPath).FullName),

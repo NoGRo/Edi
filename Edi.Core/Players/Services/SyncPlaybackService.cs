@@ -22,7 +22,6 @@ namespace Edi.Core.Players
         }
         public SyncPlayback Create(DefinitionGallery gallery, long seek)
         {
-
             return new SyncPlayback(gallery, seek);
         }
     }
@@ -49,6 +48,7 @@ namespace Edi.Core.Players
 
         public long RresumeTime(bool atCurrentTime = true)
             => atCurrentTime ? CurrentTime : Seek;
+
         public long CurrentTime
         {
             get
@@ -65,6 +65,4 @@ namespace Edi.Core.Players
         public bool IsFinished(bool atCurrentTime = true) => !_gallery.Loop 
                                                         && RresumeTime(atCurrentTime) >= _gallery.Duration;
     }
-
-
 }

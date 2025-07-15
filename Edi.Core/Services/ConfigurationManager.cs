@@ -19,6 +19,7 @@ namespace Edi.Core
         private string _userConfigPath = Path.Combine(Edi.OutputDir, "UserConfig.json");
         private Dictionary<string, JObject> _configurations;
         private Dictionary<string, object> _configObject = new Dictionary<string, object>();
+        
 
         public ConfigurationManager(string fileName)
         {
@@ -51,10 +52,41 @@ namespace Edi.Core
                     combinedConfigs[config.Key] = config.Value; // Sobrescribe si ya existe
                 }
             }
+            else
+            {
+                // Crear archivo con solo las configuraciones que tienen el atributo UserConfigAttribute
+                EnsureUserConfigFile(combinedConfigs);
+            }
 
             return combinedConfigs.Count > 0 ? combinedConfigs : new Dictionary<string, JObject>();
         }
 
+        private void EnsureUserConfigFile(Dictionary<string, JObject> combinedConfigs)
+        {
+            var userConfigDict = new Dictionary<string, JObject>();
+            foreach (var config in combinedConfigs)
+            {
+                // Buscar el tipo correspondiente en los ensamblados cargados
+                var configType = AppDomain.CurrentDomain.GetAssemblies()
+                    .SelectMany(a => a.GetTypes())
+                    .FirstOrDefault(t => t.Name == config.Key + "Config" || t.Name == config.Key);
+
+                if (configType != null && Attribute.IsDefined(configType, typeof(UserConfigAttribute)))
+                {
+                    // Crear una instancia del tipo real y aplicar los valores existentes
+                    object instance = Activator.CreateInstance(configType)!;
+                    if (config.Value != null)
+                    {
+                        JsonConvert.PopulateObject(config.Value.ToString(), instance);
+                    }
+                    // Serializar la instancia real para incluir todas las propiedades (aunque no estén en el JSON original)
+                    userConfigDict[config.Key] = JObject.FromObject(instance);
+                }
+            }
+            var userConfigJson = JsonConvert.SerializeObject(userConfigDict, Formatting.Indented);
+            Directory.CreateDirectory(Path.GetDirectoryName(_userConfigPath)!);
+            File.WriteAllText(_userConfigPath, userConfigJson);
+        }
 
         public T Get<T>() where T : class, new()
         {

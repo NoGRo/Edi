@@ -21,6 +21,7 @@ namespace Edi.Core.Gallery.Index
         public IndexRepository(ConfigurationManager configuration, GalleryBundler bundler, FunscriptRepository Cmdlineals, DefinitionRepository definitionRepository)
         {
             Config = configuration.Get<GalleryConfig>();
+            BundlerConfig = configuration.Get<GalleryBundlerConfig>();
             Bundler = bundler;
             this.funRepo = Cmdlineals;
             DefinitionRepository = definitionRepository;
@@ -30,6 +31,7 @@ namespace Edi.Core.Gallery.Index
         private Dictionary<string, Dictionary<string, List<IndexGallery>>> Galleries { get; set; } = new Dictionary<string, Dictionary<string, List<IndexGallery>>>(StringComparer.OrdinalIgnoreCase);
 
         public GalleryConfig Config { get; set; }
+        public GalleryBundlerConfig BundlerConfig { get; }
         private GalleryBundler Bundler { get; set; }
         private FunscriptRepository funRepo { get; }
         private DefinitionRepository DefinitionRepository { get; }
@@ -47,12 +49,37 @@ namespace Edi.Core.Gallery.Index
 
         private void LoadGallery(string path)
         {
+            ClearOutputDirectory();
+
             Galleries.Clear();
             foreach (var variant in GetVariants())
             {
+
                 var bundleConfigs = GetBundleDefinition(variant, path);
                 var variantGalleries = funRepo.GetAll().Where(x => x.Variant == variant).ToList();
 
+                if (BundlerConfig.DisableBundler)
+                {
+                    // Cada script se pone en su propio bundle individual
+                    Bundler.Clear();
+                    if (!Galleries.ContainsKey(variant))
+                        Galleries.Add(variant, new Dictionary<string, List<IndexGallery>>(StringComparer.OrdinalIgnoreCase));
+
+                    foreach (var gallery in variantGalleries)
+                    {
+                        // El nombre del bundle será igual al nombre del script
+                        string bundleName = gallery.Name;
+                        IndexGallery indexGallery = Bundler.Add(gallery, bundleName);
+
+                        if (!Galleries[variant].ContainsKey(gallery.Name))
+                            Galleries[variant].Add(gallery.Name, new() { indexGallery });
+                        else
+                            Galleries[variant][gallery.Name].Add(indexGallery);
+
+                        Bundler.GenerateBundle($"{bundleName}.{variant}");
+                    }
+                    continue; // Saltar el procesamiento normal de bundles
+                }
                 foreach (var bundle in bundleConfigs)
                 {
 
@@ -90,6 +117,23 @@ namespace Edi.Core.Gallery.Index
                 }
             }
         }
+
+        private static void ClearOutputDirectory()
+        {
+            var bundlesDir = Path.Combine(Edi.OutputDir, "bundles");
+            if (Directory.Exists(bundlesDir))
+            {
+                foreach (var file in Directory.GetFiles(bundlesDir))
+                {
+                    File.Delete(file);
+                }
+            }
+            else
+            {
+                Directory.CreateDirectory(bundlesDir);
+            }
+        }
+
         private List<BundleDefinition> GetBundleDefinition(string variant,string path)
         {
             var bundlesDefault = new BundleDefinition() { Galleries = DefinitionRepository.GetAll().Select(x => x.Name).Distinct().ToList() };

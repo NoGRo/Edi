@@ -2,7 +2,6 @@
 {
     public interface IPlayerChannels
     {
-        public 
         Task Play(string name, long seek = 0, string[] channels = null);
         Task Stop(string[] channels = null);
         Task Pause(bool untilResume = false, string[] channels = null);

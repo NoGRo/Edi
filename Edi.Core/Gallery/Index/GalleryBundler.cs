@@ -80,17 +80,20 @@ namespace Edi.Core.Gallery.Index
 
             var final = new Dictionary<string, FileInfo>();
 
+            // Borrar solo el contenido de la carpeta bundles si existe, o crearla si no existe
+            var bundlesDir = Path.Combine(Edi.OutputDir, "bundles");
+
             var funscript = new FunScriptFile();
             funscript.actions = cmds.Select(x => new FunScriptAction { at = x.AbsoluteTime, pos = (int)Math.Round(x.Value) }).ToList();
 
-            var filePath = Edi.OutputDir + $"\\bundle.{variant}.funscript";
+            var filePath = Path.Combine(bundlesDir, $"bundle.{variant}.funscript");
             funscript.Save(filePath);
-            final.Add(variant+".funscript", new FileInfo(filePath));
+            final.Add(variant + ".funscript", new FileInfo(filePath));
 
             var csv = new FunScriptCsv(cmds);
-            var csvPath = Edi.OutputDir + $"\\bundle.{variant}.csv";
+            var csvPath = Path.Combine(bundlesDir, $"bundle.{variant}.csv");
             csv.Save(csvPath);
-            final.Add(variant+".csv", new FileInfo(csvPath));
+            final.Add(variant + ".csv", new FileInfo(csvPath));
 
             Galleries.ForEach(x => x.Assets = final);
 

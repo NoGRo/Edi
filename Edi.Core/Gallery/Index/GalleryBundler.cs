@@ -81,7 +81,7 @@ namespace Edi.Core.Gallery.Index
             var final = new Dictionary<string, FileInfo>();
 
             // Borrar solo el contenido de la carpeta bundles si existe, o crearla si no existe
-            var bundlesDir = Path.Combine(Edi.OutputDir, "bundles");
+            var bundlesDir = Path.Combine(Edi.OutputDir, "Bundles");
 
             var funscript = new FunScriptFile();
             funscript.actions = cmds.Select(x => new FunScriptAction { at = x.AbsoluteTime, pos = (int)Math.Round(x.Value) }).ToList();

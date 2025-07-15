@@ -45,7 +45,7 @@ namespace Edi.Core.Gallery.Index
         }
 
         public FileInfo GetBundle(string variant, string format)
-            => new FileInfo($"{Edi.OutputDir}/bundle.{variant}.{format}");
+            => new FileInfo($"{Edi.OutputDir}/Bundles/bundle.{variant}.{format}");
 
         private void LoadGallery(string path)
         {
@@ -120,7 +120,7 @@ namespace Edi.Core.Gallery.Index
 
         private static void ClearOutputDirectory()
         {
-            var bundlesDir = Path.Combine(Edi.OutputDir, "bundles");
+            var bundlesDir = Path.Combine(Edi.OutputDir, "Bundles");
             if (Directory.Exists(bundlesDir))
             {
                 foreach (var file in Directory.GetFiles(bundlesDir))

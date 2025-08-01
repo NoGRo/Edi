@@ -74,35 +74,17 @@ namespace Edi.Core.Controllers
         public IEnumerable<DefinitionGallery> GetDefinitions()
             => edi.Definitions.ToArray();
 
+        [HttpDelete("Channels")]
+        [SwaggerOperation(Summary = "Delete all Channels")]
+        public void ResetChannels()
+            => edi.Player.ResetChannels();
 
-        [HttpGet("DefinitionsForIA")]
-        [SwaggerOperation(Summary = "Gets the list of available gallery definitions.")]
-        public IEnumerable<DefinitionGallery> GetDefinitionsIA()
-        {
-            var funscriptRepository = (FunscriptRepository)edi.repos.First(x => x is FunscriptRepository);
-            foreach (var def in edi.Definitions)
-            {
-                if (def.Speed != 0)
-                {
-                    continue;
-                }
-                var commands = funscriptRepository.Get(def.Name, "default")?.Commands;
-                if (commands == null || !commands.Any())
-                {
-                    def.Speed = -1;
-                    continue;
-                }
-                
-                // Promedio ponderado por millis
-                var totalMillis = def.Duration;
-                def.Speed = totalMillis > 0
-                    ? (int)(commands.Sum(x => x.Speed * x.Millis) / totalMillis)
-                    : -1;
-                
-            }
+        [HttpGet("Channels")]
+        [SwaggerOperation(Summary = "Delete all Channels")]
+        public IEnumerable<string> GetAllChannels()
+            => edi.Player.Channels;
 
-            return edi.Definitions.ToArray();
-        }
+
         [HttpGet("Assets")]
         [SwaggerOperation(Summary = "Gets the list of available multimedia files in the gallery and uploads.")]
         public IActionResult Get()

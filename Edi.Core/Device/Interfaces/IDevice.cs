@@ -10,12 +10,11 @@ namespace Edi.Core.Device.Interfaces
 
     public interface IDevice
     {
-
-        string SelectedVariant { get; set; }
+     
         string Channel { get; set; }
 
+        string SelectedVariant { get; set; }
         public string DefaultVariant();
-
         IEnumerable<string> Variants { get; }
 
         string Name { get; set; }

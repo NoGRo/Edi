@@ -89,6 +89,7 @@ namespace Edi.Forms
                 osrConfig = osrConfig,
 
                 devices = edi.Devices,
+                channels = edi.Player.Channels,
                 galleries = galleries,
             };
             InitializeComponent();
@@ -170,6 +171,14 @@ namespace Edi.Forms
             
             var device = comboBox.DataContext as IDevice;
             _ = edi.DeviceConfiguration.SelectVariant(device, (string)comboBox.SelectedValue);
+        }
+
+        private void Channels_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            ComboBox? comboBox = sender as ComboBox;
+
+            var device = comboBox.DataContext as IDevice;
+            _ = edi.DeviceConfiguration.SelectChannel(device, (string)comboBox.SelectedValue);
         }
 
 

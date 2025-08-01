@@ -71,6 +71,14 @@ namespace Edi.Core.Controllers
             await _edi.Player.Resume(AtCurrentTime, GetChannels());
         }
 
+
+        [HttpGet("DeleteChannels")]
+        public void ResetChannels()
+        {
+            _edi.Player.ResetChannels();
+        }
+
+
         /// <summary>
         /// Set general max Intensity for all devices. 
         /// </summary>

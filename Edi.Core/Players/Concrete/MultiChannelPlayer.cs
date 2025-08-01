@@ -2,7 +2,9 @@
 using Edi.Core.Device.Interfaces;
 using Microsoft.Extensions.DependencyInjection;
 using NAudio.CoreAudioApi;
+using PropertyChanged;
 using System.Collections.Generic;
+using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Linq;
 using System.Runtime.InteropServices;
@@ -12,6 +14,7 @@ using System.Xml.Linq;
 
 namespace Edi.Core.Players
 {
+    [AddINotifyPropertyChangedInterface]
     public class MultiChannelPlayer : ProxyPlayer, IPlayerChannels
     {
         private readonly ChannelManager<IPlayer> Manager;
@@ -29,6 +32,8 @@ namespace Edi.Core.Players
             => deviceChannel.Keys.ToList().ForEach(d => d.Channel = newChannel);
             
         private Dictionary<IDevice, string> deviceChannel = new();
+
+        public ObservableCollection<string> Channels => new ObservableCollection<string>(Manager.Channels); 
 
         private void DeviceCollector_OnloadDevice(IDevice device, List<IDevice> devices)
         {
@@ -49,6 +54,16 @@ namespace Edi.Core.Players
                 deviceChannel[device] = device.Channel;
                 Manager.WithChannel(d.Channel, c => c.Add(device));
             };
+        }
+
+        public void ResetChannels()
+        {
+            Manager.Reset();
+            foreach (var device in deviceChannel.Keys)
+            {
+                Manager.WithChannel(null, c => c.Add(device));
+            }
+            deviceChannel.Clear();
         }
 
         private void DeviceCollector_OnUnloadDevice(IDevice device, List<IDevice> devices)
@@ -72,5 +87,7 @@ namespace Edi.Core.Players
 
         public Task Intensity(int Max, string[] channels = null)
             => Manager.WithChannels(channels, c => c.Intensity(Max));
+
+
     }
 }

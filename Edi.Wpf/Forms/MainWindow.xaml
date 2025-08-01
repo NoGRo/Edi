@@ -30,6 +30,13 @@
                     </DataGridTemplateColumn.CellTemplate>
                 </DataGridTemplateColumn>
                 <DataGridTextColumn Header="Ready"  FontFamily="Segoe UI Emoji" FontSize="14" Binding="{Binding IsReady, Converter={StaticResource BoolToReadyIconConverter}}" />
+                <DataGridTemplateColumn Header="Channel">
+                    <DataGridTemplateColumn.CellTemplate>
+                        <DataTemplate>
+                            <ComboBox x:Name="Channels" ItemsSource="{Binding channels}" SelectionChanged="Channels_SelectionChanged"  SelectedItem="{Binding Channel, Mode=TwoWay}" />
+                        </DataTemplate>
+                    </DataGridTemplateColumn.CellTemplate>
+                </DataGridTemplateColumn>
             </DataGrid.Columns>
         </DataGrid>
 

@@ -27,6 +27,13 @@ public class ChannelManager<T>
         channels.TryAdd(name, factory());
     }
 
+    public void Reset()
+    {
+        channels.Clear();
+        activeChannels = new List<string> { MAIN_CHANNEL };
+        EnsureChannel(MAIN_CHANNEL);
+    }
+
     // Sets the active channels to the requested ones, creating them if needed.
     // If switching away from the main channel, the old main channel instance is reused.
     private void UseChannels(params string[] requestedChannels)

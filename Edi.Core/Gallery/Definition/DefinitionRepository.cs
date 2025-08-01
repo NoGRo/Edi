@@ -63,6 +63,7 @@ namespace Edi.Core.Gallery.Definition
                     FileName = definitionDto.FileName.Trim(),
                     Type = definitionDto.Type.ToLower().Trim(),
                     Loop = definitionDto.Loop.ToLower().Trim() == "true",
+                    Description = definitionDto.Description?.Trim(),
                 };
 
                 long time;
@@ -125,7 +126,7 @@ namespace Edi.Core.Gallery.Definition
                                         ? mathChapter.Groups["loop"].Value?.ToLower() != "nonloop" ? "true" : "false"
                                         : loop,
                                 StartTime = x.startTime,
-                                EndTime = x.endTime
+                                EndTime = x.endTime,
                             };
                         }).ToArray());
                     

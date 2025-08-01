@@ -30,5 +30,7 @@ namespace Edi.Core.Gallery.Definition
         public string Type { get; set; }
         [Index(5)]
         public string Loop { get; set; }
+        [Index(6)]
+        public string Description { get; set; }
     }
 }

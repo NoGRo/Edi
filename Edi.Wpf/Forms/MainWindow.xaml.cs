@@ -41,31 +41,9 @@ namespace Edi.Forms
         public OSRConfig osrConfig;
         private Timer timer;
         private bool launched;
-        private void RefrehGrid(object? o)
-        {
-            Dispatcher.Invoke(async () =>
-            {
-                if (edi.DeviceCollector.Devices.Any(x => x.IsReady))
-                {
-
-                    if (!launched
-                        && !string.IsNullOrEmpty(config.ExecuteOnReady)
-                        && File.Exists(config.ExecuteOnReady))
-                    {
-                        launched = true;
-                        lblStatus.Content = "launched: " + config.ExecuteOnReady;
-                        Process.Start(new ProcessStartInfo(new FileInfo(config.ExecuteOnReady).FullName) { UseShellExecute = true});
-                        
-                    }
-
-                    
-                }
-            });
-
-        }
-
         private record AudioDevice(int id, string name);
         private record ComPort(string name, string? value);
+        private record ChannelsNames(string name, string? value);
         public MainWindow()
         {
             config = edi.ConfigurationManager.Get<EdiConfig>();
@@ -79,9 +57,9 @@ namespace Edi.Forms
             galleries.Insert(0, new Core.Gallery.Definition.DefinitionGallery { Name = "" });
             galleries.Insert(1, new Core.Gallery.Definition.DefinitionGallery { Name = "(Random)" });
             galleries.InsertRange(2, edi.Definitions.Where(x=> x.Type == "filler" ));
-            
-            this.DataContext = new
-            {
+
+            viewModel = new MainWindowViewModel
+ {
                 config = config,
                 handyConfig = handyConfig,
                 buttplugConfig = buttplugConfig,
@@ -92,6 +70,7 @@ namespace Edi.Forms
                 channels = edi.Player.Channels,
                 galleries = galleries,
             };
+            this.DataContext = viewModel;
             InitializeComponent();
 
             edi.DeviceCollector.OnloadDevice += DeviceCollector_OnloadDeviceAsync;
@@ -102,9 +81,29 @@ namespace Edi.Forms
             timer.Change(3000, 3000);
             
             Closing += MainWindow_Closing;
+
+            edi.Player.ChannelsChanged += (channels) => viewModel.UpdateChannels(channels);
+
             LoadForm();
         }
 
+
+        private void RefrehGrid(object? o)
+        {
+            Dispatcher.Invoke(async () =>
+            {
+                if (edi.DeviceCollector.Devices.Any(x => x.IsReady) 
+                    && !launched
+                    && !string.IsNullOrEmpty(config.ExecuteOnReady)
+                    && File.Exists(config.ExecuteOnReady))
+                {
+                    launched = true;
+                    lblStatus.Content = "launched: " + config.ExecuteOnReady;
+                    Process.Start(new ProcessStartInfo(new FileInfo(config.ExecuteOnReady).FullName) { UseShellExecute = true });
+
+                }
+            });
+        }
         private void LoadForm()
         {
             var audios = new List<AudioDevice>() { new AudioDevice(-1, "None") };
@@ -178,6 +177,7 @@ namespace Edi.Forms
             ComboBox? comboBox = sender as ComboBox;
 
             var device = comboBox.DataContext as IDevice;
+            
             _ = edi.DeviceConfiguration.SelectChannel(device, (string)comboBox.SelectedValue);
         }
 
@@ -244,6 +244,7 @@ namespace Edi.Forms
         }
 
         private static SimulateGame _simulateGame; // Quitamos readonly y la inicialización inmediata
+        private MainWindowViewModel viewModel;
 
         private void btnSimulator_Click(object sender, RoutedEventArgs e)
         {

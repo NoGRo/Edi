@@ -5,7 +5,8 @@ namespace Edi.Core.Players
     public interface IPlayerChannels
     {
         void ResetChannels();
-        ObservableCollection<string> Channels { get; }
+        List<string> Channels { get; }
+        event Action<List<string>> ChannelsChanged;
         Task Play(string name, long seek = 0, string[] channels = null);
         Task Stop(string[] channels = null);
         Task Pause(bool untilResume = false, string[] channels = null);

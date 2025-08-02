@@ -26,14 +26,19 @@ namespace Edi.Core.Players
             Manager.OnFirstCustomChannelCreated += Manager_OnFirstCustomChannelCreated;
             deviceCollector.OnloadDevice += DeviceCollector_OnloadDevice;
             deviceCollector.OnUnloadDevice += DeviceCollector_OnUnloadDevice;
+            // Redirige el evento del manager al evento expuesto por la interfaz
+            Manager.ChannelsChanged += (channels) => ChannelsChanged?.Invoke(channels);
         }
+
+        // Implementación del evento de la interfaz
+        public event Action<List<string>> ChannelsChanged;
 
         private void Manager_OnFirstCustomChannelCreated(string newChannel)
             => deviceChannel.Keys.ToList().ForEach(d => d.Channel = newChannel);
             
         private Dictionary<IDevice, string> deviceChannel = new();
 
-        public ObservableCollection<string> Channels => new ObservableCollection<string>(Manager.Channels); 
+        public List<string> Channels => Manager.Channels; 
 
         private void DeviceCollector_OnloadDevice(IDevice device, List<IDevice> devices)
         {

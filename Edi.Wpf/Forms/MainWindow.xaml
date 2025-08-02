@@ -33,7 +33,10 @@
                 <DataGridTemplateColumn Header="Channel">
                     <DataGridTemplateColumn.CellTemplate>
                         <DataTemplate>
-                            <ComboBox x:Name="Channels" ItemsSource="{Binding channels}" SelectionChanged="Channels_SelectionChanged"  SelectedItem="{Binding Channel, Mode=TwoWay}" />
+                            <ComboBox x:Name="Channels"
+                              ItemsSource="{Binding DataContext.channels, RelativeSource={RelativeSource AncestorType=Window}}"
+                              SelectionChanged="Channels_SelectionChanged"
+                              SelectedValue="{Binding Channel, Mode=TwoWay}" />
                         </DataTemplate>
                     </DataGridTemplateColumn.CellTemplate>
                 </DataGridTemplateColumn>
@@ -50,7 +53,7 @@
         <Label Content="Intiface Url:" HorizontalAlignment="Left" Margin="5,41,0,0" VerticalAlignment="Top"/>
         <TextBox HorizontalAlignment="Left" Margin="84,45,0,0" TextWrapping="Wrap" Text="{Binding buttplugConfig.Url}" ToolTip="Buttplug Url" VerticalAlignment="Top" Width="210"/>
         <Label Content="EStim Audio:" HorizontalAlignment="Left" Margin="5,67,0,0" VerticalAlignment="Top"/>
-        <ComboBox Name="audioDevicesComboBox" HorizontalAlignment="Left" DisplayMemberPath="name" Margin="84,71,0,0" VerticalAlignment="Top" SelectedValuePath="id" SelectedValue="{Binding estimConfig.DeviceId}" Width="210" IsTextSearchEnabled="True" IsEnabled="True"/>
+        <ComboBox Name="audioDevicesComboBox" ToolTip="To use E-Stiim, you must convert your Funscript files to MP3 format." HorizontalAlignment="Left" DisplayMemberPath="name" Margin="84,71,0,0" VerticalAlignment="Top" SelectedValuePath="id" SelectedValue="{Binding estimConfig.DeviceId}" Width="210" IsTextSearchEnabled="True" IsEnabled="True"/>
         <Label Content="OSR Port:" HorizontalAlignment="Left" Margin="5,95,0,0" VerticalAlignment="Top"/>
         <ComboBox Name="comPortsComboBox" HorizontalAlignment="Left" DisplayMemberPath="name" Margin="84,99,0,0" VerticalAlignment="Top" SelectedValuePath="value" SelectedValue="{Binding osrConfig.COMPort}" Width="210" IsTextSearchEnabled="True" IsEnabled="True"/>
 
@@ -90,3 +93,4 @@
 
     </Grid>
 </Window>
+

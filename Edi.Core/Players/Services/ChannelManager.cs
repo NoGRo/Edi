@@ -1,6 +1,8 @@
 ﻿using CsvHelper;
+using PropertyChanged;
 using System.Collections.Concurrent;
-
+using System.Collections.Generic;
+[AddINotifyPropertyChangedInterface]
 public class ChannelManager<T>
 {
     public const string MAIN_CHANNEL = "main";
@@ -15,16 +17,20 @@ public class ChannelManager<T>
     }
 
     public event Action<string> OnFirstCustomChannelCreated;
+    public event Action<List<string>> ChannelsChanged;
 
-    public IEnumerable<string> Channels => channels.Keys;
+    public List<string> Channels => channels.Keys.ToList();
     public List<string> ActiveChannels => activeChannels;
-    
+
     public IEnumerable<T> GetActive() => activeChannels.Select(c => channels[c]);
     public T Get(string name) => channels[name];
 
     private void EnsureChannel(string name)
-    { 
-        channels.TryAdd(name, factory());
+    {
+        if (channels.TryAdd(name, factory()))
+        {
+            RaiseChannelsChanged();
+        }
     }
 
     public void Reset()
@@ -32,10 +38,9 @@ public class ChannelManager<T>
         channels.Clear();
         activeChannels = new List<string> { MAIN_CHANNEL };
         EnsureChannel(MAIN_CHANNEL);
+        RaiseChannelsChanged();
     }
 
-    // Sets the active channels to the requested ones, creating them if needed.
-    // If switching away from the main channel, the old main channel instance is reused.
     private void UseChannels(params string[] requestedChannels)
     {
         var names = (requestedChannels == null || requestedChannels.FirstOrDefault() == null)
@@ -43,26 +48,40 @@ public class ChannelManager<T>
             : requestedChannels.Distinct().ToList();
 
         string newChannel = null;
+        bool changed = false;
 
-        // se sale del estado default para crear un canal nuevo
         if (names.Any() && names.First() != MAIN_CHANNEL && channels.ContainsKey(MAIN_CHANNEL)) 
         {
             var oldMain = channels[MAIN_CHANNEL];
             channels.Clear();
             newChannel = names.First();
             channels[newChannel] = oldMain;
+            changed = true;
         }
 
         foreach (var name in names)
-            EnsureChannel(name);
+        {
+            if (!channels.ContainsKey(name))
+            {
+                EnsureChannel(name);
+                changed = true;
+            }
+        }
 
-        activeChannels = names;
+        if (!activeChannels.SequenceEqual(names))
+        {
+            activeChannels = names;
+            changed = true;
+        }
+
+        if (changed)
+            RaiseChannelsChanged();
 
         if (newChannel != null) 
             OnFirstCustomChannelCreated?.Invoke(newChannel);
     }
 
-    public async void WithChannel(string  channel, Action<T> action)
+    public async void WithChannel(string channel, Action<T> action)
     {
         await WithChannels(new[] { channel }, a =>
         {
@@ -79,12 +98,16 @@ public class ChannelManager<T>
         {
             UseChannels(channelNames);
             var active = GetActive().ToList();
-            await Task.WhenAll(active.Select(a =>action(a)));
+            await Task.WhenAll(active.Select(a => action(a)));
         }
         finally
         {
             semaphore.Release();
         }
     }
-   
+
+    private void RaiseChannelsChanged()
+    {
+        ChannelsChanged?.Invoke(channels.Keys.ToList());
+    }
 }

@@ -174,8 +174,6 @@ namespace Edi.Core.Device
             if (!isStopRange(Min, Max))
                 _ = PlayGallery(gallery, seek);
 
-            if (SelfManagedLoop)
-                return;
 
             var interval = gallery.Duration - seek;
             var token = playCancelTokenSource.Token;
@@ -196,7 +194,8 @@ namespace Edi.Core.Device
             if (currentGallery?.Loop == true && !IsPause)
             {
                 _logger.LogInformation($"Device '{Name}': Looping gallery playback for '{currentGallery.Name}'.");
-                _ = PlayGallery(currentGallery.Name);
+                if(!SelfManagedLoop)
+                    _ = PlayGallery(currentGallery.Name);
             }
             else
             {

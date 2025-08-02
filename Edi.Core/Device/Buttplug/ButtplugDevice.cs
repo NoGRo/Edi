@@ -36,9 +36,12 @@ namespace Edi.Core.Device.Buttplug
             {
                 CmdLinear localCmd = null;
                 Interlocked.CompareExchange(ref localCmd, _currentCmd, null);
-                return localCmd == null
-                    ? 0
-                    : Math.Min(localCmd.Millis, Convert.ToInt32(CurrentTime - (localCmd.AbsoluteTime - localCmd.Millis)));
+                if (localCmd == null)
+                    return 0;
+
+                int calculated = Convert.ToInt32(CurrentTime - (localCmd.AbsoluteTime - localCmd.Millis));
+
+                return calculated < 0 ? localCmd.Millis : Math.Min(localCmd.Millis, calculated);
             }
         }
 

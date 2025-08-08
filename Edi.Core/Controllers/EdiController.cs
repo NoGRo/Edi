@@ -74,16 +74,11 @@ namespace Edi.Core.Controllers
         public IEnumerable<DefinitionGallery> GetDefinitions()
             => edi.Definitions.ToArray();
 
-        [HttpDelete("Channels")]
-        [SwaggerOperation(Summary = "Delete all Channels")]
-        public void ResetChannels()
-            => edi.Player.ResetChannels();
 
         [HttpGet("Channels")]
-        [SwaggerOperation(Summary = "Delete all Channels")]
+        [SwaggerOperation(Summary = "Get Channels")]
         public IEnumerable<string> GetAllChannels()
-            => edi.Player.Channels;
-
+            => edi.Player.Channels.ToArray();
 
         [HttpGet("Assets")]
         [SwaggerOperation(Summary = "Gets the list of available multimedia files in the gallery and uploads.")]

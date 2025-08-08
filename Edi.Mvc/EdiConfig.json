@@ -1,6 +1,6 @@
 {
   "Gallery": {
-    "GalleryPath": "C:\\Users\\NoGro\\Downloads\\Season",
+    "GalleryPath": "D:\\pp\\playeables\\CH\\Noodledude Megamix",
     "GenerateDefinitionFromChapters": false,
     "GenerateChaptersFromDefinition": false
   },
@@ -32,19 +32,19 @@
         "Max": 100
       },
       "Lovense Hush": {
-        "Variant": "Vibe1",
+        "Variant": "default",
         "Channel": null,
         "Min": 0,
         "Max": 100
       },
       "Lovense Dolce Vibrate: 1": {
-        "Variant": "Vibe1",
+        "Variant": "vib",
         "Channel": null,
         "Min": 0,
         "Max": 100
       },
       "Lovense Dolce Vibrate: 2": {
-        "Variant": "Vibe1",
+        "Variant": "None",
         "Channel": null,
         "Min": 0,
         "Max": 100
@@ -56,7 +56,7 @@
         "Max": 100
       },
       "AutoBlow [ibjckz1x0q91]": {
-        "Variant": "None",
+        "Variant": "default",
         "Channel": null,
         "Min": 0,
         "Max": 100

@@ -114,7 +114,7 @@ namespace Edi.Core.Controllers
             {
                 foreach (var filename in _config.Prompts)
                 {
-                    var fullPath = Path.Combine(_ediConfig.GalleryPath, filename);
+                    var fullPath = Path.Combine(_ediConfig.GalleryPath, "prompts", filename);
                     if (System.IO.File.Exists(fullPath))
                     {
                         var extraPrompt = await System.IO.File.ReadAllTextAsync(fullPath);
@@ -166,8 +166,8 @@ namespace Edi.Core.Controllers
             {
                 model = _userConfig.Model,
                 messages,
-                max_tokens = _config.MaxTokens ?? 2048,
-                temperature = _config.Temperature ?? 0.8,
+                max_completion_tokens = _config.MaxTokens ?? 2048,
+                //temperature = _config.Temperature ?? 0.8,
                 //frequency_penalty = _config.FrequencyPenalty
             };
 

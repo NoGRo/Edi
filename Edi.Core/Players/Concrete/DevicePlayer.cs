@@ -6,6 +6,7 @@ using NAudio.Wave;
 using Serilog;
 using System.Collections.Concurrent;
 using System.ComponentModel;
+using System.Xml.Linq;
 
 namespace Edi.Core.Players
 {
@@ -112,12 +113,16 @@ namespace Edi.Core.Players
             isHardPause = false;
             isPause = false;
             if (syncPlayback?.IsFinished(atCurrentTime) == false)
+            {
                 logService.AddLog($"Resume [{syncPlayback.GalleryName}] at {syncPlayback.ResumeTime(atCurrentTime)}");
+                await Sync(atCurrentTime: atCurrentTime);
+                syncPlayback = syncFactory.Create(syncPlayback.GalleryName, syncPlayback.ResumeTime(atCurrentTime));
+            }
             else
+            {
                 logService.AddLog($"Resume, Stop");
-            await Sync(atCurrentTime: atCurrentTime);
-
-
+                await Stop();
+            }
         }
 
         public async Task Intensity(int Max)

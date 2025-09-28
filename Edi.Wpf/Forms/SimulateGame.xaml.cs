@@ -41,5 +41,15 @@ namespace Edi.Forms
 
             SimulatorDevice = null;
         }
+
+        internal void OnAlwaysOnTopChecked(object sender, RoutedEventArgs e)
+        {
+            this.Topmost = true;
+        }
+
+        internal void OnAlwaysOnTopUnchecked(object sender, RoutedEventArgs e)
+        {
+            this.Topmost = false;
+        }
     }
 }

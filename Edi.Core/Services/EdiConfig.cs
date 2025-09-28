@@ -1,5 +1,4 @@
-﻿
-using Edi.Core.Services;
+﻿using Edi.Core.Services;
 using PropertyChanged;
 using System;
 using System.Collections.Generic;
@@ -21,7 +20,5 @@ namespace Edi.Core
         public string ExecuteOnReady { get; set; } = "";
         public bool UseHttps { get; set; } = false;
         public bool UseLogs { get; set; } = false;
-
-
     }
 }

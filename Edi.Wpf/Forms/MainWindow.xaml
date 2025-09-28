@@ -64,7 +64,7 @@
         <Label Grid.Column="0" Content="Status:" Margin="10,0,0,25" x:Name="lblStatus" Width="652" Height="26" VerticalAlignment="Bottom" HorizontalAlignment="Left" Grid.ColumnSpan="2" />
 
         <Button Content="Reconnect" HorizontalAlignment="Left" Margin="278,70,0,0" VerticalAlignment="Top" x:Name="ReconnectButton" Click="ReconnectButton_ClickAsync" Height="22" Width="72" RenderTransformOrigin="5.083,-1.983" Grid.Column="1"/>
-        <Button Content="Reload Galleries" HorizontalAlignment="Left" Margin="10,142,0,0" VerticalAlignment="Top" x:Name="ReloadButton"  Height="22" Width="103" Click="ReloadButton_Click"/>
+        <Button Content="Select Game" HorizontalAlignment="Left" Margin="10,142,0,0" VerticalAlignment="Top" x:Name="ReloadButton"  Height="22" Width="103" Click="ReloadButton_Click"/>
         <ComboBox x:Name="GamesComboBox"
           HorizontalAlignment="Center" 
           Margin="0,173,0,0"

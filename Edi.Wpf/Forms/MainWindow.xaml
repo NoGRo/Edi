@@ -9,6 +9,7 @@
 
     <Window.Resources>
         <local:BoolToReadyIconConverter x:Key="BoolToReadyIconConverter"/>
+        <local:BooleanToVisibilityConverter x:Key="BooleanToVisibilityConverter"/>
     </Window.Resources>
 
 
@@ -30,7 +31,7 @@
                     </DataGridTemplateColumn.CellTemplate>
                 </DataGridTemplateColumn>
                 <DataGridTextColumn Header="Ready"  FontFamily="Segoe UI Emoji" FontSize="14" Binding="{Binding IsReady, Converter={StaticResource BoolToReadyIconConverter}}" />
-                <DataGridTemplateColumn Header="Channel">
+                <DataGridTemplateColumn Header="Channel" Visibility="Collapsed">
                     <DataGridTemplateColumn.CellTemplate>
                         <DataTemplate>
                             <ComboBox x:Name="Channels"

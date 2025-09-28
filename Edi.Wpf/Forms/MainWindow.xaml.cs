@@ -95,7 +95,7 @@ namespace Edi.Forms
 
         private void RefrehGrid(object? o)
         {
-            Dispatcher.Invoke(async () =>
+            Dispatcher.InvokeAsync(async () =>
             {
                 if (edi.DeviceCollector.Devices.Any(x => x.IsReady) 
                     && !launched
@@ -339,6 +339,20 @@ namespace Edi.Forms
         public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
         {
             return (value is bool && (bool)value) ? "✅" : "🚫";
+        }
+
+        public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)
+        {
+            throw new NotImplementedException();
+        }
+
+      
+    }
+    public class BooleanToVisibilityConverter : IValueConverter
+    {
+        public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
+        {
+            return (value is bool && (bool)value) ? Visibility.Visible : Visibility.Collapsed;
         }
 
         public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)

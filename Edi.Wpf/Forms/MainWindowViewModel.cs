@@ -11,12 +11,12 @@ using Edi.Core.Gallery;
 
 namespace Edi.Forms
 {
+    
     public class MainWindowViewModel : INotifyPropertyChanged
     {
-        public GamesConfig gamesConfig;
-        internal GalleryConfig galleryConfig;
-
         public EdiConfig config { get; set; }
+        public GamesConfig gamesConfig;
+        public GalleryConfig galleryConfig;
         public HandyConfig handyConfig { get; set; }
         public ButtplugConfig buttplugConfig { get; set; }
         public EStimConfig estimConfig { get; set; }
@@ -24,10 +24,10 @@ namespace Edi.Forms
 
         public ObservableCollection<IDevice> devices { get; set; }
         public List<string> channels { get; set; }
-        
         public List<Core.Gallery.Definition.DefinitionGallery> galleries { get; set; }
-
+        
         public event PropertyChangedEventHandler PropertyChanged;
+
         protected void OnPropertyChanged(string name)
         {
             PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(name));

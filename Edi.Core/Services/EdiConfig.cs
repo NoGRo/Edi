@@ -13,9 +13,12 @@ namespace Edi.Core
         public bool Filler { get; set; } = true;
         public bool Gallery { get; set; } = true;
         public bool Reactive { get; set; } = true;
+        public bool UseChannels { get; set; } = false;
         public IEnumerable<string> Channels { get; set; } = [];
         public string ExecuteOnReady { get; set; } = "";
         public bool UseHttps { get; set; } = false;
-        public bool UseLogs { get;  set; } = false;
+        public bool UseLogs { get; set; } = false;
+
+
     }
 }

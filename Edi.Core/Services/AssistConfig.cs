@@ -1,4 +1,5 @@
-﻿using PropertyChanged;
+﻿using Edi.Core.Services;
+using PropertyChanged;
 
 namespace Edi.Core
 {
@@ -11,6 +12,7 @@ namespace Edi.Core
         public string ApiKey { get; set; }
         public string? SessionId { get; set; }
     }
+    [GameConfig]
     public class AssistConfig
     {
         public string AssistantId { get; set; } 

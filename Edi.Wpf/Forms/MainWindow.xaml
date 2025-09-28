@@ -63,7 +63,7 @@
         <Label  Foreground="Blue" Content="http://localhost:5000/swagger/index.html" HorizontalAlignment="Left" MouseDoubleClick="Label_MouseDoubleClick"  Margin="5,0,0,107" VerticalAlignment="Bottom" Width="230"/>
         <Label Grid.Column="0" Content="Status:" Margin="10,0,0,25" x:Name="lblStatus" Width="652" Height="26" VerticalAlignment="Bottom" HorizontalAlignment="Left" Grid.ColumnSpan="2" />
 
-        <Button Content="Reconnect" HorizontalAlignment="Left" Margin="222,142,0,0" VerticalAlignment="Top" x:Name="ReconnectButton" Click="ReconnectButton_ClickAsync" Height="22" Width="72" RenderTransformOrigin="5.083,-1.983"/>
+        <Button Content="Reconnect" HorizontalAlignment="Left" Margin="278,70,0,0" VerticalAlignment="Top" x:Name="ReconnectButton" Click="ReconnectButton_ClickAsync" Height="22" Width="72" RenderTransformOrigin="5.083,-1.983" Grid.Column="1"/>
         <Button Content="Reload Galleries" HorizontalAlignment="Left" Margin="10,142,0,0" VerticalAlignment="Top" x:Name="ReloadButton"  Height="22" Width="103" Click="ReloadButton_Click"/>
         <ComboBox x:Name="GamesComboBox"
           HorizontalAlignment="Center" 
@@ -74,6 +74,7 @@
           DisplayMemberPath="Name"
           SelectedValuePath="Path"
           ItemsSource="{Binding gamesConfig.GamesInfo}"
+          SelectedItem="{Binding gamesConfig.SelectedGameinfo, Mode=TwoWay}"
           SelectionChanged="GamesComboBox_SelectionChanged"/>
 
         <Label Content="Intensity:" HorizontalAlignment="Left" Margin="4,0,0,81" VerticalAlignment="Bottom"/>
@@ -100,7 +101,9 @@
         <Button HorizontalAlignment="Left" VerticalAlignment="Bottom" Margin="271,0,0,57" Width="23" Height="22" ToolTip="Action Preview" x:Name="btnSimulator" Click="btnSimulator_Click">
             <TextBlock Text="👁️" FontSize="13" Height="22" Width="17"/>
         </Button>
-
+        <Button ToolTip="Open Config Directory" HorizontalAlignment="Left" Margin="271,142,0,0" VerticalAlignment="Top" x:Name="btnOpenOutput" Click="btnOpenOutput_Click">
+            <TextBlock Text="🛠" FontSize="13"/>
+        </Button>
     </Grid>
 </Window>
 

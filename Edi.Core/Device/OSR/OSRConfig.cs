@@ -4,6 +4,7 @@ using System.ComponentModel;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using Edi.Core.Services;
 using Edi.Core.Funscript;
 using PropertyChanged;
 

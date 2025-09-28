@@ -13,6 +13,7 @@ using NAudio.Dmo;
 using System.Security.Cryptography.X509Certificates;
 using System.IO;
 using Edi.Core.Gallery.Funscript;
+using Edi.Core.Services;
 
 namespace Edi.Core.Gallery.Index
 {

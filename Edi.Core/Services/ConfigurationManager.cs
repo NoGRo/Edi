@@ -4,15 +4,21 @@ using System;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.IO;
+using System.Linq;
 using System.Reflection;
+using System.Threading;
 
-namespace Edi.Core
+namespace Edi.Core.Services
 {
     [AttributeUsage(AttributeTargets.Class)]
     public class UserConfigAttribute : Attribute
     {
     }
 
+    [AttributeUsage(AttributeTargets.Class)]
+    public class GameConfigAttribute : Attribute
+    {
+    }
     public class ConfigurationManager
     {
         private string _gameConfigPath; // Cambié _filePath a _fileName porque ahora el path varía
@@ -35,6 +41,8 @@ namespace Edi.Core
         public void SetGamePath(string newPath)
         {
             _gameConfigPath = newPath;
+            // Asegura que el archivo de configuración de juego exista y tenga contenido válido
+            EnsureGameConfigFile(newPath);
             _configurations = LoadCombinedConfigurations();
             // Actualizar instancias existentes con los nuevos valores
             foreach (var kvp in _configObject)
@@ -44,6 +52,17 @@ namespace Edi.Core
                     JsonConvert.PopulateObject(configJson.ToString(), kvp.Value);
                 }
             }
+        }
+
+
+
+        private bool HasUserConfigAttribute(string configName)
+        {
+            var configType = AppDomain.CurrentDomain.GetAssemblies()
+                .SelectMany(a => a.GetTypes())
+                .FirstOrDefault(t => t.Name == configName + "Config" || t.Name == configName);
+
+            return configType != null && Attribute.IsDefined(configType, typeof(UserConfigAttribute));
         }
 
         private Dictionary<string, JObject> LoadCombinedConfigurations()
@@ -68,7 +87,10 @@ namespace Edi.Core
                 var userConfigs = JsonConvert.DeserializeObject<Dictionary<string, JObject>>(json);
                 foreach (var config in userConfigs)
                 {
-                    combinedConfigs[config.Key] = config.Value; // Sobrescribe si ya existe
+                    if (HasUserConfigAttribute(config.Key))
+                    {
+                        combinedConfigs[config.Key] = config.Value; // Sobrescribe solo si tiene el atributo
+                    }
                 }
             }
             else
@@ -85,13 +107,13 @@ namespace Edi.Core
             var userConfigDict = new Dictionary<string, JObject>();
             foreach (var config in combinedConfigs)
             {
-                // Buscar el tipo correspondiente en los ensamblados cargados
-                var configType = AppDomain.CurrentDomain.GetAssemblies()
-                    .SelectMany(a => a.GetTypes())
-                    .FirstOrDefault(t => t.Name == config.Key + "Config" || t.Name == config.Key);
-
-                if (configType != null && Attribute.IsDefined(configType, typeof(UserConfigAttribute)))
+                if (HasUserConfigAttribute(config.Key))
                 {
+                    // Buscar el tipo correspondiente en los ensamblados cargados
+                    var configType = AppDomain.CurrentDomain.GetAssemblies()
+                        .SelectMany(a => a.GetTypes())
+                        .FirstOrDefault(t => t.Name == config.Key + "Config" || t.Name == config.Key);
+
                     // Crear una instancia del tipo real y aplicar los valores existentes
                     object instance = Activator.CreateInstance(configType)!;
                     if (config.Value != null)
@@ -106,7 +128,50 @@ namespace Edi.Core
             Directory.CreateDirectory(Path.GetDirectoryName(_userConfigPath)!);
             File.WriteAllText(_userConfigPath, userConfigJson);
         }
+        private void EnsureGameConfigFile(string path)
+        {
+            string configFilePath;
+            if (Directory.Exists(path))
+            {
+                configFilePath = Path.Combine(path, "EdiConfig.json");
+            }
+            else if (File.Exists(path))
+            {
+                var fileInfo = new FileInfo(path);
+                configFilePath = fileInfo.Name.Equals("EdiConfig.json", StringComparison.OrdinalIgnoreCase)
+                    ? fileInfo.FullName
+                    : Path.Combine(fileInfo.DirectoryName!, "EdiConfig.json");
+            }
+            else
+            {
+                // Si es un path que no existe, asumimos que es un archivo y usamos su carpeta
+                var dir = Path.GetDirectoryName(path);
+                configFilePath = Path.Combine(dir ?? ".", "EdiConfig.json");
+            }
 
+            bool shouldCreate = !File.Exists(configFilePath) || new FileInfo(configFilePath).Length == 0;
+            if (shouldCreate)
+            {
+                var configTypes = AppDomain.CurrentDomain.GetAssemblies()
+                    .SelectMany(a => a.GetTypes())
+                    .Where(t => t.IsClass && t.Name.EndsWith("Config") && t.GetConstructor(Type.EmptyTypes) != null && Attribute.IsDefined(t, typeof(GameConfigAttribute)))
+                    .ToList();
+                var configDict = new Dictionary<string, JObject>();
+                foreach (var type in configTypes)
+                {
+                    try
+                    {
+                        var instance = Activator.CreateInstance(type);
+                        var key = type.Name.Replace("Config", "");
+                        configDict[key] = JObject.FromObject(instance);
+                    }
+                    catch { }
+                }
+                var json = JsonConvert.SerializeObject(configDict, Formatting.Indented);
+                Directory.CreateDirectory(Path.GetDirectoryName(configFilePath)!);
+                File.WriteAllText(configFilePath, json);
+            }
+        }
         public T Get<T>() where T : class, new()
         {
             var typeName = typeof(T).Name.Replace("Config", "");

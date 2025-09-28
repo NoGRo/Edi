@@ -13,6 +13,7 @@ using Edi.Core.Gallery.EStimAudio;
 using Edi.Core.Gallery.Funscript;
 using Edi.Core.Gallery.Index;
 using Edi.Core.Players;
+using Edi.Core.Services;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Serilog;

@@ -14,6 +14,7 @@ using Microsoft.Extensions.Logging;
 using Timer = System.Timers.Timer;
 using Edi.Core.Device;
 using Edi.Core.Device.Interfaces;
+using Edi.Core.Services;
 
 namespace Edi.Core.Device.Buttplug
 {

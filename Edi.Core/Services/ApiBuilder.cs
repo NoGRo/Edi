@@ -1,6 +1,7 @@
 ﻿using Edi.Core.Controllers;
 using Edi.Core.Controllers.Parameters;
 using Edi.Core.Gallery;
+using Edi.Core.Services;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.StaticFiles;

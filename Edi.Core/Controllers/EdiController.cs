@@ -1,6 +1,5 @@
 using System.ComponentModel.DataAnnotations;
 using Microsoft.AspNetCore.Mvc;
-using Edi.Core;
 using Edi.Core.Device.Interfaces;
 using Edi.Core.Gallery.Definition;
 using Edi.Core.Gallery;
@@ -9,6 +8,7 @@ using System.Security.Cryptography;
 using Microsoft.AspNetCore.Http;
 using Swashbuckle.AspNetCore.Annotations;
 using Edi.Core.Gallery.Funscript;
+using Edi.Core.Services;
 
 namespace Edi.Core.Controllers
 {

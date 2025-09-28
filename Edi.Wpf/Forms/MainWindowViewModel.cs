@@ -11,23 +11,67 @@ using Edi.Core.Gallery;
 
 namespace Edi.Forms
 {
-    
     public class MainWindowViewModel : INotifyPropertyChanged
     {
-        public EdiConfig config { get; set; }
-        public GamesConfig gamesConfig;
-        public GalleryConfig galleryConfig;
-        public HandyConfig handyConfig { get; set; }
-        public ButtplugConfig buttplugConfig { get; set; }
-        public EStimConfig estimConfig { get; set; }
-        public OSRConfig osrConfig { get; set; }
+        private EdiConfig _config;
+        public EdiConfig config
+        {
+            get => _config;
+            set { _config = value; OnPropertyChanged(nameof(config)); }
+        }
+
+        private GamesConfig _gamesConfig;
+        public GamesConfig gamesConfig
+        {
+            get => _gamesConfig;
+            set { _gamesConfig = value; OnPropertyChanged(nameof(gamesConfig)); }
+        }
+
+        private GalleryConfig _galleryConfig;
+        public GalleryConfig galleryConfig
+        {
+            get => _galleryConfig;
+            set { _galleryConfig = value; OnPropertyChanged(nameof(galleryConfig)); }
+        }
+
+        private HandyConfig _handyConfig;
+        public HandyConfig handyConfig
+        {
+            get => _handyConfig;
+            set { _handyConfig = value; OnPropertyChanged(nameof(handyConfig)); }
+        }
+
+        private ButtplugConfig _buttplugConfig;
+        public ButtplugConfig buttplugConfig
+        {
+            get => _buttplugConfig;
+            set { _buttplugConfig = value; OnPropertyChanged(nameof(buttplugConfig)); }
+        }
+
+        private EStimConfig _estimConfig;
+        public EStimConfig estimConfig
+        {
+            get => _estimConfig;
+            set { _estimConfig = value; OnPropertyChanged(nameof(estimConfig)); }
+        }
+
+        private OSRConfig _osrConfig;
+        public OSRConfig osrConfig
+        {
+            get => _osrConfig;
+            set { _osrConfig = value; OnPropertyChanged(nameof(osrConfig)); }
+        }
 
         public ObservableCollection<IDevice> devices { get; set; }
         public List<string> channels { get; set; }
-        public List<Core.Gallery.Definition.DefinitionGallery> galleries { get; set; }
-        
-        public event PropertyChangedEventHandler PropertyChanged;
+        private List<Core.Gallery.Definition.DefinitionGallery> _galleries;
+        public List<Core.Gallery.Definition.DefinitionGallery> galleries
+        {
+            get => _galleries;
+            set { _galleries = value; OnPropertyChanged(nameof(galleries)); }
+        }
 
+        public event PropertyChangedEventHandler PropertyChanged;
         protected void OnPropertyChanged(string name)
         {
             PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(name));

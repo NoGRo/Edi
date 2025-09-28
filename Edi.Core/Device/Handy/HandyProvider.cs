@@ -16,6 +16,7 @@ using Microsoft.Extensions.DependencyInjection;
 using System.Collections.Concurrent;
 using Edi.Core.Device;
 using Edi.Core.Device.Interfaces;
+using Edi.Core.Services;
 
 namespace Edi.Core.Device.Handy
 {

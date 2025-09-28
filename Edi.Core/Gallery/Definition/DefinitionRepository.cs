@@ -5,6 +5,7 @@ using System.Reflection.Metadata.Ecma335;
 using Edi.Core.Device.Handy;
 using Edi.Core.Funscript;
 using System.Text.RegularExpressions;
+using Edi.Core.Services;
 
 namespace Edi.Core.Gallery.Definition
 {

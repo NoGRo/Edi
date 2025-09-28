@@ -56,14 +56,10 @@ namespace Edi.Forms
             estimConfig = edi.ConfigurationManager.Get<EStimConfig>();
             osrConfig = edi.ConfigurationManager.Get<OSRConfig>();
             gamesConfig = edi.ConfigurationManager.Get<GamesConfig>();
-            var galleries = edi.Definitions.Where(x=> x.Type != "filler" ).ToList();
-
-            galleries.Insert(0, new Core.Gallery.Definition.DefinitionGallery { Name = "" });
-            galleries.Insert(1, new Core.Gallery.Definition.DefinitionGallery { Name = "(Random)" });
-            galleries.InsertRange(2, edi.Definitions.Where(x=> x.Type == "filler" ));
+            List<Core.Gallery.Definition.DefinitionGallery> galleries = ReloadGalleries();
 
             viewModel = new MainWindowViewModel
- {
+            {
                 config = config,
                 handyConfig = handyConfig,
                 buttplugConfig = buttplugConfig,
@@ -84,15 +80,25 @@ namespace Edi.Forms
 
             timer = new Timer(RefrehGrid);
             timer.Change(3000, 3000);
-            
+
             Closing += MainWindow_Closing;
 
             edi.Player.ChannelsChanged += (channels) => viewModel.UpdateChannels(channels);
 
             LoadForm();
+
+
         }
 
+        private List<Core.Gallery.Definition.DefinitionGallery> ReloadGalleries()
+        {
+            var galleries = edi.Definitions.Where(x => x.Type != "filler").ToList();
 
+            galleries.Insert(0, new Core.Gallery.Definition.DefinitionGallery { Name = "" });
+            galleries.Insert(1, new Core.Gallery.Definition.DefinitionGallery { Name = "(Random)" });
+            galleries.InsertRange(2, edi.Definitions.Where(x => x.Type == "filler"));
+            return galleries;
+        }
         private void RefrehGrid(object? o)
         {
             Dispatcher.InvokeAsync(async () =>
@@ -189,35 +195,20 @@ namespace Edi.Forms
 
         private async void ReloadButton_Click(object sender, RoutedEventArgs e)
         {
-            using (var dialog = new System.Windows.Forms.FolderBrowserDialog())
+            using (var dialog = new System.Windows.Forms.OpenFileDialog())
             {
-                dialog.Description = "Select a folder containing EdiConfig.json or Gallery Folder";
+                dialog.Title = "Select EdiConfig.json file";
+                dialog.Filter = "EdiConfig JSON files (EdiConfig.json)|EdiConfig.json|All JSON files (*.json)|*.json";
+                dialog.FilterIndex = 1;
+                
                 if (dialog.ShowDialog() == System.Windows.Forms.DialogResult.OK)
                 {
-                    string selectedPath = dialog.SelectedPath;
-                    string ediConfigPath = Path.Combine(selectedPath, "EdiConfig.json");
-                    string definitionsPath = Path.Combine(selectedPath, "definitions.csv");
-                    string configToUse;
-
-                    if (File.Exists(ediConfigPath))
-                    {
-                        configToUse = ediConfigPath;
-                    }
-                    else if (File.Exists(definitionsPath))
-                    {
-                        configToUse = definitionsPath;
-                    }
-                    else
-                    {
-                        // Neither file exists, invent EdiConfig.json path
-                        configToUse = ediConfigPath;
-                    }
-
-                    edi.ConfigurationManager.SetGamePath(ediConfigPath);
-                    gamesConfig.GamesInfo.Add(new GameInfo(configToUse, ediConfigPath));
+                    string configPath = dialog.FileName;
+                    
+                    edi.ConfigurationManager.SetGamePath(configPath);
+                    gamesConfig.GamesInfo.Add(new GameInfo(configPath, configPath));
                     edi.ConfigurationManager.Save(gamesConfig);
                     await edi.Init(galleryConfig.GalleryPath);
-                    
                 }
             }
         }
@@ -300,9 +291,9 @@ namespace Edi.Forms
             {
                 if (GamesComboBox.SelectedItem is GameInfo selectedGame)
                 {
-                    edi.ConfigurationManager.SetGamePath(selectedGame.Path);
-
-                    await edi.Init();
+                    gamesConfig.SelectedGameinfo = selectedGame;
+                    await edi.SelectGame(selectedGame);
+                    viewModel.galleries = ReloadGalleries();
                 }
             });
         }
@@ -324,6 +315,10 @@ namespace Edi.Forms
             });
         }
 
+        private void btnOpenOutput_Click(object sender, RoutedEventArgs e)
+        {
+            Process.Start(new ProcessStartInfo("explorer.exe",Edi.Core.Edi.OutputDir) { UseShellExecute = true });
+        }
 
         private async void MainWindow_Closing(object? sender, System.ComponentModel.CancelEventArgs e)
         {

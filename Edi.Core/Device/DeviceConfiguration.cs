@@ -1,5 +1,6 @@
 ﻿using Edi.Core.Device.Interfaces;
 using Edi.Core.Players;
+using Edi.Core.Services;
 
 namespace Edi.Core.Device
 {

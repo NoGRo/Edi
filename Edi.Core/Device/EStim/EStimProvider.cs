@@ -1,6 +1,7 @@
 ﻿using Edi.Core.Device;
 using Edi.Core.Device.Interfaces;
 using Edi.Core.Gallery.EStimAudio;
+using Edi.Core.Services;
 using Microsoft.Extensions.Logging;
 using NAudio.Wave;
 using System;

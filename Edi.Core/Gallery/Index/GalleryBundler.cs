@@ -7,6 +7,7 @@ using Edi.Core.Funscript;
 
 using System.Reflection;
 using Edi.Core.Gallery.Funscript;
+using Edi.Core.Services;
 
 namespace Edi.Core.Gallery.Index
 {

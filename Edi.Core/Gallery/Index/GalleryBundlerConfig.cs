@@ -1,5 +1,8 @@
-﻿namespace Edi.Core.Gallery.Index
+﻿using Edi.Core.Services;
+
+namespace Edi.Core.Gallery.Index
 {
+    [GameConfig]
     public class GalleryBundlerConfig
     {
         public int MinRepeatDuration { get; set; } = 7000;

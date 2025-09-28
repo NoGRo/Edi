@@ -9,6 +9,7 @@ using System.Threading.Tasks;
 using System.Timers;
 using System.Diagnostics;
 using System.Collections.Concurrent;
+using Edi.Core.Services;
 
 namespace Edi.Core.Players
 {

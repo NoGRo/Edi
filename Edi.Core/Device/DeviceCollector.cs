@@ -4,6 +4,7 @@ using Microsoft.Extensions.DependencyInjection;
 using PropertyChanged;
 using System;
 using System.Threading.Channels;
+using ConfigurationManager = Edi.Core.Services.ConfigurationManager;
 
 namespace Edi.Core.Device
 {

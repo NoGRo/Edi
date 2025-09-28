@@ -16,6 +16,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Edi.Core.Device;
 using Edi.Core.Device.Handy;
 using Edi.Core.Device.Interfaces;
+using Edi.Core.Services;
 
 namespace Edi.Core.Device.AutoBlow
 {

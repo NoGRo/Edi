@@ -6,6 +6,7 @@ using Edi.Core.Device.OSR.Connection;
 using Microsoft.Extensions.Logging;
 using System.Timers;
 using Timer = System.Timers.Timer;
+using Edi.Core.Services;
 
 namespace Edi.Core.Device.OSR
 {

@@ -1,23 +1,25 @@
-﻿using System;
-using System.Threading.Tasks;
-using System.Timers;
-using Edi.Core.Gallery;
-using Timer = System.Timers.Timer;
-using Edi.Core.Gallery.Definition;
-using NAudio.Wave.SampleProviders;
-using CsvHelper;
+﻿using CsvHelper;
 using CsvHelper.Configuration;
-using Edi.Core.Gallery.Funscript;
-using Edi.Core.Funscript;
-using PropertyChanged;
-using System.ComponentModel;
-using System.Collections.ObjectModel;
-using Serilog.Core;
-using Microsoft.Extensions.Logging;
-using Microsoft.AspNetCore.Builder;
 using Edi.Core.Device;
 using Edi.Core.Device.Interfaces;
+using Edi.Core.Funscript;
+using Edi.Core.Gallery;
+using Edi.Core.Gallery.Definition;
+using Edi.Core.Gallery.Funscript;
 using Edi.Core.Players;
+using Edi.Core.Services;
+using Microsoft.AspNetCore.Builder;
+using Microsoft.Extensions.Logging;
+using NAudio.Wave.SampleProviders;
+using PropertyChanged;
+using Serilog.Core;
+using System;
+using System.Collections.ObjectModel;
+using System.ComponentModel;
+using System.IO;
+using System.Threading.Tasks;
+using System.Timers;
+using Timer = System.Timers.Timer;
 
 namespace Edi.Core
 {
@@ -52,17 +54,57 @@ namespace Edi.Core
             
         }
 
-
-        public async Task Init(string path)
+        /// <summary>
+        /// Resuelve el path de la galería interpretando si el argumento es un folder o un archivo de configuración.
+        /// Escapa en el primer caso válido.
+        /// </summary>
+        public string ResolveGallery(string path)
         {
-            path = path ?? ConfigurationManager.Get<GalleryConfig>()?.GalleryPath ?? "./";
-            foreach (var repo in repos)
+            if (string.IsNullOrWhiteSpace(path))
             {
-                await repo.Init(path);
+                // Primer escape: configuración actual
+                return ConfigurationManager.Get<GalleryConfig>()?.GalleryPath ?? "./";
             }
 
+            if (!Path.GetFileName(path).Equals("EdiConfig.json", StringComparison.OrdinalIgnoreCase))
+            {
+                // Tercer escape: path directo
+                ConfigurationManager.SetGamePath(path);
+                return path;
+            }
+            
+            // Segundo escape: archivo de configuración
+            ConfigurationManager.SetGamePath(path);
+            var configGalleryPath = ConfigurationManager.Get<GalleryConfig>()?.GalleryPath;
+            if (string.IsNullOrWhiteSpace(configGalleryPath))
+            {
+                return "./";
+            }
+            if (Path.IsPathRooted(configGalleryPath))
+            {
+                return configGalleryPath;
+            }
+            
+            var configDirectory = Path.GetDirectoryName(path);
+            return Path.GetFullPath(Path.Combine(configDirectory, configGalleryPath));
+            
+            
+        }
+        public async Task SelectGame(GameInfo game)
+        {
+            ConfigurationManager.Get<GamesConfig>().SelectedGameinfo = game;
+            await Init(game?.Path);
+        }
+        public async Task Init(string path)
+        {
+            string galleryPath = ResolveGallery(path);
+            foreach (var repo in repos)
+            {
+                await repo.Init(galleryPath);
+            }
             _ = Task.Run(InitDevices);
         }
+
         public async Task InitDevices()
         {
             await DeviceCollector.Init();
@@ -78,7 +120,7 @@ namespace Edi.Core
             Directory.CreateDirectory(Path.Combine(OutputDir, "Upload"));
         }
 
-        public static string OutputDir => Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData) + "/Edi";
+        public static string OutputDir => Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Edi");
 
         public ObservableCollection<IDevice> Devices => new ObservableCollection<IDevice>(DeviceCollector.Devices);
 

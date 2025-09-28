@@ -17,7 +17,7 @@ Thread thread = new Thread(() =>
     var host = Host.CreateDefaultBuilder()
         .UseSerilog((ctx, sp, loggerConfig) =>
         {
-            var ediConfig = sp.GetService<Edi.Core.ConfigurationManager>().Get<EdiConfig>();
+            var ediConfig = sp.GetService<Edi.Core.Services.ConfigurationManager>().Get<EdiConfig>();
 
             loggerConfig
                 .MinimumLevel.Debug()

@@ -27,6 +27,25 @@ namespace Edi.Core
             _configurations = LoadCombinedConfigurations();
         }
 
+        /// <summary>
+        /// Cambia la ruta del archivo de configuración principal y recarga las configuraciones.
+        /// Actualiza los valores de las instancias ya creadas sin perder sus referencias.
+        /// </summary>
+        /// <param name="newPath">Nueva ruta del archivo de configuración.</param>
+        public void SetGamePath(string newPath)
+        {
+            _gameConfigPath = newPath;
+            _configurations = LoadCombinedConfigurations();
+            // Actualizar instancias existentes con los nuevos valores
+            foreach (var kvp in _configObject)
+            {
+                if (_configurations.TryGetValue(kvp.Key, out var configJson))
+                {
+                    JsonConvert.PopulateObject(configJson.ToString(), kvp.Value);
+                }
+            }
+        }
+
         private Dictionary<string, JObject> LoadCombinedConfigurations()
         {
             var combinedConfigs = new Dictionary<string, JObject>();
@@ -183,6 +202,7 @@ namespace Edi.Core
                 }
             }
         }
+
 
     }
 }

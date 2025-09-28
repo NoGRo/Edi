@@ -1,41 +1,38 @@
 {
   "Gallery": {
-    "GalleryPath": "C:\\temp\\FORL",
+    "GalleryPath": "D:\\Juegos\\SecretFlasherManaka v1.1.1\\Gallery",
     "GenerateDefinitionFromChapters": true,
-    "GenerateChaptersFromDefinition": false
+    "GenerateChaptersFromDefinition": false,
+    "InproveLoopDetection": true
   },
   "GalleryBundler": {
     "MinRepeatDuration": 6000,
     "RepeatDuration": 3000,
-    "SpacerDuration": 3000
+    "SpacerDuration": 3000,
+    "DisableBundler": false
   },
   "Edi": {
     "Filler": true,
     "Gallery": true,
     "Reactive": true,
+    "Channels": [],
     "ExecuteOnReady": ""
   },
   "Devices": {
     "Devices": {
+      "FUNOSR-SSR1-V2.0": {
+        "Variant": "default",
+        "Channel": "main",
+        "Min": 0,
+        "Max": 100
+      },
       "Preview Device": {
         "Variant": "default",
-        "Channel": null,
+        "Channel": "main",
         "Min": 0,
         "Max": 100
       },
-      "Lovense Dolce Vibrate: 1": {
-        "Variant": "Stroke1",
-        "Channel": null,
-        "Min": 0,
-        "Max": 100
-      },
-      "Lovense Dolce Vibrate: 2": {
-        "Variant": "Stroke1",
-        "Channel": null,
-        "Min": 0,
-        "Max": 100
-      },
-      "FUNOSR-SSR1-V2.0": {
+      "Output Recorder Device": {
         "Variant": "default",
         "Channel": null,
         "Min": 0,
@@ -95,6 +92,7 @@
       "Scripts.md"
     ],
     "SessionId": "",
+    "MaxMesagesHistory": 10,
     "MaxTokens": null,
     "Temperature": 1.2
   }

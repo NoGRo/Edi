@@ -15,7 +15,10 @@ namespace Edi.Core.Device
         public async Task Init()
         {
             if (!Providers.Any() && serviceProvider != null)
-                Providers.AddRange(serviceProvider.GetServices<IDeviceProvider>());
+            {
+                var sProviders = serviceProvider.GetServices<IDeviceProvider>();
+                Providers.AddRange(sProviders);
+            }
 
             Providers.AsParallel().ForAll(async x => await x.Init());
         }

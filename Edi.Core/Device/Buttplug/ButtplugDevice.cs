@@ -108,7 +108,7 @@ namespace Edi.Core.Device.Buttplug
 
             currentCmdIndex = Math.Max(0, cmds.FindIndex(x => x.AbsoluteTime > CurrentTime));
 
-            while (currentCmdIndex >= 0 && currentCmdIndex < cmds.Count)
+            while (currentCmdIndex >= 0 && currentCmdIndex < cmds.Count && !playCancelTokenSource.IsCancellationRequested)
             {
                 CurrentCmd = cmds[currentCmdIndex];
                 //_logger.LogInformation($"Executing command at index: {currentCmdIndex} with AbsoluteTime: {CurrentCmd.AbsoluteTime}");
@@ -119,6 +119,7 @@ namespace Edi.Core.Device.Buttplug
                 {
                     // Using the new cancellation token here
                     await Task.Delay(Math.Max(0, ReminingCmdTime), playCancelTokenSource.Token);
+
                 }
                 catch (TaskCanceledException)
                 {

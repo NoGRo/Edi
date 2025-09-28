@@ -109,6 +109,21 @@ namespace Edi.Core.Funscript
             return Convert.ToInt32(min + ((max - min) / ((double)100) * Value));
 
         }
+        public int GetValueInTime(long millis)
+        {
+            // Calcular el progreso dentro del comando actual
+            double progress = millis / (double)Millis;
+            progress = Math.Clamp(progress, 0, 1);
+
+            // Interpolar entre InitialValue y Value
+            double interpolatedPosition = InitialValue + (Value - InitialValue) * progress;
+
+            // Redondear y limitar el valor al rango 0-100
+            int result = (int)Math.Round(interpolatedPosition);
+            result = Math.Clamp(result, 0, 100);
+
+            return result;
+        }
         public CmdLinear Clone()
         {
             return new CmdLinear

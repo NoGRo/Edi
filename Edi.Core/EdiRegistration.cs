@@ -5,6 +5,7 @@ using Edi.Core.Device.EStim;
 using Edi.Core.Device.Handy;
 using Edi.Core.Device.Interfaces;
 using Edi.Core.Device.OSR;
+using Edi.Core.Device.Simulator;
 using Edi.Core.Funscript;
 using Edi.Core.Gallery;
 using Edi.Core.Gallery.Definition;
@@ -53,6 +54,7 @@ namespace Edi.Core
             services.AddHandy();
             services.AddSingleton<IDeviceProvider, OSRProvider>();
             services.AddSingleton<IDeviceProvider, EStimProvider>();
+            services.AddSingleton<IDeviceProvider, RecorderProvider>();
             // Integra Serilog con el sistema de logging de Microsoft.Extensions.Logging
 
             services.AddSingleton<IEdi, Edi>();

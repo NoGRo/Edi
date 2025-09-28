@@ -7,11 +7,15 @@ using Edi.Core.Device.EStim;
 using Edi.Core.Device.OSR;
 using Edi.Core;
 using System.Collections.Generic;
+using Edi.Core.Gallery;
 
 namespace Edi.Forms
 {
     public class MainWindowViewModel : INotifyPropertyChanged
     {
+        public GamesConfig gamesConfig;
+        internal GalleryConfig galleryConfig;
+
         public EdiConfig config { get; set; }
         public HandyConfig handyConfig { get; set; }
         public ButtplugConfig buttplugConfig { get; set; }

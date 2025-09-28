@@ -11,12 +11,12 @@ namespace Edi.Forms
     {
         private readonly IEdi edi = App.Edi;
         private readonly DeviceCollector deviceCollector;
-        private SimulatorDevice SimulatorDevice;
+        private PreviewDevice SimulatorDevice;
 
         public SimulateGame()
         {
             InitializeComponent();
-            SimulatorDevice = new SimulatorDevice(App.ServiceProvider.GetRequiredService<FunscriptRepository>(), App.ServiceProvider.GetRequiredService<ILogger<SimulatorDevice>>());
+            SimulatorDevice = new PreviewDevice(App.ServiceProvider.GetRequiredService<FunscriptRepository>(), App.ServiceProvider.GetRequiredService<ILogger<PreviewDevice>>());
             this.DataContext = new { SimulatorDevice };
 
             this.Loaded += SimulateGame_Loaded;

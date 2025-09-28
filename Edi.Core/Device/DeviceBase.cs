@@ -76,7 +76,8 @@ namespace Edi.Core.Device
 
         private System.Timers.Timer timerRange = new System.Timers.Timer(100);
         private Task TimerRangeTask;
-        private Task PlayStopRangeTask;
+
+        private SemaphoreSlim asyncLock = new(1, 1);
         private int lastMin;
         private int lastMax = 100;
 
@@ -109,7 +110,7 @@ namespace Edi.Core.Device
                 return;
 
             if (resume)
-                PlayStopRangeTask = PlayGallery(currentGallery, CurrentTime);
+                _ = PlayGallery(currentGallery, CurrentTime);
             else if (isStopRange(min, max))
             {
                 _ = StopGallery();
@@ -154,9 +155,23 @@ namespace Edi.Core.Device
         internal CancellationTokenSource playCancelTokenSource = new CancellationTokenSource();
         public virtual async Task PlayGallery(string name, long seek = 0)
         {
-            var previousCts = Interlocked.Exchange(ref playCancelTokenSource, new CancellationTokenSource());
-            previousCts?.Cancel(true);
+            //var previousCts = Interlocked.Exchange(ref playCancelTokenSource, new CancellationTokenSource());
+
+            //previousCts?.Cancel(true);
             _logger.LogInformation($"Device '{Name}': Playing gallery '{name}' with seek: {seek}.");
+
+            var newCancellationTokenSource = new CancellationTokenSource();
+            asyncLock.Wait();
+            try
+            {
+                playCancelTokenSource?.Cancel();
+                playCancelTokenSource = newCancellationTokenSource;
+            }
+            finally
+            {
+                asyncLock.Release();
+            }
+
 
             var gallery = repository.Get(name, SelectedVariant);
             if (gallery == null || Max == 0)
@@ -207,8 +222,7 @@ namespace Edi.Core.Device
 
         public virtual async Task Stop()
         {
-            var previousCts = Interlocked.Exchange(ref playCancelTokenSource, new CancellationTokenSource());
-            previousCts?.Cancel(true);
+            playCancelTokenSource?.Cancel(true);
 
             currentGallery = null;
             IsPause = true;

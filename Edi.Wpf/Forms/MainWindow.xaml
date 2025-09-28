@@ -64,8 +64,17 @@
 
         <Button Content="Reconnect" HorizontalAlignment="Left" Margin="222,142,0,0" VerticalAlignment="Top" x:Name="ReconnectButton" Click="ReconnectButton_ClickAsync" Height="22" Width="72" RenderTransformOrigin="5.083,-1.983"/>
         <Button Content="Reload Galleries" HorizontalAlignment="Left" Margin="10,142,0,0" VerticalAlignment="Top" x:Name="ReloadButton"  Height="22" Width="103" Click="ReloadButton_Click"/>
+        <ComboBox x:Name="GamesComboBox"
+          HorizontalAlignment="Center" 
+          Margin="0,173,0,0"
+          VerticalAlignment="Top"
+          Width="287"
+          Height="22"
+          DisplayMemberPath="Name"
+          SelectedValuePath="Path"
+          ItemsSource="{Binding gamesConfig.GamesInfo}"
+          SelectionChanged="GamesComboBox_SelectionChanged"/>
 
-        
         <Label Content="Intensity:" HorizontalAlignment="Left" Margin="4,0,0,81" VerticalAlignment="Bottom"/>
         <Slider  x:Name="sliderIntensity" HorizontalAlignment="Left" Margin="62,0,0,83" VerticalAlignment="Bottom" Value="100" Maximum="100" Width="90"  ValueChanged="Slider_ValueChanged"/>
 

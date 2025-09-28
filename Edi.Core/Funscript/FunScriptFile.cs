@@ -82,9 +82,8 @@ namespace Edi.Core.Funscript
             }
         }
 
-
-        public List<FunScriptAction> actions { get; set; }
         public FunScriptMetadata metadata { get; set; }
+        public List<FunScriptAction> actions { get; set; }
 
         public FunScriptFile()
         {

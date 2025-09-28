@@ -25,6 +25,8 @@ using Edi.Core.Device.EStim;
 using Edi.Core.Device.Handy;
 using Edi.Core.Device.Interfaces;
 using Edi.Core.Device.OSR;
+using Edi.Core.Gallery;
+using Path = System.IO.Path;
 
 namespace Edi.Forms
 {
@@ -35,6 +37,7 @@ namespace Edi.Forms
     {
         private readonly IEdi edi =  App.Edi;
         public EdiConfig config;
+        public GalleryConfig galleryConfig;
         public HandyConfig handyConfig;
         public ButtplugConfig buttplugConfig;
         public EStimConfig estimConfig;
@@ -48,10 +51,11 @@ namespace Edi.Forms
         {
             config = edi.ConfigurationManager.Get<EdiConfig>();
             handyConfig = edi.ConfigurationManager.Get<HandyConfig>();
+            galleryConfig = edi.ConfigurationManager.Get<GalleryConfig>();
             buttplugConfig = edi.ConfigurationManager.Get<ButtplugConfig>();
             estimConfig = edi.ConfigurationManager.Get<EStimConfig>();
             osrConfig = edi.ConfigurationManager.Get<OSRConfig>();
-
+            gamesConfig = edi.ConfigurationManager.Get<GamesConfig>();
             var galleries = edi.Definitions.Where(x=> x.Type != "filler" ).ToList();
 
             galleries.Insert(0, new Core.Gallery.Definition.DefinitionGallery { Name = "" });
@@ -63,9 +67,10 @@ namespace Edi.Forms
                 config = config,
                 handyConfig = handyConfig,
                 buttplugConfig = buttplugConfig,
+                galleryConfig = galleryConfig,
                 estimConfig = estimConfig,
                 osrConfig = osrConfig,
-
+                gamesConfig = gamesConfig,
                 devices = edi.Devices,
                 channels = edi.Player.Channels,
                 galleries = galleries,
@@ -184,12 +189,38 @@ namespace Edi.Forms
 
         private async void ReloadButton_Click(object sender, RoutedEventArgs e)
         {
-            await Dispatcher.Invoke(async () =>
+            using (var dialog = new System.Windows.Forms.FolderBrowserDialog())
             {
-                await edi.Init();
-            });
-           
-        }    
+                dialog.Description = "Select a folder containing EdiConfig.json or Gallery Folder";
+                if (dialog.ShowDialog() == System.Windows.Forms.DialogResult.OK)
+                {
+                    string selectedPath = dialog.SelectedPath;
+                    string ediConfigPath = Path.Combine(selectedPath, "EdiConfig.json");
+                    string definitionsPath = Path.Combine(selectedPath, "definitions.csv");
+                    string configToUse;
+
+                    if (File.Exists(ediConfigPath))
+                    {
+                        configToUse = ediConfigPath;
+                    }
+                    else if (File.Exists(definitionsPath))
+                    {
+                        configToUse = definitionsPath;
+                    }
+                    else
+                    {
+                        // Neither file exists, invent EdiConfig.json path
+                        configToUse = ediConfigPath;
+                    }
+
+                    edi.ConfigurationManager.SetGamePath(ediConfigPath);
+                    gamesConfig.GamesInfo.Add(new GameInfo(configToUse, ediConfigPath));
+                    edi.ConfigurationManager.Save(gamesConfig);
+                    await edi.Init(galleryConfig.GalleryPath);
+                    
+                }
+            }
+        }
 
 
         private async void ReconnectButton_ClickAsync(object sender, RoutedEventArgs e)
@@ -245,7 +276,9 @@ namespace Edi.Forms
 
         private static SimulateGame _simulateGame; // Quitamos readonly y la inicialización inmediata
         private MainWindowViewModel viewModel;
-
+        private GamesConfig gamesConfig;
+        // ...
+    
         private void btnSimulator_Click(object sender, RoutedEventArgs e)
         {
             if (_simulateGame == null || !_simulateGame.IsLoaded)
@@ -261,7 +294,18 @@ namespace Edi.Forms
             }
         }
 
+        public async void GamesComboBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            await Dispatcher.Invoke(async () =>
+            {
+                if (GamesComboBox.SelectedItem is GameInfo selectedGame)
+                {
+                    edi.ConfigurationManager.SetGamePath(selectedGame.Path);
 
+                    await edi.Init();
+                }
+            });
+        }
         public override async void EndInit()
         {
             await Dispatcher.Invoke(async () =>

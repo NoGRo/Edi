@@ -8,7 +8,7 @@ using PropertyChanged;
 namespace Edi.Core.Device.Simulator
 {
     [AddINotifyPropertyChangedInterface]
-    public class SimulatorDevice : DeviceBase<FunscriptRepository, FunscriptGallery>, IRange
+    public class PreviewDevice : DeviceBase<FunscriptRepository, FunscriptGallery>, IRange
     {
         private readonly ILogger _logger;
         private CmdLinear _currentCmd;
@@ -51,7 +51,7 @@ namespace Edi.Core.Device.Simulator
 
         private const int REFRESH_RATE_MS = 16; // ~60 FPS (1000ms / 60 ≈ 16.67ms)
 
-        public SimulatorDevice(FunscriptRepository repository, ILogger<SimulatorDevice> logger)
+        public PreviewDevice(FunscriptRepository repository, ILogger<PreviewDevice> logger)
             : base(repository, logger)
         {
             _logger = logger;
@@ -86,7 +86,8 @@ namespace Edi.Core.Device.Simulator
                     var timeSinceLastUpdate = (DateTime.Now - lastUpdateAt).TotalMilliseconds;
                     var delayMs = Math.Max(0, REFRESH_RATE_MS - timeSinceLastUpdate);
                     await Task.Delay((int)delayMs, playCancelTokenSource.Token);
-
+                    if (playCancelTokenSource.IsCancellationRequested)
+                        return;
                     // Verificar si necesitamos pasar al siguiente comando
                     if (CurrentTime >= CurrentCmd.AbsoluteTime)
                     {

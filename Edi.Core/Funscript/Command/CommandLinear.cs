@@ -1,10 +1,11 @@
-﻿using System;
+﻿using Edi.Core.Funscript.FileJson;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Xml.Schema;
 
-namespace Edi.Core.Funscript
+namespace Edi.Core.Funscript.Command
 {
     public class CmdLinear
     {
@@ -91,7 +92,7 @@ namespace Edi.Core.Funscript
         public double Value { get; set; }
 
 
-        public int Speed => Millis == 0 ? 0 : Convert.ToInt32(Math.Abs(InitialValue - Value) / (double)Millis * 1000);
+        public int Speed => Millis == 0 ? 0 : Convert.ToInt32(Math.Abs(InitialValue - Value) / Millis * 1000);
         public uint buttplugMillis => (uint)Millis;
         public short Distance => (short)Math.Abs(Direction ? Value - InitialValue : InitialValue - Value);
         public bool Direction => Value > InitialValue;
@@ -106,7 +107,7 @@ namespace Edi.Core.Funscript
 
         public int GetValueInRange(int min, int max)
         {
-            return Convert.ToInt32(min + ((max - min) / ((double)100) * Value));
+            return Convert.ToInt32(min + (max - min) / (double)100 * Value);
 
         }
         public int GetValueInTime(long millis)

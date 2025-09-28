@@ -3,7 +3,7 @@ using System.ComponentModel.DataAnnotations;
 using System.ComponentModel;
 using System.Diagnostics;
 
-namespace Edi.Core.Funscript
+namespace Edi.Core.Funscript.FileJson
 {
     public class FunScriptAction
     {

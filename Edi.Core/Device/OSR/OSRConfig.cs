@@ -5,8 +5,8 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using Edi.Core.Services;
-using Edi.Core.Funscript;
 using PropertyChanged;
+using Edi.Core.Funscript.Command;
 
 
 namespace Edi.Core.Device.OSR

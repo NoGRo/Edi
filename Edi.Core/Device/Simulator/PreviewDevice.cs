@@ -1,6 +1,6 @@
 ﻿using Edi.Core.Device;
 using Edi.Core.Device.Interfaces;
-using Edi.Core.Funscript;
+using Edi.Core.Funscript.Command;
 using Edi.Core.Gallery.Funscript;
 using Microsoft.Extensions.Logging;
 using PropertyChanged;

@@ -7,7 +7,6 @@ using System.Net.Http;
 using System.Text;
 using System.Threading.Tasks;
 using Newtonsoft.Json;
-using Edi.Core.Funscript;
 using CsvHelper.Configuration;
 using Edi.Core.Gallery;
 using System.Diagnostics;
@@ -29,6 +28,7 @@ using System.Net;
 using Edi.Core.Gallery.Funscript;
 using Microsoft.Extensions.Logging;
 using Edi.Core.Device;
+using Edi.Core.Funscript.Command;
 
 namespace Edi.Core.Device.Handy
 {

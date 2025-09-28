@@ -1,5 +1,4 @@
-﻿
-namespace Edi.Core.Funscript
+﻿namespace Edi.Core.Funscript.FileJson
 {
     public enum Axis
     {

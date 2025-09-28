@@ -1,6 +1,6 @@
 ﻿using Buttplug.Core.Messages;
 using Edi.Core.Device;
-using Edi.Core.Funscript;
+using Edi.Core.Funscript.Command;
 using Edi.Core.Gallery;
 using Edi.Core.Gallery.Funscript;
 using Microsoft.Extensions.Logging;

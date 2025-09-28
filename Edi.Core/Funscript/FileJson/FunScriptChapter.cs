@@ -6,7 +6,7 @@ using System.Text;
 using System.Text.Json.Serialization;
 using System.Threading.Tasks;
 
-namespace Edi.Core.Funscript
+namespace Edi.Core.Funscript.FileJson
 {
     public class FunScriptChapter
     {

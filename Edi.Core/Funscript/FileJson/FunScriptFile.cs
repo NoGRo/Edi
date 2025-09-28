@@ -6,7 +6,7 @@ using System.Text;
 using System.Text.Json;
 using System.Text.RegularExpressions;
 
-namespace Edi.Core.Funscript
+namespace Edi.Core.Funscript.FileJson
 {
     /// <summary>
     /// https://godoc.org/github.com/funjack/launchcontrol/protocol/funscript

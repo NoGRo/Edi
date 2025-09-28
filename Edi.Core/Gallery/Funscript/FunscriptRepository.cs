@@ -2,7 +2,6 @@
 using System.Globalization;
 using CsvHelper;
 using File = System.IO.File;
-using Edi.Core.Funscript;
 using System.Runtime.CompilerServices;
 using Edi.Core.Gallery.Definition;
 using System.Text.RegularExpressions;
@@ -11,6 +10,8 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Collections.Immutable;
 using Microsoft.Extensions.Logging;
+using Edi.Core.Funscript.FileJson;
+using Edi.Core.Funscript.Command;
 
 namespace Edi.Core.Gallery.Funscript
 {

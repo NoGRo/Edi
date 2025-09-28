@@ -1,7 +1,6 @@
 using Edi.Core.Services;
 using Edi.Core.Device;
 using Edi.Core.Device.Interfaces;
-using Edi.Core.Funscript;
 using Edi.Core.Gallery.Funscript;
 using Microsoft.Extensions.Logging;
 using NAudio.CoreAudioApi;
@@ -16,6 +15,8 @@ using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Timers;
+using Edi.Core.Funscript.FileJson;
+using Edi.Core.Funscript.Command;
 
 namespace Edi.Core.Device.Simulator
 {

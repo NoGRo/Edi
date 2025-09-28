@@ -1,11 +1,11 @@
 ﻿using Buttplug.Client;
 using Buttplug.Core.Messages;
-using Edi.Core.Funscript;
 using PropertyChanged;
 using Edi.Core.Gallery.Funscript;
 using Microsoft.Extensions.Logging;
 using Edi.Core.Device;
 using Edi.Core.Device.Interfaces;
+using Edi.Core.Funscript.Command;
 
 namespace Edi.Core.Device.Buttplug
 {

@@ -1,4 +1,4 @@
-﻿using Edi.Core.Funscript;
+﻿using Edi.Core.Funscript.FileJson;
 using System.Text;
 
 namespace Edi.Core.Device.OSR

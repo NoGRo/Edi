@@ -1,6 +1,4 @@
-﻿
-
-namespace Edi.Core.Funscript
+﻿namespace Edi.Core.Funscript.Command
 {
     public class CmdRange
     {
@@ -25,7 +23,7 @@ namespace Edi.Core.Funscript
 
         public CmdLinear ProcessCommand(CmdLinear command)
         {
-            command.Value = Convert.ToByte(Math.Min(100, _lowerLimit + (RangeDelta() / 100 * command.Value)));
+            command.Value = Convert.ToByte(Math.Min(100, _lowerLimit + RangeDelta() / 100 * command.Value));
 
             return command;
         }

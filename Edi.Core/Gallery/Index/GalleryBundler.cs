@@ -3,11 +3,12 @@ using System.IO;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
-using Edi.Core.Funscript;
+using Edi.Core.Funscript.FileJson;
 
 using System.Reflection;
 using Edi.Core.Gallery.Funscript;
 using Edi.Core.Services;
+using Edi.Core.Funscript.Command;
 
 namespace Edi.Core.Gallery.Index
 {

@@ -4,9 +4,10 @@ using System.Collections.Generic;
 using System.IO;
 using System.Text;
 using Newtonsoft.Json;
+using Edi.Core.Funscript.Command;
 
 
-namespace Edi.Core.Funscript
+namespace Edi.Core.Funscript.FileJson
 {
 
     public class FunScriptCsv

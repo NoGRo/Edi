@@ -1,6 +1,8 @@
 ﻿using CsvHelper;
 using CsvHelper.Configuration;
 using Edi.Core.Funscript;
+using Edi.Core.Funscript.Command;
+using Edi.Core.Funscript.FileJson;
 using Edi.Core.Gallery;
 using Edi.Core.Gallery.Definition;
 using Edi.Core.Gallery.Funscript;

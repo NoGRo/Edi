@@ -4,7 +4,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace Edi.Core.Funscript
+namespace Edi.Core.Funscript.FileJson
 {
     public class FunScriptMetadata
     {

@@ -197,18 +197,18 @@ namespace Edi.Forms
         {
             using (var dialog = new System.Windows.Forms.OpenFileDialog())
             {
-                dialog.Title = "Select EdiConfig.json file";
-                dialog.Filter = "EdiConfig JSON files (EdiConfig.json)|EdiConfig.json|All JSON files (*.json)|*.json";
+                dialog.Title = "Select EdiConfig.json or Definition.csv file";
+                dialog.Filter = "EdiConfig.json|EdiConfig.json|Definitions.csv|Definitions.csv";
                 dialog.FilterIndex = 1;
                 
                 if (dialog.ShowDialog() == System.Windows.Forms.DialogResult.OK)
                 {
                     string configPath = dialog.FileName;
+
+                    var game = new GameInfo(configPath, configPath);
+                    gamesConfig.GamesInfo.Add(game);
+                    await edi.SelectGame(game);
                     
-                    edi.ConfigurationManager.SetGamePath(configPath);
-                    gamesConfig.GamesInfo.Add(new GameInfo(configPath, configPath));
-                    edi.ConfigurationManager.Save(gamesConfig);
-                    await edi.Init(galleryConfig.GalleryPath);
                 }
             }
         }
@@ -291,7 +291,7 @@ namespace Edi.Forms
             {
                 if (GamesComboBox.SelectedItem is GameInfo selectedGame)
                 {
-                    gamesConfig.SelectedGameinfo = selectedGame;
+                    // gamesConfig.SelectedGameinfo = selectedGame;
                     await edi.SelectGame(selectedGame);
                     viewModel.galleries = ReloadGalleries();
                 }

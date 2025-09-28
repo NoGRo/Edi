@@ -47,7 +47,7 @@ namespace Edi.Core.Services
             // Actualizar instancias existentes con los nuevos valores
             foreach (var kvp in _configObject)
             {
-                if (_configurations.TryGetValue(kvp.Key, out var configJson))
+                if (_configurations.TryGetValue(kvp.Key, out var configJson) && !HasUserConfigAttribute(kvp.Key))
                 {
                     JsonConvert.PopulateObject(configJson.ToString(), kvp.Value);
                 }

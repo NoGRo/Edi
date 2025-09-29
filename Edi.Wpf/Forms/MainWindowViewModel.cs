@@ -17,7 +17,18 @@ namespace Edi.Forms
         public EdiConfig config
         {
             get => _config;
-            set { _config = value; OnPropertyChanged(nameof(config)); }
+            set
+            {
+                if (_config != null && _config is INotifyPropertyChanged oldConfig)
+                    oldConfig.PropertyChanged -= ConfigPropertyChanged;
+
+                _config = value;
+
+                if (_config != null && _config is INotifyPropertyChanged newConfig)
+                    newConfig.PropertyChanged += ConfigPropertyChanged;
+
+                OnPropertyChanged(nameof(config));
+            }
         }
 
         private GamesConfig _gamesConfig;
@@ -75,6 +86,11 @@ namespace Edi.Forms
         protected void OnPropertyChanged(string name)
         {
             PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(name));
+        }
+
+        private void ConfigPropertyChanged(object sender, PropertyChangedEventArgs e)
+        {
+            OnPropertyChanged(nameof(config));
         }
 
         public void UpdateChannels(List<string> newChannels)

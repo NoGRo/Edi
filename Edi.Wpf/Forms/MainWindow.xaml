@@ -9,7 +9,6 @@
 
     <Window.Resources>
         <local:BoolToReadyIconConverter x:Key="BoolToReadyIconConverter"/>
-        <local:BooleanToVisibilityConverter x:Key="BooleanToVisibilityConverter"/>
     </Window.Resources>
 
 

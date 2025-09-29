@@ -35,7 +35,7 @@ namespace Edi.Forms
     /// </summary>
     public partial class MainWindow : Window
     {
-        private readonly IEdi edi =  App.Edi;
+        private readonly IEdi edi = App.Edi;
         public EdiConfig config;
         public GalleryConfig galleryConfig;
         public HandyConfig handyConfig;
@@ -47,6 +47,8 @@ namespace Edi.Forms
         private record AudioDevice(int id, string name);
         private record ComPort(string name, string? value);
         private record ChannelsNames(string name, string? value);
+        private DataGridColumn _channelColumn;
+
         public MainWindow()
         {
             config = edi.ConfigurationManager.Get<EdiConfig>();
@@ -74,6 +76,22 @@ namespace Edi.Forms
             this.DataContext = viewModel;
             InitializeComponent();
 
+            // Add column visibility control after InitializeComponent
+            DevicesGrid.Loaded += (s, e) =>
+            {
+                _channelColumn = DevicesGrid.Columns.FirstOrDefault(c => c.Header?.ToString() == "Channel");
+                UpdateChannelColumnVisibility();
+            };
+
+            // Add property change handler for viewModel
+            viewModel.PropertyChanged += (s, e) =>
+            {
+                if (e.PropertyName == nameof(viewModel.config))
+                {
+                    UpdateChannelColumnVisibility();
+                }
+            };
+
             edi.DeviceCollector.OnloadDevice += DeviceCollector_OnloadDeviceAsync;
             edi.DeviceCollector.OnUnloadDevice += DeviceCollector_OnUnloadDevice;
             edi.OnChangeStatus += Edi_OnChangeStatus;
@@ -86,8 +104,15 @@ namespace Edi.Forms
             edi.Player.ChannelsChanged += (channels) => viewModel.UpdateChannels(channels);
 
             LoadForm();
+        }
 
+        private void UpdateChannelColumnVisibility()
+        {
 
+            if (_channelColumn != null && viewModel?.config != null)
+            {
+                _channelColumn.Visibility = viewModel.config.UseChannels ? Visibility.Visible : Visibility.Collapsed;
+            }
         }
 
         private List<Core.Gallery.Definition.DefinitionGallery> ReloadGalleries()

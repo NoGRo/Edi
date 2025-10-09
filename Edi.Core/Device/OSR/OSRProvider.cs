@@ -86,7 +86,7 @@ namespace Edi.Core.Device.OSR
             {
                 OnStatusChange("Error");
                 logger.LogError(e, $"Error while attempting to connect TCode device: {e.Message}");
-                if (Connection.IsReady)
+                if (Connection?.IsReady == true)
                 {
                     Connection.Disconnect();
                     Device = null;

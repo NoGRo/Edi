@@ -65,8 +65,8 @@
         <Button Content="Reconnect" HorizontalAlignment="Left" Margin="278,70,0,0" VerticalAlignment="Top" x:Name="ReconnectButton" Click="ReconnectButton_ClickAsync" Height="22" Width="72" RenderTransformOrigin="5.083,-1.983" Grid.Column="1"/>
         <Button Content="Select Game" HorizontalAlignment="Left" Margin="10,142,0,0" VerticalAlignment="Top" x:Name="ReloadButton"  Height="22" Width="103" Click="ReloadButton_Click"/>
         <ComboBox x:Name="GamesComboBox"
-          HorizontalAlignment="Center" 
-          Margin="0,173,0,0"
+          HorizontalAlignment="Left" 
+          Margin="10,173,0,0"
           VerticalAlignment="Top"
           Width="287"
           Height="22"

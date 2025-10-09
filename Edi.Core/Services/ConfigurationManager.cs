@@ -27,6 +27,8 @@ namespace Edi.Core.Services
         private Dictionary<string, object> _configObject = new Dictionary<string, object>();
         
 
+        public string GamePathConfig => _gameConfigPath;
+
         public ConfigurationManager(string fileName)
         {
             _gameConfigPath = fileName;
@@ -40,9 +42,10 @@ namespace Edi.Core.Services
         /// <param name="newPath">Nueva ruta del archivo de configuración.</param>
         public void SetGamePath(string newPath)
         {
-            _gameConfigPath = newPath;
+            
             // Asegura que el archivo de configuración de juego exista y tenga contenido válido
-            EnsureGameConfigFile(newPath);
+            
+            _gameConfigPath = EnsureGameConfigFile(newPath);
             _configurations = LoadCombinedConfigurations();
             // Actualizar instancias existentes con los nuevos valores
             foreach (var kvp in _configObject)
@@ -128,7 +131,7 @@ namespace Edi.Core.Services
             Directory.CreateDirectory(Path.GetDirectoryName(_userConfigPath)!);
             File.WriteAllText(_userConfigPath, userConfigJson);
         }
-        private void EnsureGameConfigFile(string path)
+        private string EnsureGameConfigFile(string path)
         {
             string configFilePath;
             if (Directory.Exists(path))
@@ -171,6 +174,7 @@ namespace Edi.Core.Services
                 Directory.CreateDirectory(Path.GetDirectoryName(configFilePath)!);
                 File.WriteAllText(configFilePath, json);
             }
+            return configFilePath;
         }
         public T Get<T>() where T : class, new()
         {
@@ -183,7 +187,7 @@ namespace Edi.Core.Services
             if (_configurations.TryGetValue(typeName, out var configJson))
             {
                 config = configJson.ToObject<T>();
-                _configObject.Add(typeName, config);
+                _configObject.Add(typeName, config);    
                 SubscribeToChanges(config, typeName);
                 return config;
             }

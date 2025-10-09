@@ -17,7 +17,7 @@ namespace Edi.Core
 
         public Task Init(string path = null);
         public Task InitDevices();
-        public Task SelectGame(GameInfo game);
+        public Task<GameInfo> SelectGame(GameInfo game);
         public IPlayerChannels Player { get; }
 
         public DeviceCollector DeviceCollector { get; }

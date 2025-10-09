@@ -90,10 +90,16 @@ namespace Edi.Core
             
             
         }
-        public async Task SelectGame(GameInfo game)
+        public async Task<GameInfo> SelectGame(GameInfo game)
         {
-            ConfigurationManager.Get<GamesConfig>().SelectedGameinfo = game;
+            
             await Init(game?.Path);
+            var name = new DirectoryInfo(ConfigurationManager.GamePathConfig).Parent.FullName;
+            var resolveGameinfo = new GameInfo(name, ConfigurationManager.GamePathConfig);
+            
+            ConfigurationManager.Get<GamesConfig>().SelectedGameinfo = resolveGameinfo;
+            return resolveGameinfo;
+
         }
         public async Task Init(string path)
         {

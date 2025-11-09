@@ -126,7 +126,7 @@ namespace Edi.Core.Gallery.Index
             {
                 foreach (var file in Directory.GetFiles(bundlesDir))
                 {
-                    File.Delete(file);
+                    try { File.Delete(file); } catch { }
                 }
             }
             else

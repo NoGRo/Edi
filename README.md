@@ -1,17 +1,24 @@
 ﻿# **Easy Device Integration (EDI) for Videogames**
 
-Easy Device Integration (EDI) is a Windows application developed in C# that synchronizes game events with interactive sex toys. Its modular and simple architecture makes it a powerful, flexible, and easy-to-integrate tool for any game.
+Easy Device Integration (EDI) is a Windows application developed in C# that synchronizes game events with interactive sex toys. Running as a standalone program, it can be controlled through a REST API from any game. Its modular and simple architecture makes it a powerful, flexible, and easy-to-integrate tool for any game.
 
+EDI operates as an independent service that:
+- Runs as a Windows application separate from your game
+- Exposes a REST API for complete control of device playback and settings
+- Handles all device communication, funscripts and synchronization
+- Can be integrated with any game engine or framework that supports HTTP requests
 ---
 
 ### Why Use EDI?
 
-- Compatible with Buttplug.io, Lovense, OSR, XToys, eStim via mp3 file, Handy, AutoBlow, and more.
+- Compatible with Buttplug.io, Lovense, OSR (including UDP), eStim via mp3 file, Handy, AutoBlow, and more.
 - SOLID architecture decoupled from the game engine.
 - Simple HTTP API control (`Play`, `Stop`, `Pause`, etc.).
 - Expandable galleries synced to a single video.
 - Multi-device, multi-axis support, and customizable variants.
 - Smooth and synchronized funscript playback within your game.
+- Multi-channel support for independent playback streams.
+- Game-specific configuration support.
 
 ---
 
@@ -47,8 +54,33 @@ Tags can be placed in any order and override default behavior.
 
 #### Gallery Variants
 
-- Variants can be defined in the filename (`enemy_attack2.intense.funscript`) or in the containing folder (`intense/enemy_attack2.funscript`).
-- Variants can also be defined per device (e.g., `enemy_attack2.vibrator.funscript`).
+Variants allow for different versions of the same gallery to accommodate different devices, connection types, or gameplay preferences:
+
+##### Device-Specific Variants
+- `vibrator`: Optimized for vibration-based devices
+- `linear`: For linear motion devices
+- `simple`: Basic motion patterns, lower resource usage
+- `detailed`: Complex patterns with fine-grained control
+
+##### Intensity or Body part Variants
+- `easy`: Gentler patterns for casual play
+- `hard`: More intense patterns for experienced users
+- `penis`: For devices targeting penile stimulation
+- `anal`: For devices targeting anal stimulation
+
+Variants can be defined in two ways:
+- In the filename: `enemy_attack2.intense.funscript`
+- In the containing folder: `intense/enemy_attack2.funscript`
+
+Multiple variants can be combined:
+- `enemy_attack2.anal-vibrator.funscript` → variant for buttplug vibration devices
+- `enemy_attack2.easy-lineal.funscript` → easy variant for Stroker
+
+This flexible variant system allows you to:
+- Optimize performance based on connection type
+- Balance detail vs response time
+- Provide different intensity levels for player preferences
+- Target specific body parts and device types
 
 #### Multi-Axis Support
 
@@ -63,7 +95,17 @@ EDI allows full use of multi-axis or multi-motor devices via naming conventions 
 - `ataque_fuerte.intense.twist.funscript` → axis `twist`
 
 ---
+### Multi-Channel System (Beta)
 
+EDI now supports multiple independent playback channels, allowing different device groups to operate independently:
+
+- Configure channels in `EdiConfig.json`: `UseChannels": true, "Channels": ["player1", "player2"]`
+- Assign devices to specific channels
+- Each channel works as an independent EDI playback: gallery, filler, reaction
+- Control independently via API endpoints with channel parameter
+- Default behavior (no channel specified) affects all channels
+
+---
 ### Bundle Management for Handy and AutoBlow
 
 EDI groups all galleries into bundles for efficient loading into devices like Handy and AutoBlow.
@@ -116,30 +158,48 @@ This section controls auto-repeat and timing between galleries. All values are i
 - Devices are configured individually by name.
 - You can assign a `Variant`, and define `Min` and `Max` intensity.
 
+### Configuration System
+
+EDI uses a layered configuration system to manage settings at different levels:
+
+#### Main Configuration Files
+
+- `EdiConfig.json`: Main configuration file for game-specific settings
+  - Gallery and device settings
+  - Channel configuration
+  - Game selection
+  - AI features configuration (Beta)
+- `UserConfig.json`: User-specific preferences (located in AppData)
+  - Personal device settings (keys, ports, ranges, Selected Games)
+  - Interface preferences (e.g., "Always on top" window setting)
+
 ---
 
 
 
 ### HTTP API Control
-
 This API lets your game control playback, intensity, and device settings using simple HTTP commands. All endpoints accept both POST and GET requests.
 
 #### Playback
 
-- `POST /Edi/Play/{name}?seek=0`: plays a gallery by name, optionally from a specific point (milliseconds).
-- `POST /Edi/Stop`: stops current playback.
-- `POST /Edi/Pause`: pauses device output.
+- `POST /Edi/Play/{name}?seek=0`: plays a gallery by name, optionally from a specific point (milliseconds)
+- `POST /Edi/Pause?untilResume=true`: pauses device output. With `untilResume=true`, ignores all play commands until Resume in Sync with last received play event
 - `POST /Edi/Resume?AtCurrentTime=false`: resumes from pause. With `AtCurrentTime=true`, syncs to current video time.
 
-#### Intensity
-
 - `POST /Edi/Intensity/{max}` (0–100%): sets global intensity across devices.
+
+#### Channel Selection
+Channels can be specified for any Playback endpoint in two ways:
+- Query string parameter: `?Channels=player1` or `?Channels=player1,player2`
+- HTTP header: `Channels: player1` or `Channels: player1,player2`
+- (no channel specified) affects all channels
 
 #### Devices
 
 - `GET /Devices`: lists connected devices.
 - `POST /Devices/{deviceName}/Variant/{variantName}`: assigns a variant to a device. Using `None` stops that device.
 - `POST /Devices/{deviceName}/Range/{min}-{max}`: sets device intensity range. If both values are 0, the device is stopped.
+- `POST /Devices/{deviceName}/Channel/{channelName}`: assigns a device to a specific channel.
 
 #### Content
 
@@ -148,12 +208,12 @@ This API lets your game control playback, intensity, and device settings using s
 
 ---
 
+
 ### Graphical Interface (EDI Launcher)
 
 EDI includes a user-friendly GUI to manage essential functions easily.
 
-![image|690x401](upload://qn0Noj1rC5OaYBX2dkZ6lukiJoX.png)
-
+- Select Game by EdiConfig.json or Definitions.csv.
 - Select connected devices and assign variants.
 - Toggle active gallery types: Gallery, Filler, Reaction.
 - Adjust intensity with slider.
@@ -169,14 +229,4 @@ Raw device commands like `vibrate` or `linear movement` are isolated inside the 
 
 This architecture makes the control layer entirely independent from the game itself. For example, one can add a full set of galleries in a `FullGalleries.mp3` file to support an eStim device without touching the integration or modifying any code.
 
-The same principle allows adding future devices (e.g., a brainwave stimulator) by simply preparing galleries and placing files in the folder—no code changes needed.
-
-EDI also solves common funscript playback issues like overly persistent strokes or inconsistent behavior across devices. Since devices all use the same unified player, improvements benefit all integrations automatically.
-
-**Limitation:** EDI cannot play dynamic content. Everything must be pre-scripted. However, this can be worked around by preparing multiple gallery variants with varying intensities, such as:
-
-* `Lori_Attack-level-1`
-* `Lori_Attack-level-2`
-* `Lori_Attack-level-3`
-
----
+The same principle allows ad

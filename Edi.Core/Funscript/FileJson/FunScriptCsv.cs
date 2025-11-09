@@ -28,10 +28,16 @@ namespace Edi.Core.Funscript.FileJson
 
         public void Save(string filename)
         {
-            File.WriteAllText(path: filename,
-                              contents: string.Join("\r\n", actions.Select(x => $"{x.at},{x.pos}")),
-                              encoding: new UTF8Encoding(true));
+            try
+            {
+                File.WriteAllText(path: filename,
+                                  contents: string.Join("\r\n", actions.Select(x => $"{x.at},{x.pos}")),
+                                  encoding: new UTF8Encoding(true));
+            }
+            catch (IOException)
+            {
+                // Silently ignore IO exceptions (file in use)
+            }
         }
     }
-
 }

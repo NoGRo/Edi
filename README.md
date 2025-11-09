@@ -211,6 +211,8 @@ Channels can be specified for any Playback endpoint in two ways:
 
 ### Graphical Interface (EDI Launcher)
 
+![EDI Launcher Interface](https://raw.githubusercontent.com/NoGRo/Edi/master/Edi.Wpf/screen.png)
+
 EDI includes a user-friendly GUI to manage essential functions easily.
 
 - Select Game by EdiConfig.json or Definitions.csv.

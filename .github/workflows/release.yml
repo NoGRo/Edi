@@ -93,20 +93,6 @@ jobs:
           return release.data;
         result-encoding: string
 
-    - name: Delete existing assets
-      if: steps.check_release.outputs.result != 'null'
-      uses: actions/github-script@v6
-      with:
-        script: |
-          const release = ${{ steps.get_release.outputs.result }};
-          for (const asset of release.assets) {
-            await github.rest.repos.deleteReleaseAsset({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              asset_id: asset.id
-            });
-          }
-    
     - name: Upload Release Asset
       uses: actions/upload-release-asset@v1
       env:

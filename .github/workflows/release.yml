@@ -29,6 +29,7 @@ jobs:
         $tag = $env:GITHUB_REF.Replace('refs/tags/', '')
         $version = $tag.TrimStart('v')
         echo "VERSION=$version" >> $env:GITHUB_ENV
+        echo "TAG=$tag" >> $env:GITHUB_ENV
         echo "Extracted version: $version"
     
     - name: Build WPF App
@@ -44,7 +45,25 @@ jobs:
           -p:FileVersion=${{ env.VERSION }} `
           -p:AssemblyVersion=${{ env.VERSION }}
 
+    - name: Check Release
+      id: check_release
+      uses: actions/github-script@v6
+      with:
+        script: |
+          try {
+            const release = await github.rest.repos.getReleaseByTag({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              tag: process.env.TAG
+            });
+            return release.data.id;
+          } catch (e) {
+            if (e.status === 404) return null;
+            throw e;
+          }
+
     - name: Create Release
+      if: steps.check_release.outputs.result == 'null'
       id: create_release
       uses: actions/create-release@v1
       env:
@@ -59,13 +78,41 @@ jobs:
           Please check CHANGELOG.md for detailed changes.
         draft: false
         prerelease: false
+
+    - name: Get Release
+      if: steps.check_release.outputs.result != 'null'
+      id: get_release
+      uses: actions/github-script@v6
+      with:
+        script: |
+          const release = await github.rest.repos.getReleaseByTag({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              tag: process.env.TAG
+            });
+          return release.data;
+        result-encoding: string
+
+    - name: Delete existing assets
+      if: steps.check_release.outputs.result != 'null'
+      uses: actions/github-script@v6
+      with:
+        script: |
+          const release = ${{ steps.get_release.outputs.result }};
+          for (const asset of release.assets) {
+            await github.rest.repos.deleteReleaseAsset({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              asset_id: asset.id
+            });
+          }
     
     - name: Upload Release Asset
       uses: actions/upload-release-asset@v1
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
-        upload_url: ${{ steps.create_release.outputs.upload_url }}
+        upload_url: ${{ steps.create_release.outputs.upload_url || fromJson(steps.get_release.outputs.result).upload_url }}
         asset_path: ./Edi.Wpf/bin/Release/net8.0-windows7.0/win-x64/publish/Edi.exe
         asset_name: EDI-${{ env.VERSION }}.exe
         asset_content_type: application/octet-stream

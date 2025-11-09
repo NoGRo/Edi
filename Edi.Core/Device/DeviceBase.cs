@@ -49,6 +49,7 @@ namespace Edi.Core.Device
                 {
                     _logger.LogInformation($"Device '{Name}': SelectedVariant changed from '{selectedVariant}' to '{value}'.");
                     selectedVariant = value;
+                    SetVariant();
                 }
             }
         }

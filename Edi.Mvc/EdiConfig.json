@@ -1,6 +1,6 @@
 {
   "Gallery": {
-    "GalleryPath": "D:\\pp\\playeables\\CH\\Noodledude Megamix",
+    "GalleryPath": "D:\\DownloadAx\\6_Rounds_Slutbeat_Compilation",
     "GenerateDefinitionFromChapters": false,
     "GenerateChaptersFromDefinition": false
   },
@@ -56,6 +56,12 @@
         "Max": 100
       },
       "AutoBlow [ibjckz1x0q91]": {
+        "Variant": "default",
+        "Channel": null,
+        "Min": 0,
+        "Max": 100
+      },
+      "The Handy [PiBnz]": {
         "Variant": "default",
         "Channel": null,
         "Min": 0,

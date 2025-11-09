@@ -12,8 +12,8 @@ jobs:
     steps:
     - uses: actions/checkout@v3
       with:
-        fetch-depth: 0 # Needed for version calculation
-    
+        fetch-depth: 0
+
     - name: Setup .NET
       uses: actions/setup-dotnet@v3
       with:
@@ -34,16 +34,7 @@ jobs:
     
     - name: Build WPF App
       run: |
-        dotnet publish Edi.Wpf/Edi.Wpf.csproj `
-          -c Release `
-          -r win-x64 `
-          -p:PublishSingleFile=true `
-          -p:SelfContained=true `
-          -p:IncludeNativeLibrariesForSelfExtract=true `
-          -p:EnableCompressionInSingleFile=true `
-          -p:Version=${{ env.VERSION }} `
-          -p:FileVersion=${{ env.VERSION }} `
-          -p:AssemblyVersion=${{ env.VERSION }}
+        dotnet publish Edi.Wpf/Edi.Wpf.csproj -c Release -r win-x64 -p:PublishSingleFile=true -p:SelfContained=true -p:IncludeNativeLibrariesForSelfExtract=true -p:EnableCompressionInSingleFile=true -p:Version=${{ env.VERSION }} -p:FileVersion=${{ env.VERSION }} -p:AssemblyVersion=${{ env.VERSION }}
 
     - name: Check Release
       id: check_release
@@ -56,49 +47,59 @@ jobs:
               repo: context.repo.repo,
               tag: process.env.TAG
             });
+            core.setOutput('exists', 'true');
+            core.setOutput('upload_url', release.data.upload_url);
             return release.data.id;
           } catch (e) {
-            if (e.status === 404) return null;
+            if (e.status === 404) {
+              core.setOutput('exists', 'false');
+              return null;
+            }
             throw e;
           }
 
     - name: Create Release
-      if: steps.check_release.outputs.result == 'null'
+      if: steps.check_release.outputs.exists != 'true'
       id: create_release
       uses: actions/create-release@v1
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
-        tag_name: ${{ github.ref }}
+        tag_name: ${{ env.TAG }}
         release_name: EDI Release ${{ env.VERSION }}
         body: |
           EDI Release ${{ env.VERSION }}
-     
+          
           ### Changes
           Please check CHANGELOG.md for detailed changes.
         draft: false
         prerelease: false
 
-    - name: Get Release
-      if: steps.check_release.outputs.result != 'null'
-      id: get_release
+    - name: Delete Existing Assets
+      if: steps.check_release.outputs.exists == 'true'
       uses: actions/github-script@v6
       with:
         script: |
           const release = await github.rest.repos.getReleaseByTag({
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            tag: process.env.TAG
+          });
+          
+          for (const asset of release.data.assets) {
+            await github.rest.repos.deleteReleaseAsset({
               owner: context.repo.owner,
               repo: context.repo.repo,
-              tag: process.env.TAG
+              asset_id: asset.id
             });
-          return release.data;
-        result-encoding: string
+          }
 
     - name: Upload Release Asset
       uses: actions/upload-release-asset@v1
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
-        upload_url: ${{ steps.create_release.outputs.upload_url || fromJson(steps.get_release.outputs.result).upload_url }}
+        upload_url: ${{ steps.check_release.outputs.exists == 'true' && steps.check_release.outputs.upload_url || steps.create_release.outputs.upload_url }}
         asset_path: ./Edi.Wpf/bin/Release/net8.0-windows7.0/win-x64/publish/Edi.exe
         asset_name: EDI-${{ env.VERSION }}.exe
         asset_content_type: application/octet-stream

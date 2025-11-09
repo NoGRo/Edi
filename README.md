@@ -231,4 +231,12 @@ Raw device commands like `vibrate` or `linear movement` are isolated inside the 
 
 This architecture makes the control layer entirely independent from the game itself. For example, one can add a full set of galleries in a `FullGalleries.mp3` file to support an eStim device without touching the integration or modifying any code.
 
-The same principle allows ad
+he same principle allows adding future devices (e.g., a brainwave stimulator) by simply preparing galleries and placing files in the folder—no code changes needed.
+
+EDI also solves common funscript playback issues like overly persistent strokes or inconsistent behavior across devices. Since devices all use the same unified player, improvements benefit all integrations automatically.
+
+Limitation: EDI cannot play dynamic content. Everything must be pre-scripted. However, this can be worked around by preparing multiple gallery variants with varying intensities, such as:
+
+* Lori_Attack-level-1
+* Lori_Attack-level-2
+* Lori_Attack-level-3

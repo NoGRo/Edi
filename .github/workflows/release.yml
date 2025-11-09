@@ -3,7 +3,7 @@ name: Build and Release
 on:
   push:
     tags:
-      - '*' # Trigger on version tags
+      - 'v*' # Trigger on version tags
 
 jobs:
   build:
@@ -26,8 +26,10 @@ jobs:
       id: get_version
       shell: pwsh
       run: |
-        $version = $env:GITHUB_REF -replace 'refs/tags/v', ''
-        echo "VERSION=$version" | Out-File -FilePath $env:GITHUB_ENV -Append
+        $tag = $env:GITHUB_REF.Replace('refs/tags/', '')
+        $version = $tag.TrimStart('v')
+        echo "VERSION=$version" >> $env:GITHUB_ENV
+        echo "Extracted version: $version"
     
     - name: Build WPF App
       run: |

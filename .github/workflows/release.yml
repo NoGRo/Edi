@@ -1,0 +1,69 @@
+name: Build and Release
+
+on:
+  push:
+    tags:
+      - '*' # Trigger on version tags
+
+jobs:
+  build:
+    runs-on: windows-latest
+    
+    steps:
+    - uses: actions/checkout@v3
+      with:
+        fetch-depth: 0 # Needed for version calculation
+    
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v3
+      with:
+        dotnet-version: '8.0.x'
+    
+    - name: Install dependencies
+      run: dotnet restore
+    
+    - name: Extract version from tag
+      id: get_version
+      shell: pwsh
+      run: |
+        $version = $env:GITHUB_REF -replace 'refs/tags/v', ''
+        echo "VERSION=$version" | Out-File -FilePath $env:GITHUB_ENV -Append
+    
+    - name: Build WPF App
+      run: |
+        dotnet publish Edi.Wpf/Edi.Wpf.csproj `
+          -c Release `
+          -r win-x64 `
+          -p:PublishSingleFile=true `
+          -p:SelfContained=true `
+          -p:IncludeNativeLibrariesForSelfExtract=true `
+          -p:EnableCompressionInSingleFile=true `
+          -p:Version=${{ env.VERSION }} `
+          -p:FileVersion=${{ env.VERSION }} `
+          -p:AssemblyVersion=${{ env.VERSION }}
+
+    - name: Create Release
+      id: create_release
+      uses: actions/create-release@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        tag_name: ${{ github.ref }}
+        release_name: EDI Release ${{ env.VERSION }}
+        body: |
+          EDI Release ${{ env.VERSION }}
+     
+          ### Changes
+          Please check CHANGELOG.md for detailed changes.
+        draft: false
+        prerelease: false
+    
+    - name: Upload Release Asset
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ steps.create_release.outputs.upload_url }}
+        asset_path: ./Edi.Wpf/bin/Release/net8.0-windows7.0/win-x64/publish/Edi.exe
+        asset_name: EDI-${{ env.VERSION }}.exe
+        asset_content_type: application/octet-stream

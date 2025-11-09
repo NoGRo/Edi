@@ -71,8 +71,8 @@ namespace Edi.Core.Controllers
 
         [HttpGet("Definitions")]
         [SwaggerOperation(Summary = "Gets the list of available gallery definitions.")]
-        public IEnumerable<DefinitionGallery> GetDefinitions()
-            => edi.Definitions.ToArray();
+        public IEnumerable<DefinitionResponseDto> GetDefinitions()
+            => edi.Definitions.Select(x=> new DefinitionResponseDto(x)).ToArray();
 
 
         [HttpGet("Channels")]
@@ -102,7 +102,7 @@ namespace Edi.Core.Controllers
 
         [HttpPost("Assets")]
         [SwaggerOperation(Summary = "Uploads multimedia files and updates the gallery definitions.")]
-        public async Task<ActionResult<IEnumerable<DefinitionGallery>>> CreateAssets([FromForm] List<IFormFile> files)
+        public async Task<ActionResult<IEnumerable<DefinitionResponseDto>>> CreateAssets([FromForm] List<IFormFile> files)
         {
             if (files == null || files.Count == 0)
             {
@@ -129,7 +129,7 @@ namespace Edi.Core.Controllers
 
             }
             await edi.Init(folderPath);
-            return Ok(edi.Definitions);
+            return Ok(edi.Definitions.Select(x=> new DefinitionResponseDto(x)));
         }
     }
 }

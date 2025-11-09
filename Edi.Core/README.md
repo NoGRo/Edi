@@ -1,12 +1,17 @@
 ﻿# **Easy Device Integration (EDI) for Videogames**
 
-Easy Device Integration (EDI) is a Windows application developed in C# that synchronizes game events with interactive sex toys. Its modular and simple architecture makes it a powerful, flexible, and easy-to-integrate tool for any game.
+Easy Device Integration (EDI) is a Windows application developed in C# that synchronizes game events with interactive sex toys. Running as a standalone program, it can be controlled through a REST API from any game. Its modular and simple architecture makes it a powerful, flexible, and easy-to-integrate tool for any game.
 
+EDI operates as an independent service that:
+- Runs as a Windows application separate from your game
+- Exposes a REST API for complete control of device playback and settings
+- Handles all device communication, funscripts and synchronization
+- Can be integrated with any game engine or framework that supports HTTP requests
 ---
 
 ### Why Use EDI?
 
-- Compatible with Buttplug.io, Lovense, OSR (including UDP support), XToys, eStim via mp3 file, Handy, AutoBlow, and more.
+- Compatible with Buttplug.io, Lovense, OSR (including UDP), eStim via mp3 file, Handy, AutoBlow, and more.
 - SOLID architecture decoupled from the game engine.
 - Simple HTTP API control (`Play`, `Stop`, `Pause`, etc.).
 - Expandable galleries synced to a single video.
@@ -49,8 +54,33 @@ Tags can be placed in any order and override default behavior.
 
 #### Gallery Variants
 
-- Variants can be defined in the filename (`enemy_attack2.intense.funscript`) or in the containing folder (`intense/enemy_attack2.funscript`).
-- Variants can also be defined per device (e.g., `enemy_attack2.vibrator.funscript`).
+Variants allow for different versions of the same gallery to accommodate different devices, connection types, or gameplay preferences:
+
+##### Device-Specific Variants
+- `vibrator`: Optimized for vibration-based devices
+- `linear`: For linear motion devices
+- `simple`: Basic motion patterns, lower resource usage
+- `detailed`: Complex patterns with fine-grained control
+
+##### Intensity or Body part Variants
+- `easy`: Gentler patterns for casual play
+- `hard`: More intense patterns for experienced users
+- `penis`: For devices targeting penile stimulation
+- `anal`: For devices targeting anal stimulation
+
+Variants can be defined in two ways:
+- In the filename: `enemy_attack2.intense.funscript`
+- In the containing folder: `intense/enemy_attack2.funscript`
+
+Multiple variants can be combined:
+- `enemy_attack2.anal-vibrator.funscript` → variant for buttplug vibration devices
+- `enemy_attack2.easy-lineal.funscript` → easy variant for Stroker
+
+This flexible variant system allows you to:
+- Optimize performance based on connection type
+- Balance detail vs response time
+- Provide different intensity levels for player preferences
+- Target specific body parts and device types
 
 #### Multi-Axis Support
 
@@ -183,8 +213,7 @@ Channels can be specified for any Playback endpoint in two ways:
 
 EDI includes a user-friendly GUI to manage essential functions easily.
 
-![image|690x401](upload://qn0Noj1rC5OaYBX2dkZ6lukiJoX.png)
-
+- Select Game by EdiConfig.json or Definitions.csv.
 - Select connected devices and assign variants.
 - Toggle active gallery types: Gallery, Filler, Reaction.
 - Adjust intensity with slider.

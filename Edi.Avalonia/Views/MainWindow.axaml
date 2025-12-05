@@ -34,7 +34,7 @@
                         </DataTemplate>
                     </DataGridTemplateColumn.CellTemplate>
                 </DataGridTemplateColumn>
-                <DataGridTextColumn Binding="{Binding IsReady, Converter={StaticResource BoolToReadyIconConverter}}"
+                <DataGridTextColumn Binding="{Binding IsReady, Converter={StaticResource BoolToReadyIconConverter}, Mode=OneWay}"
                   FontFamily="Segoe UI Emoji" FontSize="14" Header="Ready" />
                 <DataGridTemplateColumn Header="Channel">
                     <DataGridTemplateColumn.CellTemplate>
@@ -53,11 +53,11 @@
           HorizontalAlignment="Left" VerticalAlignment="Top" Content="Filler"
           IsChecked="{Binding Config.Filler, Mode=TwoWay}"
           RenderTransformOrigin="-0.063,-0.829" />
-        <CheckBox x:Name="chkGallery" Grid.Column="1" Margin="5,11,0,0"
+        <CheckBox x:Name="chkGallery" Grid.Column="1" Margin="5,31,0,0"
           HorizontalAlignment="Left" VerticalAlignment="Top" Content="Gallery"
           IsChecked="{Binding Config.Gallery, Mode=TwoWay}"
           RenderTransformOrigin="-0.063,-0.829" />
-        <CheckBox x:Name="chkReaction" Grid.Column="1" Margin="5,11,0,0"
+        <CheckBox x:Name="chkReaction" Grid.Column="1" Margin="5,51,0,0"
           HorizontalAlignment="Left" VerticalAlignment="Top" Content="Reaction"
           IsChecked="{Binding Config.Reactive, Mode=TwoWay}"
           RenderTransformOrigin="-0.063,-0.829" />

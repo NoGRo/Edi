@@ -107,7 +107,7 @@ public partial class MainWindow : Window
         // }
         viewModel.AudioDevices = audios;
         LoadOsrPorts();
-        DevicesGrid.ItemsSource = edi.Devices;
+        viewModel.Devices = edi.Devices;
     }
 
     private void LoadOsrPorts()
@@ -237,19 +237,13 @@ public partial class MainWindow : Window
     private async void DeviceCollector_OnLoadDeviceAsync(IDevice device, List<IDevice> devices)
     {
         await Task.Delay(500);
-        await Dispatcher.UIThread.InvokeAsync(() =>
-        {
-            DevicesGrid.ItemsSource = edi.Devices;
-        });
+        viewModel.Devices = edi.Devices;
     }
 
     private async void DeviceCollector_OnUnloadDevice(IDevice device, List<IDevice> devices)
     {
         await Task.Delay(1000);
-        await Dispatcher.UIThread.InvokeAsync(() =>
-        {
-            DevicesGrid.ItemsSource = edi.Devices;
-        });
+        viewModel.Devices = edi.Devices;
     }
 
     private void Edi_OnChangeStatus(string message)

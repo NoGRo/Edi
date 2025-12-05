@@ -38,6 +38,11 @@ public partial class MainWindow : Window
     {
         InitializeComponent();
 
+        if (Design.IsDesignMode)
+        {
+            return;
+        }
+
         config = edi.ConfigurationManager.Get<EdiConfig>();
         gamesConfig = edi.ConfigurationManager.Get<GamesConfig>();
         var galleries = ReloadGalleries();
@@ -143,6 +148,14 @@ public partial class MainWindow : Window
         });
     }
 
+    private async Task SelectGameAsync(GameInfo game)
+    {
+        GamesComboBox.SelectionChanged -= GamesComboBox_OnSelectionChanged;
+        await edi.SelectGame(game);
+        viewModel.Galleries = ReloadGalleries();
+        GamesComboBox.SelectionChanged += GamesComboBox_OnSelectionChanged;
+    }
+
     private List<Core.Gallery.Definition.DefinitionGallery> ReloadGalleries()
     {
         var galleries = edi.Definitions.Where(x => x.Type != "filler").ToList();
@@ -161,7 +174,7 @@ public partial class MainWindow : Window
         }
     }
 
-    private void BtnOpenOutput_OnClick(object? sender, RoutedEventArgs e)
+    private void BtnOpenConfigDir_OnClick(object? sender, RoutedEventArgs e)
     {
         GetTopLevel(this)!.Launcher.LaunchDirectoryInfoAsync(new DirectoryInfo(Core.Edi.OutputDir));
     }
@@ -256,14 +269,10 @@ public partial class MainWindow : Window
 
     private async void GamesComboBox_OnSelectionChanged(object? sender, SelectionChangedEventArgs e)
     {
-        await Dispatcher.UIThread.Invoke(async () =>
+        if (GamesComboBox.SelectedItem is GameInfo selectedGame)
         {
-            if (GamesComboBox.SelectedItem is GameInfo selectedGame)
-            {
-                await edi.SelectGame(selectedGame);
-                viewModel.Galleries = ReloadGalleries();
-            }
-        });
+            await SelectGameAsync(selectedGame);
+        }
     }
 
     private async void MainWindow_Closing(object? sender, System.ComponentModel.CancelEventArgs e)
@@ -284,7 +293,7 @@ public partial class MainWindow : Window
         });
     }
 
-    private async void ReloadButton_OnClick(object? sender, RoutedEventArgs e)
+    private async void BtnSelectGame_OnClick(object? sender, RoutedEventArgs e)
     {
         var selectedConfig = await GetTopLevel(this)!.StorageProvider.OpenFilePickerAsync(
             new FilePickerOpenOptions
@@ -302,14 +311,14 @@ public partial class MainWindow : Window
             return;
         }
 
-        var configPath = selectedConfig[0].Path.AbsolutePath;
-        var game = new GameInfo(configPath, configPath);
-        if (gamesConfig.GamesInfo.All(x => x.Path != configPath))
+        var configPath = new FileInfo(selectedConfig[0].TryGetLocalPath()!);
+        var game = new GameInfo(configPath.DirectoryName, configPath.FullName);
+        if (gamesConfig.GamesInfo.All(x => x.Path != configPath.FullName))
         {
             gamesConfig.GamesInfo.Add(game);
         }
 
-        await edi.SelectGame(game);
+        await SelectGameAsync(game);
     }
 
     private async void SliderIntensity_OnValueChanged(object? sender, RangeBaseValueChangedEventArgs e)

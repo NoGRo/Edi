@@ -33,8 +33,12 @@
   </ItemGroup>
 
   <ItemGroup>
-    <None Remove="EdiConfig.json" />
-    <Content Include="EdiConfig.json" />
+    <Content Include="EdiConfig.json">
+      <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+    </Content>
+    <Content Include="certificate.pfx">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </Content>
   </ItemGroup>
 
   <ItemGroup>

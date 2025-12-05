@@ -11,6 +11,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Edi.Mvc", "Edi.Mvc\Edi.Mvc.
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Edi.Consola", "Edi.Console\Edi.Consola.csproj", "{7610E0B8-378E-4DD9-9B30-7AE3951857B2}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Edi.Avalonia", "Edi.Avalonia\Edi.Avalonia.csproj", "{4CC3FD9D-CC82-4388-B67E-1367A1CDBE84}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -33,6 +35,10 @@ Global
 		{7610E0B8-378E-4DD9-9B30-7AE3951857B2}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{7610E0B8-378E-4DD9-9B30-7AE3951857B2}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{7610E0B8-378E-4DD9-9B30-7AE3951857B2}.Release|Any CPU.Build.0 = Release|Any CPU
+		{4CC3FD9D-CC82-4388-B67E-1367A1CDBE84}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{4CC3FD9D-CC82-4388-B67E-1367A1CDBE84}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{4CC3FD9D-CC82-4388-B67E-1367A1CDBE84}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{4CC3FD9D-CC82-4388-B67E-1367A1CDBE84}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

@@ -3,7 +3,6 @@ using Edi.Core.Device;
 using Edi.Core.Device.Interfaces;
 using Edi.Core.Gallery.Funscript;
 using Microsoft.Extensions.Logging;
-using NAudio.CoreAudioApi;
 using Newtonsoft.Json;
 using PropertyChanged;
 using System;
@@ -52,8 +51,8 @@ namespace Edi.Core.Device.Simulator
             _logger = logger;
             Name = "Output Recorder Device";
             _actions = new List<FunScriptAction>();
-            // Inicializa metadata con valores útiles
-         
+            // Inicializa metadata con valores ï¿½tiles
+
             // Asegura que la carpeta de salida exista antes de usarla
             var outputPath = Path.Combine(Edi.OutputDir, "Recordings");
             if (!Directory.Exists(outputPath))
@@ -89,7 +88,7 @@ namespace Edi.Core.Device.Simulator
                 addAction(new() { at = elaspse, pos = last.pos });
                 wasStop = false;
             }
-            
+
 
 
             int currentCmdIndex = Math.Max(0, cmds.FindIndex(x => x.AbsoluteTime > CurrentTime));
@@ -137,7 +136,7 @@ namespace Edi.Core.Device.Simulator
         {
             lock (_lock)
             {
-                
+
                 if (last != null && last.at == action.at && last.pos == action.pos)
                 {
                     return;
@@ -153,10 +152,10 @@ namespace Edi.Core.Device.Simulator
 
 
             _logger.LogInformation($"Stopping gallery playback for Recorder: {Name}");
-            
+
             await Task.CompletedTask;
         }
-            
+
 
         private void FlushToDisk()
         {
@@ -192,7 +191,7 @@ namespace Edi.Core.Device.Simulator
                 }
                 else if (_lastWritePosition == 0)
                 {
-                    // Solo la primera vez: leer el archivo y buscar el último elemento con regex
+                    // Solo la primera vez: leer el archivo y buscar el ï¿½ltimo elemento con regex
                     string content = File.ReadAllText(_outputFilePath);
                     var match = Regex.Match(content, @"actions""\s*:\s*\[(.*)\](.*)}", RegexOptions.Singleline);
                     if (match.Success)
@@ -211,7 +210,7 @@ namespace Edi.Core.Device.Simulator
                     }
                 }
 
-                // Escribir solo los nuevos actions en la posición guardada
+                // Escribir solo los nuevos actions en la posiciï¿½n guardada
                 using (var fs = new FileStream(_outputFilePath, FileMode.Open, FileAccess.ReadWrite))
                 {
                     fs.Position = _lastWritePosition;
@@ -221,7 +220,7 @@ namespace Edi.Core.Device.Simulator
                         // Detectar si ya hay al menos un elemento en el array
                         if (_lastWritePosition > 0)
                         {
-                            // Leer el carácter anterior para ver si es '[' o ',')
+                            // Leer el carï¿½cter anterior para ver si es '[' o ',')
                             fs.Position = _lastWritePosition - 1;
                             int prevChar = fs.ReadByte();
                             if (prevChar != '[') // Si no es el inicio del array, hay elementos previos

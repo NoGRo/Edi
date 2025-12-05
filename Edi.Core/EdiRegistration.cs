@@ -22,15 +22,20 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using SoundFlow.Abstracts;
+using SoundFlow.Backends.MiniAudio;
+using SoundFlow.Backends.MiniAudio.Enums;
 
 namespace Edi.Core
 {
-    public static class EdiRegistration 
+    public static class EdiRegistration
     {
         public static void AddEdi(this IServiceCollection services, string configPath)
         {
 
             services.AddSingleton<ConfigurationManager>(x => new(configPath));
+
+            services.AddSingleton<AudioEngine>(x => new MiniAudioEngine([MiniAudioBackend.WinMm, MiniAudioBackend.PulseAudio]));
 
             services.AddSingleton<DefinitionRepository>(); ;
             services.AddSingleton<FunscriptRepository>();

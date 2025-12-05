@@ -22,23 +22,27 @@ namespace Edi.Core.Gallery.Definition
         public GalleryConfig Config { get; set; }
         private Dictionary<string, DefinitionGallery> dicDefinitions { get; set; } = new Dictionary<string, DefinitionGallery>(StringComparer.OrdinalIgnoreCase);
 
-        public IEnumerable<string> Accept => new[] { "Definitions.csv", "Definitions_auto.csv" };
+        public IEnumerable<string> Accept => ["Definitions.csv", "definitions.csv", "Definitions_auto.csv"];
 
         public bool IsInitialized {  get; set; }
 
         public async Task Init(string path)
         {
-            path = path ?? Config.GalleryPath;
-            var GalleryPath = $"{path}\\";
+            path ??= Config.GalleryPath;
 
-            if (!Directory.Exists($"{GalleryPath}"))
+            if (!Directory.Exists(path))
                 return;
 
-            var csvFile = new FileInfo($"{GalleryPath}Definitions.csv");
+            var csvFile = new FileInfo(Path.Combine(path, "Definitions.csv"));
+            // Extra check for case-sensitive linux, older versions created definitions.csv
+            if (!csvFile.Exists)
+            {
+                csvFile = new FileInfo(Path.Combine(path, "definitions.csv"));
+            }
 
             if (!csvFile.Exists) {
-                GenerateDefinitions(GalleryPath);
-                csvFile = new FileInfo($"{GalleryPath}Definitions_auto.csv");
+                GenerateDefinitions(path);
+                csvFile = new FileInfo(Path.Combine(path, "Definitions_auto.csv"));
                 if (!csvFile.Exists)
                     return;
             }
@@ -85,10 +89,10 @@ namespace Edi.Core.Gallery.Definition
             }
             IsInitialized = true;
         }
-        
-        private void GenerateDefinitions(string GalleryPath)
-        { 
-            var dir = new DirectoryInfo(GalleryPath);
+
+        private void GenerateDefinitions(string galleryPath)
+        {
+            var dir = new DirectoryInfo(galleryPath);
             var funscriptsFiles = dir.EnumerateFiles("*.funscript").ToList();
 
             funscriptsFiles.AddRange(dir.EnumerateDirectories().SelectMany(d => d.EnumerateFiles("*.funscript")));
@@ -101,8 +105,8 @@ namespace Edi.Core.Gallery.Definition
 
 
             var newDefinitionFile = new List<DefinitionWriteDto>();
-                
-            foreach (var file in funscriptsFiles)  
+
+            foreach (var file in funscriptsFiles)
             {
 
                 Match matchFile = DiscoverExtension.variantRegex.Match(Path.GetFileNameWithoutExtension(file.FullName));
@@ -114,7 +118,7 @@ namespace Edi.Core.Gallery.Definition
                 if (Config.GenerateDefinitionFromChapters && funscript?.metadata?.chapters?.Any() == true )
                 {
                     newDefinitionFile.AddRange(
-                        funscript.metadata.chapters.Select(x => 
+                        funscript.metadata.chapters.Select(x =>
                         {
 
                             var mathChapter = DiscoverExtension.loopRegex.Match(Path.GetFileNameWithoutExtension(x.name));
@@ -130,7 +134,7 @@ namespace Edi.Core.Gallery.Definition
                                 EndTime = x.endTime,
                             };
                         }).ToArray());
-                    
+
                 }
                 else if(funscript?.actions.Any() == true)
                 {
@@ -148,18 +152,16 @@ namespace Edi.Core.Gallery.Definition
             //Detect Variants
             newDefinitionFile = newDefinitionFile.DistinctBy(x => x.Name).ToList();
 
-            using (var csv = new CsvWriter(new FileInfo($"{GalleryPath}Definitions_auto.csv").CreateText(), CultureInfo.InvariantCulture))
+            using (var csv = new CsvWriter(new FileInfo(Path.Combine(galleryPath, "Definitions_auto.csv")).CreateText(), CultureInfo.InvariantCulture))
             {
                 csv.WriteRecords(newDefinitionFile);
             }
-
-
-
         }
+
         private bool parseTimeField(string field, out long millis)
         {
             millis = 0;
-            if (string.IsNullOrEmpty(field)) 
+            if (string.IsNullOrEmpty(field))
                 return false;
             try
             {

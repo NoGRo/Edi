@@ -1,0 +1,159 @@
+<Window x:Class="Edi.Avalonia.Views.MainWindow"
+  xmlns="https://github.com/avaloniaui"
+  xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+  xmlns:converters="clr-namespace:Edi.Avalonia.Converters"
+  xmlns:views="clr-namespace:Edi.Avalonia.Views"
+  Title="Edi Launcher"
+  Width="667"
+  Height="345"
+  x:DataType="views:MainWindowViewModel"
+  CanResize="False">
+
+    <Window.Resources>
+        <converters:BoolToReadyIconConverter x:Key="BoolToReadyIconConverter" />
+    </Window.Resources>
+
+    <Grid Margin="5,0" ColumnDefinitions="16*,19*" RowDefinitions="*,Auto">
+        <Grid Grid.Row="0" Grid.Column="0" Margin="0,0,0,0"
+          RowDefinitions="Auto,Auto,Auto,Auto,*,Auto">
+            <Grid Grid.Column="0" Margin="0,15,0,0" ColumnDefinitions="Auto,*"
+              RowDefinitions="Auto,Auto,Auto,Auto">
+                <Label Grid.Row="0" Grid.Column="0" HorizontalAlignment="Left"
+                  VerticalAlignment="Center" Content="Devices Keys:" />
+                <TextBox Grid.Row="0" Grid.Column="1" Width="210"
+                  Text="{Binding HandyConfig.Key}"
+                  TextWrapping="Wrap" ToolTip.Tip="Handy, AutoBlow" />
+                <Label Grid.Row="1" Grid.Column="0" HorizontalAlignment="Left"
+                  VerticalAlignment="Center" Content="Intiface Url:" />
+                <TextBox Grid.Row="1" Grid.Column="1" Width="210"
+                  Text="{Binding ButtplugConfig.Url}"
+                  TextWrapping="Wrap" ToolTip.Tip="Buttplug Url" />
+                <Label Grid.Row="2" Grid.Column="0" HorizontalAlignment="Left"
+                  VerticalAlignment="Center" Content="EStim Audio:" />
+                <ComboBox x:Name="AudioDevicesComboBox" Grid.Row="2" Grid.Column="1"
+                  Width="210"
+                  DisplayMemberBinding="{Binding Name}"
+                  IsEnabled="True" IsTextSearchEnabled="True"
+                  ItemsSource="{Binding AudioDevices}"
+                  SelectedValue="{Binding EStimConfig.DeviceId}"
+                  SelectedValueBinding="{Binding Id}"
+                  ToolTip.Tip="To use E-Stim, you must convert your Funscript files to MP3 format." />
+                <Label Grid.Row="3" Grid.Column="0" HorizontalAlignment="Left"
+                  VerticalAlignment="Center" Content="OSR Port:" />
+                <ComboBox x:Name="ComPortsComboBox" Grid.Row="3" Grid.Column="1"
+                  Width="210"
+                  DisplayMemberBinding="{Binding Name}"
+                  IsEnabled="True" IsTextSearchEnabled="True"
+                  ItemsSource="{Binding ComPorts}"
+                  SelectedValue="{Binding OsrConfig.COMPort}"
+                  SelectedValueBinding="{Binding Value}" />
+            </Grid>
+
+            <Grid Grid.Row="1" Margin="0,10,10,0" ColumnDefinitions="*,*">
+                <Button x:Name="BtnSelectGame" Grid.Column="0" HorizontalAlignment="Left"
+                  VerticalAlignment="Top" Click="BtnSelectGame_OnClick" Content="Select Game" />
+                <Button x:Name="BtnOpenConfigDir" Grid.Column="1" HorizontalAlignment="Right"
+                  VerticalAlignment="Top" Click="BtnOpenConfigDir_OnClick" ToolTip.Tip="Open Config Directory">
+                    <TextBlock FontSize="13" Text="🛠" />
+                </Button>
+            </Grid>
+
+            <ComboBox x:Name="GamesComboBox" Grid.Row="2" Width="290"
+              Margin="0,5" HorizontalAlignment="Left" VerticalAlignment="Top"
+              DisplayMemberBinding="{Binding Name}"
+              ItemsSource="{Binding GamesConfig.GamesInfo}"
+              SelectedItem="{Binding GamesConfig.SelectedGameinfo, Mode=TwoWay}"
+              SelectionChanged="GamesComboBox_OnSelectionChanged" />
+
+            <HyperlinkButton Grid.Row="3" HorizontalAlignment="Left" VerticalAlignment="Bottom"
+              Click="BtnSwagger_OnClick" Content="http://localhost:5000/swagger/index.html" />
+
+            <StackPanel Grid.Row="4" VerticalAlignment="Bottom" Orientation="Horizontal">
+                <Label HorizontalAlignment="Left" VerticalAlignment="Center" Content="Intensity:" />
+                <Slider x:Name="SliderIntensity" Width="90" HorizontalAlignment="Left"
+                  VerticalAlignment="Center" Maximum="100" ValueChanged="SliderIntensity_OnValueChanged"
+                  Value="100" />
+            </StackPanel>
+
+            <StackPanel Grid.Row="5" Orientation="Horizontal">
+                <ComboBox x:Name="CmbGallery" Width="144" HorizontalAlignment="Left"
+                  VerticalAlignment="Center"
+                  DisplayMemberBinding="{Binding Name}"
+                  ItemsSource="{Binding Galleries}" />
+
+                <Button x:Name="BtnPlay" Height="28" HorizontalAlignment="Left"
+                  VerticalAlignment="Center" Click="BtnPlay_OnClick" ToolTip.Tip="Play">
+                    <TextBlock FontSize="14" Text="▶" />
+                </Button>
+                <Button x:Name="BtnStop" Height="28" HorizontalAlignment="Left"
+                  VerticalAlignment="Center" Click="BtnStop_OnClick" ToolTip.Tip="Stop">
+                    <TextBlock FontSize="14" Text="■" />
+                </Button>
+                <Button x:Name="BtnPause" Height="28" HorizontalAlignment="Left"
+                  VerticalAlignment="Center" Click="BtnPause_OnClick" ToolTip.Tip="Pause">
+                    <TextBlock FontSize="14" Text="❚❚" />
+                </Button>
+                <Button x:Name="BtnResume" Height="28" HorizontalAlignment="Left"
+                  VerticalAlignment="Center" Click="BtnResume_OnClick" ToolTip.Tip="Resume">
+                    <TextBlock FontSize="13" Text="►❚❚" />
+                </Button>
+                <Button x:Name="BtnSimulator" Height="28" HorizontalAlignment="Left"
+                  VerticalAlignment="Center" Click="BtnSimulator_OnClick" ToolTip.Tip="Action Preview">
+                    <TextBlock FontSize="13" Text="👁️" />
+                </Button>
+            </StackPanel>
+        </Grid>
+
+        <Grid Grid.Row="0" Grid.Column="1" Margin="0,15,0,0"
+          RowDefinitions="Auto,Auto,Auto,Auto,*">
+            <CheckBox x:Name="chkFiller" Grid.Row="0" Margin="0,0,0,2"
+              HorizontalAlignment="Left" Content="Filler"
+              IsChecked="{Binding Config.Filler, Mode=TwoWay}" />
+            <CheckBox x:Name="chkGallery" Grid.Row="1" Margin="0,2"
+              HorizontalAlignment="Left" Content="Gallery"
+              IsChecked="{Binding Config.Gallery, Mode=TwoWay}" />
+            <CheckBox x:Name="chkReaction" Grid.Row="2" Margin="0,2,0,0"
+              HorizontalAlignment="Left" Content="Reaction"
+              IsChecked="{Binding Config.Reactive, Mode=TwoWay}" />
+
+            <Label Grid.Row="3" HorizontalAlignment="Left" VerticalAlignment="Center"
+              Content="Devices:" />
+            <Button x:Name="ReconnectButton" Grid.Row="3" HorizontalAlignment="Right"
+              VerticalAlignment="Top" Click="ReconnectButton_OnClick" Content="Reconnect" />
+
+            <DataGrid x:Name="DevicesGrid" Grid.Row="4" Margin="0,10,0,0"
+              HorizontalAlignment="Stretch" AutoGenerateColumns="False"
+              ItemsSource="{Binding Devices}">
+                <DataGrid.Columns>
+                    <DataGridTextColumn Binding="{Binding Name}" Header="Name" />
+                    <DataGridTemplateColumn Header="Selected Variant">
+                        <DataGridTemplateColumn.CellTemplate>
+                            <DataTemplate>
+                                <ComboBox x:Name="Variants"
+                                  ItemsSource="{Binding Variants}"
+                                  SelectedItem="{Binding SelectedVariant, Mode=TwoWay}"
+                                  SelectionChanged="Variants_OnSelectionChanged" />
+                            </DataTemplate>
+                        </DataGridTemplateColumn.CellTemplate>
+                    </DataGridTemplateColumn>
+                    <DataGridTextColumn Binding="{Binding IsReady, Converter={StaticResource BoolToReadyIconConverter}, Mode=OneWay}"
+                      FontFamily="Segoe UI Emoji" FontSize="14" Header="Ready" />
+                    <DataGridTemplateColumn Header="Channel">
+                        <DataGridTemplateColumn.CellTemplate>
+                            <DataTemplate>
+                                <ComboBox x:Name="Channels"
+                                  ItemsSource="{Binding $parent[Window].((views:MainWindowViewModel)DataContext).Channels}"
+                                  SelectedValue="{Binding Channel, Mode=TwoWay}"
+                                  SelectionChanged="Channels_OnSelectionChanged" />
+                            </DataTemplate>
+                        </DataGridTemplateColumn.CellTemplate>
+                    </DataGridTemplateColumn>
+                </DataGrid.Columns>
+            </DataGrid>
+        </Grid>
+
+        <Label x:Name="LblStatus" Grid.Row="1" Grid.Column="0"
+          Grid.ColumnSpan="2" Margin="0,0,0,10" HorizontalAlignment="Left"
+          VerticalAlignment="Bottom" Content="Status:" />
+    </Grid>
+</Window>

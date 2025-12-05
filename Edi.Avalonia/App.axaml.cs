@@ -2,6 +2,7 @@ using System;
 using Avalonia;
 using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Markup.Xaml;
+using Edi.Avalonia.Views;
 using Edi.Core;
 
 namespace Edi.Avalonia;
@@ -11,7 +12,7 @@ public partial class App : Application
     public static IEdi Edi { get; private set; } = null!;
     public static IServiceProvider ServiceProvider { get; private set; } = null!;
 
-    public App(IServiceProvider serviceProvider)
+    public App(IEdi edi, IServiceProvider serviceProvider)
     {
         Edi = edi;
         ServiceProvider = serviceProvider;

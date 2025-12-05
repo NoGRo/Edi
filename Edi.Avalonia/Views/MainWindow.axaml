@@ -1,0 +1,166 @@
+<Window x:Class="Edi.Avalonia.Views.MainWindow"
+  xmlns="https://github.com/avaloniaui"
+  xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+  xmlns:converters="clr-namespace:Edi.Avalonia.Converters"
+  xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+  xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+  xmlns:views="clr-namespace:Edi.Avalonia.Views"
+  Title="Edi Launcher"
+  Width="667"
+  Height="345"
+  d:DesignHeight="450"
+  d:DesignWidth="800"
+  x:DataType="views:MainWindowViewModel"
+  CanResize="False"
+  mc:Ignorable="d">
+
+    <Window.Resources>
+        <converters:BoolToReadyIconConverter x:Key="BoolToReadyIconConverter" />
+    </Window.Resources>
+
+    <Grid Margin="0,0,0,-16" ColumnDefinitions="16*,19*">
+        <DataGrid x:Name="DevicesGrid" Grid.Column="1" Width="339"
+          Margin="0,97,0,56" HorizontalAlignment="Center" AutoGenerateColumns="False"
+          ItemsSource="{Binding Devices}">
+            <DataGrid.Columns>
+                <DataGridTextColumn Binding="{Binding Name}" Header="Name" />
+                <DataGridTemplateColumn Header="Selected Variant">
+                    <DataGridTemplateColumn.CellTemplate>
+                        <DataTemplate>
+                            <ComboBox x:Name="Variants"
+                              ItemsSource="{Binding Variants}"
+                              SelectedItem="{Binding SelectedVariant, Mode=TwoWay}"
+                              SelectionChanged="Variants_OnSelectionChanged" />
+                        </DataTemplate>
+                    </DataGridTemplateColumn.CellTemplate>
+                </DataGridTemplateColumn>
+                <DataGridTextColumn Binding="{Binding IsReady, Converter={StaticResource BoolToReadyIconConverter}}"
+                  FontFamily="Segoe UI Emoji" FontSize="14" Header="Ready" />
+                <DataGridTemplateColumn Header="Channel">
+                    <DataGridTemplateColumn.CellTemplate>
+                        <DataTemplate>
+                            <ComboBox x:Name="Channels"
+                              ItemsSource="{Binding $parent[Window].((views:MainWindowViewModel)DataContext).Channels}"
+                              SelectedValue="{Binding Channel, Mode=TwoWay}"
+                              SelectionChanged="Channels_OnSelectionChanged" />
+                        </DataTemplate>
+                    </DataGridTemplateColumn.CellTemplate>
+                </DataGridTemplateColumn>
+            </DataGrid.Columns>
+        </DataGrid>
+
+        <CheckBox x:Name="chkFiller" Grid.Column="1" Margin="5,11,0,0"
+          HorizontalAlignment="Left" VerticalAlignment="Top" Content="Filler"
+          IsChecked="{Binding Config.Filler, Mode=TwoWay}"
+          RenderTransformOrigin="-0.063,-0.829" />
+        <CheckBox x:Name="chkGallery" Grid.Column="1" Margin="5,11,0,0"
+          HorizontalAlignment="Left" VerticalAlignment="Top" Content="Gallery"
+          IsChecked="{Binding Config.Gallery, Mode=TwoWay}"
+          RenderTransformOrigin="-0.063,-0.829" />
+        <CheckBox x:Name="chkReaction" Grid.Column="1" Margin="5,11,0,0"
+          HorizontalAlignment="Left" VerticalAlignment="Top" Content="Reaction"
+          IsChecked="{Binding Config.Reactive, Mode=TwoWay}"
+          RenderTransformOrigin="-0.063,-0.829" />
+
+        <Label Margin="5,15,0,0" HorizontalAlignment="Left" VerticalAlignment="Top"
+          Content="Devices Keys:" />
+        <TextBox Width="210" Margin="84,19,0,0" HorizontalAlignment="Left"
+          VerticalAlignment="Top"
+          Text="{Binding HandyConfig.Key}"
+          TextWrapping="Wrap" ToolTip.Tip="Handy, AutoBlow" />
+        <Label Margin="5,41,0,0" HorizontalAlignment="Left" VerticalAlignment="Top"
+          Content="Intiface Url:" />
+        <TextBox Width="210" Margin="84,45,0,0" HorizontalAlignment="Left"
+          VerticalAlignment="Top"
+          Text="{Binding ButtplugConfig.Url}"
+          TextWrapping="Wrap" ToolTip.Tip="Buttplug Url" />
+        <Label Margin="5,67,0,0" HorizontalAlignment="Left" VerticalAlignment="Top"
+          Content="EStim Audio:" />
+        <ComboBox x:Name="AudioDevicesComboBox" Width="210" Margin="84,71,0,0"
+          HorizontalAlignment="Left" VerticalAlignment="Top"
+          DisplayMemberBinding="{Binding Name}"
+          IsEnabled="True" IsTextSearchEnabled="True"
+          ItemsSource="{Binding AudioDevices}"
+          SelectedValue="{Binding EStimConfig.DeviceId}"
+          SelectedValueBinding="{Binding Id}"
+          ToolTip.Tip="To use E-Stim, you must convert your Funscript files to MP3 format." />
+        <Label Margin="5,95,0,0" HorizontalAlignment="Left" VerticalAlignment="Top"
+          Content="OSR Port:" />
+        <ComboBox x:Name="ComPortsComboBox" Width="210" Margin="84,99,0,0"
+          HorizontalAlignment="Left" VerticalAlignment="Top"
+          DisplayMemberBinding="{Binding Name}"
+          IsEnabled="True" IsTextSearchEnabled="True"
+          ItemsSource="{Binding ComPorts}"
+          SelectedValue="{Binding OsrConfig.COMPort}"
+          SelectedValueBinding="{Binding Value}" />
+
+        <Label Grid.Column="1" Width="200" Margin="5,66,0,0"
+          HorizontalAlignment="Left" VerticalAlignment="Top" Content="Devices:" />
+        <HyperlinkButton Grid.Column="0" Width="230" Margin="5,0,0,107"
+          HorizontalAlignment="Left" VerticalAlignment="Bottom" Click="BtnSwagger_OnClick"
+          Content="http://localhost:5000/swagger/index.html" />
+        <Label x:Name="LblStatus" Grid.Column="0" Grid.ColumnSpan="2"
+          Width="652" Height="26" Margin="10,0,0,25"
+          HorizontalAlignment="Left" VerticalAlignment="Bottom" Content="Status:" />
+
+        <Button x:Name="ReconnectButton" Grid.Column="1" Width="72"
+          Height="22" Margin="278,70,0,0" HorizontalAlignment="Left"
+          VerticalAlignment="Top" Click="ReconnectButton_OnClick" Content="Reconnect"
+          RenderTransformOrigin="5.083,-1.983" />
+        <Button x:Name="ReloadButton" Width="103" Height="22"
+          Margin="10,142,0,0" HorizontalAlignment="Left" VerticalAlignment="Top"
+          Click="ReloadButton_OnClick" Content="Select Game" />
+        <ComboBox x:Name="GamesComboBox" Width="287" Height="22"
+          Margin="10,173,0,0" HorizontalAlignment="Left" VerticalAlignment="Top"
+          DisplayMemberBinding="{Binding Name}"
+          ItemsSource="{Binding GamesConfig.GamesInfo}"
+          SelectedItem="{Binding GamesConfig.SelectedGameinfo, Mode=TwoWay}"
+          SelectedValueBinding="{Binding Path}"
+          SelectionChanged="GamesComboBox_OnSelectionChanged" />
+
+        <Label Margin="4,0,0,81" HorizontalAlignment="Left" VerticalAlignment="Bottom"
+          Content="Intensity:" />
+        <Slider x:Name="SliderIntensity" Width="90" Margin="62,0,0,83"
+          HorizontalAlignment="Left" VerticalAlignment="Bottom" Maximum="100"
+          ValueChanged="SliderIntensity_OnValueChanged" Value="100" />
+
+        <ComboBox x:Name="CmbGallery" Grid.Column="0" Width="144"
+          Height="22" Margin="10,0,0,56" HorizontalAlignment="Left"
+          VerticalAlignment="Bottom"
+          DisplayMemberBinding="{Binding Name}"
+          ItemsSource="{Binding Galleries}" />
+
+        <Button x:Name="BtnPlay" Grid.Column="0" Width="23"
+          Height="22" Margin="159,0,0,57" HorizontalAlignment="Left"
+          VerticalAlignment="Bottom" Click="BtnPlay_OnClick" ToolTip.Tip="Play">
+            <TextBlock FontSize="14" Text="▶" />
+        </Button>
+        <Button x:Name="BtnStop" Grid.Column="0" Width="23"
+          Height="22" Margin="187,0,0,57" HorizontalAlignment="Left"
+          VerticalAlignment="Bottom" Click="BtnStop_OnClick" ToolTip.Tip="Stop">
+            <TextBlock FontSize="14" Text="■" />
+        </Button>
+        <Button x:Name="BtnPause" Grid.Column="0" Width="23"
+          Height="22" Margin="215,0,0,57" HorizontalAlignment="Left"
+          VerticalAlignment="Bottom" Click="BtnPause_OnClick" ToolTip.Tip="Pause">
+            <TextBlock FontSize="14" Text="❚❚" />
+        </Button>
+        <Button x:Name="BtnResume" Grid.Column="0" Width="23"
+          Height="22" Margin="243,0,0,57" HorizontalAlignment="Left"
+          VerticalAlignment="Bottom" Click="BtnResume_OnClick" ToolTip.Tip="Resume">
+            <TextBlock Width="17" Height="22" FontSize="14"
+              Text="►❚❚" />
+        </Button>
+        <Button x:Name="BtnSimulator" Grid.Column="0" Width="23"
+          Height="22" Margin="271,0,0,57" HorizontalAlignment="Left"
+          VerticalAlignment="Bottom" Click="BtnSimulator_OnClick" ToolTip.Tip="Action Preview">
+            <TextBlock Width="17" Height="22" FontSize="13"
+              Text="👁️" />
+        </Button>
+        <Button x:Name="BtnOpenOutput" Grid.Column="0" Width="23"
+          Height="22" Margin="271,142,0,57" HorizontalAlignment="Left"
+          VerticalAlignment="Bottom" Click="BtnOpenOutput_OnClick" ToolTip.Tip="Open Config Directory">
+            <TextBlock FontSize="13" Text="🛠" />
+        </Button>
+    </Grid>
+</Window>

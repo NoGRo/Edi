@@ -8,7 +8,6 @@ using System.Threading.Tasks;
 using Avalonia.Controls;
 using Avalonia.Controls.Primitives;
 using Avalonia.Interactivity;
-using Avalonia.Markup.Xaml;
 using Avalonia.Platform.Storage;
 using Avalonia.Threading;
 using Edi.Avalonia.Models;
@@ -24,47 +23,37 @@ namespace Edi.Avalonia.Views;
 
 public partial class MainWindow : Window
 {
-    public EdiConfig config;
-    public ButtplugConfig buttplugConfig;
-    public EStimConfig eStimConfig;
-    public GalleryConfig galleryConfig;
-    public HandyConfig handyConfig;
-    public OSRConfig osrConfig;
-
     private static SimulateGame? simulateGame;
+
+    private readonly EdiConfig config;
     private readonly IEdi edi = App.Edi;
+    private readonly GamesConfig gamesConfig;
+    private readonly MainWindowViewModel viewModel;
 
     private DataGridColumn? channelColumn;
-    private GamesConfig gamesConfig;
     private bool launched;
     private Timer timer;
-    private MainWindowViewModel viewModel;
 
     public MainWindow()
     {
         InitializeComponent();
 
-        buttplugConfig = edi.ConfigurationManager.Get<ButtplugConfig>();
         config = edi.ConfigurationManager.Get<EdiConfig>();
-        eStimConfig = edi.ConfigurationManager.Get<EStimConfig>();
-        galleryConfig = edi.ConfigurationManager.Get<GalleryConfig>();
         gamesConfig = edi.ConfigurationManager.Get<GamesConfig>();
-        handyConfig = edi.ConfigurationManager.Get<HandyConfig>();
-        osrConfig = edi.ConfigurationManager.Get<OSRConfig>();
         var galleries = ReloadGalleries();
 
         viewModel = new MainWindowViewModel
         {
-            ButtplugConfig = buttplugConfig,
+            ButtplugConfig = edi.ConfigurationManager.Get<ButtplugConfig>(),
             Channels = edi.Player.Channels,
             Config = config,
             Devices = edi.Devices,
-            EStimConfig = eStimConfig,
+            EStimConfig = edi.ConfigurationManager.Get<EStimConfig>(),
             Galleries = galleries,
-            GalleryConfig = galleryConfig,
+            GalleryConfig = edi.ConfigurationManager.Get<GalleryConfig>(),
             GamesConfig = gamesConfig,
-            HandyConfig = handyConfig,
-            OsrConfig = osrConfig,
+            HandyConfig = edi.ConfigurationManager.Get<HandyConfig>(),
+            OsrConfig = edi.ConfigurationManager.Get<OSRConfig>(),
         };
         DataContext = viewModel;
 
@@ -117,11 +106,11 @@ public partial class MainWindow : Window
         //     audios.Add(new AudioDevice(i, WaveOut.GetCapabilities(i).ProductName));
         // }
         viewModel.AudioDevices = audios;
-        LoadOSRPorts();
+        LoadOsrPorts();
         DevicesGrid.ItemsSource = edi.Devices;
     }
 
-    private void LoadOSRPorts()
+    private void LoadOsrPorts()
     {
         var comPorts = new HashSet<ComPort> { new("None", null) };
         try
@@ -234,7 +223,7 @@ public partial class MainWindow : Window
     {
         if (sender is HyperlinkButton link)
         {
-            await GetTopLevel(this).Launcher.LaunchUriAsync(new Uri(link.Content as string));
+            await GetTopLevel(this)!.Launcher.LaunchUriAsync(new Uri(link.Content as string));
         }
     }
 
@@ -296,7 +285,7 @@ public partial class MainWindow : Window
     {
         await Dispatcher.UIThread.Invoke(async () =>
         {
-            LoadOSRPorts();
+            LoadOsrPorts();
             await edi.InitDevices();
         });
     }

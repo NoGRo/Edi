@@ -9,8 +9,8 @@ namespace Edi.Avalonia;
 
 public partial class App : Application
 {
-    public static IEdi Edi { get; private set; } = null!;
-    public static IServiceProvider ServiceProvider { get; private set; } = null!;
+    public static IEdi Edi { get; private set; }
+    public static IServiceProvider ServiceProvider { get; private set; }
 
     public App(IEdi edi, IServiceProvider serviceProvider)
     {

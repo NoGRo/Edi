@@ -26,6 +26,8 @@ using Edi.Core.Device.Handy;
 using Edi.Core.Device.Interfaces;
 using Edi.Core.Device.OSR;
 using Edi.Core.Gallery;
+using Microsoft.AspNetCore.Components;
+using SoundFlow.Abstracts;
 using Path = System.IO.Path;
 
 namespace Edi.Forms
@@ -36,6 +38,7 @@ namespace Edi.Forms
     public partial class MainWindow : Window
     {
         private readonly IEdi edi = App.Edi;
+        private readonly AudioEngine engine;
         public EdiConfig config;
         public GalleryConfig galleryConfig;
         public HandyConfig handyConfig;
@@ -51,6 +54,8 @@ namespace Edi.Forms
 
         public MainWindow()
         {
+            engine = App.ServiceProvider.GetRequiredService<AudioEngine>();
+
             config = edi.ConfigurationManager.Get<EdiConfig>();
             handyConfig = edi.ConfigurationManager.Get<HandyConfig>();
             galleryConfig = edi.ConfigurationManager.Get<GalleryConfig>();
@@ -128,7 +133,7 @@ namespace Edi.Forms
         {
             Dispatcher.InvokeAsync(async () =>
             {
-                if (edi.DeviceCollector.Devices.Any(x => x.IsReady) 
+                if (edi.DeviceCollector.Devices.Any(x => x.IsReady)
                     && !launched
                     && !string.IsNullOrEmpty(config.ExecuteOnReady)
                     && File.Exists(config.ExecuteOnReady))
@@ -143,9 +148,10 @@ namespace Edi.Forms
         private void LoadForm()
         {
             var audios = new List<AudioDevice>() { new AudioDevice(-1, "None") };
-            for (int i = 0; i < WaveOut.DeviceCount; i++)
+            engine.UpdateAudioDevicesInfo();
+            for (int i = 0; i < engine.PlaybackDevices.Length; i++)
             {
-                audios.Add(new AudioDevice(i, WaveOut.GetCapabilities(i).ProductName));
+                audios.Add(new AudioDevice(i, engine.PlaybackDevices[i].Name));
             }
             audioDevicesComboBox.ItemsSource = audios;
             loadOSRPorts();
@@ -203,7 +209,7 @@ namespace Edi.Forms
         private void Variants_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
             ComboBox? comboBox = sender as ComboBox;
-            
+
             var device = comboBox.DataContext as IDevice;
             _ = edi.DeviceConfiguration.SelectVariant(device, (string)comboBox.SelectedValue);
         }
@@ -213,7 +219,7 @@ namespace Edi.Forms
             ComboBox? comboBox = sender as ComboBox;
 
             var device = comboBox.DataContext as IDevice;
-            
+
             _ = edi.DeviceConfiguration.SelectChannel(device, (string)comboBox.SelectedValue);
         }
 
@@ -225,7 +231,7 @@ namespace Edi.Forms
                 dialog.Title = "Select EdiConfig.json or Definition.csv file";
                 dialog.Filter = "EdiConfig.json|EdiConfig.json|Definitions.csv|Definitions.csv";
                 dialog.FilterIndex = 1;
-                
+
                 if (dialog.ShowDialog() == System.Windows.Forms.DialogResult.OK)
                 {
                     string configPath = dialog.FileName;
@@ -236,7 +242,7 @@ namespace Edi.Forms
                         gamesConfig.GamesInfo.Add(game);
                     }
                     await edi.SelectGame(game);
-                    
+
                 }
             }
         }
@@ -265,7 +271,7 @@ namespace Edi.Forms
         private void Label_MouseDoubleClick(object sender, MouseButtonEventArgs e)
         {
             Process.Start(new System.Diagnostics.ProcessStartInfo("cmd", $"/c start http://localhost:5000/swagger/index.html") { CreateNoWindow = true });
-           
+
         }
 
         private async void btnPlay_Click(object sender, RoutedEventArgs e)
@@ -308,7 +314,7 @@ namespace Edi.Forms
         private MainWindowViewModel viewModel;
         private GamesConfig gamesConfig;
         // ...
-    
+
         private void btnSimulator_Click(object sender, RoutedEventArgs e)
         {
             if (_simulateGame == null || !_simulateGame.IsLoaded)
@@ -324,14 +330,14 @@ namespace Edi.Forms
             }
         }
 
-     
+
         public override async void EndInit()
         {
             await Dispatcher.Invoke(async () =>
             {
                 await edi.Player.Pause();
             });
-            await Task.Delay(1000); 
+            await Task.Delay(1000);
             base.EndInit();
         }
 
@@ -354,7 +360,7 @@ namespace Edi.Forms
             {
                 await edi.Player.Pause();
             });
-            await Task.Delay(1000);  
+            await Task.Delay(1000);
         }
     }
     public class BoolToReadyIconConverter : IValueConverter

@@ -3,10 +3,11 @@ using Edi.Core.Device.Interfaces;
 using Edi.Core.Gallery.EStimAudio;
 using Edi.Core.Services;
 using Microsoft.Extensions.Logging;
-using NAudio.Wave;
 using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
+using SoundFlow.Abstracts;
+using SoundFlow.Structs;
 
 namespace Edi.Core.Device.EStim
 {
@@ -14,12 +15,14 @@ namespace Edi.Core.Device.EStim
     {
         private readonly ILogger _logger;
         private readonly List<EStimDevice> _devices = new List<EStimDevice>();
+        private readonly AudioEngine engine;
 
-        public EStimProvider(AudioRepository audioRepository, ConfigurationManager config, DeviceCollector deviceCollector, ILogger<EStimProvider> logger)
+        public EStimProvider(AudioRepository audioRepository, ConfigurationManager config, DeviceCollector deviceCollector, AudioEngine engine, ILogger<EStimProvider> logger)
         {
             Config = config.Get<EStimConfig>();
             DeviceCollector = deviceCollector;
             AudioRepository = audioRepository;
+            this.engine = engine;
             _logger = logger;
 
             _logger.LogInformation($"EStimProvider initialized with Config: {Config.DeviceId}");
@@ -50,7 +53,7 @@ namespace Edi.Core.Device.EStim
 
             try
             {
-                var outputDevice = new WaveOutEvent() { DeviceNumber = Config.DeviceId };
+                var outputDevice = engine.InitializePlaybackDevice(engine.PlaybackDevices[Config.DeviceId], AudioFormat.Dvd);
                 var device = new EStimDevice(AudioRepository, outputDevice, _logger);
 
                 DeviceCollector.LoadDevice(device);

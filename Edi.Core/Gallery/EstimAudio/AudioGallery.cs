@@ -1,7 +1,6 @@
 ﻿using System.Collections.Generic;
 using System.IO;
 using Edi.Core.Funscript;
-using NAudio.Wave;
 
 namespace Edi.Core.Gallery.EStimAudio
 {

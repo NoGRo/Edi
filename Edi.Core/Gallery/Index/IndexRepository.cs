@@ -9,7 +9,6 @@ using System.Runtime.CompilerServices;
 using System;
 using Edi.Core.Gallery.Definition;
 using System.Xml.Linq;
-using NAudio.Dmo;
 using System.Security.Cryptography.X509Certificates;
 using System.IO;
 using Edi.Core.Gallery.Funscript;
@@ -37,7 +36,7 @@ namespace Edi.Core.Gallery.Index
         private FunscriptRepository funRepo { get; }
         private DefinitionRepository DefinitionRepository { get; }
 
-        public bool IsInitialized {set; get; }  
+        public bool IsInitialized {set; get; }
 
         public async Task Init(string path)
         {
@@ -156,7 +155,7 @@ namespace Edi.Core.Gallery.Index
             if (Default is null && Variant is null)
                 return new List<BundleDefinition>() { bundlesDefault };
 
-            
+
             var definitionPath = Variant?.FullName ?? Default.FullName;
 
             List<BundleDefinition> bundles = ReadBundleConfig(definitionPath);

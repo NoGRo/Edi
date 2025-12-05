@@ -1,7 +1,6 @@
 ﻿using Edi.Core.Device.Buttplug;
 using Edi.Core.Gallery;
 using Edi.Core.Gallery.Index;
-using NAudio.CoreAudioApi;
 using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;

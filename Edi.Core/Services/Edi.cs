@@ -10,7 +10,6 @@ using Edi.Core.Players;
 using Edi.Core.Services;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.Extensions.Logging;
-using NAudio.Wave.SampleProviders;
 using PropertyChanged;
 using Serilog.Core;
 using System;
@@ -30,7 +29,7 @@ namespace Edi.Core
         public DeviceCollector DeviceCollector { get; private set; }
         public DeviceConfiguration DeviceConfiguration { get; private set; }
         public IPlayerChannels Player { get; private set; }
-        
+
         public IEnumerable<IRepository> repos { get; private set; }
         private readonly PlayerLogService _logService;
 
@@ -51,7 +50,7 @@ namespace Edi.Core
             _logService = rfgLogService;
 
             _logService.OnLogReceived += (msg) => OnChangeStatus?.Invoke(msg);
-            
+
         }
 
         /// <summary>
@@ -72,7 +71,7 @@ namespace Edi.Core
                 ConfigurationManager.SetGamePath(path);
                 return path;
             }
-            
+
             // Segundo escape: archivo de configuración
             ConfigurationManager.SetGamePath(path);
             var configGalleryPath = ConfigurationManager.Get<GalleryConfig>()?.GalleryPath;
@@ -84,19 +83,19 @@ namespace Edi.Core
             {
                 return configGalleryPath;
             }
-            
+
             var configDirectory = Path.GetDirectoryName(path);
             return Path.GetFullPath(Path.Combine(configDirectory, configGalleryPath));
-            
-            
+
+
         }
         public async Task<GameInfo> SelectGame(GameInfo game)
         {
-            
+
             await Init(game?.Path);
             var name = new DirectoryInfo(ConfigurationManager.GamePathConfig).Parent.FullName;
             var resolveGameinfo = new GameInfo(name, ConfigurationManager.GamePathConfig);
-            
+
             ConfigurationManager.Get<GamesConfig>().SelectedGameinfo = resolveGameinfo;
             return resolveGameinfo;
 
@@ -133,12 +132,12 @@ namespace Edi.Core
 
         public EdiConfig Config { get; set; }
 
-        
+
 
         private DefinitionRepository _repository { get; set; }
         public IEnumerable<DefinitionGallery> Definitions => _repository.GetAll();
         public event IEdi.ChangeStatusHandler OnChangeStatus;
-        
+
 
 
 

@@ -2,8 +2,6 @@
 using Edi.Core.Device.Interfaces;
 using Edi.Core.Gallery;
 using Edi.Core.Services;
-using NAudio.CoreAudioApi;
-using NAudio.Wave;
 using Serilog;
 using System.Collections.Concurrent;
 using System.ComponentModel;
@@ -39,11 +37,11 @@ namespace Edi.Core.Players
 
             if (device is not INotifyPropertyChanged notifier)
                 return;
-            
+
             notifier.PropertyChanged += async (sender, args) =>
             {
-                if (sender is not IDevice d 
-                        || args.PropertyName is not nameof(IDevice.SelectedVariant) 
+                if (sender is not IDevice d
+                        || args.PropertyName is not nameof(IDevice.SelectedVariant)
                                              and not nameof(IDevice.IsReady)
                                             // and not nameof(IRange.Max)
                         || !Devices.Contains(d))
@@ -137,5 +135,5 @@ namespace Edi.Core.Players
         }
 
     }
- 
+
 }

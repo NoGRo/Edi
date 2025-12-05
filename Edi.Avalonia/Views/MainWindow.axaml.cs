@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.IO.Ports;
 using System.Linq;
+using System.Runtime.InteropServices;
 using System.Threading;
 using System.Threading.Tasks;
 using Avalonia.Controls;
@@ -18,6 +19,8 @@ using Edi.Core.Device.Handy;
 using Edi.Core.Device.Interfaces;
 using Edi.Core.Device.OSR;
 using Edi.Core.Gallery;
+using Microsoft.Extensions.DependencyInjection;
+using SoundFlow.Abstracts;
 
 namespace Edi.Avalonia.Views;
 
@@ -27,6 +30,7 @@ public partial class MainWindow : Window
 
     private readonly EdiConfig config;
     private readonly IEdi edi = App.Edi;
+    private readonly AudioEngine engine;
     private readonly GamesConfig gamesConfig;
     private readonly MainWindowViewModel viewModel;
 
@@ -42,6 +46,8 @@ public partial class MainWindow : Window
         {
             return;
         }
+
+        engine = App.ServiceProvider.GetRequiredService<AudioEngine>();
 
         config = edi.ConfigurationManager.Get<EdiConfig>();
         gamesConfig = edi.ConfigurationManager.Get<GamesConfig>();
@@ -105,11 +111,12 @@ public partial class MainWindow : Window
     private void LoadForm()
     {
         var audios = new List<AudioDevice> { new(-1, "None") };
-        // TODO
-        // for (int i = 0; i < WaveOut.DeviceCount; i++)
-        // {
-        //     audios.Add(new AudioDevice(i, WaveOut.GetCapabilities(i).ProductName));
-        // }
+        engine.UpdateAudioDevicesInfo();
+        for (int i = 0; i < engine.PlaybackDevices.Length; i++)
+        {
+            audios.Add(new AudioDevice(i, engine.PlaybackDevices[i].Name));
+        }
+
         viewModel.AudioDevices = audios;
         LoadOsrPorts();
         viewModel.Devices = edi.Devices;

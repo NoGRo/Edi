@@ -6,7 +6,6 @@ using Edi.Core.Funscript.FileJson;
 using Edi.Core.Gallery;
 using Edi.Core.Gallery.Definition;
 using Edi.Core.Gallery.Funscript;
-using NAudio.Midi;
 using System.Diagnostics;
 using System.Globalization;
 using System.Xml.Serialization;

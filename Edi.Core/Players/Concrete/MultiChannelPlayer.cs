@@ -1,7 +1,6 @@
 ﻿using Edi.Core.Device;
 using Edi.Core.Device.Interfaces;
 using Microsoft.Extensions.DependencyInjection;
-using NAudio.CoreAudioApi;
 using PropertyChanged;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
@@ -35,10 +34,10 @@ namespace Edi.Core.Players
 
         private void Manager_OnFirstCustomChannelCreated(string newChannel)
             => deviceChannel.Keys.ToList().ForEach(d => d.Channel = newChannel);
-            
+
         private Dictionary<IDevice, string> deviceChannel = new();
 
-        public List<string> Channels => Manager.Channels; 
+        public List<string> Channels => Manager.Channels;
 
         private void DeviceCollector_OnloadDevice(IDevice device, List<IDevice> devices)
         {

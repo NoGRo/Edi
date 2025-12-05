@@ -298,11 +298,11 @@ public partial class MainWindow : Window
         var selectedConfig = await GetTopLevel(this)!.StorageProvider.OpenFilePickerAsync(
             new FilePickerOpenOptions
             {
-                Title = "Select EdiConfig.json or Definition.csv file",
+                Title = "Select EdiConfig.json or Definitions.csv file",
                 FileTypeFilter =
                 [
                     new FilePickerFileType("EdiConfig.json") { Patterns = ["EdiConfig.json"] },
-                    new FilePickerFileType("Definition.csv") { Patterns = ["Definition.json"] }
+                    new FilePickerFileType("Definitions.csv") { Patterns = ["Definitions.csv"] }
                 ],
                 AllowMultiple = false,
             });

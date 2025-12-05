@@ -20,7 +20,7 @@ namespace Edi.Core
         private string outputFilePath;
         private string outputVideoName;
         private List<DefinitionGallery> galleries =  new();
-        
+
         private string targetFolderPath;
         private DefinitionRepository defRepo;// => edi.GetRepository<DefinitionRepository>();
         private FunscriptRepository funRepo;// => edi.GetRepository<FunscriptRepository>();
@@ -28,7 +28,7 @@ namespace Edi.Core
         public async Task Repack(string videoName = "", List<DefinitionGallery> _galleries = null)
         {
             galleries = _galleries ?? edi.Definitions.ToList();
-           
+
           /*
             await CutVideosAsync();
             foreach (var key in galleries.Select(x => x.FileName.Substring(0, 1)).Distinct().ToList())
@@ -56,7 +56,7 @@ namespace Edi.Core
 
         }
 
-       
+
         public Repacker (IEdi edi)
         {
             this.edi = edi;
@@ -66,7 +66,7 @@ namespace Edi.Core
         {
             foreach (var gallery in galleries)
             {
-                string inputFile = Path.Combine(basePath, $"videos\\{gallery.FileName}.mp4");
+                string inputFile = Path.Combine(basePath, "videos", $"{gallery.FileName}.mp4");
                 string outputFile = Path.Combine(basePath, $"{gallery.Name}.mp4");
 
                 await CutVideoSegment(inputFile, outputFile, gallery.StartTime, gallery.EndTime);
@@ -180,13 +180,13 @@ namespace Edi.Core
 
         private void WriteDefinitionsCsv()
         {
-            using (var writer = new StreamWriter(Path.Combine(basePath, "definitions.csv")))
+            using (var writer = new StreamWriter(Path.Combine(basePath, "Definitions.csv")))
             using (var csv = new CsvWriter(writer, new CsvConfiguration(CultureInfo.InvariantCulture)))
             {
                 csv.WriteRecords(
                     galleries
-                    .Select(x => new DefinitionWriteDto 
-                    { 
+                    .Select(x => new DefinitionWriteDto
+                    {
                         Name = x.Name,
                         FileName = x.FileName,
                         StartTime = TimeSpan.FromMilliseconds(x.StartTime).ToString(@"hh\:mm\:ss\.fff", CultureInfo.InvariantCulture),

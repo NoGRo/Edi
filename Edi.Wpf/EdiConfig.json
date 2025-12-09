@@ -1,111 +1,46 @@
 {
-  "Gallery": {
-    "GalleryPath": "D:\\Anal\\Hot anal teens compilation pmv",
-    "GenerateDefinitionFromChapters": false,
-    "GenerateChaptersFromDefinition": false,
-    "InproveLoopDetection": true
-  },
-  "GalleryBundler": {
-    "MinRepeatDuration": 6000,
-    "RepeatDuration": 3000,
-    "SpacerDuration": 3000,
-    "DisableBundler": false
-  },
   "Edi": {
     "Filler": true,
     "Gallery": true,
     "Reactive": true,
+    "UseChannels": false,
     "Channels": [],
-    "ExecuteOnReady": ""
+    "ExecuteOnReady": "",
+    "UseHttps": false,
+    "UseLogs": false
+  },
+  "Gallery": {
+    "GalleryPath": "./",
+    "GenerateDefinitionFromChapters": true,
+    "GenerateChaptersFromDefinition": false,
+    "InproveLoopDetection": true
   },
   "Devices": {
     "Devices": {
       "FUNOSR-SSR1-V2.0": {
-        "Variant": "default",
-        "Channel": "main",
-        "Min": 0,
-        "Max": 100
-      },
-      "Preview Device": {
-        "Variant": "default",
-        "Channel": "main",
-        "Min": 0,
-        "Max": 100
-      },
-      "Output Recorder Device": {
-        "Variant": "default",
+        "Variant": "None",
         "Channel": null,
         "Min": 0,
         "Max": 100
       },
-      "AutoBlow [ibjckz1x0q91]": {
-        "Variant": "swave2",
+      "Lovense Edge Vibrate: 1": {
+        "Variant": "None",
         "Channel": null,
         "Min": 0,
         "Max": 100
       },
-      "The Handy [PiBnz]": {
-        "Variant": "swave",
+      "Lovense Edge Vibrate: 2": {
+        "Variant": "None",
         "Channel": null,
         "Min": 0,
         "Max": 100
       }
     }
   },
-  "OSR": {
-    "COMPort": "COM3",
-    "EnableMultiAxis": true,
-    "UpdateRate": 220,
-    "RangeLimits": {
-      "Linear": {
-        "LowerLimit": 0,
-        "UpperLimit": 100
-      },
-      "Roll": {
-        "LowerLimit": 0,
-        "UpperLimit": 100
-      },
-      "Pitch": {
-        "LowerLimit": 0,
-        "UpperLimit": 100
-      },
-      "Twist": {
-        "LowerLimit": 0,
-        "UpperLimit": 100
-      },
-      "Sway": {
-        "LowerLimit": 0,
-        "UpperLimit": 100
-      },
-      "Surge": {
-        "LowerLimit": 0,
-        "UpperLimit": 100
-      }
-    }
-  },
-  "Buttplug": {
-    "Url": "ws://localhost:12345",
-    "MinCommandDelay": 70,
-    "VibratorInercialDelay": 80
-  },
-  "Handy": {
-    "Key": "PiBnz, ppJdVv3V, ibjckz1x0q91, 92H0Y"
-  },
-  "EStim": {
-    "DeviceId": -1
-  },
-  "Assist": {
-    "Model": "gpt-4o",
-    "ApiEndpoint": "https://api.openai.com/v1",
-    "Prompts": [
-      "DeviceBasic.md",
-      "EdgeControl.md",
-      "LilyGoon.md",
-      "Scripts.md"
-    ],
-    "SessionId": "",
-    "MaxMesagesHistory": 10,
-    "MaxTokens": null,
-    "Temperature": 1.2
+  "GalleryBundler": {
+    "MinRepeatDuration": 7000,
+    "RepeatDuration": 2000,
+    "SpacerDuration": 5000,
+    "DisableBundler": false
   }
 }

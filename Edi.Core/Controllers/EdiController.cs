@@ -84,7 +84,7 @@ namespace Edi.Core.Controllers
         [SwaggerOperation(Summary = "Gets the list of available multimedia files in the gallery and uploads.")]
         public IActionResult Get()
         {
-            var galleryPath = configurationManager.Get<GalleryConfig>().GalleryPath.Trim();
+            var galleryPath = edi.GalleryPath;
             var uploadPath = Path.Combine(Core.Edi.OutputDir, "Upload");
             var allFiles  =  new List<string>();
             if (Directory.Exists(galleryPath))
@@ -130,6 +130,77 @@ namespace Edi.Core.Controllers
             }
             await edi.Init(folderPath);
             return Ok(edi.Definitions.Select(x=> new DefinitionResponseDto(x)));
+        }
+
+        [HttpGet("Assets/{*filePath}")]
+        [SwaggerOperation(Summary = "Serves multimedia files from the gallery path by relative path.")]
+        public IActionResult GetAsset([FromRoute] string filePath)
+        {
+            if (string.IsNullOrWhiteSpace(filePath))
+            {
+                return BadRequest("File path cannot be empty");
+            }
+
+            var galleryPath = edi.GalleryPath;
+            if (string.IsNullOrWhiteSpace(galleryPath))
+            {
+                return NotFound("Gallery path not configured");
+            }
+
+            // Construir la ruta completa del archivo
+            var fullPath = Path.Combine(galleryPath, filePath);
+
+            // Validar que el archivo esté dentro del gallery path (prevenir path traversal)
+            var fullGalleryPath = Path.GetFullPath(galleryPath);
+            var fullFilePath = Path.GetFullPath(fullPath);
+
+            if (!fullFilePath.StartsWith(fullGalleryPath, StringComparison.OrdinalIgnoreCase))
+            {
+                return BadRequest("Invalid file path");
+            }
+
+            // Verificar que el archivo existe
+            if (!System.IO.File.Exists(fullFilePath))
+            {
+                return NotFound("File not found");
+            }
+
+            // Servir el archivo con el MIME type apropiado
+            var contentType = GetContentType(fullFilePath);
+            return PhysicalFile(fullFilePath, contentType, enableRangeProcessing: true);
+        }
+
+        private string GetContentType(string filePath)
+        {
+            var extension = Path.GetExtension(filePath).ToLowerInvariant();
+            return extension switch
+            {
+                ".mp4" => "video/mp4",
+                ".webm" => "video/webm",
+                ".avi" => "video/x-msvideo",
+                ".mkv" => "video/x-matroska",
+                ".mov" => "video/quicktime",
+                ".flv" => "video/x-flv",
+                ".mp3" => "audio/mpeg",
+                ".wav" => "audio/wav",
+                ".flac" => "audio/flac",
+                ".aac" => "audio/aac",
+                ".ogg" => "audio/ogg",
+                ".jpg" or ".jpeg" => "image/jpeg",
+                ".png" => "image/png",
+                ".gif" => "image/gif",
+                ".webp" => "image/webp",
+                ".bmp" => "image/bmp",
+                ".json" => "application/json",
+                ".funscript" => "application/json",
+                ".txt" => "text/plain",
+                ".html" => "text/html",
+                ".css" => "text/css",
+                ".js" => "application/javascript",
+                ".pdf" => "application/pdf",
+                ".zip" => "application/zip",
+                _ => "application/octet-stream"
+            };
         }
     }
 }

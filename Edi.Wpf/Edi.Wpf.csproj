@@ -40,9 +40,4 @@
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </Content>
   </ItemGroup>
-  <ItemGroup>
-    <Content Update="EdiConfig.json">
-      <CopyToOutputDirectory>Never</CopyToOutputDirectory>
-    </Content>
-  </ItemGroup>
 </Project>

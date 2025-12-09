@@ -30,7 +30,9 @@ namespace Edi.Core
         public DeviceCollector DeviceCollector { get; private set; }
         public DeviceConfiguration DeviceConfiguration { get; private set; }
         public IPlayerChannels Player { get; private set; }
-        
+        public string GalleryPath { get; private set; }
+
+
         public IEnumerable<IRepository> repos { get; private set; }
         private readonly PlayerLogService _logService;
 
@@ -104,6 +106,7 @@ namespace Edi.Core
         public async Task Init(string path)
         {
             string galleryPath = ResolveGallery(path);
+            GalleryPath = galleryPath;
             foreach (var repo in repos)
             {
                 await repo.Init(galleryPath);

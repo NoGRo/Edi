@@ -27,7 +27,8 @@ namespace Edi.Core
         public ConfigurationManager ConfigurationManager { get; }
         public IEnumerable<DefinitionGallery> Definitions { get; }
         public ObservableCollection<IDevice> Devices { get; }
-                               
+        string GalleryPath { get; }
+
         public delegate void ChangeStatusHandler(string message);
         public event ChangeStatusHandler OnChangeStatus;
     }

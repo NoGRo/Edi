@@ -111,7 +111,11 @@ namespace Edi.Forms
 
             if (_channelColumn != null && viewModel?.config != null)
             {
-                _channelColumn.Visibility = viewModel.config.UseChannels ? Visibility.Visible : Visibility.Collapsed;
+                try
+                {
+                    _channelColumn.Visibility = viewModel.config.UseChannels ? Visibility.Visible : Visibility.Collapsed;
+                }
+                catch { }
             }
         }
 
@@ -131,11 +135,11 @@ namespace Edi.Forms
                 if (edi.DeviceCollector.Devices.Any(x => x.IsReady) 
                     && !launched
                     && !string.IsNullOrEmpty(config.ExecuteOnReady)
-                    && File.Exists(config.ExecuteOnReady))
+                    )
                 {
                     launched = true;
                     lblStatus.Content = "launched: " + config.ExecuteOnReady;
-                    Process.Start(new ProcessStartInfo(new FileInfo(config.ExecuteOnReady).FullName) { UseShellExecute = true });
+                    Process.Start(new ProcessStartInfo(config.ExecuteOnReady) { UseShellExecute = true });
 
                 }
             });

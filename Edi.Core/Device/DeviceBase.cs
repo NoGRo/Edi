@@ -80,8 +80,8 @@ namespace Edi.Core.Device
         private Task TimerRangeTask;
 
         private SemaphoreSlim asyncLock = new(1, 1);
-        private int lastMin;
-        private int lastMax = 100;
+        internal int lastMin;
+        internal int lastMax = 100;
 
         internal virtual async Task applyRange() { }
         internal bool isStopRange(int min, int max) => min == max;
@@ -99,14 +99,15 @@ namespace Edi.Core.Device
             var resume = isStopRange(lastMin, lastMax)
                         && !isStopRange(min, max);
 
-            lastMax = max;
-            lastMin = min;
 
             if (TimerRangeTask != null)
                 await TimerRangeTask;
 
             if (!isStopRange(min, max))
                 TimerRangeTask = applyRange();
+
+            lastMax = max;
+            lastMin = min;
 
             if (currentGallery == null)
                 return;

@@ -153,11 +153,9 @@ namespace Edi.Core.Device.Simulator
             }
 
             scriptBuilder.CutToTime(syncPrev.PlaybackDuration);
-            scriptBuilder.ApplyRange(Min, Max);
+            scriptBuilder.ApplyRange(lastMin, lastMax);
 
             var offset = Convert.ToInt64((syncPrev.SendTime - _recordingStartTime).TotalMicroseconds);
-
-
 
             var newActiosn = scriptBuilder.Generate(offset)
                                 .Select(c => new FunScriptAction

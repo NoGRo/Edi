@@ -34,6 +34,12 @@
         "Channel": null,
         "Min": 0,
         "Max": 100
+      },
+      "Preview Device": {
+        "Variant": "None",
+        "Channel": null,
+        "Min": 0,
+        "Max": 100
       }
     }
   },

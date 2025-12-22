@@ -157,5 +157,16 @@ namespace Edi.Core.Funscript.Command
             TotalTime = lastCmd.AbsoluteTime;
         }
 
+        internal void ApplyRange(int min, int max)
+        {
+            if (min >= max)
+                throw new ArgumentException("Min must be less than Max");
+            if(!Sequence.Any())
+                return;
+            if (min == 0 && max == 100)
+                return;
+
+            Sequence.ForEach(x => x.Value = x.GetValueInRange(min, max));
+        }
     }
 }

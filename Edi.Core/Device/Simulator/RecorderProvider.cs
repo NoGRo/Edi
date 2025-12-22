@@ -3,11 +3,19 @@ using Edi.Core.Gallery.Funscript;
 using Edi.Core.Services;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
+using PropertyChanged;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 
 namespace Edi.Core.Device.Simulator
 {
+    [AddINotifyPropertyChangedInterface]
+    [UserConfig]
+    public class RecorderConfig
+    {
+        public bool Record { get; set; } = false;
+        public string[] Recorders { get; set; } = ["Main"];
+    }
     public class RecorderProvider : IDeviceProvider
     {
         private readonly ILogger _logger;
@@ -37,6 +45,7 @@ namespace Edi.Core.Device.Simulator
             {
                 _logger.LogInformation($"Unloading device: {device}");
                 DeviceCollector.UnloadDevice(device);
+                device = null;
             }
             _devices.Clear();
 
@@ -48,10 +57,17 @@ namespace Edi.Core.Device.Simulator
 
             try
             {
-                var device = serviceProvider.GetRequiredService<RecorderDevice>();
-                DeviceCollector.LoadDevice(device);
-                _devices.Add(device);
-                _logger.LogInformation($"OutputRecorderDevice loaded successfully: {device}");
+                foreach (var recorderName in Config.Recorders)
+                {
+                    var device = serviceProvider.GetRequiredService<RecorderDevice>();
+                    device.Name += $"_{recorderName}";
+                    DeviceCollector.LoadDevice(device);
+                    _devices.Add(device);
+                    _logger.LogInformation($"OutputRecorderDevice loaded successfully: {device}");
+
+                }
+                _devices.ForEach(x => x.StartRecording());
+
             }
             catch (Exception ex)
             {

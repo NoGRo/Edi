@@ -22,20 +22,15 @@ using Microsoft.AspNetCore.Hosting;
 
 namespace Edi.Core.Device.Simulator
 {
-    [AddINotifyPropertyChangedInterface]
-    [UserConfig]
-    public class RecorderConfig
-    {
-        public bool Record { get; set; } = false;
-    }
+
 
     [AddINotifyPropertyChangedInterface]
     public class RecorderDevice : DeviceBase<FunscriptRepository, FunscriptGallery>, IRange
     {
         private readonly ILogger _logger;
         private readonly SyncPlaybackFactory syncPlaybackFactory;
-        private readonly string _outputFilePath;
-        private readonly DateTime _recordingStartTime;
+        private  string _outputFilePath;
+        private  DateTime _recordingStartTime;
         public long RecordingAbsolueTime => (long)(DateTime.Now - _recordingStartTime).TotalMilliseconds;
 
         private readonly object _lock = new object();
@@ -43,32 +38,37 @@ namespace Edi.Core.Device.Simulator
         private bool _isFlushing = false;
         private int _lastWritePosition = 0; // Cambiado a int para Substring
         private string _postActionsContent = "]}"; // Contenido posterior al array actions
+        private string variantPrev;
         private SyncPlayback syncPrev;
         private List<FunScriptAction> _actions = new() { new() { at = 0, pos = 0 } };
         private ScriptBuilder scriptBuilder =  new();
 
         internal override bool SelfManagedLoop => true;
 
-        public RecorderDevice(FunscriptRepository repository, ILogger logger, SyncPlaybackFactory syncPlaybackFactory)
+        public RecorderDevice(FunscriptRepository repository, ILogger logger, SyncPlaybackFactory syncPlaybackFactory, string name)
             : base(repository, logger)
         {
             _logger = logger;
             this.syncPlaybackFactory = syncPlaybackFactory;
-            Name = "Output Recorder Device";
-                        // Inicializa metadata con valores útiles
-         
+            Name = "Recorder";
+            // Inicializa metadata con valores útiles
+            _flushTimer = new System.Timers.Timer(10000); // 10 segundos
+            _flushTimer.Elapsed += (s, e) => FlushToDisk();
             // Asegura que la carpeta de salida exista antes de usarla
+            
+        }
+
+        public void StartRecording()
+        {
             var outputPath = Path.Combine(Edi.OutputDir, "Recordings");
             if (!Directory.Exists(outputPath))
             {
                 Directory.CreateDirectory(outputPath);
             }
             _recordingStartTime = DateTime.Now;
-            var filename = $"Session_{_recordingStartTime:yyyy-MM-dd_HH-mm-ss}.funscript";
+            var filename = $"{Name}_{_recordingStartTime:yyyy-MM-dd_HH-mm-ss-nnn}.funscript";
             _outputFilePath = Path.Combine(outputPath, filename);
-
-            _flushTimer = new System.Timers.Timer(10000); // 10 segundos
-            _flushTimer.Elapsed += (s, e) => FlushToDisk();
+                        
             _flushTimer.Start();
             _logger.LogInformation($"OutputRecorderDevice initialized. Output file: {_outputFilePath}");
         }
@@ -80,8 +80,10 @@ namespace Edi.Core.Device.Simulator
         {
             _logger.LogInformation($"PlayGallery called on Recorder: {Name}, Gallery: {gallery?.Name ?? "Unknown"}, Seek: {seek}");
             savePrevius();
-
+            syncPrev = null;
+            
             var cmds = gallery?.Commands;
+
             if (cmds == null)
                 return;
 
@@ -95,10 +97,24 @@ namespace Edi.Core.Device.Simulator
         public override async Task StopGallery()
         {
             savePrevius();
+            syncPrev = null;
             _logger.LogInformation($"Stopping gallery playback for Recorder: {Name}");
 
             await Task.CompletedTask;
         }
+        internal override Task applyRange()
+        {
+            savePrevius();
+            syncPrev = syncPlaybackFactory.Create(syncPrev.GalleryName, syncPrev.CurrentTime);
+            return Task.CompletedTask;
+        }
+
+        internal override void SetVariant()
+        {
+            savePrevius();
+            variantPrev = this.selectedVariant;
+            syncPrev = syncPlaybackFactory.Create(syncPrev.GalleryName, syncPrev.CurrentTime);
+        }  
 
         private void savePrevius()
         {
@@ -108,7 +124,7 @@ namespace Edi.Core.Device.Simulator
                 return;
             }
 
-            var gallery = repository.Get(syncPrev.GalleryName, this.selectedVariant);
+            var gallery = repository.Get(syncPrev.GalleryName, this.variantPrev);
 
             if(gallery == null)
             {
@@ -137,8 +153,11 @@ namespace Edi.Core.Device.Simulator
             }
 
             scriptBuilder.CutToTime(syncPrev.PlaybackDuration);
+            scriptBuilder.ApplyRange(Min, Max);
 
             var offset = Convert.ToInt64((syncPrev.SendTime - _recordingStartTime).TotalMicroseconds);
+
+
 
             var newActiosn = scriptBuilder.Generate(offset)
                                 .Select(c => new FunScriptAction
@@ -147,7 +166,6 @@ namespace Edi.Core.Device.Simulator
                                     pos = Convert.ToInt32(c.Value)
                                 });
 
-            syncPrev = null;
             _actions.AddRange(newActiosn);
 
             

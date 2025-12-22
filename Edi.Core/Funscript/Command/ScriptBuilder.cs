@@ -10,12 +10,16 @@ namespace Edi.Core.Funscript.Command
     {
         private List<CmdLinear> Sequence { get; set; } = new List<CmdLinear>();
 
-        public List<CmdLinear> Generate()
+        public List<CmdLinear> Generate(long offset = 0)
         {
             var resul = Sequence.ToList();
+            if(offset != 0)
+                resul.ForEach(x => x.AbsoluteTime += offset);
+            
             Clear();
             return resul;
         }
+        
         public double lastValue => Sequence.LastOrDefault()?.Value ?? 0;
         public CmdLinear lastCmd => Sequence.LastOrDefault();
         public long TotalTime { get; private set; }
@@ -43,7 +47,7 @@ namespace Edi.Core.Funscript.Command
         {
             TotalTime += time;
         }
-            //go to a value at speed (Use starting point to calculate speed)
+        //go to a value at speed (Use starting point to calculate speed)
         public void AddCommand(CmdLinear cmd)
         {
             addCommand(CmdLinear.GetCommandMillis(cmd.Millis, cmd.Value));
@@ -62,13 +66,19 @@ namespace Edi.Core.Funscript.Command
             addCommand(cmd);
         }
         //go to a value in Milliseconds 
+        public void AddCommandMillis(long millis, double value)
+        {
+
+            var cmd = CmdLinear.GetCommandMillis(Convert.ToInt32(millis), value);
+            addCommand(cmd);
+        }
         public void AddCommandMillis(int millis, double value)
         {
             var cmd = CmdLinear.GetCommandMillis(millis, value);
             addCommand(cmd);
         }
 
-     
+
         internal void AddCommandSpeed(double speed, int value)
         => AddCommandSpeed(Convert.ToInt32(speed), value);
 
@@ -103,7 +113,7 @@ namespace Edi.Core.Funscript.Command
 
         public void TrimTimeTo(long maxTime)
         {
-            if(lastCmd is null) return;
+            if (lastCmd is null) return;
             Sequence.RemoveAll(x => x.AbsoluteTime > maxTime);
             TotalTime = lastCmd.AbsoluteTime;
 
@@ -112,8 +122,39 @@ namespace Edi.Core.Funscript.Command
 
             if (lastCmd.AbsoluteTime != maxTime)
                 AddCommandMillis(Convert.ToInt32(maxTime - TotalTime), lastCmd.Value);
-                        
-            TotalTime = lastCmd.AbsoluteTime; 
+
+            TotalTime = lastCmd.AbsoluteTime;
+        }
+
+        public void CutToTime(long maxTime)
+        {
+            if (lastCmd is null) return;
+            var nextFinal = Sequence.FirstOrDefault(x => x.AbsoluteTime > maxTime);
+            Sequence.RemoveAll(x => x.AbsoluteTime > maxTime);
+
+            TotalTime = lastCmd.AbsoluteTime;
+
+            if (!Sequence.Any())
+                return;
+
+            if (lastCmd.AbsoluteTime != maxTime)
+            {
+
+
+                if (nextFinal is null)
+                {
+                    AddCommandMillis(maxTime - TotalTime, lastValue);
+
+                }
+                else
+                {
+                    var newTime = nextFinal.Millis - Convert.ToInt32(nextFinal.AbsoluteTime - maxTime);
+                    AddCommandMillis(newTime, nextFinal.GetValueInTime(newTime));
+                }
+            }
+
+
+            TotalTime = lastCmd.AbsoluteTime;
         }
 
     }

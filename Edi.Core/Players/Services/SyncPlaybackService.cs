@@ -41,10 +41,11 @@ namespace Edi.Core.Players
 
         public string GalleryName => _gallery.Name;
         public DefinitionGallery Gallery => _gallery;
-        public long Seek => _gallery.Loop ? _seek % _gallery.Duration: _seek;
+        public long Seek => _gallery.Loop ? _seek % _gallery.Duration : _seek;
         public DateTime SendTime => _sendTime;
         public bool IsLoop => _gallery.Loop;
         public int Duration => _gallery.Duration;
+        public int PlaybackDuration => Convert.ToInt32((DateTime.Now -  SendTime).TotalMilliseconds);
 
         public long ResumeTime(bool atCurrentTime = true)
             => atCurrentTime ? CurrentTime : Seek;

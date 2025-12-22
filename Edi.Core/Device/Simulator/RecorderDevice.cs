@@ -17,6 +17,8 @@ using System.Threading.Tasks;
 using System.Timers;
 using Edi.Core.Funscript.FileJson;
 using Edi.Core.Funscript.Command;
+using Edi.Core.Players;
+using Microsoft.AspNetCore.Hosting;
 
 namespace Edi.Core.Device.Simulator
 {
@@ -31,28 +33,29 @@ namespace Edi.Core.Device.Simulator
     public class RecorderDevice : DeviceBase<FunscriptRepository, FunscriptGallery>, IRange
     {
         private readonly ILogger _logger;
-        private readonly List<FunScriptAction> _actions;
-        private  CmdLinear LastCmd;
+        private readonly SyncPlaybackFactory syncPlaybackFactory;
         private readonly string _outputFilePath;
         private readonly DateTime _recordingStartTime;
+        public long RecordingAbsolueTime => (long)(DateTime.Now - _recordingStartTime).TotalMilliseconds;
+
         private readonly object _lock = new object();
         private readonly System.Timers.Timer _flushTimer;
         private bool _isFlushing = false;
-        private int _lastActionCount = 0; // Contador de acciones guardadas
         private int _lastWritePosition = 0; // Cambiado a int para Substring
         private string _postActionsContent = "]}"; // Contenido posterior al array actions
-        private FunScriptMetadata _metadata;
-        private bool wasStop;
-        private long elaspse;
-        private FunScriptAction last => _actions.LastOrDefault();
+        private SyncPlayback syncPrev;
+        private List<FunScriptAction> _actions = new() { new() { at = 0, pos = 0 } };
+        private ScriptBuilder scriptBuilder =  new();
 
-        public RecorderDevice(FunscriptRepository repository, ILogger logger)
+        internal override bool SelfManagedLoop => true;
+
+        public RecorderDevice(FunscriptRepository repository, ILogger logger, SyncPlaybackFactory syncPlaybackFactory)
             : base(repository, logger)
         {
             _logger = logger;
+            this.syncPlaybackFactory = syncPlaybackFactory;
             Name = "Output Recorder Device";
-            _actions = new List<FunScriptAction>();
-            // Inicializa metadata con valores útiles
+                        // Inicializa metadata con valores útiles
          
             // Asegura que la carpeta de salida exista antes de usarla
             var outputPath = Path.Combine(Edi.OutputDir, "Recordings");
@@ -72,91 +75,92 @@ namespace Edi.Core.Device.Simulator
 
         public override string DefaultVariant()
             => Variants.FirstOrDefault() ?? base.DefaultVariant();
-
+        
         public override async Task PlayGallery(FunscriptGallery gallery, long seek = 0)
         {
             _logger.LogInformation($"PlayGallery called on Recorder: {Name}, Gallery: {gallery?.Name ?? "Unknown"}, Seek: {seek}");
+            savePrevius();
+
             var cmds = gallery?.Commands;
             if (cmds == null)
                 return;
 
-            if (!wasStop)
-            {
-                abortPreviews();
-            }
-            else if (last != null)
-            {
-                addAction(new() { at = elaspse, pos = last.pos });
-                wasStop = false;
-            }
-            
-
-
-            int currentCmdIndex = Math.Max(0, cmds.FindIndex(x => x.AbsoluteTime > CurrentTime));
-
-            while (currentCmdIndex >= 0 && currentCmdIndex < cmds.Count && !playCancelTokenSource.IsCancellationRequested)
-            {
-                var cmd = cmds[currentCmdIndex];
-                try
-                {
-
-                    var at = (long)(DateTime.Now - _recordingStartTime).TotalMilliseconds + (cmd.AbsoluteTime - CurrentTime);
-                    var action = new FunScriptAction { at = at, pos = (int)Math.Round(cmd.Value) };
-                    LastCmd = cmd;
-                    addAction(action);
-
-                    await Task.Delay(cmd.Millis, playCancelTokenSource.Token);
-
-                    // Avanzar al siguiente comando si corresponde
-                    if (CurrentTime >= cmd.AbsoluteTime)
-                    {
-                        currentCmdIndex++;
-                    }
-                }
-                catch (TaskCanceledException ex)
-                {
-                    wasStop = true;
-                    return;
-                }
-            }
-            wasStop = true;
             _logger.LogInformation($"PlayGallery finished adding commands for Recorder: {Name}");
+
+            syncPrev = syncPlaybackFactory.Create(gallery.Name , seek);
         }
 
-        private void abortPreviews()
-        {
-            elaspse = (long)(DateTime.Now - _recordingStartTime).TotalMilliseconds;
 
-            if (last!= null && (last.at - elaspse) > 30)
-            {
-                last.pos = LastCmd.GetValueInTime(last.at - elaspse);
-                last.at = elaspse;
-            }
-        }
-        private void addAction(FunScriptAction action)
-        {
-            lock (_lock)
-            {
-                
-                if (last != null && last.at == action.at && last.pos == action.pos)
-                {
-                    return;
-                }
-                _actions.Add(action);
-            }
-        }
 
         public override async Task StopGallery()
         {
-            abortPreviews();
-            wasStop = true;
-
-
+            savePrevius();
             _logger.LogInformation($"Stopping gallery playback for Recorder: {Name}");
-            
+
             await Task.CompletedTask;
         }
+
+        private void savePrevius()
+        {
+            if (syncPrev == null)
+            {
+                addNonAction();
+                return;
+            }
+
+            var gallery = repository.Get(syncPrev.GalleryName, this.selectedVariant);
+
+            if(gallery == null)
+            {
+                addNonAction();
+                return;
+            }
+
+            var cmds = gallery.Commands.Where(c => c.AbsoluteTime > syncPrev.Seek);
+            if (!cmds.Any() && !syncPrev.IsLoop)
+            {
+                addNonAction();
+                return;
+            }
+
+            var millisFrist = cmds.First().AbsoluteTime - syncPrev.Seek;
+
+            scriptBuilder.AddCommandMillis(millisFrist, cmds.First().Value);
+
+            if(cmds.Count() > 1)
+                scriptBuilder.addCommands(cmds.Skip(1));
+
+            while (scriptBuilder.TotalTime < syncPrev.PlaybackDuration
+                    && syncPrev.IsLoop)
+            {
+                scriptBuilder.addCommands(gallery.Commands);
+            }
+
+            scriptBuilder.CutToTime(syncPrev.PlaybackDuration);
+
+            var offset = Convert.ToInt64((syncPrev.SendTime - _recordingStartTime).TotalMicroseconds);
+
+            var newActiosn = scriptBuilder.Generate(offset)
+                                .Select(c => new FunScriptAction
+                                {
+                                    at = c.AbsoluteTime,
+                                    pos = Convert.ToInt32(c.Value)
+                                });
+
+            syncPrev = null;
+            _actions.AddRange(newActiosn);
+
             
+        }
+
+        private void addNonAction()
+        {
+            _actions.Add(new()
+            {
+                at = RecordingAbsolueTime,
+                pos = _actions.Last().pos
+            });
+        }
 
         private void FlushToDisk()
         {

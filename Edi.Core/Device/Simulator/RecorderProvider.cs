@@ -1,6 +1,7 @@
 using Edi.Core.Device.Interfaces;
 using Edi.Core.Gallery.Funscript;
 using Edi.Core.Services;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using System.Collections.Generic;
 using System.Threading.Tasks;
@@ -10,14 +11,16 @@ namespace Edi.Core.Device.Simulator
     public class RecorderProvider : IDeviceProvider
     {
         private readonly ILogger _logger;
+        private readonly IServiceProvider serviceProvider;
         private readonly List<RecorderDevice> _devices = new List<RecorderDevice>();
 
-        public RecorderProvider(FunscriptRepository funscriptRepository, ConfigurationManager config, DeviceCollector deviceCollector, ILogger<RecorderProvider> logger)
+        public RecorderProvider(FunscriptRepository funscriptRepository, ConfigurationManager config, DeviceCollector deviceCollector, ILogger<RecorderProvider> logger, IServiceProvider serviceProvider)
         {
             Config = config.Get<RecorderConfig>();
             DeviceCollector = deviceCollector;
             FunscriptRepository = funscriptRepository;
             _logger = logger;
+            this.serviceProvider = serviceProvider;
             _logger.LogInformation($"OutputRecorderProvider initialized with Config: Record={Config.Record}");
         }
 
@@ -45,7 +48,7 @@ namespace Edi.Core.Device.Simulator
 
             try
             {
-                var device = new RecorderDevice(FunscriptRepository, _logger);
+                var device = serviceProvider.GetRequiredService<RecorderDevice>();
                 DeviceCollector.LoadDevice(device);
                 _devices.Add(device);
                 _logger.LogInformation($"OutputRecorderDevice loaded successfully: {device}");

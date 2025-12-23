@@ -45,7 +45,6 @@ namespace Edi.Core.Device.Simulator
             {
                 _logger.LogInformation($"Unloading device: {device}");
                 DeviceCollector.UnloadDevice(device);
-                device = null;
             }
             _devices.Clear();
 

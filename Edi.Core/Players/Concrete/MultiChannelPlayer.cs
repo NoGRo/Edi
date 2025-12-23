@@ -61,14 +61,19 @@ namespace Edi.Core.Players
             };
         }
 
-        public void ResetChannels()
+        public void ResetChannels( List<string> channels = null)
         {
             Manager.Reset();
+
             foreach (var device in deviceChannel.Keys)
             {
                 Manager.WithChannel(null, c => c.Add(device));
             }
             deviceChannel.Clear();
+            
+            Manager.UseChannels(channels?.ToArray());
+
+
         }
 
         private void DeviceCollector_OnUnloadDevice(IDevice device, List<IDevice> devices)

@@ -41,7 +41,7 @@ public class ChannelManager<T>
         RaiseChannelsChanged();
     }
 
-    private void UseChannels(params string[] requestedChannels)
+    public void UseChannels(params string[] requestedChannels)
     {
         var names = (requestedChannels == null || requestedChannels.FirstOrDefault() == null)
             ? channels.Keys.ToList()

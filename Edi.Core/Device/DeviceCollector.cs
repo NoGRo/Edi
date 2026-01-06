@@ -33,6 +33,7 @@ namespace Edi.Core.Device
         {
 
             DevicesConfig Config = configuration.Get<DevicesConfig>();
+            EdiConfig ediConfig = configuration.Get<EdiConfig>();
             lock (Devices)
             {
                 UniqueName(device);
@@ -42,13 +43,17 @@ namespace Edi.Core.Device
 
             var deviceConfig = Config.Devices[device.Name];
 
-            deviceConfig.Variant = device.Variants.Contains(deviceConfig.Variant)
+            deviceConfig.Variant = device.Variants.Contains(deviceConfig.Variant)  && deviceConfig.Variant != "None"
                                     ? deviceConfig.Variant
                                     : device.DefaultVariant();
 
             (device as IRange)?.SetRange(deviceConfig);
             device.SelectedVariant = deviceConfig.Variant;
             device.Channel = deviceConfig.Channel;
+
+            if (string.IsNullOrEmpty(device.Channel) && ediConfig.UseChannels)
+                device.Channel = ediConfig.Channels.FirstOrDefault();
+
             configuration.Save(Config);
             OnloadDevice?.Invoke(device, Devices);
         }

@@ -74,7 +74,7 @@ namespace Edi.Core.Device.Simulator
         }
 
         public override string DefaultVariant()
-            => Variants.FirstOrDefault() ?? base.DefaultVariant();
+            => base.DefaultVariant() ?? Variants.FirstOrDefault();
         
         public override async Task PlayGallery(FunscriptGallery gallery, long seek = 0)
         {

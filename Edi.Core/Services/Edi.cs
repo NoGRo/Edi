@@ -111,6 +111,7 @@ namespace Edi.Core
             {
                 await repo.Init(galleryPath);
             }
+            Player.ResetChannels(Config.Channels.ToList());
             _ = Task.Run(InitDevices);
         }
 

@@ -139,11 +139,42 @@ namespace Edi.Forms
                 {
                     launched = true;
                     lblStatus.Content = "launched: " + config.ExecuteOnReady;
-                    Process.Start(new ProcessStartInfo(config.ExecuteOnReady) { UseShellExecute = true });
-
+                    ExecuteCommandOrOpenPath(config.ExecuteOnReady);
                 }
             });
         }
+        private void ExecuteCommandOrOpenPath(string commandOrPath)
+        {
+            try
+            {
+                if (commandOrPath.StartsWith("http://") || commandOrPath.StartsWith("https://"))
+                {
+                    // Abrir URL en el navegador predeterminado
+                    Process.Start(new ProcessStartInfo
+                    {
+                        FileName = commandOrPath,
+                        UseShellExecute = true
+                    });
+                }
+                else if (File.Exists(commandOrPath) || Directory.Exists(commandOrPath))
+                {
+                    // Ejecutar archivo o abrir directorio
+                    Process.Start(new ProcessStartInfo(commandOrPath)
+                    {
+                        UseShellExecute = true
+                    });
+                }
+                else
+                {
+                    throw new FileNotFoundException($"El archivo o comando no existe: {commandOrPath}");
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Error al ejecutar el comando o abrir la ruta: {ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+
         private void LoadForm()
         {
             var audios = new List<AudioDevice>() { new AudioDevice(-1, "None") };

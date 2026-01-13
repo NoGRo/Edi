@@ -6,11 +6,11 @@ using System.Collections.Generic;
 public class ChannelManager<T>
 {
     public const string MAIN_CHANNEL = "main";
-    private ConcurrentDictionary<string, T> channels = new();
+    private ConcurrentDictionary<string, T[]> channels = new();
     private List<string> activeChannels = new() { MAIN_CHANNEL };
-    private Func<T> factory;
+    private Func<T[]> factory;
 
-    public ChannelManager(Func<T> factory)
+    public ChannelManager(Func<T[]> factory)
     {
         this.factory = factory;
         EnsureChannel(MAIN_CHANNEL);
@@ -22,8 +22,8 @@ public class ChannelManager<T>
     public List<string> Channels => channels.Keys.ToList();
     public List<string> ActiveChannels => activeChannels;
 
-    public IEnumerable<T> GetActive() => activeChannels.Select(c => channels[c]);
-    public T Get(string name) => channels[name];
+    public IEnumerable<T[]> GetActive() => activeChannels.Select(c => channels[c]);
+    public T[] Get(string name) => channels[name];
 
     private void EnsureChannel(string name)
     {
@@ -97,7 +97,12 @@ public class ChannelManager<T>
         try
         {
             UseChannels(channelNames);
-            var active = GetActive().ToList();
+            var activeList = GetActive().ToList();
+            var active = new List<T>();
+            foreach (var channels in activeList)
+            {
+                active.AddRange(channels);
+            }
             await Task.WhenAll(active.Select(a => action(a)));
         }
         finally

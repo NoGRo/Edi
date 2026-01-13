@@ -91,6 +91,7 @@ namespace Edi.Core.Funscript.FileJson
             version = "1.0";
             range = 99;
             actions = new List<FunScriptAction>();
+            metadata = new();
         }
 
         public static FunScriptFile TryRead(string path)

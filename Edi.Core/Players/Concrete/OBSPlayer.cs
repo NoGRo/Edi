@@ -3,6 +3,7 @@ using Edi.Core.Gallery;
 using Edi.Core.Gallery.Definition;
 using Edi.Core.Services;
 using Newtonsoft.Json;
+using PropertyChanged;
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
@@ -16,6 +17,12 @@ using Timer = System.Timers.Timer;
 
 namespace Edi.Core.Players
 {
+    [AddINotifyPropertyChangedInterface]
+    [UserConfig]
+    public class OBSConfig
+    {
+        public string wsUrl { get; set; } = "ws://127.0.0.1:4455";
+    }
 
     public class OBSPlayer : ProxyPlayer
     {
@@ -32,7 +39,7 @@ namespace Edi.Core.Players
 
         private class ObsEventData
         {
-            public ObsOutputState outputState;
+            public string outputState;
             public string outputPath;
         }
 
@@ -47,14 +54,6 @@ namespace Edi.Core.Players
             public int rpcVersion = 1;
         }
 
-        private enum ObsOutputState
-        {
-            OBS_WEBSOCKET_OUTPUT_STARTING,
-            OBS_WEBSOCKET_OUTPUT_STARTED,
-            OBS_WEBSOCKET_OUTPUT_STOPPING,
-            OBS_WEBSOCKET_OUTPUT_STOPPED
-        }
-
         private class RecordingChapter
         {
             public string name;
@@ -67,31 +66,35 @@ namespace Edi.Core.Players
             }
         }
 
-        private DateTime _recordingStartTime;
-        public long RecordingAbsolueTime => (long)(DateTime.Now - _recordingStartTime).TotalMilliseconds;
+        private DateTime recordingStartTime;
+        public long RecordingAbsolueTime => (long)(DateTime.Now - recordingStartTime).TotalMilliseconds;
 
-        private ClientWebSocket _ws;
-        private CancellationTokenSource _cts;
+        private ClientWebSocket ws;
+        private CancellationTokenSource cts;
         private Task _receiveLoop;
-        private readonly Uri _obsUrl = new("ws://127.0.0.1:4455");
+        private Uri obsUrl => new Uri(config?.wsUrl ?? "ws://127.0.0.1:4455");
 
         private bool recording = false;
         private RecordingChapter currentChapter = null;
         private readonly Dictionary<string, List<RecordingChapter>> recordingChapters = new();
         private FunScriptFile currentScript;
 
-        private readonly EdiConfig config;
+        private readonly EdiConfig ediConfig;
+        private readonly OBSConfig config;
         private readonly PlayerLogService logService;
 
+        private bool isConnected => ws != null && ws.State == WebSocketState.Open;
 
-        public string Channel { get; set; }
-        public event IEdi.ChangeStatusHandler OnChangeStatus;
 
         public OBSPlayer(DevicePlayer dp, ConfigurationManager cfg, PlayerLogService logService)
             : base(dp)
         {
             this.logService = logService;
-            config = cfg.Get<EdiConfig>();
+            ediConfig = cfg.Get<EdiConfig>();
+            config = cfg.Get<OBSConfig>();
+
+            if (ediConfig.UseObsChapterGenerator == false)
+                return;
 
             _ = ConnectAsync();
         }
@@ -99,9 +102,15 @@ namespace Edi.Core.Players
 
         public override async Task Play(string name, long seek = 0)
         {
-            if (_ws == null || _ws.State != WebSocketState.Open)
+            if (ediConfig.UseObsChapterGenerator == false)
+                return;
+
+            if (isConnected == false && ediConfig.UseObsChapterGenerator)
             {
                 await ConnectAsync();
+                if (isConnected == false)
+                    return;
+
             }
 
             var scriptName = name;
@@ -116,24 +125,14 @@ namespace Edi.Core.Players
             var now = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
             var recordingTime = RecordingAbsolueTime;
 
-            if (currentChapter != null)
-            {
-                currentChapter.endTime = recordingTime + 500; // add 500ms buffer
-                logService.AddLog(
-                    $"Saving chapter {currentChapter.name}: {currentChapter.startTime}(seekTime {currentChapter.seekStartTime}) -> {currentChapter.endTime} ({currentChapter.RecordingLength}ms)"
-                );
-                if (!recordingChapters.ContainsKey(currentChapter.name))
-                {
-                    recordingChapters[currentChapter.name] = new List<RecordingChapter>();
-                }
-                recordingChapters[currentChapter.name].Add(currentChapter);
-            }
+            SaveChapter();
 
-            logService.AddLog($"Starting new chapter {scriptName}");
+            var startTime = recordingTime - seek;
+            logService.AddLog($"Starting new chapter {scriptName} at {startTime}ms");
             currentChapter = new RecordingChapter
             {
                 name = scriptName,
-                startTime = recordingTime - seek,
+                startTime = startTime,
                 seekStartTime = recordingTime,
             };
 
@@ -153,17 +152,23 @@ namespace Edi.Core.Players
 
         public override async Task Stop()
         {
-            logService.AddLog("Stop script");
+            if (ediConfig.UseObsChapterGenerator == false)
+                return;
+
             if (!recording)
             {
                 logService.AddLog("OBS: Not recording, skipping chapter record");
                 return;
             }
-            var recordingTime = RecordingAbsolueTime;
 
+            SaveChapter();
+        }
+
+        private void SaveChapter()
+        {
             if (currentChapter != null)
             {
-                currentChapter.endTime = recordingTime + 500; // add 500ms buffer
+                currentChapter.endTime = RecordingAbsolueTime + 500; // add 500ms buffer
                 logService.AddLog(
                     $"Saving chapter {currentChapter.name}: {currentChapter.startTime}(seekTime {currentChapter.seekStartTime}) -> {currentChapter.endTime} ({currentChapter.RecordingLength}ms)"
                 );
@@ -180,13 +185,14 @@ namespace Edi.Core.Players
             var buffer = new byte[8192];
             try
             {
-                while (!ct.IsCancellationRequested && _ws.State == WebSocketState.Open)
+                while (!ct.IsCancellationRequested && isConnected)
                 {
-                    var result = await _ws.ReceiveAsync(new ArraySegment<byte>(buffer), ct);
+                    var result = await ws.ReceiveAsync(new ArraySegment<byte>(buffer), ct);
                     if (result.MessageType == WebSocketMessageType.Close)
                     {
                         logService.AddLog("OBS WS closed by server");
-                        await _ws.CloseAsync(WebSocketCloseStatus.NormalClosure, "closing", ct);
+                        await ws.CloseAsync(WebSocketCloseStatus.NormalClosure, "closing", ct);
+                        recording = false;
                         break;
                     }
 
@@ -208,10 +214,10 @@ namespace Edi.Core.Players
 
                         switch (data.outputState)
                         {
-                            case ObsOutputState.OBS_WEBSOCKET_OUTPUT_STARTED:
+                            case "OBS_WEBSOCKET_OUTPUT_STARTED":
                                 logService.AddLog("OBS: Recording started");
 
-                                _recordingStartTime = DateTime.Now;
+                                recordingStartTime = DateTime.Now;
                                 recording = true;
                                 recordingChapters.Clear();
                                 currentChapter = null;
@@ -219,10 +225,10 @@ namespace Edi.Core.Players
                                 currentScript = new();
 
                                 break;
-                            case ObsOutputState.OBS_WEBSOCKET_OUTPUT_STOPPED:
+                            case "OBS_WEBSOCKET_OUTPUT_STOPPED":
                                 var videoPath = data.outputPath;
                                 logService.AddLog("OBS: Recording stopped");
-                                if (videoPath != null && currentScript != null)
+                                if (videoPath != null && currentScript != null && recording)
                                 {
                                     logService.AddLog("OBS: Finalizing script...");
                                     foreach (var chapters in recordingChapters.Values)
@@ -279,7 +285,7 @@ namespace Edi.Core.Players
 
         private async Task SendAsync(string json, CancellationToken ct)
         {
-            if (_ws == null || _ws.State != WebSocketState.Open)
+            if (isConnected == false)
             {
                 logService.AddLog("OBS WS not connected");
                 _ = ConnectAsync();
@@ -287,22 +293,22 @@ namespace Edi.Core.Players
             }
 
             var bytes = Encoding.UTF8.GetBytes(json);
-            await _ws.SendAsync(new ArraySegment<byte>(bytes), WebSocketMessageType.Text, true, ct);
+            await ws.SendAsync(new ArraySegment<byte>(bytes), WebSocketMessageType.Text, true, ct);
         }
 
         private async Task ConnectAsync()
         {
-            _cts?.Cancel();
-            _cts = new CancellationTokenSource();
+            cts?.Cancel();
+            cts = new CancellationTokenSource();
 
-            _ws = new ClientWebSocket();
-            logService.AddLog($"Attempting to connect to {_obsUrl}");
+            ws = new ClientWebSocket();
+            logService.AddLog($"Attempting to connect to {obsUrl}");
             try
             {
-                using (var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(_cts.Token))
+                using (var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(cts.Token))
                 {
                     timeoutCts.CancelAfter(TimeSpan.FromSeconds(5));
-                    await _ws.ConnectAsync(_obsUrl, timeoutCts.Token);
+                    await ws.ConnectAsync(obsUrl, timeoutCts.Token);
                 }
                 logService.AddLog("OBS WS connected");
 
@@ -311,7 +317,7 @@ namespace Edi.Core.Players
                 {
                     try
                     {
-                        await ReceiveLoop(_cts.Token);
+                        await ReceiveLoop(cts.Token);
                     }
                     catch (Exception ex)
                     {

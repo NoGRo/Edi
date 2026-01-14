@@ -7,7 +7,8 @@
     "Channels": [],
     "ExecuteOnReady": "",
     "UseHttps": false,
-    "UseLogs": false
+    "UseLogs": false,
+    "UseObsChapterGenerator":  false
   },
   "Gallery": {
     "GalleryPath": "./",
@@ -48,5 +49,8 @@
     "RepeatDuration": 2000,
     "SpacerDuration": 5000,
     "DisableBundler": false
+  },
+  "OBS": {
+    "wsUrl":  "ws://127.0.0.1:4455"
   }
 }

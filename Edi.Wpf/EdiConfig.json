@@ -8,7 +8,7 @@
     "ExecuteOnReady": "",
     "UseHttps": false,
     "UseLogs": false,
-    "UseObsChapterGenerator":  false
+    "UseObsChapterGenerator": false
   },
   "Gallery": {
     "GalleryPath": "./",
@@ -51,6 +51,7 @@
     "DisableBundler": false
   },
   "OBS": {
-    "wsUrl":  "ws://127.0.0.1:4455"
+    "wsUrl": "ws://127.0.0.1:4455",
+    "minimumChaperLength": 200
   }
 }

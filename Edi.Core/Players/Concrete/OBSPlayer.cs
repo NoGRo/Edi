@@ -22,6 +22,7 @@ namespace Edi.Core.Players
     public class OBSConfig
     {
         public string wsUrl { get; set; } = "ws://127.0.0.1:4455";
+        public int minimumChaperLength { get; set; } = 200;
     }
 
     public class OBSPlayer : ProxyPlayer
@@ -236,6 +237,9 @@ namespace Edi.Core.Players
                                         var chapter = chapters
                                             .OrderByDescending(chapter => chapter.RecordingLength)
                                             .FirstOrDefault();
+
+                                        if (chapter.RecordingLength < config.minimumChaperLength)
+                                            continue;
 
                                         currentScript.metadata.chapters.Add(
                                             new FunScriptChapter

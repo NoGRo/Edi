@@ -1,19 +1,9 @@
 ﻿using Edi.Core.Funscript.FileJson;
-using Edi.Core.Gallery;
-using Edi.Core.Gallery.Definition;
 using Edi.Core.Services;
 using Newtonsoft.Json;
 using PropertyChanged;
-using System;
-using System.Collections.Concurrent;
-using System.Collections.Generic;
-using System.Diagnostics;
-using System.Linq;
 using System.Net.WebSockets;
 using System.Text;
-using System.Threading.Tasks;
-using System.Timers;
-using Timer = System.Timers.Timer;
 
 namespace Edi.Core.Players
 {
@@ -21,8 +11,9 @@ namespace Edi.Core.Players
     [UserConfig]
     public class OBSConfig
     {
-        public string wsUrl { get; set; } = "ws://127.0.0.1:4455";
-        public int minimumChaperLength { get; set; } = 200;
+        public string WSUrl { get; set; } = "ws://127.0.0.1:4455";
+        public int MinimumChaperLength { get; set; } = 200;
+        public int ChapterEndBuffer { get; set; } = 0;
     }
 
     public class OBSPlayer : ProxyPlayer
@@ -73,7 +64,7 @@ namespace Edi.Core.Players
         private ClientWebSocket ws;
         private CancellationTokenSource cts;
         private Task _receiveLoop;
-        private Uri obsUrl => new Uri(config?.wsUrl ?? "ws://127.0.0.1:4455");
+        private Uri obsUrl => new Uri(config?.WSUrl ?? "ws://127.0.0.1:4455");
 
         private bool recording = false;
         private RecordingChapter currentChapter = null;
@@ -169,7 +160,7 @@ namespace Edi.Core.Players
         {
             if (currentChapter != null)
             {
-                currentChapter.endTime = RecordingAbsolueTime + 500; // add 500ms buffer
+                currentChapter.endTime = RecordingAbsolueTime + config.ChapterEndBuffer; // add buffer
                 logService.AddLog(
                     $"Saving chapter {currentChapter.name}: {currentChapter.startTime}(seekTime {currentChapter.seekStartTime}) -> {currentChapter.endTime} ({currentChapter.RecordingLength}ms)"
                 );
@@ -238,7 +229,7 @@ namespace Edi.Core.Players
                                             .OrderByDescending(chapter => chapter.RecordingLength)
                                             .FirstOrDefault();
 
-                                        if (chapter.RecordingLength < config.minimumChaperLength)
+                                        if (chapter.RecordingLength < config.MinimumChaperLength)
                                             continue;
 
                                         currentScript.metadata.chapters.Add(

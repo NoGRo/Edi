@@ -42,12 +42,35 @@ namespace Edi.Core.Device.OSR
                 Connection.Disconnect();
             }
 
-            if (Config.COMPort != null)
-                Connection = new SerialConnection(Config.COMPort, logger);
-            else if (Config.UdpAddress != null)
+            // Prefer explicit non-empty checks to avoid treating empty string as valid
+            if (!string.IsNullOrWhiteSpace(Config.COMPort))
             {
-                var splitAddress = Config.UdpAddress.Split(':');
-                Connection = new UdpConnection(splitAddress[0].Trim(), int.Parse(splitAddress[1]), logger);
+                Connection = new SerialConnection(Config.COMPort, logger);
+            }
+            else if (!string.IsNullOrWhiteSpace(Config.UdpAddress))
+            {
+                var address = Config.UdpAddress.Trim();
+                // split into host and port at most once to avoid extra colons in host causing more parts
+                var splitAddress = address.Split(new[] { ':' }, 2);
+                if (splitAddress.Length < 2)
+                {
+                    logger.LogWarning($"Invalid UdpAddress '{Config.UdpAddress}' - expected format 'host:port'. Skipping UDP connection.");
+                    Connection = null;
+                }
+                else if (!int.TryParse(splitAddress[1].Trim(), out var port))
+                {
+                    logger.LogWarning($"Invalid port in UdpAddress '{Config.UdpAddress}'. Skipping UDP connection.");
+                    Connection = null;
+                }
+                else if (string.IsNullOrWhiteSpace(splitAddress[0]))
+                {
+                    logger.LogWarning($"Invalid host in UdpAddress '{Config.UdpAddress}'. Skipping UDP connection.");
+                    Connection = null;
+                }
+                else
+                {
+                    Connection = new UdpConnection(splitAddress[0].Trim(), port, logger);
+                }
             }
             else
             {

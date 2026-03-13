@@ -47,7 +47,6 @@ namespace Edi.Forms
         private record AudioDevice(int id, string name);
         private record ComPort(string name, string? value);
         private record ChannelsNames(string name, string? value);
-        private DataGridColumn _channelColumn;
 
         public MainWindow()
         {
@@ -76,10 +75,8 @@ namespace Edi.Forms
             this.DataContext = viewModel;
             InitializeComponent();
 
-            // Add column visibility control after InitializeComponent
             DevicesGrid.Loaded += (s, e) =>
             {
-                _channelColumn = DevicesGrid.Columns.FirstOrDefault(c => c.Header?.ToString() == "Channel");
                 UpdateChannelColumnVisibility();
             };
 
@@ -108,12 +105,11 @@ namespace Edi.Forms
 
         private void UpdateChannelColumnVisibility()
         {
-
-            if (_channelColumn != null && viewModel?.config != null)
+            if (ChannelColumn != null && viewModel?.config != null)
             {
                 try
                 {
-                    _channelColumn.Visibility = viewModel.config.UseChannels ? Visibility.Visible : Visibility.Collapsed;
+                    ChannelColumn.Visibility = viewModel.config.UseChannels ? Visibility.Visible : Visibility.Collapsed;
                 }
                 catch { }
             }

@@ -26,6 +26,8 @@ namespace Edi.Core.Device
 
         public bool IsPause { get; set; } = true;
 
+        
+
         protected DeviceBase(TRepository repository, ILogger logger)
         {
             this.repository = repository;
@@ -74,7 +76,8 @@ namespace Edi.Core.Device
         public string Name { get; set; }
         public DateTime SyncSend { get; private set; }
         public long SeekTime { get; internal set; }
-        public int CurrentTime => currentGallery == null ? 0 : Convert.ToInt32(((DateTime.Now - SyncSend).TotalMilliseconds + SeekTime) % currentGallery.Duration);
+        public int CurrentTime => currentGallery == null ? 0 : Convert.ToInt32(((DateTime.Now - SyncSend).TotalMilliseconds + SeekTime) % CurrentDuration);
+        internal int CurrentDuration;
 
         private System.Timers.Timer timerRange = new System.Timers.Timer(100);
         private Task TimerRangeTask;
@@ -158,16 +161,17 @@ namespace Edi.Core.Device
         internal CancellationTokenSource playCancelTokenSource = new CancellationTokenSource();
         public virtual async Task PlayGallery(string name, long seek = 0)
         {
-            //var previousCts = Interlocked.Exchange(ref playCancelTokenSource, new CancellationTokenSource());
+            var previousCts = Interlocked.Exchange(ref playCancelTokenSource, new CancellationTokenSource());
 
-            //previousCts?.Cancel(true);
+            
             _logger.LogInformation($"Device '{Name}': Playing gallery '{name}' with seek: {seek}.");
 
             var newCancellationTokenSource = new CancellationTokenSource();
             asyncLock.Wait();
             try
             {
-                playCancelTokenSource?.Cancel();
+                previousCts?.Cancel(true);
+                playCancelTokenSource?.Cancel(true);
                 playCancelTokenSource = newCancellationTokenSource;
             }
             finally
@@ -189,16 +193,17 @@ namespace Edi.Core.Device
             currentGallery = gallery;
             IsPause = false;
 
+            CurrentDuration = currentGallery.Duration;
+            
             if (!isStopRange(Min, Max))
                 _ = PlayGallery(gallery, seek);
-
-
-            var interval = gallery.Duration - seek;
+            
+            var _interval = CurrentDuration - CurrentTime;
             var token = playCancelTokenSource.Token;
 
             try
             {
-                await Task.Delay(TimeSpan.FromMilliseconds(interval), token);
+                await Task.Delay(TimeSpan.FromMilliseconds(_interval), token);
             }
             catch (TaskCanceledException)
             {

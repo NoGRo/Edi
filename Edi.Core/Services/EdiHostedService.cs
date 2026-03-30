@@ -23,7 +23,6 @@ namespace Edi.Core
         public async Task StartAsync(CancellationToken cancellationToken)
         {
 
-            await _edi.Init();
             _ = _webApp.RunAsync(cancellationToken);
         }
 

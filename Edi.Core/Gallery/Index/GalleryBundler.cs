@@ -33,10 +33,10 @@ namespace Edi.Core.Gallery.Index
         }
         public IndexGallery Add(FunscriptGallery gallery, string bundleName )
         {
-            
+            var sbGallery = new ScriptBuilder();
             var startTime = sb.TotalTime;
 
-            sb.addCommands(gallery.Commands.Clone());
+            sbGallery.addCommands(gallery.Commands.Clone());
 
             var indexGallery = new IndexGallery
             {
@@ -44,33 +44,35 @@ namespace Edi.Core.Gallery.Index
                 Loop = gallery.Loop,
                 Variant = gallery.Variant,
                 StartTime = startTime,
-                Duration = Convert.ToInt32(sb.TotalTime - startTime),
                 Bundle = bundleName
             };
 
-            if (indexGallery.Duration == 0)
+            if (gallery.Commands.Duration() == 0)
             {
-                sb.AddCommandMillis(gallery.Loop ? Config.MinRepeatDuration : Config.SpacerDuration, sb.lastValue);
-                indexGallery.Duration = Convert.ToInt32(sb.TotalTime - startTime);
+                sbGallery.AddCommandMillis(gallery.Loop ? Config.MinRepeatDuration : Config.SpacerDuration, sb.lastValue);
+                indexGallery.Duration = Convert.ToInt32(sbGallery.TotalTime);
             }
             else if (gallery.Loop)
             {
-                var originalDuration = indexGallery.Duration;
+                var originalDuration = gallery.Commands.Duration();
                 var newDuration = (int)Math.Ceiling((double)Config.MinRepeatDuration / originalDuration) * originalDuration;
-                var NewTotalTime = startTime + newDuration + Config.RepeatDuration;
+                var NewTotalTime = newDuration + Config.RepeatDuration;
 
-                sb.addCommands(gallery.Commands.Clone());
-                while (sb.TotalTime < NewTotalTime)
+                sbGallery.addCommands(gallery.Commands);
+                while (sbGallery.TotalTime < NewTotalTime)
                 {
-                    sb.addCommands(gallery.Commands.Clone());
+                    sbGallery.addCommands(gallery.Commands, timeLimit: NewTotalTime);
                 }
-                sb.TrimTimeTo(NewTotalTime);
-
                 indexGallery.Duration = newDuration;
 
             }
             else if (Config.SpacerDuration > 0) // extra, no movement
-                sb.AddCommandMillis(Config.SpacerDuration, sb.lastValue);
+                sbGallery.AddCommandMillis(Config.SpacerDuration, sb.lastValue);
+
+            var cmds = sbGallery.Generate();
+            sb.addCommands(cmds);
+
+            indexGallery.Actions = cmds.Select(x => new FunScriptAction { at = x.AbsoluteTime, pos = Convert.ToInt32(x.Value) }).ToList();
 
             Galleries.Add(indexGallery);
 

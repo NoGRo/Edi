@@ -13,5 +13,7 @@ namespace Edi.Core.Device.Handy
     public class HandyConfig
     {
         public string Key { get; set; }
+        public string ApiKey { get; set; } = "B8v2-Qr2mjNO8J3wyfSeJDslofcBLWNz";
+        public int OffsetMS { get; set; } = -80;
     }
 }

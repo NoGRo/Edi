@@ -1,4 +1,5 @@
-﻿using System;
+﻿using Edi.Core.Device.Simulator;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -15,6 +16,7 @@ namespace Edi.Core.Funscript.Command
             var resul = Sequence.ToList();
             if(offset != 0)
                 resul.ForEach(x => x.AbsoluteTime += offset);
+
             
             Clear();
             return resul;
@@ -41,7 +43,10 @@ namespace Edi.Core.Funscript.Command
 
             TotalTime += cmd.Millis;
             cmd.AbsoluteTime = TotalTime;
-            Sequence.Add(cmd);
+
+            if (cmd.Prev?.Value !=  cmd.Value 
+                || cmd.Prev?.AbsoluteTime != cmd.AbsoluteTime)
+                Sequence.Add(cmd);
         }
         public void AddTime(long time)
         {
@@ -52,13 +57,27 @@ namespace Edi.Core.Funscript.Command
         {
             addCommand(CmdLinear.GetCommandMillis(cmd.Millis, cmd.Value));
         }
-        public void addCommands(IEnumerable<CmdLinear> cmds)
+        public void addCommands(IEnumerable<CmdLinear> cmds, long? timeLimit = null)
         {
             foreach (var cmd in cmds)
             {
+                if (timeLimit.HasValue)
+                {
+                    if (TotalTime == timeLimit)
+                    {
+                        return;
+                    }
+                    else if (TotalTime > timeLimit)
+                    {
+                        CutToTime(timeLimit.Value);
+                        return;
+                    }
+                }
                 addCommand(CmdLinear.GetCommandMillis(cmd.Millis, cmd.Value));
             }
         }
+
+        
 
         public void AddCommandSpeed(int speed, int value, int? currentValue = null)
         {
@@ -168,5 +187,7 @@ namespace Edi.Core.Funscript.Command
 
             Sequence.ForEach(x => x.Value = x.GetValueInRange(min, max));
         }
+
+
     }
 }

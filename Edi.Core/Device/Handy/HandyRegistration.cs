@@ -15,7 +15,7 @@ namespace Edi.Core.Device.Handy
             services.AddSingleton<IDeviceProvider, HandyProvider>();
             services.AddHttpClient("HandyAPI", client =>
             {
-                client.BaseAddress = new Uri("https://www.handyfeeling.com/api/handy/v2/");
+                client.BaseAddress = new Uri("https://www.handyfeeling.com/api/handy-rest/");
                 client.Timeout = TimeSpan.FromSeconds(30);
             }).ConfigurePrimaryHttpMessageHandler(() => new SocketsHttpHandler { PooledConnectionLifetime = TimeSpan.FromMinutes(5) });
 

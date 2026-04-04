@@ -74,7 +74,7 @@ Variants can be defined in two ways:
 
 Multiple variants can be combined:
 - `enemy_attack2.anal-vibrator.funscript` → variant for buttplug vibration devices
-- `enemy_attack2.easy-lineal.funscript` → easy variant for Stroker
+- `enemy_attack2.easy-linear.funscript` → easy variant for Stroker
 
 This flexible variant system allows you to:
 - Optimize performance based on connection type

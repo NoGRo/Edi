@@ -21,7 +21,9 @@ namespace Edi.Core.Device
                 Providers.AddRange(sProviders);
             }
 
-            Providers.AsParallel().ForAll(async x => await x.Init());
+            // Start all provider initializations and wait for them to complete so exceptions are observed
+            var initTasks = Providers.Select(p => p.Init()).ToArray();
+            await Task.WhenAll(initTasks);
         }
 
         public List<IDevice> Devices { get; set; } = new List<IDevice>();

@@ -40,6 +40,24 @@
         "Channel": null,
         "Min": 0,
         "Max": 100
+      },
+      "The Handy [RFupA]": {
+        "Variant": "None",
+        "Channel": null,
+        "Min": 0,
+        "Max": 100
+      },
+      "The Handy [RFupA] (1)": {
+        "Variant": "None",
+        "Channel": null,
+        "Min": 0,
+        "Max": 100
+      },
+      "The Handy [RFupA] (2)": {
+        "Variant": "None",
+        "Channel": null,
+        "Min": 0,
+        "Max": 100
       }
     }
   },

@@ -1,13 +1,14 @@
 ﻿using Edi.Core.Funscript.FileJson;
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using System.Text;
 using System.Xml.Schema;
 
 namespace Edi.Core.Funscript.Command
 {
-    public class CmdLinear
+    public class CmdLinear : IEqualityComparer<CmdLinear>
     {
 
         public static int SpeedLimit => 400;
@@ -135,11 +136,21 @@ namespace Edi.Core.Funscript.Command
             };
         }
 
+        public bool Equals(CmdLinear x, CmdLinear y)
+        => x.Value == y.Value && x.AbsoluteTime == y.AbsoluteTime;
+
+        public int GetHashCode([DisallowNull] CmdLinear obj)
+        {
+            throw new NotImplementedException();
+        }
     }
     public static class CmdLinearExtend
     {
         public static List<CmdLinear> Clone(this IEnumerable<CmdLinear> cmds)
             => cmds.Select(x => x.Clone()).ToList();
+
+        public static int Duration(this List<CmdLinear> cmds)
+            => Convert.ToInt32(cmds.LastOrDefault().AbsoluteTime);
 
         public static List<CmdLinear> AddAbsoluteTime(this List<CmdLinear> cmds)
         {

@@ -1,6 +1,7 @@
 ﻿using Edi.Core.Device.Buttplug;
 using Edi.Core.Gallery;
 using Edi.Core.Gallery.Index;
+using Edi.Core.Gallery.Funscript;
 using NAudio.CoreAudioApi;
 using Newtonsoft.Json;
 using System;
@@ -24,14 +25,18 @@ namespace Edi.Core.Device.Handy
     {
 
         private readonly ILogger _logger;
-        private Timer timerReconnect = new Timer(40000);
+        private Timer timerReconnect = new Timer(400000);
         private List<string> Keys = new List<string>();
-        private Dictionary<string, HandyDevice> devices = new Dictionary<string, HandyDevice>();
+        private Dictionary<string, IDevice> devices = new Dictionary<string, IDevice>();
         private readonly IServiceProvider _serviceProvider;
+        private readonly ConfigurationManager configManager;
         private DeviceCollector _deviceCollector;
-        private IndexRepository _repository;
-        private IndexRepository repository => _repository ??= _serviceProvider.GetRequiredService<IndexRepository>();
+        private IndexRepository _indexRepository;
+        private FunscriptRepository _funscriptRepository;
+        private IndexRepository indexRepository => _indexRepository ??= _serviceProvider.GetRequiredService<IndexRepository>();
+        private FunscriptRepository funscriptRepository => _funscriptRepository ??= _serviceProvider.GetRequiredService<FunscriptRepository>();
         private readonly IHttpClientFactory _httpClientFactory;
+        private readonly HandyDeviceFactory _deviceFactory;
 
         // Re‑usamos un solo HttpClient por key
         private readonly ConcurrentDictionary<string, HttpClient> _clients = new();
@@ -45,8 +50,10 @@ namespace Edi.Core.Device.Handy
             _logger = logger;
             Config = config.Get<HandyConfig>();
             _serviceProvider = serviceProvider;
+            this.configManager = config;
             _deviceCollector = deviceCollector;
             _httpClientFactory = httpClientFactory;
+            _deviceFactory = new HandyDeviceFactory(logger);
             timerReconnect.Elapsed += TimerReconnect_Elapsed;
         }
 
@@ -78,10 +85,13 @@ namespace Edi.Core.Device.Handy
 
         private void ConnectAll()
         {
-            Keys.AsParallel().ForAll(async key =>
+            lock (Keys)
             {
-                await Connect(key);
-            });
+                Keys.AsParallel().ForAll(async key =>
+                {
+                    await Connect(key);
+                });
+            }
         }
 
         private async Task Connect(string key)
@@ -93,7 +103,7 @@ namespace Edi.Core.Device.Handy
             HttpResponseMessage resp;
             try
             {
-                resp = await client.GetAsync("connected");
+                resp = await client.GetAsync("v2/connected");
             }
             catch (Exception ex)
             {
@@ -119,17 +129,32 @@ namespace Edi.Core.Device.Handy
 
             if (!devices.ContainsKey(key))
             {
-                _ = await client.PutAsync("mode", new StringContent(JsonConvert.SerializeObject(new ModeRequest(1)), Encoding.UTF8, "application/json"));
+                _ = await client.PutAsync("v2/mode", new StringContent(JsonConvert.SerializeObject(new ModeRequest(1)), Encoding.UTF8, "application/json"));
+                _ = await client.PutAsync("v2/hstp/offset", new StringContent(JsonConvert.SerializeObject(new OffsetRequest(Config.OffsetMS)), Encoding.UTF8, "application/json"));
 
-                var handyDevice = new HandyDevice(client, repository, _logger);
+                // Detect firmware version and create appropriate device
+                var firmwareVersion = await _deviceFactory.DetectFirmwareVersionAsync(client);
+                IDevice handyDevice;
+
+                if (_deviceFactory.ShouldUseHspProtocol(firmwareVersion))
+                {
+                    _logger.LogInformation($"Creating HandyV3Device (HSP protocol) for Key: {key}");
+                    handyDevice = new HandyV3Device(client, indexRepository, configManager, _logger);
+                }
+                else
+                {
+                    _logger.LogInformation($"Creating HandyDevice (Legacy HSSP protocol) for Key: {key}");
+                    handyDevice = new HandyDevice(client, indexRepository, _logger);
+                }
+
                 lock (devices)
                 {
                     devices[key] = handyDevice;
                     _deviceCollector.LoadDevice(handyDevice);
-                    _logger.LogInformation($"Device {handyDevice.Name} loaded with Key: {key}");
+                    _logger.LogInformation($"Device {handyDevice.Name} loaded with Key: {key} (Firmware: {firmwareVersion})");
                 }
 
-                await handyDevice.updateServerTime();
+                _= ServerTimeSync.SyncServerTimeAsync();
             }
         }
 
@@ -161,6 +186,9 @@ namespace Edi.Core.Device.Handy
                 var client = _httpClientFactory.CreateClient("HandyAPI");
                 client.DefaultRequestHeaders.Remove("X-Connection-Key");
                 client.DefaultRequestHeaders.Add("X-Connection-Key", k);
+                client.DefaultRequestHeaders.Remove("authorization");
+                client.DefaultRequestHeaders.Add("authorization", "Bearer " + Config.ApiKey);
+                
                 return client;
             });
         }

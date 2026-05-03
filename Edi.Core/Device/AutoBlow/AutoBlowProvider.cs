@@ -13,6 +13,7 @@ using System.Timers;
 using Microsoft.Extensions.Logging;
 using Timer = System.Timers.Timer;
 using Microsoft.Extensions.DependencyInjection;
+using System.Collections.Concurrent;
 using Edi.Core.Device;
 using Edi.Core.Device.Handy;
 using Edi.Core.Device.Interfaces;
@@ -26,11 +27,14 @@ namespace Edi.Core.Device.AutoBlow
         private Timer timerReconnect = new Timer(40000);
         public HandyConfig Config { get; set; }
         private List<string> Keys = new List<string>();
-        private Dictionary<string, AutoBlowDevice> devices = new Dictionary<string, AutoBlowDevice>();
+        private Dictionary<string, IDevice> devices = new Dictionary<string, IDevice>();
         private readonly IServiceProvider serviceProvider;
         private DeviceCollector deviceCollector;
         private IndexRepository _repository;
         private IndexRepository repository => _repository ??= serviceProvider.GetRequiredService<IndexRepository>();
+        
+        // Cache de cluster por clave de dispositivo
+        private readonly ConcurrentDictionary<string, string> _clusterCache = new();
 
         public AutoBlowProvider(IServiceProvider serviceProvider, ConfigurationManager config, DeviceCollector deviceCollector, ILogger<AutoBlowProvider> logger)
         {
@@ -82,60 +86,147 @@ namespace Edi.Core.Device.AutoBlow
         {
             _logger.LogInformation($"Attempting to connect to device with Key: {Key}");
 
-            HttpClient Client = devices.ContainsKey(Key) ? devices[Key].Client : NewClient(Key);
+            HttpClient Client = null;
             HttpResponseMessage resp = null;
 
             try
             {
+                // Intentar primero como AutoBlow
+                Client = NewClient(Key);
                 resp = await Client.GetAsync("connected");
+                
+                if (resp?.StatusCode == System.Net.HttpStatusCode.OK)
+                {
+                    var connected = JsonConvert.DeserializeObject<ConnectedResponse>(await resp.Content.ReadAsStringAsync());
+                    if (connected.connected)
+                    {
+                        await CreateAutoBlowDevice(Key, connected.cluster, Client);
+                        return;
+                    }
+                }
             }
             catch (Exception ex)
             {
-                _logger.LogError($"Connection attempt failed for Key: {Key}. Exception: {ex.Message}");
+                _logger.LogInformation($"AutoBlow connection attempt failed for Key: {Key}. Attempting Vacuglide: {ex.Message}");
             }
 
-            if (resp?.StatusCode != System.Net.HttpStatusCode.OK)
+            // Si AutoBlow falló, intentar como Vacuglide
+            try
             {
-                _logger.LogWarning($"Device with Key: {Key} not responding. Removing from active devices.");
-                Remove(Key);
-                return;
-            }
+                if (Client != null)
+                {
+                    Client.Dispose();
+                }
 
-            var connected = JsonConvert.DeserializeObject<ConnectedResponse>(await resp.Content.ReadAsStringAsync());
-            if (!connected.connected)
+                var clusterResult = await DetectVacuglideCluster(Key);
+                if (!string.IsNullOrEmpty(clusterResult.cluster) && clusterResult.isVacuglide)
+                {
+                    Client = NewVacuglideClient(Key, clusterResult.cluster);
+                    await CreateVacuglideDevice(Key, clusterResult.cluster, Client);
+                    return;
+                }
+            }
+            catch (Exception ex)
             {
-                _logger.LogWarning($"Device with Key: {Key} is not connected. Removing from active devices.");
-                Remove(Key);
-                return;
+                _logger.LogError($"Vacuglide connection attempt failed for Key: {Key}. Exception: {ex.Message}");
             }
 
+            _logger.LogWarning($"Device with Key: {Key} not responding as AutoBlow or Vacuglide. Removing from active devices.");
+            Remove(Key);
+        }
+
+        private async Task CreateAutoBlowDevice(string Key, string cluster, HttpClient Client)
+        {
             if (devices.ContainsKey(Key))
             {
                 _logger.LogInformation($"Device with Key: {Key} is already connected.");
                 return;
             }
 
-            Client.Dispose();
-            Client = NewClient(Key, connected.cluster);
-            resp = await Client.GetAsync("state");
-
-            var status = JsonConvert.DeserializeObject<Status>(await resp.Content.ReadAsStringAsync());
-
-
-            var device = new AutoBlowDevice(Client, repository, _logger);
-
-            lock (devices)
+            try
             {
-                if (devices.ContainsKey(Key))
-                {
-                    _logger.LogInformation($"Device with Key: {Key} is already registered in the devices list.");
-                    return;
-                }
+                HttpResponseMessage resp = await Client.GetAsync("state");
+                var status = JsonConvert.DeserializeObject<Status>(await resp.Content.ReadAsStringAsync());
 
-                devices.Add(Key, device);
-                deviceCollector.LoadDevice(device);
-                _logger.LogInformation($"Device with Key: {Key} successfully connected and loaded.");
+                var device = new AutoBlowDevice(Client, repository, _logger);
+
+                lock (devices)
+                {
+                    if (devices.ContainsKey(Key))
+                    {
+                        _logger.LogInformation($"Device with Key: {Key} is already registered in the devices list.");
+                        return;
+                    }
+
+                    devices.Add(Key, device);
+                    deviceCollector.LoadDevice(device);
+                    _logger.LogInformation($"AutoBlow device with Key: {Key} successfully connected and loaded (Cluster: {cluster}).");
+                }
             }
+            catch (Exception ex)
+            {
+                _logger.LogError($"Error creating AutoBlow device for Key: {Key} - {ex.Message}");
+                Remove(Key);
+            }
+        }
+
+        private async Task CreateVacuglideDevice(string Key, string cluster, HttpClient Client)
+        {
+            if (devices.ContainsKey(Key))
+            {
+                _logger.LogInformation($"Device with Key: {Key} is already connected.");
+                return;
+            }
+
+            try
+            {
+                HttpResponseMessage resp = await Client.GetAsync("/vacuglide/info");
+                var deviceInfo = JsonConvert.DeserializeObject<VacuglideDeviceInfoResponse>(await resp.Content.ReadAsStringAsync());
+
+                var device = new VacuglideDevice(Client, repository, _logger);
+
+                lock (devices)
+                {
+                    if (devices.ContainsKey(Key))
+                    {
+                        _logger.LogInformation($"Device with Key: {Key} is already registered in the devices list.");
+                        return;
+                    }
+
+                    devices.Add(Key, device);
+                    deviceCollector.LoadDevice(device);
+                    _logger.LogInformation($"Vacuglide device with Key: {Key} successfully connected and loaded (Cluster: {cluster}, Firmware: {deviceInfo?.firmwareVersion}).");
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError($"Error creating Vacuglide device for Key: {Key} - {ex.Message}");
+                Remove(Key);
+            }
+        }
+
+        private async Task<(string cluster, bool isVacuglide)> DetectVacuglideCluster(string Key)
+        {
+            try
+            {
+                using (var latencyClient = new HttpClient { BaseAddress = new Uri("https://latency.autoblowapi.com") })
+                {
+                    latencyClient.DefaultRequestHeaders.Add("x-device-token", Key);
+                    var resp = await latencyClient.GetAsync("/vacuglide/connected");
+
+                    if (resp?.StatusCode == System.Net.HttpStatusCode.OK)
+                    {
+                        var connectedStatus = JsonConvert.DeserializeObject<ConnectedResponse>(await resp.Content.ReadAsStringAsync());
+                        return (connectedStatus?.cluster, connectedStatus?.connected ?? false);
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning($"Failed to detect Vacuglide cluster for Key: {Key}: {ex.Message}");
+            }
+
+            return (null, false);
         }
 
         private void RemoveAll()
@@ -154,6 +245,7 @@ namespace Edi.Core.Device.AutoBlow
                 _logger.LogInformation($"Removing device with Key: {Key}");
                 deviceCollector.UnloadDevice(devices[Key]);
                 devices.Remove(Key);
+                _clusterCache.TryRemove(Key, out _);
             }
         }
 
@@ -161,6 +253,15 @@ namespace Edi.Core.Device.AutoBlow
         {
             Cluster ??= "us-east-1.autoblowapi.com";
             var Client = new HttpClient { BaseAddress = new Uri($"https://{Cluster}/autoblow/") };
+            Client.DefaultRequestHeaders.Remove("x-device-token");
+            Client.DefaultRequestHeaders.Add("x-device-token", Key);
+            return Client;
+        }
+
+        public static HttpClient NewVacuglideClient(string Key, string Cluster)
+        {
+            var clusterUrl = $"https://{Cluster}.autoblowapi.com";
+            var Client = new HttpClient { BaseAddress = new Uri(clusterUrl) };
             Client.DefaultRequestHeaders.Remove("x-device-token");
             Client.DefaultRequestHeaders.Add("x-device-token", Key);
             return Client;

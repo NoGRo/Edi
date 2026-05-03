@@ -17,6 +17,7 @@ using Microsoft.Extensions.DependencyInjection;
 using System.Collections.Concurrent;
 using Edi.Core.Device;
 using Edi.Core.Device.Interfaces;
+using Edi.Core.Device.Handy.Transport;
 using Edi.Core.Services;
 
 namespace Edi.Core.Device.Handy
@@ -38,8 +39,8 @@ namespace Edi.Core.Device.Handy
         private readonly IHttpClientFactory _httpClientFactory;
         private readonly HandyDeviceFactory _deviceFactory;
 
-        // Re‑usamos un solo HttpClient por key
-        private readonly ConcurrentDictionary<string, HttpClient> _clients = new();
+        // Re‑usamos un solo HttpClient y Transport por key
+        private readonly ConcurrentDictionary<string, IHandyTransport> _transports = new();
 
         public HandyProvider(IServiceProvider serviceProvider,
                              ConfigurationManager config,
@@ -98,53 +99,33 @@ namespace Edi.Core.Device.Handy
         {
             _logger.LogInformation($"Connecting to device with Key: {key}");
 
-            var client = GetOrCreateClient(key);
+            var transport = GetOrCreateTransport(key);
 
-            HttpResponseMessage resp;
-            try
-            {
-                resp = await client.GetAsync("v2/connected");
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError($"Connection failed for Key: {key} - {ex.Message}");
-                Remove(key);
-                return;
-            }
-
-            if (resp?.StatusCode != System.Net.HttpStatusCode.OK)
+            if (!await transport.ConnectAsync())
             {
                 _logger.LogWarning($"Device with Key: {key} not reachable, removing.");
                 Remove(key);
                 return;
             }
 
-            var status = JsonConvert.DeserializeObject<ConnectedResponse>(await resp.Content.ReadAsStringAsync());
-            if (!status.connected)
-            {
-                _logger.LogWarning($"Device with Key: {key} not connected, removing.");
-                Remove(key);
-                return;
-            }
-
             if (!devices.ContainsKey(key))
             {
-                _ = await client.PutAsync("v2/mode", new StringContent(JsonConvert.SerializeObject(new ModeRequest(1)), Encoding.UTF8, "application/json"));
-                _ = await client.PutAsync("v2/hstp/offset", new StringContent(JsonConvert.SerializeObject(new OffsetRequest(Config.OffsetMS)), Encoding.UTF8, "application/json"));
+                await transport.SetModeAsync(1);
+                await transport.SetHspOffsetAsync(Config.OffsetMS);
 
                 // Detect firmware version and create appropriate device
-                var firmwareVersion = await _deviceFactory.DetectFirmwareVersionAsync(client);
+                var firmwareVersion = await _deviceFactory.DetectFirmwareVersionAsync(transport);
                 IDevice handyDevice;
 
                 if (_deviceFactory.ShouldUseHspProtocol(firmwareVersion))
                 {
                     _logger.LogInformation($"Creating HandyV3Device (HSP protocol) for Key: {key}");
-                    handyDevice = new HandyV3Device(client, indexRepository, configManager, _logger);
+                    handyDevice = new HandyV3Device(transport, funscriptRepository, configManager, _logger, key);
                 }
                 else
                 {
                     _logger.LogInformation($"Creating HandyDevice (Legacy HSSP protocol) for Key: {key}");
-                    handyDevice = new HandyDevice(client, indexRepository, _logger);
+                    handyDevice = new HandyDevice(null, indexRepository, _logger); // TODO: Update HandyDevice to use transport
                 }
 
                 lock (devices)
@@ -154,7 +135,7 @@ namespace Edi.Core.Device.Handy
                     _logger.LogInformation($"Device {handyDevice.Name} loaded with Key: {key} (Firmware: {firmwareVersion})");
                 }
 
-                _= ServerTimeSync.SyncServerTimeAsync();
+                _ = ServerTimeSync.SyncServerTimeAsync();
             }
         }
 
@@ -169,7 +150,7 @@ namespace Edi.Core.Device.Handy
 
         private void Remove(string key)
         {
-            _clients.TryRemove(key, out var client);
+            _transports.TryRemove(key, out var transport);
 
             if (devices.TryGetValue(key, out var device))
             {
@@ -178,18 +159,19 @@ namespace Edi.Core.Device.Handy
                 _logger.LogInformation($"Device removed with Key: {key}");
             }
         }
-        private HttpClient GetOrCreateClient(string key)
+
+        private IHandyTransport GetOrCreateTransport(string key)
         {
-            // Thread‑safe cache; creates the client only once per key
-            return _clients.GetOrAdd(key, k =>
+            // Thread‑safe cache; creates the transport only once per key
+            return _transports.GetOrAdd(key, k =>
             {
                 var client = _httpClientFactory.CreateClient("HandyAPI");
                 client.DefaultRequestHeaders.Remove("X-Connection-Key");
                 client.DefaultRequestHeaders.Add("X-Connection-Key", k);
                 client.DefaultRequestHeaders.Remove("authorization");
                 client.DefaultRequestHeaders.Add("authorization", "Bearer " + Config.ApiKey);
-                
-                return client;
+
+                return new HttpHandyTransport(client, _logger);
             });
         }
 

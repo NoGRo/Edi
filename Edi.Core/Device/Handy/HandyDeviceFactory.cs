@@ -8,6 +8,7 @@ using System.Text;
 using System.Threading.Tasks;
 using Edi.Core.Gallery.Index;
 using Edi.Core.Gallery.Funscript;
+using Edi.Core.Device.Handy.Transport;
 
 namespace Edi.Core.Device.Handy
 {

@@ -1,6 +1,7 @@
 ﻿using CsvHelper;
 using CsvHelper.Configuration;
 using Edi.Core.Device;
+using Edi.Core.Device.Handy.Transport;
 using Edi.Core.Funscript.Command;
 using Edi.Core.Funscript.FileJson;
 using Edi.Core.Gallery;
@@ -29,25 +30,25 @@ using System.Text;
 using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
-using System.Threading.Tasks;
 using System.Timers;
 using System.Xml.Linq;
 
 namespace Edi.Core.Device.Handy
 {
     [AddINotifyPropertyChangedInterface]
-    internal class HandyV3Device : DeviceBase<IndexRepository, IndexGallery>
+    internal class HandyV3Device : DeviceBase<FunscriptRepository, FunscriptGallery>
     {
         private const int CHUNK_SIZE = 100;
         private const long SAFETY_MARGIN_MS = 7000;
 
         public string Key { get; set; }
-        public HttpClient Client = null;
         internal override bool SelfManagedLoop { get; set; } = false;
         private readonly ILogger _logger;
+        private readonly IHandyTransport _transport;
+        private readonly HandyCommandExecutor _commandExecutor;
 
         // HSP State tracking
-        private HspState _hspState;
+        private HandyHspState _hspState;
         private Dictionary<string, DynamicIndexGallery> _galleryIndex = new();
         private long _nextStartTime = 0;
         private int _streamId = -1;
@@ -57,14 +58,15 @@ namespace Edi.Core.Device.Handy
         private ScriptBuilder _sb = new ScriptBuilder();
         private bool isStopCalled;
 
-        public HandyV3Device(HttpClient Client, IndexRepository repository ,ConfigurationManager configurationManager, ILogger logger) : base(repository, logger)
+        public HandyV3Device(IHandyTransport transport, FunscriptRepository repository, ConfigurationManager configurationManager, ILogger logger, string key) : base(repository, logger)
         {
-            Key = Client.DefaultRequestHeaders.GetValues("X-Connection-Key").First();
+            _transport = transport ?? throw new ArgumentNullException(nameof(transport));
+            _commandExecutor = new HandyCommandExecutor(transport, logger);
+            Key = key;
             Name = $"The Handy [{Key}]";
-            this.Client = Client;
             _logger = logger;
             _logger.LogInformation($"HandyV3Device initialized with Key: {Key}.");
-            _configBundler =  configurationManager.Get<GalleryBundlerConfig>();
+            _configBundler = configurationManager.Get<GalleryBundlerConfig>();
             _configHandy = configurationManager.Get<HandyConfig>();
             IsReady = true;
         }
@@ -72,15 +74,13 @@ namespace Edi.Core.Device.Handy
         internal override async Task applyRange()
         {
             _logger.LogInformation($"Applying range for Key: {Key}, Min: {Min}, Max: {Max}.");
-            var request = new SlideRequest(Min, Max);
-            await Client.PutAsync("v2/slide", new StringContent(JsonConvert.SerializeObject(request), Encoding.UTF8, "application/json"), playCancelTokenSource.Token);
+            await _commandExecutor.SetSlideAsync(Min, Max, playCancelTokenSource.Token);
         }
 
-        public override async Task PlayGallery(IndexGallery gallery, long seek = 0)
+        public override async Task PlayGallery(FunscriptGallery gallery, long seek = 0)
         {
             _logger.LogInformation($"PlayGallery called for gallery: {gallery?.Name}, seek: {seek}");
 
-            
             SeekTime = seek;
             IsPause = false;
 
@@ -92,26 +92,8 @@ namespace Edi.Core.Device.Handy
                     await InitializeHspSession();
                 }
 
-                var points = new List<Point>(); 
-                // Check if gallery is already loaded and valid
-                string galleryKey = gallery.Name;
-                if (!_galleryIndex.TryGetValue(currentGallery.Name, out var existingGallery) ||
-                        !existingGallery.IsValid ||
-                        !existingGallery.IsComplete)
-                {
-                
-                    _logger.LogInformation($"Gallery {currentGallery.Name} already loaded and valid. Sending play command with seek: {seek}");
-
-                    points = LoadGallery(gallery, seek);
-                }
-
-                // Load gallery
-
-
-                // Send play command
-                existingGallery = _galleryIndex[currentGallery.Name];
-                CurrentDuration = existingGallery.TotalDuration + (gallery.Loop ? -_configBundler.RepeatDuration : -_configBundler.SpacerDuration);
-                await SendPlayCommand(existingGallery.StartTime + CurrentTime, points);
+                var points = LoadGallery(gallery, seek);
+                await SendPlayCommandAsync(CurrentTime, points);
             }
             catch (Exception ex)
             {
@@ -126,18 +108,20 @@ namespace Edi.Core.Device.Handy
 
             try
             {
-                var setupResponse = await Client.PutAsync("v3/hsp/setup", 
-                    new StringContent(JsonConvert.SerializeObject(new  { stream_id = new Random(DateTime.Now.Millisecond).Next(3000) }), Encoding.UTF8, "application/json"),
-                    playCancelTokenSource.Token);
+                int streamId = new Random(DateTime.Now.Millisecond).Next(3000);
+                var setupResult = await _commandExecutor.SetupHspSessionAsync(streamId, playCancelTokenSource.Token);
 
-                var responseContent = await setupResponse.Content.ReadAsStringAsync();
-                _hspState = JsonConvert.DeserializeObject<HspStateResult>(responseContent)?.result;
+                if (setupResult?.result == null)
+                {
+                    _logger.LogError("Failed to initialize HSP session - null result");
+                    return;
+                }
+
+                _hspState = setupResult.result;
                 _streamId = _hspState.stream_id;
                 _nextStartTime = 0;
                 _galleryIndex.Clear();
                 _logger.LogInformation($"HSP session initialized. StreamId: {_streamId}, MaxPoints: {_hspState.max_points}");
-
-                
             }
             catch (Exception ex)
             {
@@ -146,45 +130,44 @@ namespace Edi.Core.Device.Handy
             }
         }
 
-        private List<Point> LoadGallery(IndexGallery gallery, long seek = 0)
+        private List<HandyPoint> LoadGallery(FunscriptGallery gallery, long seek = 0)
         {
             string galleryKey = gallery.Name;
             _logger.LogInformation($"Loading gallery: {galleryKey}, seek: {seek}");
 
-            var commands = gallery.Actions.OrderBy(c => c.at).ToList();
+            var commands = gallery.Commands.OrderBy(c => c.AbsoluteTime).ToList();
 
             if (commands.Count == 0)
             {
                 _logger.LogWarning($"Gallery {galleryKey} has no commands.");
-                return new List<Point>();
+                return new List<HandyPoint>();
             }
             // Evaluate first 100 points
-            var firstChunk = commands.Take(CHUNK_SIZE).ToList();
-            long firstChunkEndTime = firstChunk.Last().at;
+            var firstChunk = commands.Take(CHUNK_SIZE);
+            long firstChunkEndTime = firstChunk.Last().AbsoluteTime;
             long remainingTimeAfterSeek = firstChunkEndTime - seek;
-            bool canStartFromBeginning = seek <= firstChunkEndTime && (firstChunk.Last().at - seek  < SAFETY_MARGIN_MS || remainingTimeAfterSeek >= SAFETY_MARGIN_MS);
+            bool canStartFromBeginning = seek <= firstChunkEndTime && (firstChunk.Last().AbsoluteTime - seek  < SAFETY_MARGIN_MS || remainingTimeAfterSeek >= SAFETY_MARGIN_MS);
 
-            DynamicIndexGallery indexGallery;
-            List<FunScriptAction> initialChunk;
+            List<CmdLinear> initialChunk;
             int initialIndex;
 
             if (canStartFromBeginning)
             {
                 _logger.LogInformation($"Starting gallery {galleryKey} from beginning (seek within first 100 points)");
-                initialChunk = firstChunk;
+                initialChunk = firstChunk.ToList();
                 initialIndex = initialChunk.Count;
             }
             else
             {
                 _logger.LogInformation($"Starting gallery {galleryKey} from seek position: {seek}");
-                var seekIndex = commands.FindIndex(c => c.at >= seek);
+                var seekIndex = commands.FindIndex(c => c.AbsoluteTime >= seek);
                 initialChunk = commands.Skip(Math.Max(0, seekIndex)).Take(CHUNK_SIZE).ToList();
                 initialIndex = seekIndex  + initialChunk.Count;
             }
 
             long galleryBufferStart = _nextStartTime;
-            long galleryBufferEnd = _nextStartTime + firstChunk.Last().at;
-            indexGallery = new DynamicIndexGallery
+            long galleryBufferEnd = _nextStartTime + firstChunk.Last().AbsoluteTime;
+            CurrentIndexGallery = new DynamicIndexGallery
             {
                 GalleryName = galleryKey,
                 StartTime = _nextStartTime,
@@ -192,33 +175,21 @@ namespace Edi.Core.Device.Handy
                 StartedFromBeginning = canStartFromBeginning,
                 IsComplete = canStartFromBeginning ? commands.Count <= CHUNK_SIZE : commands.Count <= initialIndex,
                 UploadedIndex = initialIndex,
-                TotalDuration = Convert.ToInt32(commands.Last().at),
+                TotalDuration = Convert.ToInt32(commands.Last().AbsoluteTime),
                 BufferTimeRange = (galleryBufferStart, galleryBufferEnd)
             };
 
-            // Add gallery to index
-            _galleryIndex[galleryKey] = indexGallery;
-
-            // Send initial chunk
-
             // Update next start time
-          
-
-            // Start background upload task for remaining points
-            var points =  initialChunk.Select( cmd => new Point(
-                (int)(cmd.at + _nextStartTime),
-                cmd.pos
+            var points = initialChunk.Select(cmd => new HandyPoint(
+                (int)(cmd.AbsoluteTime + _nextStartTime),
+                Convert.ToInt16(cmd.Value)
             )).ToList();
-            
 
-            _nextStartTime += indexGallery.TotalDuration;
+            _nextStartTime += CurrentIndexGallery.TotalDuration;
 
-            return points; 
+            return points;
 
-            if (!indexGallery.IsComplete)
-            {
-                _pointUploadTask = UploadRemainingPointsAsync(gallery, indexGallery, initialIndex);
-            }
+       
         }
 
    
@@ -259,12 +230,12 @@ namespace Edi.Core.Device.Handy
                         // Adjust times to absolute buffer time
                         var adjustedChunk = chunk.Select(cmd =>
                         {
-                            var adjusted =new FunScriptAction { at = cmd.at, pos = cmd.pos };
+                            var adjusted = new FunScriptAction { at = cmd.at, pos = cmd.pos };
                             adjusted.at += indexGallery.StartTime;
                             return adjusted;
                         }).ToList();
 
-                        await SendPointChunk(adjustedChunk, indexGallery.StartTime, flush: false);
+                        await SendPointChunkAsync(adjustedChunk, indexGallery.StartTime, flush: false);
                         currentIndex += CHUNK_SIZE;
                         indexGallery.UploadedIndex = currentIndex;
                     }
@@ -287,60 +258,64 @@ namespace Edi.Core.Device.Handy
             }
         }
             
-        private async Task SendPointChunk(List<FunScriptAction> points, long startTime, bool flush = false)
+        private async Task SendPointChunkAsync(List<FunScriptAction> points, long startTime, bool flush = false)
         {
             if (points.Count == 0)
                 return;
 
             _logger.LogInformation($"Sending {points.Count} points, flush: {flush}");
 
-            var pointList = points.Select(cmd => new Point(
+            var pointList = points.Select(cmd => new HandyPoint(
                 (int)(cmd.at + startTime),
                 cmd.pos
             )).ToList();
 
-            var addRequest = new HspAddRequest(pointList, flush, _hspState?.tail_point_stream_index + pointList.Count() ?? 0);
+            var addRequest = new HandyHspAddRequest(pointList, flush, _hspState?.tail_point_stream_index + pointList.Count ?? 0);
+            var result = await _commandExecutor.AddPointsAsync(addRequest, playCancelTokenSource.Token);
 
-            try
+            if (result?.result != null)
             {
-                var response = await Client.PutAsync("v3/hsp/add",
-                    new StringContent(JsonConvert.SerializeObject(addRequest), Encoding.UTF8, "application/json"),
-                    playCancelTokenSource.Token);
-
-                var responseContent = await response.Content.ReadAsStringAsync();
-                _hspState = JsonConvert.DeserializeObject<HspStateResult>(responseContent)?.result;
-
+                _hspState = result.result;
                 _logger.LogInformation($"Points sent successfully. Buffer state: points={_hspState.points}, current_point={_hspState.current_point}");
             }
-            catch (Exception ex)
+            else
             {
-                _logger.LogError($"Error sending point chunk: {ex.Message}");
-                throw;
+                _logger.LogError("Failed to send point chunk");
             }
         }
 
-        private async Task SendPlayCommand(long startTime, List<Point> points)
+        private async Task SendPlayCommandAsync(long startTime, List<HandyPoint> points)
         {
             _logger.LogInformation($"Sending play command with startTime: {startTime}");
 
             try
             {
                 isStopCalled = false;
-                var playRequest = new HspPlayRequest((int)startTime, ServerTime, 1.0, false, new(points));
+
+                var playRequest = new HandyHspPlayRequest(
+                    (int)startTime,
+                    ServerTime,
+                    1.0,
+                    CurrentIndexGallery.StartedFromBeginning,
+                    currentGallery.Loop,
+                    new HandyHspPlayAddRequest(points));
+                
                 var token = playCancelTokenSource.Token;
-                var response = await Client.PutAsync("v3/hsp/play",
-                    new StringContent(JsonConvert.SerializeObject(playRequest), Encoding.UTF8, "application/json"),
-                    token);
+                var result = await _commandExecutor.PlayAsync(playRequest, token);
 
                 if (currentGallery is null || token.IsCancellationRequested || isStopCalled)
                     return;
 
-                var responseContent = await response.Content.ReadAsStringAsync();
-                _hspState = JsonConvert.DeserializeObject<HspStateResult>(responseContent)?.result;
-
-                _logger.LogInformation($"Play command sent. PlayState: {_hspState.play_state}");
+                if (result?.result != null)
+                {
+                    _hspState = result.result;
+                    _logger.LogInformation($"Play command sent. PlayState: {_hspState.play_state}");
+                }
+                else
+                {
+                    _logger.LogError("Failed to send play command");
+                }
             }
-         
             catch (TaskCanceledException)
             {
                 _logger.LogWarning($"Seek operation canceled for Key: {Key}.");
@@ -359,7 +334,7 @@ namespace Edi.Core.Device.Handy
 
             try
             {
-                await Client.PutAsync("v3/hsp/stop", null, playCancelTokenSource.Token);
+                await _commandExecutor.StopAsync(playCancelTokenSource.Token);
             }
             catch (TaskCanceledException)
             {
@@ -373,6 +348,8 @@ namespace Edi.Core.Device.Handy
 
 
         private long ServerTime => DateTimeOffset.UtcNow.ToUnixTimeMilliseconds() + ServerTimeSync.timeSyncAvrageOffset + _configHandy?.OffsetMS ?? 0;
+
+        private DynamicIndexGallery CurrentIndexGallery { get; set; }
 
         /// <summary>
         /// Validates gallery expiration based on HSP buffer state
@@ -432,23 +409,5 @@ namespace Edi.Core.Device.Handy
         PartiallyValid,
         Expired
     }
-    #region HSP Models
-    internal record HspStateResult(HspState result);
-
-    internal record HspState(int stream_id, int max_points, int points, int current_point, long current_time, bool loop, double playback_rate, long first_point_time, long last_point_time, string play_state, int tail_point_stream_index, int tail_point_stream_index_threshold);
-
-    internal record OffsetRequest(int offset);
-
-    internal record HspAddRequest(List<Point> points, bool flush, int tail_point_stream_index);
-
-    internal record HspPlayRequest(int start_time, long server_time, double playback_rate, bool loop, HspPlayAddRequest add);
-    internal record HspPlayAddRequest(IEnumerable<Point> points);
-
-    internal record Point(int t, int x)
-    {
-        public Point() : this(default, default) { }
-    }
-
-    #endregion
 }
 

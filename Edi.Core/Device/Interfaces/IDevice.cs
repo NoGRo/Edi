@@ -10,16 +10,15 @@ namespace Edi.Core.Device.Interfaces
 
     public interface IDevice
     {
-     
+        string Name { get; set; }
         string Channel { get; set; }
+        bool IsReady { get; }
 
         string SelectedVariant { get; set; }
-        public string DefaultVariant();
+        string DefaultVariant();
         IEnumerable<string> Variants { get; }
 
-        string Name { get; set; }
-        public bool IsReady { get; }
-        public Task PlayGallery(string name, long seek = 0);
-        public Task Stop();
+        Task PlayGallery(string name, long seek = 0);
+        Task Stop();
     }
 }

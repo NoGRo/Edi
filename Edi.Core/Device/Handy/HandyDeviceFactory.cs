@@ -30,7 +30,7 @@ namespace Edi.Core.Device.Handy
         /// </summary>
         /// <param name="client">HttpClient configured for the device</param>
         /// <returns>Firmware version as string (e.g., "3.2.0")</returns>
-        public async Task<string> DetectFirmwareVersionAsync(HttpClient client)
+        public async Task<string> DetectFirmwareVersionAsync(IHandyTransport client)
         {
             try
             {
@@ -38,13 +38,13 @@ namespace Edi.Core.Device.Handy
 
                 var response = await client.GetAsync("v2/info");
 
-                if (!response.IsSuccessStatusCode)
+                if (!response.Success)
                 {
-                    _logger.LogWarning($"Failed to get device info. Status: {response.StatusCode}");
+                    _logger.LogWarning($"Failed to get device info. Status: {response.ErrorMessage}");
                     return null;
                 }
 
-                var content = await response.Content.ReadAsStringAsync();
+                var content =  response.Content;
                 var infoResponse = JsonConvert.DeserializeObject<HandyInfoResponse>(content);
 
                 if (infoResponse?.FwVersion == null)

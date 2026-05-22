@@ -1,3 +1,4 @@
+using Edi.Core.Funscript.Command;
 using Microsoft.Extensions.Logging;
 using Newtonsoft.Json;
 using System;
@@ -204,6 +205,16 @@ namespace Edi.Core.Device.Handy.Transport
         }
     }
 
+    public static class ToPonitsExtended
+    {
+        public static List<HandyPoint> ToPoints(this IEnumerable<CmdLinear> nextChunk)
+        {
+            return nextChunk.Select(cmd => new HandyPoint(
+                                    (int)(cmd.AbsoluteTime),
+                                    Convert.ToInt16(cmd.Value)
+                                )).ToList();
+        }
+    }
     #region HSP Models
 
     public record HandyHspSetupResult(HandyHspState result);
@@ -228,7 +239,7 @@ namespace Edi.Core.Device.Handy.Transport
     }
 
     public record HandyHspAddRequest(
-        System.Collections.Generic.List<HandyPoint> points,
+        List<HandyPoint> points,
         bool flush,
         int tail_point_stream_index);
 

@@ -92,8 +92,20 @@ namespace Edi.Core.Device.Handy
                     await InitializeHspSession();
                 }
 
+                if (CurrentIndexGallery?.GalleryName == gallery.Name
+                    && CurrentIndexGallery.IsComplete)
+                {
+                    await SendPlayCommandAsync(CurrentTime);
+                }
+
                 var points = LoadGallery(gallery, seek);
+
                 await SendPlayCommandAsync(CurrentTime, points);
+
+                if (!CurrentIndexGallery.IsComplete)
+                {
+                    await UploadRemainingPointsAsync();
+                }
             }
             catch (Exception ex)
             {
@@ -132,145 +144,91 @@ namespace Edi.Core.Device.Handy
 
         private List<HandyPoint> LoadGallery(FunscriptGallery gallery, long seek = 0)
         {
-            string galleryKey = gallery.Name;
-            _logger.LogInformation($"Loading gallery: {galleryKey}, seek: {seek}");
-
-            var commands = gallery.Commands.OrderBy(c => c.AbsoluteTime).ToList();
-
+            var commands = gallery.Commands;
             if (commands.Count == 0)
             {
-                _logger.LogWarning($"Gallery {galleryKey} has no commands.");
-                return new List<HandyPoint>();
+                _logger.LogWarning($"Gallery {gallery.Name} has no commands.");
+                return [];
             }
-            // Evaluate first 100 points
+
             var firstChunk = commands.Take(CHUNK_SIZE);
-            long firstChunkEndTime = firstChunk.Last().AbsoluteTime;
-            long remainingTimeAfterSeek = firstChunkEndTime - seek;
-            bool canStartFromBeginning = seek <= firstChunkEndTime && (firstChunk.Last().AbsoluteTime - seek  < SAFETY_MARGIN_MS || remainingTimeAfterSeek >= SAFETY_MARGIN_MS);
+            var (chunk, index) = seek <= firstChunk.Last().AbsoluteTime 
+                ? (firstChunk as IEnumerable<CmdLinear>, 0)
+                : GetSeekChunk(commands, seek);
 
-            List<CmdLinear> initialChunk;
-            int initialIndex;
-
-            if (canStartFromBeginning)
-            {
-                _logger.LogInformation($"Starting gallery {galleryKey} from beginning (seek within first 100 points)");
-                initialChunk = firstChunk.ToList();
-                initialIndex = initialChunk.Count;
-            }
-            else
-            {
-                _logger.LogInformation($"Starting gallery {galleryKey} from seek position: {seek}");
-                var seekIndex = commands.FindIndex(c => c.AbsoluteTime >= seek);
-                initialChunk = commands.Skip(Math.Max(0, seekIndex)).Take(CHUNK_SIZE).ToList();
-                initialIndex = seekIndex  + initialChunk.Count;
-            }
-
-            long galleryBufferStart = _nextStartTime;
-            long galleryBufferEnd = _nextStartTime + firstChunk.Last().AbsoluteTime;
+            var chunkList = chunk.Take(CHUNK_SIZE);
             CurrentIndexGallery = new DynamicIndexGallery
             {
-                GalleryName = galleryKey,
-                StartTime = _nextStartTime,
-                SeekTime = seek,
-                StartedFromBeginning = canStartFromBeginning,
-                IsComplete = canStartFromBeginning ? commands.Count <= CHUNK_SIZE : commands.Count <= initialIndex,
-                UploadedIndex = initialIndex,
-                TotalDuration = Convert.ToInt32(commands.Last().AbsoluteTime),
-                BufferTimeRange = (galleryBufferStart, galleryBufferEnd)
+                GalleryName = gallery.Name,
+                FirtsIndex = index,
+                LastIndex = index + chunkList.Count(),
+                IsComplete = commands.Count <= index + CHUNK_SIZE
             };
 
-            // Update next start time
-            var points = initialChunk.Select(cmd => new HandyPoint(
-                (int)(cmd.AbsoluteTime + _nextStartTime),
-                Convert.ToInt16(cmd.Value)
-            )).ToList();
-
-            _nextStartTime += CurrentIndexGallery.TotalDuration;
-
-            return points;
-
-       
+            _logger.LogInformation($"Starting gallery {gallery.Name} from {(index == 0 ? "beginning" : $"seek position: {seek}")}");
+            return chunkList.ToPoints();
         }
 
-   
-
-        private async Task UploadRemainingPointsAsync(IndexGallery gallery, DynamicIndexGallery indexGallery, int startIndex)
+        private (IEnumerable<CmdLinear> chunk, int index) GetSeekChunk(List<CmdLinear> commands, long seek)
         {
-            _logger.LogInformation($"Starting background upload for gallery: {indexGallery.GalleryName}, startIndex: {startIndex}");
+            int seekIndex = commands.FindIndex(c => c.AbsoluteTime >= seek);
+            return (commands.Skip(Math.Max(0, seekIndex)), seekIndex);
+        }
 
-            try
-            {
-                var commands = gallery.Actions.OrderBy(c => c.at).ToList();
-                int currentIndex = startIndex;
 
-                while (currentIndex < commands.Count && !playCancelTokenSource.Token.IsCancellationRequested)
+
+        private async Task UploadRemainingPointsAsync()
+        {
+            try 
+            { 
+                while (!playCancelTokenSource.Token.IsCancellationRequested && !CurrentIndexGallery.IsComplete)
                 {
-                    // Calculate current playback time
-                    var lastCommand = commands[Math.Min(indexGallery.UploadedIndex - 1, commands.Count - 1)];
-                    long estimatedPlaybackTime = lastCommand.at;
+                    List<HandyPoint> points = null; 
 
-                    // Get next point time
-                    if (currentIndex < commands.Count)
+                    if (CurrentIndexGallery.LastIndex < currentGallery.Commands.Count())
                     {
-                        long nextPointTime = commands[currentIndex].at;
-                        long timeUntilPlayback = nextPointTime - estimatedPlaybackTime;
+                        points = currentGallery.Commands
+                            .Skip(CurrentIndexGallery.LastIndex)
+                            .Take(CHUNK_SIZE)
+                            .ToPoints();
+                        CurrentIndexGallery.LastIndex += points.Count();
 
-                        // Wait until safety margin is within SAFETY_MARGIN_MS
-                        if (timeUntilPlayback > SAFETY_MARGIN_MS)
-                        {
-                            long delayMs = timeUntilPlayback - SAFETY_MARGIN_MS;
-                            await Task.Delay(Convert.ToInt32(delayMs), playCancelTokenSource.Token);
-                        }
+                    }
+                    else if (CurrentIndexGallery.FirtsIndex > 0  && currentGallery.Loop)
+                    {
+                        points = currentGallery.Commands
+                            .Take(CurrentIndexGallery.FirtsIndex)
+                            .TakeLast(CHUNK_SIZE)
+                            .ToPoints();
+                        CurrentIndexGallery.FirtsIndex -= points.Count();
+                    }
+                    if (points?.Any() == true)
+                    {
+                        await SendPointChunkAsync(points);
                     }
 
-                    // Send next chunk
-                    var chunk = commands.Skip(currentIndex).Take(CHUNK_SIZE).ToList();
-                    if (chunk.Count > 0)
-                    {
-                        // Adjust times to absolute buffer time
-                        var adjustedChunk = chunk.Select(cmd =>
-                        {
-                            var adjusted = new FunScriptAction { at = cmd.at, pos = cmd.pos };
-                            adjusted.at += indexGallery.StartTime;
-                            return adjusted;
-                        }).ToList();
-
-                        await SendPointChunkAsync(adjustedChunk, indexGallery.StartTime, flush: false);
-                        currentIndex += CHUNK_SIZE;
-                        indexGallery.UploadedIndex = currentIndex;
-                    }
-                    else
-                    {
-                        break;
-                    }
-                }
-
-                indexGallery.IsComplete = true;
-                _logger.LogInformation($"Background upload completed for gallery: {indexGallery.GalleryName}");
+                    CurrentIndexGallery.IsComplete = CurrentIndexGallery.FirtsIndex == 0
+                                                  && 
+                                                    (!currentGallery.Loop 
+                                                    || CurrentIndexGallery.LastIndex == currentGallery.Commands.Count);
+                }                
+                
             }
-            catch (OperationCanceledException)
+            catch (TaskCanceledException)
             {
-                _logger.LogInformation($"Background upload canceled for gallery: {indexGallery.GalleryName}");
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError($"Error during background upload for gallery {indexGallery.GalleryName}: {ex.Message}");
+                
             }
         }
-            
-        private async Task SendPointChunkAsync(List<FunScriptAction> points, long startTime, bool flush = false)
+       
+        private async Task SendPointChunkAsync(List<HandyPoint> points, bool flush = false)
         {
             if (points.Count == 0)
                 return;
 
             _logger.LogInformation($"Sending {points.Count} points, flush: {flush}");
 
-            var pointList = points.Select(cmd => new HandyPoint(
-                (int)(cmd.at + startTime),
-                cmd.pos
-            )).ToList();
 
-            var addRequest = new HandyHspAddRequest(pointList, flush, _hspState?.tail_point_stream_index + pointList.Count ?? 0);
+            var addRequest = new HandyHspAddRequest(points, flush, _hspState?.tail_point_stream_index + points.Count ?? 0);
             var result = await _commandExecutor.AddPointsAsync(addRequest, playCancelTokenSource.Token);
 
             if (result?.result != null)
@@ -284,7 +242,7 @@ namespace Edi.Core.Device.Handy
             }
         }
 
-        private async Task SendPlayCommandAsync(long startTime, List<HandyPoint> points)
+        private async Task SendPlayCommandAsync(long startTime, List<HandyPoint> points = null)
         {
             _logger.LogInformation($"Sending play command with startTime: {startTime}");
 
@@ -293,12 +251,12 @@ namespace Edi.Core.Device.Handy
                 isStopCalled = false;
 
                 var playRequest = new HandyHspPlayRequest(
-                    (int)startTime,
-                    ServerTime,
-                    1.0,
-                    CurrentIndexGallery.StartedFromBeginning,
-                    currentGallery.Loop,
-                    new HandyHspPlayAddRequest(points));
+                    start_time: (int)startTime,
+                    server_time: ServerTime,
+                    playback_rate: 1.0,
+                    flush: points != null,
+                    loop: currentGallery.Loop,
+                    add: new HandyHspPlayAddRequest(points));
                 
                 var token = playCancelTokenSource.Token;
                 var result = await _commandExecutor.PlayAsync(playRequest, token);
@@ -351,38 +309,7 @@ namespace Edi.Core.Device.Handy
 
         private DynamicIndexGallery CurrentIndexGallery { get; set; }
 
-        /// <summary>
-        /// Validates gallery expiration based on HSP buffer state
-        /// </summary>
-        private void ValidateGalleriesAgainstBufferState()
-        {
-            
-            _logger.LogInformation($"Validating galleries against buffer state. FirstTime: {_hspState.first_point_time}, LastTime: {_hspState.last_point_time}");
 
-            foreach (var gallery in _galleryIndex.Values.ToList())
-            {
-                var (start, end) = gallery.BufferTimeRange;
-
-                if (end < _hspState.first_point_time)
-                {
-                    gallery.State = GalleryState.Expired;
-                    gallery.IsValid = false;
-                    _logger.LogInformation($"Gallery {gallery.GalleryName} marked as expired.");
-                }
-                else if (start < _hspState.first_point_time && end > _hspState.first_point_time)
-                {
-                    gallery.State = GalleryState.PartiallyValid;
-                    gallery.IsValid = true;
-                    _logger.LogInformation($"Gallery {gallery.GalleryName} marked as partially valid.");
-                }
-                else if (start >= _hspState.first_point_time && end <= _hspState.last_point_time)
-                {
-                    gallery.State = GalleryState.Valid;
-                    gallery.IsValid = true;
-                    _logger.LogInformation($"Gallery {gallery.GalleryName} marked as valid.");
-                }
-            }
-        }
     }
 
     /// <summary>
@@ -390,17 +317,10 @@ namespace Edi.Core.Device.Handy
     /// </summary>
     internal class DynamicIndexGallery
     {
-        public string GalleryName { get; set; }
-        public string GalleryId { get; set; }
-        public long StartTime { get; set; }
-        public long SeekTime { get; set; }
-        public bool StartedFromBeginning { get; set; }
-        public bool IsComplete { get; set; }
-        public int UploadedIndex { get; set; }
-        public int TotalDuration { get; set; }
-        public (long start, long end) BufferTimeRange { get; set; }
-        public GalleryState State { get; set; } = GalleryState.Valid;
-        public bool IsValid { get; set; } = true;
+        public string GalleryName { get; internal set; }
+        public int FirtsIndex { get; internal set; }
+        public bool IsComplete { get; internal set; }
+        public int LastIndex { get; internal set; }
     }
 
     internal enum GalleryState

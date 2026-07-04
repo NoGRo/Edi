@@ -7,7 +7,7 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 
-namespace Edi.Core.Device.Handy.Transport
+namespace Edi.Core.Device.Handy.Transport.Http
 {
     /// <summary>
     /// HTTP-based transport implementation for Handy API communication.
@@ -17,10 +17,10 @@ namespace Edi.Core.Device.Handy.Transport
     {
         private readonly HttpClient _httpClient;
         private readonly ILogger _logger;
-        private string? _firmwareVersion;
+        private string _firmwareVersion;
 
         public bool IsConnected { get; private set; }
-        public string? FirmwareVersion => _firmwareVersion;
+        public string FirmwareVersion => _firmwareVersion;
 
         public HttpHandyTransport(HttpClient httpClient, ILogger logger)
         {

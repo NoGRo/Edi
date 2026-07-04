@@ -19,6 +19,7 @@ using Edi.Core.Device;
 using Edi.Core.Device.Interfaces;
 using Edi.Core.Device.Handy.Transport;
 using Edi.Core.Services;
+using Edi.Core.Device.Handy.Transport.Http;
 
 namespace Edi.Core.Device.Handy
 {

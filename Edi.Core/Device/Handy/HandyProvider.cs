@@ -136,16 +136,10 @@ namespace Edi.Core.Device.Handy
                 var firmwareVersion = await _deviceFactory.DetectFirmwareVersionAsync(client);
                 IDevice handyDevice;
 
-                if (_deviceFactory.ShouldUseHspProtocol(firmwareVersion))
-                {
-                    _logger.LogInformation($"Creating HandyV3Device (HSP protocol) for Key: {key}");
-                    handyDevice = new HandyV3Device(client, indexRepository, configManager, _logger);
-                }
-                else
-                {
+             
                     _logger.LogInformation($"Creating HandyDevice (Legacy HSSP protocol) for Key: {key}");
                     handyDevice = new HandyDevice(client, indexRepository, _logger);
-                }
+             
 
                 lock (devices)
                 {

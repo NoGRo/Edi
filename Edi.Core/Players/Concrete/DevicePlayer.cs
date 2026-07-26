@@ -2,12 +2,7 @@
 using Edi.Core.Device.Interfaces;
 using Edi.Core.Gallery;
 using Edi.Core.Services;
-using NAudio.CoreAudioApi;
-using NAudio.Wave;
-using Serilog;
-using System.Collections.Concurrent;
 using System.ComponentModel;
-using System.Xml.Linq;
 
 namespace Edi.Core.Players
 {
@@ -27,35 +22,77 @@ namespace Edi.Core.Players
 
         }
 
-        private List<IDevice> Devices = new();
+        private readonly object devicesLock = new();
+        private readonly List<IDevice> Devices = new();
+        private readonly Dictionary<INotifyPropertyChanged, PropertyChangedEventHandler> subscriptions = new();
+        private readonly SemaphoreSlim stateLock = new(1, 1);
         private bool isHardPause;
         private bool isPause;
         private SyncPlayback syncPlayback;
 
         public void Add(IDevice device)
         {
-            Devices.Add(device);
-            _ = Sync(device);
-
-            if (device is not INotifyPropertyChanged notifier)
-                return;
-            
-            notifier.PropertyChanged += async (sender, args) =>
+            lock (devicesLock)
             {
-                if (sender is not IDevice d 
-                        || args.PropertyName is not nameof(IDevice.SelectedVariant) 
-                                             and not nameof(IDevice.IsReady)
-                                            // and not nameof(IRange.Max)
-                        || !Devices.Contains(d))
+                if (Devices.Contains(device))
                     return;
 
-                await Sync(d);
-            };
+                Devices.Add(device);
 
+                if (device is INotifyPropertyChanged notifier)
+                {
+                    PropertyChangedEventHandler handler = (sender, args) =>
+                    {
+                        if (sender is not IDevice changedDevice
+                            || args.PropertyName is not nameof(IDevice.SelectedVariant)
+                                and not nameof(IDevice.IsReady)
+                            || !Contains(changedDevice))
+                        {
+                            return;
+                        }
+
+                        Observe(Sync(changedDevice), $"syncing device '{changedDevice.Name}' after a property change");
+                    };
+
+                    notifier.PropertyChanged += handler;
+                    subscriptions[notifier] = handler;
+                }
+            }
+
+            Observe(Sync(device), $"initial sync for device '{device.Name}'");
         }
+
         public void Remove(IDevice device)
         {
-            Devices.Remove(device);
+            lock (devicesLock)
+            {
+                Devices.Remove(device);
+
+                if (device is INotifyPropertyChanged notifier
+                    && subscriptions.Remove(notifier, out var handler))
+                {
+                    notifier.PropertyChanged -= handler;
+                }
+            }
+        }
+
+        private bool Contains(IDevice device)
+        {
+            lock (devicesLock)
+            {
+                return Devices.Contains(device);
+            }
+        }
+
+        private List<IDevice> Snapshot(IDevice device = null)
+        {
+            lock (devicesLock)
+            {
+                if (device == null)
+                    return Devices.ToList();
+
+                return Devices.Contains(device) ? new List<IDevice> { device } : new List<IDevice>();
+            }
         }
 
         private bool isStopState(IDevice device)
@@ -67,75 +104,186 @@ namespace Edi.Core.Players
 
         public async Task Sync(IDevice device = null, bool atCurrentTime = true)
         {
-            var targets = device != null ? new List<IDevice> { device } : Devices;
-
-            foreach (var d in targets.Where(x => x.IsReady))
+            await stateLock.WaitAsync();
+            try
             {
-                if (!isHardPause && !isPause && syncPlayback?.IsFinished(atCurrentTime) == false && !isStopState(d))
-                    _ = d.PlayGallery(syncPlayback.GalleryName, syncPlayback.ResumeTime(atCurrentTime));
-                else
-                    _ = d.Stop();
+                SyncCore(device, atCurrentTime);
+            }
+            finally
+            {
+                stateLock.Release();
             }
         }
 
         public async Task Stop()
         {
-            syncPlayback = null;
-
-            _ = Devices.Select(d => d.Stop()).ToList();
+            await stateLock.WaitAsync();
+            try
+            {
+                syncPlayback = null;
+                Dispatch(Snapshot(), device => device.Stop(), "stopping");
+            }
+            finally
+            {
+                stateLock.Release();
+            }
         }
 
         public async Task Play(string name, long seek = 0)
         {
-            syncPlayback = syncFactory.Create(name, seek);
-            if (isHardPause)
-                return;
+            await stateLock.WaitAsync();
+            try
+            {
+                syncPlayback = syncFactory.Create(name, seek);
+                if (isHardPause)
+                    return;
 
-            isPause = false;
-            _ = Devices.Where(d =>
-                    !isStopState(d))
-                .Select(d => d.PlayGallery(name, seek)).ToList();
+                isPause = false;
+                Dispatch(
+                    Snapshot().Where(device => !isStopState(device)),
+                    device => device.PlayGallery(name, seek),
+                    $"playing gallery '{name}'");
+            }
+            finally
+            {
+                stateLock.Release();
+            }
         }
 
         public async Task Pause(bool untilResume = false)
         {
-            isHardPause = untilResume;
-            isPause = true;
-            if (syncPlayback != null)
-                syncPlayback = syncFactory.Create(syncPlayback.GalleryName, syncPlayback.CurrentTime);
+            await stateLock.WaitAsync();
+            try
+            {
+                isHardPause = untilResume;
+                isPause = true;
+                if (syncPlayback != null)
+                    syncPlayback = syncFactory.Create(syncPlayback.GalleryName, syncPlayback.CurrentTime);
 
-            logService.AddLog($"Pause, until resume: {untilResume}");
+                logService.AddLog($"Pause, until resume: {untilResume}");
 
-            _ = Devices.Select(d => d.Stop()).ToList();
+                Dispatch(Snapshot(), device => device.Stop(), "pausing");
+            }
+            finally
+            {
+                stateLock.Release();
+            }
         }
 
         public async Task Resume(bool atCurrentTime = false)
         {
-            isHardPause = false;
-            isPause = false;
-            if (syncPlayback?.IsFinished(atCurrentTime) == false)
+            await stateLock.WaitAsync();
+            try
             {
-                logService.AddLog($"Resume [{syncPlayback.GalleryName}] at {syncPlayback.ResumeTime(atCurrentTime)}");
-                await Sync(atCurrentTime: atCurrentTime);
-                syncPlayback = syncFactory.Create(syncPlayback.GalleryName, syncPlayback.ResumeTime(atCurrentTime));
+                isHardPause = false;
+                isPause = false;
+                if (syncPlayback?.IsFinished(atCurrentTime) == false)
+                {
+                    var resumeTime = syncPlayback.ResumeTime(atCurrentTime);
+                    logService.AddLog($"Resume [{syncPlayback.GalleryName}] at {resumeTime}");
+                    SyncCore(atCurrentTime: atCurrentTime);
+                    syncPlayback = syncFactory.Create(syncPlayback.GalleryName, resumeTime);
+                }
+                else
+                {
+                    logService.AddLog("Resume, Stop");
+                    syncPlayback = null;
+                    Dispatch(Snapshot(), device => device.Stop(), "stopping after resume");
+                }
             }
-            else
+            finally
             {
-                logService.AddLog($"Resume, Stop");
-                await Stop();
+                stateLock.Release();
             }
         }
 
-        public async Task Intensity(int Max)
+        public async Task Intensity(int max)
         {
-            foreach (var d in Devices.Where(d => d is IRange))
+            await stateLock.WaitAsync();
+            try
             {
-                var range = (IRange)d;
-                if (config.Devices.TryGetValue(d.Name, out var def) && def is IRange defRange)
-                    range.Max = defRange.Min + (defRange.Max - defRange.Min) * Max / 100;
+                foreach (var device in Snapshot().OfType<IRange>())
+                {
+                    var rangeDevice = (IDevice)device;
+                    if (config.Devices.TryGetValue(rangeDevice.Name, out var configuredRange))
+                    {
+                        device.Max = configuredRange.Min
+                                     + (configuredRange.Max - configuredRange.Min) * max / 100;
+                    }
+                }
+            }
+            finally
+            {
+                stateLock.Release();
             }
         }
 
+        private void SyncCore(IDevice device = null, bool atCurrentTime = true)
+        {
+            foreach (var target in Snapshot(device).Where(candidate => candidate.IsReady))
+            {
+                if (!isHardPause
+                    && !isPause
+                    && syncPlayback?.IsFinished(atCurrentTime) == false
+                    && !isStopState(target))
+                {
+                    var galleryName = syncPlayback.GalleryName;
+                    var resumeTime = syncPlayback.ResumeTime(atCurrentTime);
+                    Dispatch(target, () => target.PlayGallery(galleryName, resumeTime),
+                        $"syncing gallery '{galleryName}'");
+                }
+                else
+                {
+                    Dispatch(target, target.Stop, "sync stop");
+                }
+            }
+        }
+
+        private void Dispatch(
+            IEnumerable<IDevice> devices,
+            Func<IDevice, Task> command,
+            string operation)
+        {
+            foreach (var device in devices)
+            {
+                Dispatch(device, () => command(device), operation);
+            }
+        }
+
+        private void Dispatch(IDevice device, Func<Task> command, string operation)
+        {
+            try
+            {
+                Observe(command(), $"{operation} on device '{device.Name}'");
+            }
+            catch (Exception ex)
+            {
+                logService.AddLog($"Error {operation} on device [{device.Name}]: {ex.Message}");
+            }
+        }
+
+        private void Observe(Task task, string operation)
+        {
+            if (task == null)
+                return;
+
+            _ = ObserveCore(task, operation);
+        }
+
+        private async Task ObserveCore(Task task, string operation)
+        {
+            try
+            {
+                await task;
+            }
+            catch (OperationCanceledException)
+            {
+                // A newer player command superseded this operation.
+            }
+            catch (Exception ex)
+            {
+                logService.AddLog($"Error while {operation}: {ex.Message}");
+            }
+        }
     }
- 
 }

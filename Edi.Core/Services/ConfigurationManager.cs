@@ -22,16 +22,17 @@ namespace Edi.Core.Services
     public class ConfigurationManager
     {
         private string _gameConfigPath; // Cambié _filePath a _fileName porque ahora el path varía
-        private string _userConfigPath = Path.Combine(Edi.OutputDir, "UserConfig.json");
+        private readonly string _userConfigPath;
         private Dictionary<string, JObject> _configurations;
         private Dictionary<string, object> _configObject = new Dictionary<string, object>();
         
 
         public string GamePathConfig => _gameConfigPath;
 
-        public ConfigurationManager(string fileName)
+        public ConfigurationManager(string fileName, string userConfigPath = null)
         {
             _gameConfigPath = fileName;
+            _userConfigPath = userConfigPath ?? Path.Combine(Edi.OutputDir, "UserConfig.json");
             _configurations = LoadCombinedConfigurations();
         }
 

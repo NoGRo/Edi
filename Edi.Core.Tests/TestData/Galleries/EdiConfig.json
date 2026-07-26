@@ -1,0 +1,24 @@
+{
+  "Edi": {
+    "Filler": true,
+    "Gallery": true,
+    "Reactive": true,
+    "UseChannels": false,
+    "Channels": []
+  },
+  "Gallery": {
+    "GalleryPath": "./",
+    "GenerateDefinitionFromChapters": false,
+    "GenerateChaptersFromDefinition": false,
+    "InproveLoopDetection": true
+  },
+  "Devices": {
+    "Devices": {}
+  },
+  "GalleryBundler": {
+    "MinRepeatDuration": 500,
+    "RepeatDuration": 100,
+    "SpacerDuration": 100,
+    "DisableBundler": false
+  }
+}

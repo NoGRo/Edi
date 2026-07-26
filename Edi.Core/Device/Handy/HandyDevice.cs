@@ -30,13 +30,18 @@ namespace Edi.Core.Device.Handy
     internal class HandyDevice : DeviceBase<IndexRepository, IndexGallery>
     {
         private readonly ILogger _logger;
+        private readonly Func<TimeSpan, CancellationToken, Task> _delay;
 
         public string Key { get; set; }
         public HttpClient Client = null;
 
         private string CurrentBundle = "default";
         private bool isStopCalled;
-        public HandyDevice(HttpClient client, IndexRepository repository, ILogger logger) : base(repository, logger)
+        public HandyDevice(
+            HttpClient client,
+            IndexRepository repository,
+            ILogger logger,
+            Func<TimeSpan, CancellationToken, Task> delay = null) : base(repository, logger)
         {
 
 
@@ -46,6 +51,7 @@ namespace Edi.Core.Device.Handy
 
             IsReady = false;
             Client = client;
+            _delay = delay ?? Task.Delay;
 
             _logger.LogInformation($"HandyDevice initialized with Key: {Key}.");
         }
@@ -95,7 +101,7 @@ namespace Edi.Core.Device.Handy
                 var token = playCancelTokenSource.Token;
 
                 await Client.PutAsync("v2/hssp/play", new StringContent(JsonConvert.SerializeObject(req), Encoding.UTF8, "application/json"), token);
-                await Task.Delay(1500, token);
+                await _delay(TimeSpan.FromMilliseconds(1500), token);
                 if (currentGallery is null || token.IsCancellationRequested || isStopCalled)
                     return;
 

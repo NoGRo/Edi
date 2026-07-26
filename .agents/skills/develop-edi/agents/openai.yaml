@@ -1,0 +1,4 @@
+interface:
+  display_name: "Desarrollar EDI"
+  short_description: "Programar y verificar Easy Device Integration"
+  default_prompt: "Usa $develop-edi para implementar y verificar este cambio en EDI."

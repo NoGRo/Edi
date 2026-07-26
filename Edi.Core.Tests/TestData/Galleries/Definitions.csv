@@ -1,0 +1,6 @@
+Name,FileName,StartTime,EndTime,Type,Loop,Description
+ambient,ambient,0,2000,filler,true,Background filler
+scene,scene,0,2000,gallery,true,Main looping gallery
+scene-two,scene-two,0,2000,gallery,true,Second looping gallery
+short-scene,short-scene,0,140,gallery,false,Short non-looping gallery
+hit,hit,0,80,reaction,false,Short reaction

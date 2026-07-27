@@ -1,470 +1,510 @@
-﻿using CsvHelper;
-using CsvHelper.Configuration;
 using Edi.Core.Device;
-using Edi.Core.Funscript.Command;
-using Edi.Core.Funscript.FileJson;
-using Edi.Core.Gallery;
-using Edi.Core.Gallery.Definition;
 using Edi.Core.Gallery.Funscript;
-using Edi.Core.Gallery.Index;
 using Edi.Core.Services;
 using Microsoft.Extensions.Logging;
 using Newtonsoft.Json;
-using Newtonsoft.Json.Linq;
 using PropertyChanged;
-using System;
-using System.Collections.Generic;
-using System.ComponentModel.DataAnnotations;
-using System.Diagnostics;
-using System.Diagnostics.CodeAnalysis;
-using System.IO;
-using System.Linq;
-using System.Net;
-using System.Net.Http;
-using System.Net.Security;
-using System.Reflection;
-using System.Runtime.CompilerServices;
-using System.Security;
 using System.Text;
-using System.Text.Json;
-using System.Threading;
-using System.Threading.Tasks;
-using System.Threading.Tasks;
-using System.Timers;
-using System.Xml.Linq;
 
 namespace Edi.Core.Device.Handy
 {
     [AddINotifyPropertyChangedInterface]
-    internal class HandyV3Device : DeviceBase<IndexRepository, IndexGallery>
+    internal class HandyV3Device
+        : DeviceBase<FunscriptRepository, FunscriptGallery>
     {
-        private const int CHUNK_SIZE = 100;
-        private const long SAFETY_MARGIN_MS = 7000;
+        // Set to false only to diagnose devices that reject HSP play(add).
+        private const bool UseEmbeddedAddInPlay = true;
+        private const int MaxPointsPerRequest = 100;
+        private static readonly TimeSpan StreamingPollInterval =
+            TimeSpan.FromMilliseconds(250);
 
-        public string Key { get; set; }
-        public HttpClient Client = null;
-        internal override bool SelfManagedLoop { get; set; } = false;
         private readonly ILogger _logger;
+        private readonly object _sessionInitializationSync = new();
 
-        // HSP State tracking
         private HspState _hspState;
-        private Dictionary<string, DynamicIndexGallery> _galleryIndex = new();
-        private long _nextStartTime = 0;
+        private Task _sessionInitializationTask;
         private int _streamId = -1;
-        private Task _pointUploadTask;
-        private GalleryBundlerConfig _configBundler;
-        private HandyConfig _configHandy;
-        private ScriptBuilder _sb = new ScriptBuilder();
-        private bool isStopCalled;
+        private int _tailPointStreamIndex;
+        private bool _isStopCalled;
 
-        public HandyV3Device(HttpClient Client, IndexRepository repository ,ConfigurationManager configurationManager, ILogger logger) : base(repository, logger)
+        public HandyV3Device(
+            HttpClient client,
+            FunscriptRepository repository,
+            ILogger logger)
+            : base(repository, logger)
         {
-            Key = Client.DefaultRequestHeaders.GetValues("X-Connection-Key").First();
+            Client = client;
+            Key = client.DefaultRequestHeaders
+                .GetValues("X-Connection-Key")
+                .First();
             Name = $"The Handy [{Key}]";
-            this.Client = Client;
             _logger = logger;
-            _logger.LogInformation($"HandyV3Device initialized with Key: {Key}.");
-            _configBundler =  configurationManager.Get<GalleryBundlerConfig>();
-            _configHandy = configurationManager.Get<HandyConfig>();
             IsReady = true;
+
+            _logger.LogInformation(
+                $"HandyV3Device initialized with Key: {Key}.");
         }
+
+        public string Key { get; }
+        public HttpClient Client { get; }
+        internal override bool SelfManagedLoop { get; set; } = true;
 
         internal override async Task applyRange()
         {
-            _logger.LogInformation($"Applying range for Key: {Key}, Min: {Min}, Max: {Max}.");
+            _logger.LogInformation(
+                $"Applying range for Key: {Key}, Min: {Min}, Max: {Max}.");
             var request = new SlideRequest(Min, Max);
-            await Client.PutAsync("v2/slide", new StringContent(JsonConvert.SerializeObject(request), Encoding.UTF8, "application/json"), playCancelTokenSource.Token);
+            await Client.PutAsync(
+                "v2/slide",
+                JsonContent(request),
+                playCancelTokenSource.Token);
         }
 
-        public override Task PlayGallery(IndexGallery gallery, long seek = 0)
+        public override Task PlayGallery(FunscriptGallery gallery, long seek = 0)
             => PlayGallery(gallery, seek, playCancelTokenSource.Token);
 
         protected override async Task PlayGallery(
-            IndexGallery gallery,
+            FunscriptGallery gallery,
             long seek,
             CancellationToken cancellationToken)
         {
-            _logger.LogInformation($"PlayGallery called for gallery: {gallery?.Name}, seek: {seek}");
+            _logger.LogInformation(
+                $"PlayGallery called for gallery: {gallery?.Name}, seek: {seek}");
 
-            
             SeekTime = seek;
             IsPause = false;
 
             try
             {
-                // Initialize HSP if not already done
-                if (_streamId == -1)
+                await EnsureHspSession();
+
+                var plan = CreatePlaybackPlan(gallery, seek);
+                CurrentDuration = plan.Duration;
+
+                var bufferCapacity = GetBufferCapacity();
+                var canUseDeviceLoop =
+                    gallery.Loop && plan.Points.Count <= bufferCapacity;
+                SelfManagedLoop = canUseDeviceLoop;
+
+                if (gallery.Loop && !canUseDeviceLoop)
                 {
-                    await InitializeHspSession(cancellationToken);
+                    _logger.LogWarning(
+                        $"Gallery {gallery.Name} has {plan.Points.Count} points, " +
+                        $"which exceeds the Handy buffer capacity of {bufferCapacity}. " +
+                        "Falling back to EDI's virtual loop.");
                 }
 
-                var points = new List<Point>(); 
-                // Check if gallery is already loaded and valid
-                string galleryKey = gallery.Name;
-                if (!_galleryIndex.TryGetValue(currentGallery.Name, out var existingGallery) ||
-                        !existingGallery.IsValid ||
-                        !existingGallery.IsComplete)
+                var initialPointCount =
+                    Math.Min(
+                        Math.Min(bufferCapacity, MaxPointsPerRequest),
+                        plan.Points.Count);
+                var initialPoints =
+                    plan.Points.Take(initialPointCount).ToList();
+                var remainingPoints =
+                    plan.Points.Skip(initialPointCount).ToList();
+
+                await StartPlaybackWithoutAddRoundTrip(
+                    initialPoints,
+                    plan.StartTime,
+                    loop: canUseDeviceLoop,
+                    cancellationToken);
+
+                if (remainingPoints.Count > 0)
                 {
-                
-                    _logger.LogInformation($"Gallery {currentGallery.Name} already loaded and valid. Sending play command with seek: {seek}");
-
-                    points = LoadGallery(gallery, seek);
+                    _ = ObserveStreamingTask(
+                        StreamRemainingPoints(
+                            plan.Points,
+                            initialPointCount,
+                            remainingPoints,
+                            bufferCapacity,
+                            cancellationToken),
+                        gallery.Name);
                 }
+            }
+            catch (OperationCanceledException)
+                when (cancellationToken.IsCancellationRequested)
+            {
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(
+                    ex,
+                    $"Error playing gallery {gallery?.Name}.");
+                throw;
+            }
+        }
 
-                // Load gallery
+        private PlaybackPlan CreatePlaybackPlan(
+            FunscriptGallery gallery,
+            long seek)
+        {
+            var orderedPoints = gallery.Commands?
+                .OrderBy(command => command.AbsoluteTime)
+                .Select(command => new Point(
+                    Convert.ToInt32(command.AbsoluteTime),
+                    Math.Clamp(
+                        Convert.ToInt32(Math.Round(command.Value)),
+                        0,
+                        100)))
+                .ToList();
+            if (orderedPoints?.Count > 0 != true)
+            {
+                throw new InvalidOperationException(
+                    $"Gallery '{gallery.Name}' has no points to play.");
+            }
 
+            var duration = gallery.Duration;
+            if (duration <= 0)
+                duration = orderedPoints.Last().t;
 
-                // Send play command
-                existingGallery = _galleryIndex[currentGallery.Name];
-                CurrentDuration = existingGallery.TotalDuration + (gallery.Loop ? -_configBundler.RepeatDuration : -_configBundler.SpacerDuration);
-                await SendPlayCommand(
-                    existingGallery.StartTime + CurrentTime,
+            var startTime = Math.Clamp(seek, 0, duration);
+            var points = gallery.Loop
+                ? orderedPoints
+                    .Where(point => point.t <= duration)
+                    .ToList()
+                : SelectPointsFromSeek(orderedPoints, startTime);
+            if (points.Count == 0)
+            {
+                throw new InvalidOperationException(
+                    $"Gallery '{gallery.Name}' has no points at seek {seek}.");
+            }
+
+            return new PlaybackPlan(points, duration, startTime);
+        }
+
+        private static List<Point> SelectPointsFromSeek(
+            List<Point> points,
+            long seek)
+        {
+            var firstAtOrAfterSeek =
+                points.FindIndex(point => point.t >= seek);
+            if (firstAtOrAfterSeek < 0)
+                return [points.Last()];
+
+            var startIndex = Math.Max(0, firstAtOrAfterSeek - 1);
+            return points.Skip(startIndex).ToList();
+        }
+
+        private int GetBufferCapacity()
+            => Math.Max(
+                1,
+                _hspState?.max_points ?? MaxPointsPerRequest);
+
+        private async Task StartPlaybackWithoutAddRoundTrip(
+            List<Point> points,
+            long startTime,
+            bool loop,
+            CancellationToken cancellationToken)
+        {
+            if (UseEmbeddedAddInPlay
+                && points.Count <= MaxPointsPerRequest)
+            {
+                var add = new HspAddRequest(
                     points,
+                    flush: true,
+                    ReserveTailPointStreamIndex(points.Count));
+                await SendPlayCommand(
+                    startTime,
+                    loop,
+                    add,
                     cancellationToken);
-                if (_pointUploadTask != null)
-                    await _pointUploadTask;
+                return;
             }
-            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
-            {
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError($"Error playing gallery: {ex.Message}");
-                throw;
-            }
+
+            var bufferLoadTask = LoadInitialBuffer(
+                points,
+                cancellationToken);
+
+            await SendPlayCommand(
+                startTime,
+                loop,
+                add: null,
+                cancellationToken);
+            await bufferLoadTask;
         }
 
-        private async Task InitializeHspSession(CancellationToken cancellationToken)
+        private async Task LoadInitialBuffer(
+            List<Point> points,
+            CancellationToken cancellationToken)
         {
-            _logger.LogInformation($"Initializing HSP session for Key: {Key}");
+            var flush = true;
 
-            try
+            foreach (var chunk in points.Chunk(MaxPointsPerRequest))
             {
-                var setupResponse = await Client.PutAsync("v3/hsp/setup", 
-                    new StringContent(JsonConvert.SerializeObject(new  { stream_id = new Random(DateTime.Now.Millisecond).Next(3000) }), Encoding.UTF8, "application/json"),
+                var pointChunk = chunk.ToList();
+                await SendPointChunk(
+                    pointChunk,
+                    flush,
                     cancellationToken);
-
-                var responseContent = await setupResponse.Content.ReadAsStringAsync();
-                _hspState = JsonConvert.DeserializeObject<HspStateResult>(responseContent)?.result;
-                _streamId = _hspState.stream_id;
-                _nextStartTime = 0;
-                _galleryIndex.Clear();
-                _logger.LogInformation($"HSP session initialized. StreamId: {_streamId}, MaxPoints: {_hspState.max_points}");
-
-                
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError($"Error initializing HSP session: {ex.Message}");
-                throw;
+                flush = false;
             }
         }
 
-        private List<Point> LoadGallery(IndexGallery gallery, long seek = 0)
+        private async Task StreamRemainingPoints(
+            List<Point> allPoints,
+            int initialPointCount,
+            List<Point> remainingPoints,
+            int bufferCapacity,
+            CancellationToken cancellationToken)
         {
-            string galleryKey = gallery.Name;
-            _logger.LogInformation($"Loading gallery: {galleryKey}, seek: {seek}");
+            var uploadChunkSize =
+                Math.Min(MaxPointsPerRequest, bufferCapacity);
+            var uploadedPointCount = initialPointCount;
 
-            var commands = gallery.Actions.OrderBy(c => c.at).ToList();
-
-            if (commands.Count == 0)
+            foreach (var chunk in remainingPoints.Chunk(uploadChunkSize))
             {
-                _logger.LogWarning($"Gallery {galleryKey} has no commands.");
-                return new List<Point>();
-            }
-            // Evaluate first 100 points
-            var firstChunk = commands.Take(CHUNK_SIZE).ToList();
-            long firstChunkEndTime = firstChunk.Last().at;
-            long remainingTimeAfterSeek = firstChunkEndTime - seek;
-            bool canStartFromBeginning = seek <= firstChunkEndTime && (firstChunk.Last().at - seek  < SAFETY_MARGIN_MS || remainingTimeAfterSeek >= SAFETY_MARGIN_MS);
-
-            DynamicIndexGallery indexGallery;
-            List<FunScriptAction> initialChunk;
-            int initialIndex;
-
-            if (canStartFromBeginning)
-            {
-                _logger.LogInformation($"Starting gallery {galleryKey} from beginning (seek within first 100 points)");
-                initialChunk = firstChunk;
-                initialIndex = initialChunk.Count;
-            }
-            else
-            {
-                _logger.LogInformation($"Starting gallery {galleryKey} from seek position: {seek}");
-                var seekIndex = commands.FindIndex(c => c.at >= seek);
-                initialChunk = commands.Skip(Math.Max(0, seekIndex)).Take(CHUNK_SIZE).ToList();
-                initialIndex = seekIndex  + initialChunk.Count;
-            }
-
-            long galleryBufferStart = _nextStartTime;
-            long galleryBufferEnd = _nextStartTime + firstChunk.Last().at;
-            indexGallery = new DynamicIndexGallery
-            {
-                GalleryName = galleryKey,
-                StartTime = _nextStartTime,
-                SeekTime = seek,
-                StartedFromBeginning = canStartFromBeginning,
-                IsComplete = canStartFromBeginning ? commands.Count <= CHUNK_SIZE : commands.Count <= initialIndex,
-                UploadedIndex = initialIndex,
-                TotalDuration = Convert.ToInt32(commands.Last().at),
-                BufferTimeRange = (galleryBufferStart, galleryBufferEnd)
-            };
-
-            // Add gallery to index
-            _galleryIndex[galleryKey] = indexGallery;
-
-            // Send initial chunk
-
-            // Update next start time
-          
-
-            // Start background upload task for remaining points
-            var points =  initialChunk.Select( cmd => new Point(
-                (int)(cmd.at + _nextStartTime),
-                cmd.pos
-            )).ToList();
-            
-
-            _nextStartTime += indexGallery.TotalDuration;
-
-            return points; 
-
-            if (!indexGallery.IsComplete)
-            {
-                _pointUploadTask = UploadRemainingPointsAsync(gallery, indexGallery, initialIndex);
-            }
-        }
-
-   
-
-        private async Task UploadRemainingPointsAsync(IndexGallery gallery, DynamicIndexGallery indexGallery, int startIndex)
-        {
-            _logger.LogInformation($"Starting background upload for gallery: {indexGallery.GalleryName}, startIndex: {startIndex}");
-
-            try
-            {
-                var commands = gallery.Actions.OrderBy(c => c.at).ToList();
-                int currentIndex = startIndex;
-
-                while (currentIndex < commands.Count && !playCancelTokenSource.Token.IsCancellationRequested)
+                var pointChunk = chunk.ToList();
+                var uploadedAfterChunk =
+                    uploadedPointCount + pointChunk.Count;
+                var pointsThatMustBeConsumed =
+                    uploadedAfterChunk - bufferCapacity;
+                if (pointsThatMustBeConsumed > 0)
                 {
-                    // Calculate current playback time
-                    var lastCommand = commands[Math.Min(indexGallery.UploadedIndex - 1, commands.Count - 1)];
-                    long estimatedPlaybackTime = lastCommand.at;
-
-                    // Get next point time
-                    if (currentIndex < commands.Count)
-                    {
-                        long nextPointTime = commands[currentIndex].at;
-                        long timeUntilPlayback = nextPointTime - estimatedPlaybackTime;
-
-                        // Wait until safety margin is within SAFETY_MARGIN_MS
-                        if (timeUntilPlayback > SAFETY_MARGIN_MS)
-                        {
-                            long delayMs = timeUntilPlayback - SAFETY_MARGIN_MS;
-                            await Task.Delay(Convert.ToInt32(delayMs), playCancelTokenSource.Token);
-                        }
-                    }
-
-                    // Send next chunk
-                    var chunk = commands.Skip(currentIndex).Take(CHUNK_SIZE).ToList();
-                    if (chunk.Count > 0)
-                    {
-                        // Adjust times to absolute buffer time
-                        var adjustedChunk = chunk.Select(cmd =>
-                        {
-                            var adjusted =new FunScriptAction { at = cmd.at, pos = cmd.pos };
-                            adjusted.at += indexGallery.StartTime;
-                            return adjusted;
-                        }).ToList();
-
-                        await SendPointChunk(adjustedChunk, indexGallery.StartTime, flush: false);
-                        currentIndex += CHUNK_SIZE;
-                        indexGallery.UploadedIndex = currentIndex;
-                    }
-                    else
-                    {
-                        break;
-                    }
+                    var consumedIndex = Math.Min(
+                        pointsThatMustBeConsumed - 1,
+                        allPoints.Count - 1);
+                    await WaitUntilPlaybackReaches(
+                        allPoints[consumedIndex].t,
+                        cancellationToken);
                 }
 
-                indexGallery.IsComplete = true;
-                _logger.LogInformation($"Background upload completed for gallery: {indexGallery.GalleryName}");
+                await SendPointChunk(
+                    pointChunk,
+                    flush: false,
+                    cancellationToken);
+                uploadedPointCount = uploadedAfterChunk;
+            }
+        }
+
+        private async Task WaitUntilPlaybackReaches(
+            int playbackTime,
+            CancellationToken cancellationToken)
+        {
+            while (CurrentTime < playbackTime)
+            {
+                var remaining =
+                    TimeSpan.FromMilliseconds(playbackTime - CurrentTime);
+                var delay = remaining < StreamingPollInterval
+                    ? remaining
+                    : StreamingPollInterval;
+                await Task.Delay(delay, cancellationToken);
+            }
+        }
+
+        private async Task ObserveStreamingTask(
+            Task streamingTask,
+            string galleryName)
+        {
+            try
+            {
+                await streamingTask;
             }
             catch (OperationCanceledException)
             {
-                _logger.LogInformation($"Background upload canceled for gallery: {indexGallery.GalleryName}");
             }
             catch (Exception ex)
             {
-                _logger.LogError($"Error during background upload for gallery {indexGallery.GalleryName}: {ex.Message}");
+                _logger.LogError(
+                    ex,
+                    $"Error streaming remaining points for gallery {galleryName}.");
             }
         }
-            
-        private async Task SendPointChunk(List<FunScriptAction> points, long startTime, bool flush = false)
+
+        private async Task EnsureHspSession()
+        {
+            Task initializationTask;
+            lock (_sessionInitializationSync)
+            {
+                if (_streamId != -1)
+                    return;
+
+                initializationTask = _sessionInitializationTask
+                    ??= InitializeHspSession();
+            }
+
+            try
+            {
+                await initializationTask;
+            }
+            catch
+            {
+                lock (_sessionInitializationSync)
+                {
+                    if (ReferenceEquals(
+                        _sessionInitializationTask,
+                        initializationTask))
+                    {
+                        _sessionInitializationTask = null;
+                    }
+                }
+
+                throw;
+            }
+        }
+
+        private async Task InitializeHspSession()
+        {
+            _logger.LogInformation(
+                $"Initializing HSP session for Key: {Key}");
+
+            var setupRequest = new
+            {
+                stream_id = Random.Shared.Next(1, int.MaxValue)
+            };
+            var response = await Client.PutAsync(
+                "v3/hsp/setup",
+                JsonContent(setupRequest),
+                CancellationToken.None);
+            _hspState = await ReadHspState(response, "setup");
+            _streamId = _hspState.stream_id;
+            _tailPointStreamIndex =
+                _hspState.tail_point_stream_index;
+
+            _logger.LogInformation(
+                $"HSP session initialized. StreamId: {_streamId}, " +
+                $"MaxPoints: {_hspState.max_points}");
+        }
+
+        private async Task SendPointChunk(
+            List<Point> points,
+            bool flush,
+            CancellationToken cancellationToken)
         {
             if (points.Count == 0)
                 return;
 
-            _logger.LogInformation($"Sending {points.Count} points, flush: {flush}");
-
-            var pointList = points.Select(cmd => new Point(
-                (int)(cmd.at + startTime),
-                cmd.pos
-            )).ToList();
-
-            var addRequest = new HspAddRequest(pointList, flush, _hspState?.tail_point_stream_index + pointList.Count() ?? 0);
-
-            try
-            {
-                var response = await Client.PutAsync("v3/hsp/add",
-                    new StringContent(JsonConvert.SerializeObject(addRequest), Encoding.UTF8, "application/json"),
-                    playCancelTokenSource.Token);
-
-                var responseContent = await response.Content.ReadAsStringAsync();
-                _hspState = JsonConvert.DeserializeObject<HspStateResult>(responseContent)?.result;
-
-                _logger.LogInformation($"Points sent successfully. Buffer state: points={_hspState.points}, current_point={_hspState.current_point}");
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError($"Error sending point chunk: {ex.Message}");
-                throw;
-            }
+            var request = new HspAddRequest(
+                points,
+                flush,
+                ReserveTailPointStreamIndex(points.Count));
+            var response = await Client.PutAsync(
+                "v3/hsp/add",
+                JsonContent(request),
+                cancellationToken);
+            _hspState = await ReadHspState(response, "add");
         }
 
         private async Task SendPlayCommand(
             long startTime,
-            List<Point> points,
+            bool loop,
+            HspAddRequest add,
             CancellationToken cancellationToken)
         {
-            _logger.LogInformation($"Sending play command with startTime: {startTime}");
+            _isStopCalled = false;
+            var request = new HspPlayRequest(
+                Convert.ToInt32(startTime),
+                ServerTime,
+                1.0,
+                loop,
+                add);
+            var response = await Client.PutAsync(
+                "v3/hsp/play",
+                JsonContent(request),
+                cancellationToken);
 
-            try
+            if (currentGallery is null
+                || cancellationToken.IsCancellationRequested
+                || _isStopCalled)
             {
-                isStopCalled = false;
-                var playRequest = new HspPlayRequest((int)startTime, ServerTime, 1.0, false, new(points));
-                var response = await Client.PutAsync("v3/hsp/play",
-                    new StringContent(JsonConvert.SerializeObject(playRequest), Encoding.UTF8, "application/json"),
-                    cancellationToken);
-
-                if (currentGallery is null || cancellationToken.IsCancellationRequested || isStopCalled)
-                    return;
-
-                var responseContent = await response.Content.ReadAsStringAsync();
-                _hspState = JsonConvert.DeserializeObject<HspStateResult>(responseContent)?.result;
-
-                _logger.LogInformation($"Play command sent. PlayState: {_hspState.play_state}");
+                return;
             }
-         
-            catch (TaskCanceledException)
-            {
-                _logger.LogWarning($"Seek operation canceled for Key: {Key}.");
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError($"Error sending play command: {ex.Message}");
-                throw;
-            }
+
+            _hspState = await ReadHspState(response, "play");
+            _logger.LogInformation(
+                $"Play command sent. PlayState: {_hspState.play_state}");
+        }
+
+        private int ReserveTailPointStreamIndex(int pointCount)
+            => Interlocked.Add(
+                ref _tailPointStreamIndex,
+                pointCount);
+
+        private async Task<HspState> ReadHspState(
+            HttpResponseMessage response,
+            string operation)
+        {
+            response.EnsureSuccessStatusCode();
+            var content = await response.Content.ReadAsStringAsync();
+            return JsonConvert
+                .DeserializeObject<HspStateResult>(content)
+                ?.result
+                ?? throw new InvalidOperationException(
+                    $"The Handy returned an invalid HSP {operation} response.");
         }
 
         public override async Task StopGallery()
         {
-            isStopCalled = true;
-            _logger.LogInformation($"Stopping gallery playback for Key: {Key}");
+            _isStopCalled = true;
+            _logger.LogInformation(
+                $"Stopping gallery playback for Key: {Key}");
 
             try
             {
-                await Client.PutAsync("v3/hsp/stop", null, playCancelTokenSource.Token);
+                var response = await Client.PutAsync(
+                    "v3/hsp/stop",
+                    null,
+                    playCancelTokenSource.Token);
+                response.EnsureSuccessStatusCode();
             }
-            catch (TaskCanceledException)
+            catch (OperationCanceledException)
             {
-                _logger.LogWarning($"stopping operation canceled for Key: {Key}.");
+                _logger.LogWarning(
+                    $"Stopping operation canceled for Key: {Key}.");
             }
             catch (Exception ex)
             {
-                _logger.LogError($"Error stopping gallery: {ex.Message}");
+                _logger.LogError(
+                    ex,
+                    $"Error stopping gallery for Key: {Key}.");
             }
         }
 
+        private StringContent JsonContent(object value)
+            => new(
+                JsonConvert.SerializeObject(value),
+                Encoding.UTF8,
+                "application/json");
 
-        private long ServerTime => DateTimeOffset.UtcNow.ToUnixTimeMilliseconds() + ServerTimeSync.timeSyncAvrageOffset + _configHandy?.OffsetMS ?? 0;
-
-        /// <summary>
-        /// Validates gallery expiration based on HSP buffer state
-        /// </summary>
-        private void ValidateGalleriesAgainstBufferState()
-        {
-            
-            _logger.LogInformation($"Validating galleries against buffer state. FirstTime: {_hspState.first_point_time}, LastTime: {_hspState.last_point_time}");
-
-            foreach (var gallery in _galleryIndex.Values.ToList())
-            {
-                var (start, end) = gallery.BufferTimeRange;
-
-                if (end < _hspState.first_point_time)
-                {
-                    gallery.State = GalleryState.Expired;
-                    gallery.IsValid = false;
-                    _logger.LogInformation($"Gallery {gallery.GalleryName} marked as expired.");
-                }
-                else if (start < _hspState.first_point_time && end > _hspState.first_point_time)
-                {
-                    gallery.State = GalleryState.PartiallyValid;
-                    gallery.IsValid = true;
-                    _logger.LogInformation($"Gallery {gallery.GalleryName} marked as partially valid.");
-                }
-                else if (start >= _hspState.first_point_time && end <= _hspState.last_point_time)
-                {
-                    gallery.State = GalleryState.Valid;
-                    gallery.IsValid = true;
-                    _logger.LogInformation($"Gallery {gallery.GalleryName} marked as valid.");
-                }
-            }
-        }
+        private long ServerTime =>
+            DateTimeOffset.UtcNow.ToUnixTimeMilliseconds()
+            + ServerTimeSync.timeSyncAvrageOffset;
     }
 
-    /// <summary>
-    /// Represents a gallery's state within the device buffer
-    /// </summary>
-    internal class DynamicIndexGallery
-    {
-        public string GalleryName { get; set; }
-        public string GalleryId { get; set; }
-        public long StartTime { get; set; }
-        public long SeekTime { get; set; }
-        public bool StartedFromBeginning { get; set; }
-        public bool IsComplete { get; set; }
-        public int UploadedIndex { get; set; }
-        public int TotalDuration { get; set; }
-        public (long start, long end) BufferTimeRange { get; set; }
-        public GalleryState State { get; set; } = GalleryState.Valid;
-        public bool IsValid { get; set; } = true;
-    }
+    internal record PlaybackPlan(
+        List<Point> Points,
+        int Duration,
+        long StartTime);
 
-    internal enum GalleryState
-    {
-        Valid,
-        PartiallyValid,
-        Expired
-    }
-    #region HSP Models
     internal record HspStateResult(HspState result);
 
-    internal record HspState(int stream_id, int max_points, int points, int current_point, long current_time, bool loop, double playback_rate, long first_point_time, long last_point_time, string play_state, int tail_point_stream_index, int tail_point_stream_index_threshold);
+    internal record HspState(
+        int stream_id,
+        int max_points,
+        int points,
+        int current_point,
+        long current_time,
+        bool loop,
+        double playback_rate,
+        long first_point_time,
+        long last_point_time,
+        string play_state,
+        int tail_point_stream_index,
+        int tail_point_stream_index_threshold);
 
     internal record OffsetRequest(int offset);
 
-    internal record HspAddRequest(List<Point> points, bool flush, int tail_point_stream_index);
+    internal record HspAddRequest(
+        List<Point> points,
+        bool flush,
+        int tail_point_stream_index);
 
-    internal record HspPlayRequest(int start_time, long server_time, double playback_rate, bool loop, HspPlayAddRequest add);
-    internal record HspPlayAddRequest(IEnumerable<Point> points);
+    internal record HspPlayRequest(
+        int start_time,
+        long server_time,
+        double playback_rate,
+        bool loop,
+        [property: JsonProperty(NullValueHandling = NullValueHandling.Ignore)]
+        HspAddRequest add);
 
-    internal record Point(int t, int x)
-    {
-        public Point() : this(default, default) { }
-    }
-
-    #endregion
+    internal record Point(int t, int x);
 }
-

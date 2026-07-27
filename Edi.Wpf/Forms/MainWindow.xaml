@@ -55,10 +55,49 @@
             <!-- Device Connection Group -->
             <GroupBox Header="Connection Settings" Margin="0,0,0,10" Padding="5">
                 <StackPanel>
-                    <DockPanel Margin="0,2">
-                        <Label Content="Handy Key:" Width="85" VerticalAlignment="Center"/>
-                        <TextBox Text="{Binding handyConfig.Key}" ToolTip="Your Handy or AutoBlow connection key"/>
-                    </DockPanel>
+                    <Grid Margin="0,2">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="40"/>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="43"/>
+                            <ColumnDefinition Width="58"/>
+                        </Grid.ColumnDefinitions>
+                        <Label Content="Device Keys:" VerticalAlignment="Center" Grid.ColumnSpan="2" Margin="0,0,112,0"/>
+                        <TextBox Grid.Column="1"
+                                 Text="{Binding handyConfig.Key}"
+                                 ToolTip="Your Handy or AutoBlow connection key" Margin="45,0,1,0"/>
+                        <Label Grid.Column="2"
+                               Content="Offset:"
+                               Padding="4,5,0,5"
+                               VerticalAlignment="Center"/>
+                        <Grid Grid.Column="3">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="18"/>
+                            </Grid.ColumnDefinitions>
+                            <TextBox x:Name="HandyOffsetTextBox"
+                                     Text="{Binding handyConfig.OffsetMS, Mode=TwoWay, UpdateSourceTrigger=LostFocus}"
+                                     HorizontalContentAlignment="Right"
+                                     VerticalContentAlignment="Center"
+                                     PreviewMouseWheel="HandyOffsetTextBox_PreviewMouseWheel"
+                                     ToolTip="Handy user offset in milliseconds (-7000 to +7000)"/>
+                            <Grid Grid.Column="1">
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="*"/>
+                                    <RowDefinition Height="*"/>
+                                </Grid.RowDefinitions>
+                                <RepeatButton Content="▲"
+                                              FontSize="7"
+                                              Padding="0"
+                                              Click="HandyOffsetIncrease_Click"/>
+                                <RepeatButton Grid.Row="1"
+                                              Content="▼"
+                                              FontSize="7"
+                                              Padding="0"
+                                              Click="HandyOffsetDecrease_Click"/>
+                            </Grid>
+                        </Grid>
+                    </Grid>
                     <DockPanel Margin="0,2">
                         <Label Content="Intiface URL:" Width="85" VerticalAlignment="Center"/>
                         <TextBox Text="{Binding buttplugConfig.Url}" ToolTip="Buttplug/Intiface Desktop server address"/>
@@ -90,10 +129,36 @@
             <!-- Manual Playback Group -->
             <GroupBox Header="Playback Control" Padding="5">
                 <StackPanel>
-                    <DockPanel Margin="0,0,0,10">
-                        <Label Content="Gallery:" VerticalAlignment="Center" Width="60"/>
-                        <ComboBox x:Name="cmbGallerie" DisplayMemberPath="Name" ItemsSource="{Binding galleries}" ToolTip="Select a gallery to play manually"/>
-                    </DockPanel>
+                    <Grid Margin="0,0,0,10">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="60"/>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+                        <Label Content="Gallery:" VerticalAlignment="Center"/>
+                        <ComboBox Grid.Column="1"
+                                  x:Name="cmbGallerie"
+                                  DisplayMemberPath="Name"
+                                  ItemsSource="{Binding galleries}"
+                                  ToolTip="Select a gallery to play manually"/>
+                        <ComboBox Grid.Column="2"
+                                  Width="90"
+                                  Margin="5,0,0,0"
+                                  ItemsSource="{Binding channels}"
+                                  SelectedItem="{Binding selectedChannel, Mode=TwoWay}"
+                                  ToolTip="Select the playback channel">
+                            <ComboBox.Style>
+                                <Style TargetType="ComboBox">
+                                    <Setter Property="Visibility" Value="Collapsed"/>
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding config.UseChannels}" Value="True">
+                                            <Setter Property="Visibility" Value="Visible"/>
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </ComboBox.Style>
+                        </ComboBox>
+                    </Grid>
                     <UniformGrid Columns="5" Height="30">
                         <Button x:Name="btnPlay" Click="btnPlay_Click" ToolTip="Play selected gallery">
                             <TextBlock Text="▶" FontSize="16"/>

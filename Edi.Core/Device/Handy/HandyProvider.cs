@@ -15,6 +15,7 @@ using Microsoft.Extensions.Logging;
 using Timer = System.Timers.Timer;
 using Microsoft.Extensions.DependencyInjection;
 using System.Collections.Concurrent;
+using System.ComponentModel;
 using Edi.Core.Device;
 using Edi.Core.Device.Interfaces;
 using Edi.Core.Services;
@@ -29,7 +30,6 @@ namespace Edi.Core.Device.Handy
         private List<string> Keys = new List<string>();
         private Dictionary<string, IDevice> devices = new Dictionary<string, IDevice>();
         private readonly IServiceProvider _serviceProvider;
-        private readonly ConfigurationManager configManager;
         private DeviceCollector _deviceCollector;
         private IndexRepository _indexRepository;
         private FunscriptRepository _funscriptRepository;
@@ -40,6 +40,11 @@ namespace Edi.Core.Device.Handy
 
         // Re‑usamos un solo HttpClient por key
         private readonly ConcurrentDictionary<string, HttpClient> _clients = new();
+        private readonly ConcurrentDictionary<string, bool> _usesV3Api = new();
+        private readonly SemaphoreSlim _offsetApiLock = new(1, 1);
+        private int _pendingOffset;
+        private int _lastAppliedOffset = int.MinValue;
+        private int _offsetUpdateWorkerActive;
 
         public HandyProvider(IServiceProvider serviceProvider,
                              ConfigurationManager config,
@@ -50,11 +55,13 @@ namespace Edi.Core.Device.Handy
             _logger = logger;
             Config = config.Get<HandyConfig>();
             _serviceProvider = serviceProvider;
-            this.configManager = config;
             _deviceCollector = deviceCollector;
             _httpClientFactory = httpClientFactory;
             _deviceFactory = new HandyDeviceFactory(logger);
             timerReconnect.Elapsed += TimerReconnect_Elapsed;
+            _pendingOffset = Config.OffsetMS;
+            ((INotifyPropertyChanged)Config).PropertyChanged +=
+                Config_PropertyChanged;
         }
 
 
@@ -129,17 +136,37 @@ namespace Edi.Core.Device.Handy
 
             if (!devices.ContainsKey(key))
             {
-                _ = await client.PutAsync("v2/mode", new StringContent(JsonConvert.SerializeObject(new ModeRequest(1)), Encoding.UTF8, "application/json"));
-                _ = await client.PutAsync("v2/hstp/offset", new StringContent(JsonConvert.SerializeObject(new OffsetRequest(Config.OffsetMS)), Encoding.UTF8, "application/json"));
-
                 // Detect firmware version and create appropriate device
                 var firmwareVersion = await _deviceFactory.DetectFirmwareVersionAsync(client);
                 IDevice handyDevice;
+                var usesV3Api =
+                    _deviceFactory.ShouldUseHspProtocol(firmwareVersion);
+                _usesV3Api[key] = usesV3Api;
 
-             
+                await TryApplyOffset(
+                    client,
+                    usesV3Api,
+                    () => Config.OffsetMS);
+
+                if (usesV3Api)
+                {
+                    _logger.LogInformation($"Creating HandyV3Device (HSP protocol) for Key: {key}");
+                    handyDevice = new HandyV3Device(
+                        client,
+                        funscriptRepository,
+                        _logger);
+                }
+                else
+                {
+                    _ = await client.PutAsync(
+                        "v2/mode",
+                        new StringContent(
+                            JsonConvert.SerializeObject(new ModeRequest(1)),
+                            Encoding.UTF8,
+                            "application/json"));
                     _logger.LogInformation($"Creating HandyDevice (Legacy HSSP protocol) for Key: {key}");
                     handyDevice = new HandyDevice(client, indexRepository, _logger);
-             
+                }
 
                 lock (devices)
                 {
@@ -164,6 +191,7 @@ namespace Edi.Core.Device.Handy
         private void Remove(string key)
         {
             _clients.TryRemove(key, out var client);
+            _usesV3Api.TryRemove(key, out _);
 
             if (devices.TryGetValue(key, out var device))
             {
@@ -190,6 +218,130 @@ namespace Edi.Core.Device.Handy
         private void TimerReconnect_Elapsed(object sender, ElapsedEventArgs e)
         {
             ConnectAll();
+        }
+
+        private void Config_PropertyChanged(
+            object sender,
+            PropertyChangedEventArgs e)
+        {
+            if (e.PropertyName != nameof(HandyConfig.OffsetMS))
+                return;
+
+            Volatile.Write(ref _pendingOffset, Config.OffsetMS);
+            StartOffsetUpdateWorker();
+        }
+
+        private void StartOffsetUpdateWorker()
+        {
+            if (Interlocked.CompareExchange(
+                    ref _offsetUpdateWorkerActive,
+                    1,
+                    0) != 0)
+            {
+                return;
+            }
+
+            _ = ObserveOffsetUpdateWorker();
+        }
+
+        private async Task ObserveOffsetUpdateWorker()
+        {
+            try
+            {
+                await ApplyPendingOffsetUpdates();
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(
+                    ex,
+                    "Unexpected error while applying the Handy user offset.");
+            }
+            finally
+            {
+                Interlocked.Exchange(ref _offsetUpdateWorkerActive, 0);
+
+                if (Volatile.Read(ref _pendingOffset)
+                    != Volatile.Read(ref _lastAppliedOffset))
+                {
+                    StartOffsetUpdateWorker();
+                }
+            }
+        }
+
+        private async Task ApplyPendingOffsetUpdates()
+        {
+            while (true)
+            {
+                var offset = Volatile.Read(ref _pendingOffset);
+
+                // Coalesce quick arrow presses into the latest requested value.
+                await Task.Delay(100);
+                if (offset != Volatile.Read(ref _pendingOffset))
+                    continue;
+
+                var clients = _clients.ToArray();
+                await Task.WhenAll(clients.Select(entry =>
+                    ApplyOffsetForClient(entry.Key, entry.Value, offset)));
+
+                Volatile.Write(ref _lastAppliedOffset, offset);
+                if (offset == Volatile.Read(ref _pendingOffset))
+                    return;
+            }
+        }
+
+        private async Task ApplyOffsetForClient(
+            string key,
+            HttpClient client,
+            int offset)
+        {
+            if (!_usesV3Api.TryGetValue(key, out var usesV3Api))
+                return;
+
+            await TryApplyOffset(client, usesV3Api, () => offset);
+        }
+
+        private async Task TryApplyOffset(
+            HttpClient client,
+            bool usesV3Api,
+            Func<int> getOffset)
+        {
+            await _offsetApiLock.WaitAsync();
+            try
+            {
+                await ApplyOffset(
+                    client,
+                    usesV3Api,
+                    getOffset());
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(
+                    ex,
+                    "The Handy user offset could not be applied.");
+            }
+            finally
+            {
+                _offsetApiLock.Release();
+            }
+        }
+
+        internal static async Task ApplyOffset(
+            HttpClient client,
+            bool usesV3Api,
+            int offset,
+            CancellationToken cancellationToken = default)
+        {
+            var apiVersion = usesV3Api ? "v3" : "v2";
+            using var response = await client.PutAsync(
+                $"{apiVersion}/hstp/offset",
+                new StringContent(
+                    JsonConvert.SerializeObject(
+                        new OffsetRequest(
+                            HandyConfig.NormalizeOffset(offset))),
+                    Encoding.UTF8,
+                    "application/json"),
+                cancellationToken);
+            response.EnsureSuccessStatusCode();
         }
     }
 }

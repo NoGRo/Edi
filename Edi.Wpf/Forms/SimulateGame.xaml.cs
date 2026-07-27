@@ -3,7 +3,9 @@ using System.Windows;
 using Edi.Core;
 using Edi.Core.Device;
 using Edi.Core.Device.Simulator;
+using Edi.Core.Gallery.Definition;
 using Edi.Core.Gallery.Funscript;
+using Edi.Core.Services;
 
 namespace Edi.Forms
 {
@@ -11,12 +13,18 @@ namespace Edi.Forms
     {
         private readonly IEdi edi = App.Edi;
         private readonly DeviceCollector deviceCollector;
+        private readonly PreviewWindowConfig windowConfig;
         private PreviewDevice SimulatorDevice;
 
         public SimulateGame()
         {
             InitializeComponent();
-            SimulatorDevice = new PreviewDevice(App.ServiceProvider.GetRequiredService<FunscriptRepository>(), App.ServiceProvider.GetRequiredService<ILogger<PreviewDevice>>());
+            windowConfig = edi.ConfigurationManager.Get<PreviewWindowConfig>();
+            RestoreWindowPlacement();
+            SimulatorDevice = new PreviewDevice(
+                App.ServiceProvider.GetRequiredService<FunscriptRepository>(),
+                App.ServiceProvider.GetRequiredService<DefinitionRepository>(),
+                App.ServiceProvider.GetRequiredService<ILogger<PreviewDevice>>());
             this.DataContext = new { SimulatorDevice };
 
             this.Loaded += SimulateGame_Loaded;
@@ -33,6 +41,7 @@ namespace Edi.Forms
 
         private void SimulateGame_Closing(object sender, CancelEventArgs e)
         {
+            SaveWindowPlacement();
             SimulatorDevice?.StopGallery();
             if (SimulatorDevice != null && deviceCollector != null)
             {
@@ -40,6 +49,71 @@ namespace Edi.Forms
             }
 
             SimulatorDevice = null;
+        }
+
+        private void RestoreWindowPlacement()
+        {
+            var width = windowConfig.Width ?? Width;
+            var height = windowConfig.Height ?? Height;
+            if (double.IsFinite(width) && width >= MinWidth)
+                Width = width;
+            if (double.IsFinite(height) && height >= MinHeight)
+                Height = height;
+
+            if (windowConfig.Left is not double left
+                || windowConfig.Top is not double top
+                || !IsPlacementVisible(left, top, Width, Height))
+            {
+                return;
+            }
+
+            Left = left;
+            Top = top;
+        }
+
+        private void SaveWindowPlacement()
+        {
+            var bounds = WindowState == WindowState.Normal
+                ? new Rect(Left, Top, ActualWidth, ActualHeight)
+                : RestoreBounds;
+
+            if (!double.IsFinite(bounds.Left)
+                || !double.IsFinite(bounds.Top)
+                || !double.IsFinite(bounds.Width)
+                || !double.IsFinite(bounds.Height))
+            {
+                return;
+            }
+
+            windowConfig.Left = bounds.Left;
+            windowConfig.Top = bounds.Top;
+            windowConfig.Width = bounds.Width;
+            windowConfig.Height = bounds.Height;
+            edi.ConfigurationManager.Save(windowConfig);
+        }
+
+        private static bool IsPlacementVisible(
+            double left,
+            double top,
+            double width,
+            double height)
+        {
+            if (!double.IsFinite(left)
+                || !double.IsFinite(top)
+                || !double.IsFinite(width)
+                || !double.IsFinite(height))
+            {
+                return false;
+            }
+
+            var savedBounds = new Rect(left, top, width, height);
+            var virtualDesktop = new Rect(
+                SystemParameters.VirtualScreenLeft,
+                SystemParameters.VirtualScreenTop,
+                SystemParameters.VirtualScreenWidth,
+                SystemParameters.VirtualScreenHeight);
+            savedBounds.Intersect(virtualDesktop);
+            return savedBounds.Width >= 50 && savedBounds.Height >= 50;
         }
 
         internal void OnAlwaysOnTopChecked(object sender, RoutedEventArgs e)
@@ -51,5 +125,14 @@ namespace Edi.Forms
         {
             this.Topmost = false;
         }
+    }
+
+    [UserConfig]
+    public class PreviewWindowConfig
+    {
+        public double? Left { get; set; }
+        public double? Top { get; set; }
+        public double? Width { get; set; }
+        public double? Height { get; set; }
     }
 }

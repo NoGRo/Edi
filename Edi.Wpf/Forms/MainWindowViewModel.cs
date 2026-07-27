@@ -74,7 +74,37 @@ namespace Edi.Forms
         }
 
         public ObservableCollection<IDevice> devices { get; set; }
-        public List<string> channels { get; set; }
+
+        private List<string> _channels = new();
+        public List<string> channels
+        {
+            get => _channels;
+            set
+            {
+                _channels = value ?? new List<string>();
+                OnPropertyChanged(nameof(channels));
+
+                if (selectedChannel is null
+                    || !_channels.Contains(selectedChannel))
+                {
+                    selectedChannel = _channels.FirstOrDefault();
+                }
+            }
+        }
+
+        private string? _selectedChannel;
+        public string? selectedChannel
+        {
+            get => _selectedChannel;
+            set
+            {
+                if (_selectedChannel == value)
+                    return;
+
+                _selectedChannel = value;
+                OnPropertyChanged(nameof(selectedChannel));
+            }
+        }
         private List<Core.Gallery.Definition.DefinitionGallery> _galleries;
         public List<Core.Gallery.Definition.DefinitionGallery> galleries
         {
@@ -96,7 +126,6 @@ namespace Edi.Forms
         public void UpdateChannels(List<string> newChannels)
         {
             channels = newChannels;
-            OnPropertyChanged(nameof(channels));
         }
     }
 }

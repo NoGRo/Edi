@@ -36,7 +36,7 @@
         "Max": 100
       },
       "Preview Device": {
-        "Variant": "None",
+        "Variant": "",
         "Channel": null,
         "Min": 0,
         "Max": 100

@@ -1,6 +1,7 @@
 ﻿using Edi.Core.Device;
 using Edi.Core.Device.Interfaces;
 using Edi.Core.Funscript.Command;
+using Edi.Core.Gallery.Definition;
 using Edi.Core.Gallery.Funscript;
 using Microsoft.Extensions.Logging;
 using PropertyChanged;
@@ -11,6 +12,7 @@ namespace Edi.Core.Device.Simulator
     public class PreviewDevice : DeviceBase<FunscriptRepository, FunscriptGallery>, IRange
     {
         private readonly ILogger _logger;
+        private readonly DefinitionRepository definitionRepository;
         private CmdLinear _currentCmd;
 
         public CmdLinear CurrentCmd
@@ -48,13 +50,22 @@ namespace Edi.Core.Device.Simulator
 
         // Valor actual del progress bar (0-100)
         public double ProgressValue { get; set; }
+        public string GalleryName { get; set; } = "-";
+        public string GalleryType { get; set; } = "-";
+        public string GalleryLoop { get; set; } = "-";
+        public string GallerySeek { get; set; } = "-";
+        public string GalleryDuration { get; set; } = "-";
 
         private const int REFRESH_RATE_MS = 16; // ~60 FPS (1000ms / 60 ≈ 16.67ms)
 
-        public PreviewDevice(FunscriptRepository repository, ILogger<PreviewDevice> logger)
+        public PreviewDevice(
+            FunscriptRepository repository,
+            DefinitionRepository definitionRepository,
+            ILogger<PreviewDevice> logger)
             : base(repository, logger)
         {
             _logger = logger;
+            this.definitionRepository = definitionRepository;
             Name = "Preview Device";
             lastUpdateAt = DateTime.Now;
             _logger.LogInformation($"ProgressBarSimulator initialized");
@@ -72,6 +83,7 @@ namespace Edi.Core.Device.Simulator
             CancellationToken cancellationToken)
         {
             _logger.LogInformation($"Starting PlayGallery with Simulator: {Name}, Gallery: {gallery?.Name ?? "Unknown"}, Seek: {seek}");
+            SetGalleryInfo(gallery, seek);
 
             var cmds = gallery?.Commands;
             if (cmds == null) return;
@@ -126,10 +138,36 @@ namespace Edi.Core.Device.Simulator
             double interpolatedPosition = lastPosition + (targetPosition - lastPosition) * progress;
 
             // Actualizar el valor del progress bar (0-100)
-            ProgressValue = (int)Math.Round(interpolatedPosition);
-            ProgressValue = Math.Clamp(ProgressValue, Min, Max);
+            ProgressValue = ScalePosition(interpolatedPosition, Min, Max);
 
             lastUpdateAt = DateTime.Now;
+        }
+
+        internal static int ScalePosition(double position, int min, int max)
+        {
+            var normalizedPosition = Math.Clamp(position, 0, 100);
+            var scaledPosition = min + (max - min) * normalizedPosition / 100;
+            return (int)Math.Round(scaledPosition);
+        }
+
+        private void SetGalleryInfo(FunscriptGallery gallery, long seek)
+        {
+            if (gallery == null)
+            {
+                GalleryName = "Unavailable";
+                GalleryType = "-";
+                GalleryLoop = "-";
+                GallerySeek = "-";
+                GalleryDuration = "-";
+                return;
+            }
+
+            var definition = definitionRepository.Get(gallery.Name);
+            GalleryName = gallery.Name;
+            GalleryType = definition?.Type ?? "gallery";
+            GalleryLoop = gallery.Loop ? "Yes" : "No";
+            GallerySeek = $"{seek} ms";
+            GalleryDuration = $"{gallery.Duration} ms";
         }
 
         public override async Task StopGallery()

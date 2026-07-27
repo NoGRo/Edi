@@ -307,7 +307,7 @@ namespace Edi.Forms
                 if (selected == "(Random)")
                     selected = edi.Definitions.OrderBy(x => Guid.NewGuid()).FirstOrDefault()?.Name ?? "";
 
-                await edi.Player.Play(selected, 0);
+                await edi.Player.Play(selected, 0, GetSelectedChannels());
             });
         }
 
@@ -315,7 +315,7 @@ namespace Edi.Forms
         {
             await Dispatcher.Invoke(async () =>
             {
-                await edi.Player.Stop();
+                await edi.Player.Stop(GetSelectedChannels());
             });
         }
 
@@ -323,7 +323,8 @@ namespace Edi.Forms
         {
             await Dispatcher.Invoke(async () =>
             {
-                await edi.Player.Pause();
+                await edi.Player.Pause(
+                    channels: GetSelectedChannels());
             });
         }
 
@@ -331,7 +332,9 @@ namespace Edi.Forms
         {
             await Dispatcher.Invoke(async () =>
             {
-                await edi.Player.Resume(false);
+                await edi.Player.Resume(
+                    false,
+                    GetSelectedChannels());
             });
         }
 
@@ -370,8 +373,46 @@ namespace Edi.Forms
         {
             await Dispatcher.Invoke(async () =>
             {
-                await edi.Player.Intensity(Convert.ToInt32(sliderIntensity.Value));
+                await edi.Player.Intensity(
+                    Convert.ToInt32(sliderIntensity.Value),
+                    GetSelectedChannels());
             });
+        }
+
+        private string[]? GetSelectedChannels()
+        {
+            var selectedChannel = viewModel.selectedChannel;
+            if (!config.UseChannels
+                || string.IsNullOrWhiteSpace(selectedChannel))
+            {
+                return null;
+            }
+
+            return [selectedChannel];
+        }
+
+        private void HandyOffsetIncrease_Click(
+            object sender,
+            RoutedEventArgs e)
+        {
+            handyConfig.OffsetMS += HandyConfig.OffsetStepMS;
+        }
+
+        private void HandyOffsetDecrease_Click(
+            object sender,
+            RoutedEventArgs e)
+        {
+            handyConfig.OffsetMS -= HandyConfig.OffsetStepMS;
+        }
+
+        private void HandyOffsetTextBox_PreviewMouseWheel(
+            object sender,
+            MouseWheelEventArgs e)
+        {
+            handyConfig.OffsetMS += e.Delta > 0
+                ? HandyConfig.OffsetStepMS
+                : -HandyConfig.OffsetStepMS;
+            e.Handled = true;
         }
 
         private void btnOpenOutput_Click(object sender, RoutedEventArgs e)

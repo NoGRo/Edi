@@ -27,11 +27,13 @@ public class HandyBluetoothClientTests
     public async Task InitializationReadsKeyAndSynchronizesClock()
     {
         var transport = new RecordingBluetoothTransport();
+        var timestamps = new Queue<long>([10_000, 10_040]);
         await using var client = await HandyBluetoothClient.CreateAsync(
             transport,
             NullLogger.Instance,
             initialize: true,
-            TestContext.Current.CancellationToken);
+            TestContext.Current.CancellationToken,
+            () => timestamps.Dequeue());
 
         Assert.Equal("TEST-KEY", client.Key);
         Assert.Collection(
@@ -47,19 +49,23 @@ public class HandyBluetoothClientTests
                 Assert.Equal(
                     Proto.Request.ParamsOneofCase.RequestClockOffsetSet,
                     request.ParamsCase);
-                Assert.True(request.RequestClockOffsetSet.Rtd >= 0);
+                Assert.Equal(
+                    9_920,
+                    request.RequestClockOffsetSet.ClockOffset);
+                Assert.Equal(40, request.RequestClockOffsetSet.Rtd);
             });
     }
 
     [Fact]
-    public async Task HspMethodsSerializeEquivalentProtobufRequests()
+    public async Task HspMethodsUseLocalBleClockInsteadOfHttpServerTime()
     {
         var transport = new RecordingBluetoothTransport();
         await using var client = await HandyBluetoothClient.CreateAsync(
             transport,
             NullLogger.Instance,
             initialize: false,
-            CancellationToken.None);
+            CancellationToken.None,
+            () => 5_000);
 
         var setup = await client.Setup(
             new HspSetupRequest(42),
@@ -128,7 +134,7 @@ public class HandyBluetoothClientTests
                     Proto.Request.ParamsOneofCase.RequestHspPlay,
                     request.ParamsCase);
                 Assert.Equal(250, request.RequestHspPlay.StartTime);
-                Assert.Equal(1_020uL,
+                Assert.Equal(5_020uL,
                     request.RequestHspPlay.ServerTime);
                 Assert.True(request.RequestHspPlay.Loop);
                 Assert.True(request.RequestHspPlay.PauseOnStarving);

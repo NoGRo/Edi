@@ -12,6 +12,7 @@ internal sealed class HandyBluetoothClient : IHandyClient
 
     private readonly IHandyBluetoothTransport _transport;
     private readonly ILogger _logger;
+    private readonly Func<long> _getUnixTimeMilliseconds;
     private readonly ConcurrentDictionary<
         uint,
         TaskCompletionSource<Proto.Response>> _pending = new();
@@ -21,10 +22,12 @@ internal sealed class HandyBluetoothClient : IHandyClient
 
     private HandyBluetoothClient(
         IHandyBluetoothTransport transport,
-        ILogger logger)
+        ILogger logger,
+        Func<long> getUnixTimeMilliseconds)
     {
         _transport = transport;
         _logger = logger;
+        _getUnixTimeMilliseconds = getUnixTimeMilliseconds;
         _transport.FrameReceived += Transport_FrameReceived;
         _transport.Disconnected += Transport_Disconnected;
     }
@@ -62,9 +65,15 @@ internal sealed class HandyBluetoothClient : IHandyClient
         IHandyBluetoothTransport transport,
         ILogger logger,
         bool initialize,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        Func<long> getUnixTimeMilliseconds = null)
     {
-        var client = new HandyBluetoothClient(transport, logger);
+        var client = new HandyBluetoothClient(
+            transport,
+            logger,
+            getUnixTimeMilliseconds
+                ?? (() => DateTimeOffset.UtcNow
+                    .ToUnixTimeMilliseconds()));
         try
         {
             if (initialize)
@@ -146,7 +155,12 @@ internal sealed class HandyBluetoothClient : IHandyClient
         if (request.add is not null)
             await AddPoints(request.add, cancellationToken);
 
-        var serverTime = checked(request.server_time + _offset);
+        // The HTTP request model contains Handy's cloud time. BLE has
+        // its own device-to-local clock synchronization, so using the
+        // cloud offset here would mix two independent time domains.
+        var serverTime = checked(
+            _getUnixTimeMilliseconds()
+            + Volatile.Read(ref _offset));
         var response = await SendRequest(
             new Proto.Request
             {
@@ -217,7 +231,7 @@ internal sealed class HandyBluetoothClient : IHandyClient
     private async Task SynchronizeClock(
         CancellationToken cancellationToken)
     {
-        var started = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
+        var started = _getUnixTimeMilliseconds();
         var getResponse = await SendRequest(
             new Proto.Request
             {
@@ -225,7 +239,7 @@ internal sealed class HandyBluetoothClient : IHandyClient
                     new Proto.RequestClockOffsetGet()
             },
             cancellationToken);
-        var ended = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
+        var ended = _getUnixTimeMilliseconds();
         var clock = getResponse.ResponseClockOffsetGet
             ?? throw new InvalidOperationException(
                 "The Handy returned no Bluetooth clock state.");

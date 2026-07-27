@@ -69,7 +69,13 @@ namespace Edi.Core.Device.Handy
             await Client.PutAsync("v2/slide", new StringContent(JsonConvert.SerializeObject(request), Encoding.UTF8, "application/json"));
         }
 
-        public override async Task PlayGallery(IndexGallery gallery, long seek = 0)
+        public override Task PlayGallery(IndexGallery gallery, long seek = 0)
+            => PlayGallery(gallery, seek, playCancelTokenSource.Token);
+
+        protected override async Task PlayGallery(
+            IndexGallery gallery,
+            long seek,
+            CancellationToken cancellationToken)
         {
             _logger.LogInformation($"Starting gallery '{gallery?.Name}' on Key: {Key} with seek: {seek}.");
 
@@ -82,10 +88,10 @@ namespace Edi.Core.Device.Handy
                     upload(gallery.Bundle, false);
                 }
             }
-            await Seek();
+            await Seek(cancellationToken);
         }
 
-        private async Task Seek()
+        private async Task Seek(CancellationToken cancellationToken)
         {
             if (!IsReady)
             {
@@ -98,16 +104,14 @@ namespace Edi.Core.Device.Handy
                 isStopCalled = false;
                 var req = new SyncPlayRequest(ServerTime, currentGallery.StartTime + CurrentTime);
                 Debug.WriteLine($"Handy: [{DateTimeOffset.UtcNow.ToUnixTimeMilliseconds()}] {req.estimatedServerTime} {Key} PLay [{req.startTime}] ({currentGallery?.Name ?? ""}))");
-                var token = playCancelTokenSource.Token;
-
-                await Client.PutAsync("v2/hssp/play", new StringContent(JsonConvert.SerializeObject(req), Encoding.UTF8, "application/json"), token);
-                await _delay(TimeSpan.FromMilliseconds(1500), token);
-                if (currentGallery is null || token.IsCancellationRequested || isStopCalled)
+                await Client.PutAsync("v2/hssp/play", new StringContent(JsonConvert.SerializeObject(req), Encoding.UTF8, "application/json"), cancellationToken);
+                await _delay(TimeSpan.FromMilliseconds(1500), cancellationToken);
+                if (currentGallery is null || cancellationToken.IsCancellationRequested || isStopCalled)
                     return;
 
                 req = new SyncPlayRequest(ServerTime, currentGallery.StartTime + CurrentTime);
                 Debug.WriteLine($"Handy: [{DateTimeOffset.UtcNow.ToUnixTimeMilliseconds()}] {req.estimatedServerTime} {Key} PLay AfterWarmup [{req.startTime}] ({currentGallery?.Name ?? ""}))");
-                await Client.PutAsync("v2/hssp/play", new StringContent(JsonConvert.SerializeObject(req), Encoding.UTF8, "application/json"), token);
+                await Client.PutAsync("v2/hssp/play", new StringContent(JsonConvert.SerializeObject(req), Encoding.UTF8, "application/json"), cancellationToken);
             }
             catch (TaskCanceledException)
             {

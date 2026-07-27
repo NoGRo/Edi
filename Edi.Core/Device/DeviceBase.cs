@@ -1,17 +1,8 @@
-﻿using Edi.Core.Gallery;
-using System;
-using System.Collections.Generic;
-using System.Diagnostics;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using System.Threading;
-using Microsoft.Extensions.Logging;
-using Newtonsoft.Json;
-using System.Timers;
-using PropertyChanged;
-using Newtonsoft.Json.Linq;
 using Edi.Core.Device.Interfaces;
+using Edi.Core.Gallery;
+using Microsoft.Extensions.Logging;
+using PropertyChanged;
+using System.Timers;
 
 namespace Edi.Core.Device
 {
@@ -20,26 +11,29 @@ namespace Edi.Core.Device
         where TRepository : class, IGalleryRepository<TGallery>
         where TGallery : class, IGallery
     {
-        private readonly ILogger _logger;
+        private readonly ILogger logger;
+        private readonly SemaphoreSlim stateLock = new(1, 1);
+        private readonly System.Timers.Timer rangeTimer = new(100) { AutoReset = false };
+        private Task activeDeviceTask = Task.CompletedTask;
+        private long commandVersion;
+        private long rangeVersion;
+
         protected TRepository repository { get; }
         protected TGallery currentGallery;
-
-        public bool IsPause { get; set; } = true;
-
-        
+        internal CancellationTokenSource playCancelTokenSource = new();
 
         protected DeviceBase(TRepository repository, ILogger logger)
         {
             this.repository = repository;
-            _logger = logger;
-            timerRange.Elapsed += TimerRange_Elapsed;
-            _logger.LogInformation($"Device '{Name}' initialized with repository.");
+            this.logger = logger;
+            rangeTimer.Elapsed += RangeTimerElapsed;
         }
 
         public virtual bool IsReady { get; set; } = true;
-        internal virtual bool SelfManagedLoop { get; set; } = false;
-
+        public bool IsPause { get; set; } = true;
+        internal virtual bool SelfManagedLoop { get; set; }
         public string Channel { get; set; }
+        public string Name { get; set; }
 
         internal string selectedVariant;
         public virtual string SelectedVariant
@@ -47,201 +41,364 @@ namespace Edi.Core.Device
             get => selectedVariant;
             set
             {
-                if (selectedVariant != value)
-                {
-                    _logger.LogInformation($"Device '{Name}': SelectedVariant changed from '{selectedVariant}' to '{value}'.");
-                    selectedVariant = value;
-                    if (value != null || value != "None")
-                        SetVariant();
-                }
-            }
-        }
+                if (selectedVariant == value)
+                    return;
 
-        public void Resume()
-        {
-            if (currentGallery != null && !IsPause)
-            {
-                _logger.LogInformation($"Device '{Name}': Resuming gallery playback for '{currentGallery.Name}' at time {CurrentTime}.");
-                PlayGallery(currentGallery.Name, CurrentTime).GetAwaiter();
+                selectedVariant = value;
+                if (value != null && value != "None")
+                    SetVariant();
             }
-        }
-
-        internal virtual void SetVariant()
-        {
-            _logger.LogInformation($"Device '{Name}': Setting variant for SelectedVariant: '{SelectedVariant}'");
         }
 
         public virtual IEnumerable<string> Variants => repository.GetVariants();
-
-        public string Name { get; set; }
         public DateTime SyncSend { get; private set; }
         public long SeekTime { get; internal set; }
-        public int CurrentTime => currentGallery == null ? 0 : Convert.ToInt32(((DateTime.Now - SyncSend).TotalMilliseconds + SeekTime) % CurrentDuration);
         internal int CurrentDuration;
+        public int CurrentTime
+        {
+            get
+            {
+                var gallery = currentGallery;
+                var duration = CurrentDuration;
+                if (gallery == null || duration <= 0)
+                    return 0;
 
-        private System.Timers.Timer timerRange = new System.Timers.Timer(100);
-        private Task TimerRangeTask;
+                var elapsed = (long)(DateTime.UtcNow - SyncSend).TotalMilliseconds + SeekTime;
+                return gallery.Loop
+                    ? (int)((elapsed % duration + duration) % duration)
+                    : (int)Math.Clamp(elapsed, 0, duration);
+            }
+        }
 
-        private SemaphoreSlim asyncLock = new(1, 1);
+        private int min;
+        private int max = 100;
         internal int lastMin;
         internal int lastMax = 100;
 
-        internal virtual async Task applyRange() { }
-        internal bool isStopRange(int min, int max) => min == max;
-        private async void TimerRange_Elapsed(object sender, ElapsedEventArgs e)
-        {
-            if (TimerRangeTask != null && !TimerRangeTask.IsCompleted)
-                return;
-
-            if (min == lastMin && max == lastMax)
-            {
-                _logger.LogInformation($"Device '{Name}': Range values are unchanged. Stopping timer.");
-                timerRange.Stop();
-                return;
-            }
-            var resume = isStopRange(lastMin, lastMax)
-                        && !isStopRange(min, max);
-
-
-            if (TimerRangeTask != null)
-                await TimerRangeTask;
-
-            if (!isStopRange(min, max))
-                TimerRangeTask = applyRange();
-
-            lastMax = max;
-            lastMin = min;
-
-            if (currentGallery == null)
-                return;
-
-            if (resume)
-                _ = PlayGallery(currentGallery, CurrentTime);
-            else if (isStopRange(min, max))
-            {
-                _ = StopGallery();
-            }
-
-
-
-        }
-
-        public record SlideRequest(int min, int max);
-        private int max = 100;
-        private int min;
         public int Min
         {
             get => min;
             set
             {
                 min = value;
-                if (!timerRange.Enabled)
-                {
-                    _logger.LogInformation($"Device '{Name}': Min changed to {min}. Starting timer.");
-                    timerRange.Start();
-                }
+                RestartRangeTimer();
             }
         }
+
         public int Max
         {
             get => max;
             set
             {
                 max = value;
-                if (!timerRange.Enabled)
-                {
-                    _logger.LogInformation($"Device '{Name}': Max changed to {max}. Starting timer.");
-                    timerRange.Start();
-                }
+                RestartRangeTimer();
             }
         }
 
+        public void Resume()
+        {
+            var gallery = currentGallery;
+            if (gallery != null && IsPause)
+                Observe(PlayGallery(gallery.Name, CurrentTime), "resuming playback");
+        }
 
+        internal virtual void SetVariant() { }
+        internal virtual Task applyRange() => Task.CompletedTask;
+        internal bool isStopRange(int min, int max) => min == max;
 
-        internal CancellationTokenSource playCancelTokenSource = new CancellationTokenSource();
         public virtual async Task PlayGallery(string name, long seek = 0)
         {
-            var previousCts = Interlocked.Exchange(ref playCancelTokenSource, new CancellationTokenSource());
+            var version = Interlocked.Increment(ref commandVersion);
+            TGallery gallery = null;
+            CancellationTokenSource source = null;
+            CancellationToken token = default;
+            Task deviceTask = Task.CompletedTask;
 
-            
-            _logger.LogInformation($"Device '{Name}': Playing gallery '{name}' with seek: {seek}.");
-
-            var newCancellationTokenSource = new CancellationTokenSource();
-            asyncLock.Wait();
+            await stateLock.WaitAsync();
             try
             {
-                previousCts?.Cancel(true);
-                playCancelTokenSource?.Cancel(true);
-                playCancelTokenSource = newCancellationTokenSource;
+                if (version != Volatile.Read(ref commandVersion))
+                    return;
+
+                CancelActiveTask();
+                gallery = repository.Get(name, SelectedVariant);
+                if (version != Volatile.Read(ref commandVersion))
+                    return;
+
+                if (gallery == null || Max == 0)
+                {
+                    currentGallery = null;
+                    IsPause = true;
+                    await StopDevice();
+                    return;
+                }
+
+                if (Min != lastMin || Max != lastMax)
+                {
+                    if (!isStopRange(Min, Max))
+                        await applyRange();
+                    lastMin = Min;
+                    lastMax = Max;
+                }
+
+                (source, token, deviceTask) = StartPlayback(gallery, seek);
             }
             finally
             {
-                asyncLock.Release();
+                stateLock.Release();
             }
 
-
-            var gallery = repository.Get(name, SelectedVariant);
-            if (gallery == null || Max == 0)
-            {
-                _logger.LogInformation($"Device '{Name}': Gallery is null or unplayable (name: '{name}', variant: '{SelectedVariant}', max: {Max}). Stopping playback.");
-                await Stop();
-                return;
-            }
-
-            SeekTime = seek;
-            SyncSend = DateTime.Now;
-            currentGallery = gallery;
-            IsPause = false;
-
-            CurrentDuration = currentGallery.Duration;
-            
-            if (!isStopRange(Min, Max))
-                _ = PlayGallery(gallery, seek);
-            
-            var _interval = CurrentDuration - CurrentTime;
-            var token = playCancelTokenSource.Token;
+            Observe(
+                MonitorPlayback(version, gallery, source, token, deviceTask),
+                $"monitoring gallery '{gallery.Name}'");
 
             try
             {
-                await Task.Delay(TimeSpan.FromMilliseconds(_interval), token);
+                await deviceTask;
             }
-            catch (TaskCanceledException)
+            catch (OperationCanceledException) when (token.IsCancellationRequested)
             {
-                _logger.LogInformation($"Device '{Name}': Playback task was canceled for gallery '{name}'.");
-                return;
-            }
-
-            if (token.IsCancellationRequested)
-                return;
-
-            if (currentGallery?.Loop == true && !IsPause)
-            {
-                _logger.LogInformation($"Device '{Name}': Looping gallery playback for '{currentGallery.Name}'.");
-                if(!SelfManagedLoop)
-                    _ = PlayGallery(currentGallery.Name);
-            }
-            else
-            {
-                await Stop();
             }
         }
 
         public abstract Task PlayGallery(TGallery gallery, long seek = 0);
 
+        protected virtual Task PlayGallery(
+            TGallery gallery,
+            long seek,
+            CancellationToken cancellationToken)
+            => PlayGallery(gallery, seek);
+
         public virtual async Task Stop()
         {
-            playCancelTokenSource?.Cancel(true);
+            var version = Interlocked.Increment(ref commandVersion);
+            rangeTimer.Stop();
+            await stateLock.WaitAsync();
+            try
+            {
+                if (version != Volatile.Read(ref commandVersion))
+                    return;
 
-            currentGallery = null;
-            IsPause = true;
-            _logger.LogInformation($"Device '{Name}': Stopping gallery playback.");
-
-            await StopGallery();
+                CancelActiveTask();
+                currentGallery = null;
+                IsPause = true;
+                await StopDevice();
+            }
+            finally
+            {
+                stateLock.Release();
+            }
         }
 
         public abstract Task StopGallery();
+        public virtual string DefaultVariant() => Variants.FirstOrDefault("");
 
-        public virtual string DefaultVariant()
-            => Variants.FirstOrDefault("");
+        private (
+            CancellationTokenSource Source,
+            CancellationToken Token,
+            Task DeviceTask) StartPlayback(TGallery gallery, long seek)
+        {
+            SeekTime = seek;
+            SyncSend = DateTime.UtcNow;
+            currentGallery = gallery;
+            CurrentDuration = gallery.Duration;
+            IsPause = false;
+
+            var source = playCancelTokenSource;
+            var task = isStopRange(Min, Max)
+                ? Task.CompletedTask
+                : PlayGallery(gallery, seek, source.Token) ?? Task.CompletedTask;
+            activeDeviceTask = task;
+            return (source, source.Token, task);
+        }
+
+        private async Task MonitorPlayback(
+            long version,
+            TGallery gallery,
+            CancellationTokenSource source,
+            CancellationToken token,
+            Task deviceTask)
+        {
+            try
+            {
+                var durationTask = Task.Delay(
+                    Math.Max(0, gallery.Duration - CurrentTime),
+                    token);
+                if (await Task.WhenAny(deviceTask, durationTask) == deviceTask)
+                    await deviceTask;
+
+                await durationTask;
+                await CompletePlayback(version, gallery, source);
+            }
+            catch (OperationCanceledException) when (token.IsCancellationRequested)
+            {
+            }
+        }
+
+        private async Task CompletePlayback(
+            long version,
+            TGallery gallery,
+            CancellationTokenSource source)
+        {
+            Task nextLifecycle = null;
+            await stateLock.WaitAsync();
+            try
+            {
+                if (version != Volatile.Read(ref commandVersion)
+                    || !ReferenceEquals(source, playCancelTokenSource)
+                    || gallery.Loop && !IsPause && SelfManagedLoop)
+                {
+                    return;
+                }
+
+                var shouldLoop = gallery.Loop && !IsPause;
+                CancelActiveTask();
+                if (shouldLoop)
+                {
+                    var (nextSource, nextToken, nextTask) =
+                        StartPlayback(gallery, seek: 0);
+                    nextLifecycle = MonitorPlayback(
+                        version,
+                        gallery,
+                        nextSource,
+                        nextToken,
+                        nextTask);
+                }
+                else
+                {
+                    currentGallery = null;
+                    IsPause = true;
+                    await StopDevice();
+                }
+            }
+            finally
+            {
+                stateLock.Release();
+            }
+
+            if (nextLifecycle != null)
+                Observe(nextLifecycle, $"monitoring loop '{gallery.Name}'");
+        }
+
+        private void CancelActiveTask()
+        {
+            var previousSource = playCancelTokenSource;
+            var previousTask = activeDeviceTask;
+            previousSource.Cancel();
+            playCancelTokenSource = new CancellationTokenSource();
+            activeDeviceTask = Task.CompletedTask;
+            Observe(
+                DisposeAfterCompletion(previousTask, previousSource),
+                "finishing cancelled playback");
+        }
+
+        private static async Task DisposeAfterCompletion(
+            Task task,
+            CancellationTokenSource source)
+        {
+            try
+            {
+                await task;
+            }
+            finally
+            {
+                source.Dispose();
+            }
+        }
+
+        private async Task StopDevice()
+        {
+            activeDeviceTask = StopGallery() ?? Task.CompletedTask;
+            await activeDeviceTask;
+            activeDeviceTask = Task.CompletedTask;
+        }
+
+        private void RestartRangeTimer()
+        {
+            rangeVersion = Volatile.Read(ref commandVersion);
+            rangeTimer.Stop();
+            rangeTimer.Start();
+        }
+
+        private async void RangeTimerElapsed(object sender, ElapsedEventArgs e)
+        {
+            try
+            {
+                await ApplyRangeChange(Volatile.Read(ref rangeVersion));
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, $"Device '{Name}' failed to apply its range.");
+            }
+        }
+
+        private async Task ApplyRangeChange(long expectedVersion)
+        {
+            Task lifecycle = null;
+            await stateLock.WaitAsync();
+            try
+            {
+                if (expectedVersion != Volatile.Read(ref commandVersion))
+                    return;
+
+                var nextMin = Min;
+                var nextMax = Max;
+                if (nextMin == lastMin && nextMax == lastMax)
+                    return;
+
+                var wasStopped = isStopRange(lastMin, lastMax);
+                var isStopped = isStopRange(nextMin, nextMax);
+                if (!isStopped)
+                    await applyRange();
+
+                lastMin = nextMin;
+                lastMax = nextMax;
+                if (currentGallery == null)
+                    return;
+
+                if (isStopped)
+                {
+                    CancelActiveTask();
+                    await StopDevice();
+                }
+                else if (wasStopped
+                         && expectedVersion == Volatile.Read(ref commandVersion))
+                {
+                    var gallery = currentGallery;
+                    var (source, token, task) = StartPlayback(gallery, CurrentTime);
+                    lifecycle = MonitorPlayback(
+                        expectedVersion,
+                        gallery,
+                        source,
+                        token,
+                        task);
+                }
+            }
+            finally
+            {
+                stateLock.Release();
+            }
+
+            if (lifecycle != null)
+                Observe(lifecycle, "monitoring playback after a range change");
+        }
+
+        private void Observe(Task task, string operation)
+            => _ = ObserveTask(task, operation);
+
+        private async Task ObserveTask(Task task, string operation)
+        {
+            try
+            {
+                await task;
+            }
+            catch (OperationCanceledException)
+            {
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, $"Device '{Name}' failed while {operation}.");
+            }
+        }
     }
 }

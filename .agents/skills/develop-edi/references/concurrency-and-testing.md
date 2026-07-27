@@ -17,6 +17,17 @@ Read the concrete code before changing it; these are navigation points:
 Treat timer callbacks as concurrent even when they usually appear serialized during manual
 testing. WPF property-change callbacks may require dispatcher affinity.
 
+## Playback replacement invariant
+
+- Device playback follows latest-command-wins semantics, like replacing an audio stream.
+- Keep at most one command being invoked and one pending command per device; a newer pending
+  command replaces older pending commands.
+- Cancel and observe superseded playback, but do not wait for its task to finish before
+  starting the replacement.
+- Each playback operation must capture its own cancellation token. An older operation must
+  never read the token belonging to its replacement.
+- A slow device must not delay command dispatch to other devices.
+
 ## Review questions for thread-related bugs
 
 1. What operation owns the state, and can two entry points mutate it concurrently?

@@ -45,24 +45,24 @@ namespace Edi.Core.Device.Mqtt
 
         internal override Task applyRange()
         {
-            _ = send("range", new Range(Min, Max), false);
-            return Task.CompletedTask;
+            return send("range", new Range(Min, Max), playCancelTokenSource.Token);
         }
         internal override void SetVariant()
         {
-            _ = send("variant", selectedVariant, false);
+            _ = send("variant", selectedVariant, playCancelTokenSource.Token);
         }
-        public override Task PlayGallery(string name, long seek = 0)
-        {
-            var task = base.PlayGallery(name, seek);
-            _ = send("play", new Play(name, seek, selectedVariant));
-            return task;
-        }
-        public override async Task PlayGallery(FunscriptGallery gallery, long seek = 0)
+        public override Task PlayGallery(FunscriptGallery gallery, long seek = 0)
+            => PlayGallery(gallery, seek, playCancelTokenSource.Token);
+
+        protected override async Task PlayGallery(
+            FunscriptGallery gallery,
+            long seek,
+            CancellationToken cancellationToken)
         {
             var cmds = gallery?.Commands;
             if (cmds == null) return;
 
+            await send("play", new Play(gallery.Name, seek, selectedVariant), cancellationToken);
             currentCmdIndex = Math.Max(0, cmds.FindIndex(x => x.AbsoluteTime > CurrentTime));
 
             while (currentCmdIndex >= 0 && currentCmdIndex < cmds.Count)
@@ -72,9 +72,11 @@ namespace Edi.Core.Device.Mqtt
 
                 try
                 {
-                    await send("command", new Command(CurrentCmd.Millis, CurrentCmd.GetValueInRange(Min, Max)));
-                    // Usa el nuevo token de cancelación aquí
-                    await Task.Delay(Math.Max(0, ReminingCmdTime), playCancelTokenSource.Token);
+                    await send(
+                        "command",
+                        new Command(CurrentCmd.Millis, CurrentCmd.GetValueInRange(Min, Max)),
+                        cancellationToken);
+                    await Task.Delay(Math.Max(0, ReminingCmdTime), cancellationToken);
                 }
                 catch (TaskCanceledException)
                 {
@@ -93,16 +95,19 @@ namespace Edi.Core.Device.Mqtt
 
         public override async Task StopGallery()
         {
-            await send("stop", "stop");
+            await send("stop", "stop", playCancelTokenSource.Token);
         }
 
-        private async Task send(string topic, object payload, bool defaultToken = true)
+        private async Task send(
+            string topic,
+            object payload,
+            CancellationToken cancellationToken = default)
         {
             await mqttClient.PublishAsync(new()
             {
                 Topic = this.topic + topic,
                 Payload = new ReadOnlySequence<byte>(JsonSerializer.SerializeToUtf8Bytes(payload))
-            }, playCancelTokenSource.Token);
+            }, cancellationToken);
         }
         private record Play(string gallery, long seek, string variant);
         private record Command(long millis, int value);

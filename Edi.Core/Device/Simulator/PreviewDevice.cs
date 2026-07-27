@@ -63,7 +63,13 @@ namespace Edi.Core.Device.Simulator
         public override string DefaultVariant()
             => Variants.FirstOrDefault() ?? base.DefaultVariant();
 
-        public override async Task PlayGallery(FunscriptGallery gallery, long seek = 0)
+        public override Task PlayGallery(FunscriptGallery gallery, long seek = 0)
+            => PlayGallery(gallery, seek, playCancelTokenSource.Token);
+
+        protected override async Task PlayGallery(
+            FunscriptGallery gallery,
+            long seek,
+            CancellationToken cancellationToken)
         {
             _logger.LogInformation($"Starting PlayGallery with Simulator: {Name}, Gallery: {gallery?.Name ?? "Unknown"}, Seek: {seek}");
 
@@ -85,8 +91,8 @@ namespace Edi.Core.Device.Simulator
                     // Actualizar a 60 FPS
                     var timeSinceLastUpdate = (DateTime.Now - lastUpdateAt).TotalMilliseconds;
                     var delayMs = Math.Max(0, REFRESH_RATE_MS - timeSinceLastUpdate);
-                    await Task.Delay((int)delayMs, playCancelTokenSource.Token);
-                    if (playCancelTokenSource.IsCancellationRequested)
+                    await Task.Delay((int)delayMs, cancellationToken);
+                    if (cancellationToken.IsCancellationRequested)
                         return;
                     // Verificar si necesitamos pasar al siguiente comando
                     if (CurrentTime >= CurrentCmd.AbsoluteTime)

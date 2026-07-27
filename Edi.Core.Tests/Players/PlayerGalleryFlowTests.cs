@@ -10,7 +10,9 @@ public class PlayerGalleryFlowTests
         await using var rig = await PlayerTestRig.CreateAsync();
 
         await rig.Player.Play("ambient");
+        await rig.Device.WaitForPlayAsync("ambient", occurrence: 1);
         await rig.Player.Play("scene", seek: 250);
+        await rig.Device.WaitForPlayAsync("scene", occurrence: 1);
 
         var plays = rig.Device.Commands
             .Where(command => command.Kind == PlaybackCommandKind.Play)
@@ -26,6 +28,7 @@ public class PlayerGalleryFlowTests
         await using var rig = await PlayerTestRig.CreateAsync();
 
         await rig.Player.Play("ambient");
+        await rig.Device.WaitForPlayAsync("ambient", occurrence: 1);
         await rig.Player.Play("short-scene");
 
         var resumedFiller = await rig.Device.WaitForPlayAsync("ambient", occurrence: 2);
@@ -41,8 +44,11 @@ public class PlayerGalleryFlowTests
         await using var rig = await PlayerTestRig.CreateAsync();
 
         await rig.Player.Play("ambient");
+        await rig.Device.WaitForPlayAsync("ambient", occurrence: 1);
         await rig.Player.Play("scene", seek: 200);
+        await rig.Device.WaitForPlayAsync("scene", occurrence: 1);
         await rig.Player.Play("hit");
+        await rig.Device.WaitForPlayAsync("hit", occurrence: 1);
 
         var resumedGallery = await rig.Device.WaitForPlayAsync("scene", occurrence: 2);
 
@@ -60,8 +66,11 @@ public class PlayerGalleryFlowTests
         await using var rig = await PlayerTestRig.CreateAsync();
 
         await rig.Player.Play("scene", seek: 100);
+        await rig.Device.WaitForPlayAsync("scene", occurrence: 1);
         await rig.Player.Play("hit");
+        await rig.Device.WaitForPlayAsync("hit", occurrence: 1);
         await rig.Player.Stop();
+        await rig.Device.WaitForPlayAsync("scene", occurrence: 2);
 
         var plays = rig.Device.Commands
             .Where(command => command.Kind == PlaybackCommandKind.Play)
@@ -77,8 +86,11 @@ public class PlayerGalleryFlowTests
         await using var rig = await PlayerTestRig.CreateAsync();
 
         await rig.Player.Play("ambient");
+        await rig.Device.WaitForPlayAsync("ambient", occurrence: 1);
         await rig.Player.Play("scene");
+        await rig.Device.WaitForPlayAsync("scene", occurrence: 1);
         await rig.Player.Play("hit");
+        await rig.Device.WaitForPlayAsync("hit", occurrence: 1);
         await rig.Player.Play("short-scene");
 
         var resumedFiller = await rig.Device.WaitForPlayAsync("ambient", occurrence: 2);
@@ -98,6 +110,7 @@ public class PlayerGalleryFlowTests
         await using var rig = await PlayerTestRig.CreateAsync();
 
         await rig.Player.Play("scene");
+        await rig.Device.WaitForPlayAsync("scene", occurrence: 1);
         var countBefore = rig.Device.Commands.Count;
 
         await rig.Player.Play("does-not-exist");

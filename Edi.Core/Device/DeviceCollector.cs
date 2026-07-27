@@ -79,7 +79,20 @@ namespace Edi.Core.Device
                 Devices.RemoveAll(x => x.Name == device.Name);
 
             }
+            _ = StopRemovedDevice(device);
             OnUnloadDevice?.Invoke(device, Devices);
+        }
+
+        private static async Task StopRemovedDevice(IDevice device)
+        {
+            try
+            {
+                await device.Stop();
+            }
+            catch
+            {
+                // Providers may unload devices precisely because their transport disappeared.
+            }
         }
     }
 

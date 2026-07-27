@@ -55,7 +55,13 @@ namespace Edi.Core.Device.AutoBlow
             upload();
         }
 
-        public override async Task PlayGallery(IndexGallery gallery, long seek = 0)
+        public override Task PlayGallery(IndexGallery gallery, long seek = 0)
+            => PlayGallery(gallery, seek, playCancelTokenSource.Token);
+
+        protected override async Task PlayGallery(
+            IndexGallery gallery,
+            long seek,
+            CancellationToken cancellationToken)
         {
             _logger.LogInformation($"PlayGallery called on {Name} for gallery {gallery.Name} with seek: {seek}");
             if (gallery.Bundle != CurrentBundle)
@@ -68,10 +74,10 @@ namespace Edi.Core.Device.AutoBlow
                     upload(gallery.Bundle, false);
                 }
             }
-            await Seek(gallery.StartTime + seek);
+            await Seek(gallery.StartTime + seek, cancellationToken);
         }
 
-        private async Task Seek(long timeMs)
+        private async Task Seek(long timeMs, CancellationToken cancellationToken)
         {
             if (!IsReady)
             {
@@ -81,7 +87,16 @@ namespace Edi.Core.Device.AutoBlow
             try
             {
                 var req = new SyncPlayRequest(timeMs);
-                await Client.PutAsync("sync-script/start", new StringContent(JsonConvert.SerializeObject(req), Encoding.UTF8, "application/json"));
+                await Client.PutAsync(
+                    "sync-script/start",
+                    new StringContent(
+                        JsonConvert.SerializeObject(req),
+                        Encoding.UTF8,
+                        "application/json"),
+                    cancellationToken);
+            }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+            {
             }
             catch (Exception ex)
             {

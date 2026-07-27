@@ -94,7 +94,13 @@ namespace Edi.Core.Device.Buttplug
         => Variants.FirstOrDefault(x => x.Contains(Actuator.ToString(), StringComparison.OrdinalIgnoreCase))
             ?? base.DefaultVariant();
 
-        public override async Task PlayGallery(FunscriptGallery gallery, long seek = 0)
+            public override Task PlayGallery(FunscriptGallery gallery, long seek = 0)
+            => PlayGallery(gallery, seek, playCancelTokenSource.Token);
+
+        protected override async Task PlayGallery(
+            FunscriptGallery gallery,
+            long seek,
+            CancellationToken cancellationToken)
         {
             _logger.LogInformation($"Starting PlayGallery with Device: {Name}, Gallery: {gallery?.Name ?? "Unknown"}, Seek: {seek}");
 
@@ -108,17 +114,17 @@ namespace Edi.Core.Device.Buttplug
 
             currentCmdIndex = Math.Max(0, cmds.FindIndex(x => x.AbsoluteTime > CurrentTime));
 
-            while (currentCmdIndex >= 0 && currentCmdIndex < cmds.Count && !playCancelTokenSource.IsCancellationRequested)
+            while (currentCmdIndex >= 0 && currentCmdIndex < cmds.Count && !cancellationToken.IsCancellationRequested)
             {
                 CurrentCmd = cmds[currentCmdIndex];
                 //_logger.LogInformation($"Executing command at index: {currentCmdIndex} with AbsoluteTime: {CurrentCmd.AbsoluteTime}");
 
-                var sendtask = SendCmd();
+                await SendCmd();
 
                 try
                 {
                     // Using the new cancellation token here
-                    await Task.Delay(Math.Max(0, ReminingCmdTime), playCancelTokenSource.Token);
+                    await Task.Delay(Math.Max(0, ReminingCmdTime), cancellationToken);
 
                 }
                 catch (TaskCanceledException)

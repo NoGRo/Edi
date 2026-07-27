@@ -60,6 +60,35 @@ internal sealed class RecordingDevice : IDevice
         string galleryName,
         int occurrence,
         TimeSpan? timeout = null)
+        => await WaitForCommandAsync(
+            command => command.Kind == PlaybackCommandKind.Play
+                       && command.GalleryName == galleryName,
+            occurrence,
+            timeout);
+
+    public async Task<PlaybackCommand> WaitForPlayAsync(
+        string galleryName,
+        long seek,
+        TimeSpan? timeout = null)
+        => await WaitForCommandAsync(
+            command => command.Kind == PlaybackCommandKind.Play
+                       && command.GalleryName == galleryName
+                       && command.Seek == seek,
+            occurrence: 1,
+            timeout);
+
+    public async Task<PlaybackCommand> WaitForStopAsync(
+        int occurrence,
+        TimeSpan? timeout = null)
+        => await WaitForCommandAsync(
+            command => command.Kind == PlaybackCommandKind.Stop,
+            occurrence,
+            timeout);
+
+    private async Task<PlaybackCommand> WaitForCommandAsync(
+        Func<PlaybackCommand, bool> predicate,
+        int occurrence,
+        TimeSpan? timeout)
     {
         using var cancellation = new CancellationTokenSource(timeout ?? TimeSpan.FromSeconds(3));
 
@@ -67,10 +96,7 @@ internal sealed class RecordingDevice : IDevice
         {
             lock (commandLock)
             {
-                var matches = commands
-                    .Where(command => command.Kind == PlaybackCommandKind.Play
-                                      && command.GalleryName == galleryName)
-                    .ToList();
+                var matches = commands.Where(predicate).ToList();
 
                 if (matches.Count >= occurrence)
                     return matches[occurrence - 1];

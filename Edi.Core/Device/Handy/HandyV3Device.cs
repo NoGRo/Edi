@@ -76,7 +76,13 @@ namespace Edi.Core.Device.Handy
             await Client.PutAsync("v2/slide", new StringContent(JsonConvert.SerializeObject(request), Encoding.UTF8, "application/json"), playCancelTokenSource.Token);
         }
 
-        public override async Task PlayGallery(IndexGallery gallery, long seek = 0)
+        public override Task PlayGallery(IndexGallery gallery, long seek = 0)
+            => PlayGallery(gallery, seek, playCancelTokenSource.Token);
+
+        protected override async Task PlayGallery(
+            IndexGallery gallery,
+            long seek,
+            CancellationToken cancellationToken)
         {
             _logger.LogInformation($"PlayGallery called for gallery: {gallery?.Name}, seek: {seek}");
 
@@ -89,7 +95,7 @@ namespace Edi.Core.Device.Handy
                 // Initialize HSP if not already done
                 if (_streamId == -1)
                 {
-                    await InitializeHspSession();
+                    await InitializeHspSession(cancellationToken);
                 }
 
                 var points = new List<Point>(); 
@@ -111,7 +117,15 @@ namespace Edi.Core.Device.Handy
                 // Send play command
                 existingGallery = _galleryIndex[currentGallery.Name];
                 CurrentDuration = existingGallery.TotalDuration + (gallery.Loop ? -_configBundler.RepeatDuration : -_configBundler.SpacerDuration);
-                await SendPlayCommand(existingGallery.StartTime + CurrentTime, points);
+                await SendPlayCommand(
+                    existingGallery.StartTime + CurrentTime,
+                    points,
+                    cancellationToken);
+                if (_pointUploadTask != null)
+                    await _pointUploadTask;
+            }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+            {
             }
             catch (Exception ex)
             {
@@ -120,7 +134,7 @@ namespace Edi.Core.Device.Handy
             }
         }
 
-        private async Task InitializeHspSession()
+        private async Task InitializeHspSession(CancellationToken cancellationToken)
         {
             _logger.LogInformation($"Initializing HSP session for Key: {Key}");
 
@@ -128,7 +142,7 @@ namespace Edi.Core.Device.Handy
             {
                 var setupResponse = await Client.PutAsync("v3/hsp/setup", 
                     new StringContent(JsonConvert.SerializeObject(new  { stream_id = new Random(DateTime.Now.Millisecond).Next(3000) }), Encoding.UTF8, "application/json"),
-                    playCancelTokenSource.Token);
+                    cancellationToken);
 
                 var responseContent = await setupResponse.Content.ReadAsStringAsync();
                 _hspState = JsonConvert.DeserializeObject<HspStateResult>(responseContent)?.result;
@@ -319,7 +333,10 @@ namespace Edi.Core.Device.Handy
             }
         }
 
-        private async Task SendPlayCommand(long startTime, List<Point> points)
+        private async Task SendPlayCommand(
+            long startTime,
+            List<Point> points,
+            CancellationToken cancellationToken)
         {
             _logger.LogInformation($"Sending play command with startTime: {startTime}");
 
@@ -327,12 +344,11 @@ namespace Edi.Core.Device.Handy
             {
                 isStopCalled = false;
                 var playRequest = new HspPlayRequest((int)startTime, ServerTime, 1.0, false, new(points));
-                var token = playCancelTokenSource.Token;
                 var response = await Client.PutAsync("v3/hsp/play",
                     new StringContent(JsonConvert.SerializeObject(playRequest), Encoding.UTF8, "application/json"),
-                    token);
+                    cancellationToken);
 
-                if (currentGallery is null || token.IsCancellationRequested || isStopCalled)
+                if (currentGallery is null || cancellationToken.IsCancellationRequested || isStopCalled)
                     return;
 
                 var responseContent = await response.Content.ReadAsStringAsync();

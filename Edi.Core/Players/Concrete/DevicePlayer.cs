@@ -25,6 +25,7 @@ namespace Edi.Core.Players
         private readonly object devicesLock = new();
         private readonly List<IDevice> Devices = new();
         private readonly Dictionary<INotifyPropertyChanged, PropertyChangedEventHandler> subscriptions = new();
+        private readonly Dictionary<IDevice, DeviceDispatchState> dispatchStates = new();
         private readonly SemaphoreSlim stateLock = new(1, 1);
         private bool isHardPause;
         private bool isPause;
@@ -73,6 +74,9 @@ namespace Edi.Core.Players
                 {
                     notifier.PropertyChanged -= handler;
                 }
+
+                if (dispatchStates.TryGetValue(device, out var dispatch))
+                    dispatch.Pending = null;
             }
         }
 
@@ -252,13 +256,57 @@ namespace Edi.Core.Players
 
         private void Dispatch(IDevice device, Func<Task> command, string operation)
         {
-            try
+            DeviceDispatchState dispatch;
+            lock (devicesLock)
             {
-                Observe(command(), $"{operation} on device '{device.Name}'");
+                if (!dispatchStates.TryGetValue(device, out dispatch))
+                    dispatchStates[device] = dispatch = new();
+
+                dispatch.Pending = (command, operation);
+                if (dispatch.IsRunning)
+                    return;
+
+                dispatch.IsRunning = true;
             }
-            catch (Exception ex)
+
+            Observe(
+                Task.Run(() => ProcessDispatch(device, dispatch)),
+                $"dispatching commands on device '{device.Name}'");
+        }
+
+        private void ProcessDispatch(IDevice device, DeviceDispatchState dispatch)
+        {
+            while (true)
             {
-                logService.AddLog($"Error {operation} on device [{device.Name}]: {ex.Message}");
+                (Func<Task> Command, string Operation)? next;
+                lock (devicesLock)
+                {
+                    next = dispatch.Pending;
+                    dispatch.Pending = null;
+                    if (next == null)
+                    {
+                        dispatch.IsRunning = false;
+                        if (dispatchStates.TryGetValue(device, out var current)
+                            && ReferenceEquals(current, dispatch))
+                        {
+                            dispatchStates.Remove(device);
+                        }
+
+                        return;
+                    }
+                }
+
+                try
+                {
+                    Observe(
+                        next.Value.Command(),
+                        $"{next.Value.Operation} on device '{device.Name}'");
+                }
+                catch (Exception ex)
+                {
+                    logService.AddLog(
+                        $"Error {next.Value.Operation} on device [{device.Name}]: {ex.Message}");
+                }
             }
         }
 
@@ -284,6 +332,12 @@ namespace Edi.Core.Players
             {
                 logService.AddLog($"Error while {operation}: {ex.Message}");
             }
+        }
+
+        private sealed class DeviceDispatchState
+        {
+            public (Func<Task> Command, string Operation)? Pending { get; set; }
+            public bool IsRunning { get; set; }
         }
     }
 }

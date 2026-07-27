@@ -2,9 +2,7 @@ using Edi.Core.Device;
 using Edi.Core.Gallery.Funscript;
 using Edi.Core.Services;
 using Microsoft.Extensions.Logging;
-using Newtonsoft.Json;
 using PropertyChanged;
-using System.Text;
 
 namespace Edi.Core.Device.Handy
 {
@@ -14,7 +12,6 @@ namespace Edi.Core.Device.Handy
     {
         // Set to false only to diagnose devices that reject HSP play(add).
         private const bool UseEmbeddedAddInPlay = true;
-        private const int MaxPointsPerRequest = 100;
         private static readonly TimeSpan StreamingPollInterval =
             TimeSpan.FromMilliseconds(250);
 
@@ -28,35 +25,31 @@ namespace Edi.Core.Device.Handy
         private bool _isStopCalled;
 
         public HandyV3Device(
-            HttpClient client,
+            IHandyClient client,
             FunscriptRepository repository,
             ILogger logger)
             : base(repository, logger)
         {
             Client = client;
-            Key = client.DefaultRequestHeaders
-                .GetValues("X-Connection-Key")
-                .First();
-            Name = $"The Handy [{Key}]";
+            Key = client.Key;
+            Name = client.DisplayName;
             _logger = logger;
             IsReady = true;
 
-            _logger.LogInformation(
-                $"HandyV3Device initialized with Key: {Key}.");
+            _logger.LogInformation("Handy V3 device initialized.");
         }
 
         public string Key { get; }
-        public HttpClient Client { get; }
+        public IHandyClient Client { get; }
         internal override bool SelfManagedLoop { get; set; } = true;
 
         internal override async Task applyRange()
         {
             _logger.LogInformation(
-                $"Applying range for Key: {Key}, Min: {Min}, Max: {Max}.");
+                $"Applying Handy range. Min: {Min}, Max: {Max}.");
             var request = new SlideRequest(Min, Max);
-            await Client.PutAsync(
-                "v2/slide",
-                JsonContent(request),
+            await Client.SetStroke(
+                request,
                 playCancelTokenSource.Token);
         }
 
@@ -96,7 +89,9 @@ namespace Edi.Core.Device.Handy
 
                 var initialPointCount =
                     Math.Min(
-                        Math.Min(bufferCapacity, MaxPointsPerRequest),
+                        Math.Min(
+                            bufferCapacity,
+                            Client.MaxPointsPerRequest),
                         plan.Points.Count);
                 var initialPoints =
                     plan.Points.Take(initialPointCount).ToList();
@@ -188,7 +183,8 @@ namespace Edi.Core.Device.Handy
         private int GetBufferCapacity()
             => Math.Max(
                 1,
-                _hspState?.max_points ?? MaxPointsPerRequest);
+                _hspState?.max_points
+                ?? Client.MaxPointsPerRequest);
 
         private async Task StartPlaybackWithoutAddRoundTrip(
             List<Point> points,
@@ -197,7 +193,7 @@ namespace Edi.Core.Device.Handy
             CancellationToken cancellationToken)
         {
             if (UseEmbeddedAddInPlay
-                && points.Count <= MaxPointsPerRequest)
+                && points.Count <= Client.MaxPointsPerRequest)
             {
                 var add = new HspAddRequest(
                     points,
@@ -229,7 +225,8 @@ namespace Edi.Core.Device.Handy
         {
             var flush = true;
 
-            foreach (var chunk in points.Chunk(MaxPointsPerRequest))
+            foreach (var chunk in points.Chunk(
+                Client.MaxPointsPerRequest))
             {
                 var pointChunk = chunk.ToList();
                 await SendPointChunk(
@@ -248,7 +245,9 @@ namespace Edi.Core.Device.Handy
             CancellationToken cancellationToken)
         {
             var uploadChunkSize =
-                Math.Min(MaxPointsPerRequest, bufferCapacity);
+                Math.Min(
+                    Client.MaxPointsPerRequest,
+                    bufferCapacity);
             var uploadedPointCount = initialPointCount;
 
             foreach (var chunk in remainingPoints.Chunk(uploadChunkSize))
@@ -344,18 +343,13 @@ namespace Edi.Core.Device.Handy
 
         private async Task InitializeHspSession()
         {
-            _logger.LogInformation(
-                $"Initializing HSP session for Key: {Key}");
+            _logger.LogInformation("Initializing the Handy HSP session.");
 
-            var setupRequest = new
-            {
-                stream_id = Random.Shared.Next(1, int.MaxValue)
-            };
-            var response = await Client.PutAsync(
-                "v3/hsp/setup",
-                JsonContent(setupRequest),
+            var setupRequest = new HspSetupRequest(
+                Random.Shared.Next(1, int.MaxValue));
+            _hspState = await Client.Setup(
+                setupRequest,
                 CancellationToken.None);
-            _hspState = await ReadHspState(response, "setup");
             _streamId = _hspState.stream_id;
             _tailPointStreamIndex =
                 _hspState.tail_point_stream_index;
@@ -377,11 +371,9 @@ namespace Edi.Core.Device.Handy
                 points,
                 flush,
                 ReserveTailPointStreamIndex(points.Count));
-            var response = await Client.PutAsync(
-                "v3/hsp/add",
-                JsonContent(request),
+            _hspState = await Client.AddPoints(
+                request,
                 cancellationToken);
-            _hspState = await ReadHspState(response, "add");
         }
 
         private async Task SendPlayCommand(
@@ -397,9 +389,8 @@ namespace Edi.Core.Device.Handy
                 1.0,
                 loop,
                 add);
-            var response = await Client.PutAsync(
-                "v3/hsp/play",
-                JsonContent(request),
+            var state = await Client.Play(
+                request,
                 cancellationToken);
 
             if (currentGallery is null
@@ -409,7 +400,7 @@ namespace Edi.Core.Device.Handy
                 return;
             }
 
-            _hspState = await ReadHspState(response, "play");
+            _hspState = state;
             _logger.LogInformation(
                 $"Play command sent. PlayState: {_hspState.play_state}");
         }
@@ -419,51 +410,27 @@ namespace Edi.Core.Device.Handy
                 ref _tailPointStreamIndex,
                 pointCount);
 
-        private async Task<HspState> ReadHspState(
-            HttpResponseMessage response,
-            string operation)
-        {
-            response.EnsureSuccessStatusCode();
-            var content = await response.Content.ReadAsStringAsync();
-            return JsonConvert
-                .DeserializeObject<HspStateResult>(content)
-                ?.result
-                ?? throw new InvalidOperationException(
-                    $"The Handy returned an invalid HSP {operation} response.");
-        }
-
         public override async Task StopGallery()
         {
             _isStopCalled = true;
-            _logger.LogInformation(
-                $"Stopping gallery playback for Key: {Key}");
+            _logger.LogInformation("Stopping Handy gallery playback.");
 
             try
             {
-                var response = await Client.PutAsync(
-                    "v3/hsp/stop",
-                    null,
-                    playCancelTokenSource.Token);
-                response.EnsureSuccessStatusCode();
+                await Client.Stop(playCancelTokenSource.Token);
             }
             catch (OperationCanceledException)
             {
                 _logger.LogWarning(
-                    $"Stopping operation canceled for Key: {Key}.");
+                    "The Handy stop operation was canceled.");
             }
             catch (Exception ex)
             {
                 _logger.LogError(
                     ex,
-                    $"Error stopping gallery for Key: {Key}.");
+                    "Error stopping the Handy gallery.");
             }
         }
-
-        private StringContent JsonContent(object value)
-            => new(
-                JsonConvert.SerializeObject(value),
-                Encoding.UTF8,
-                "application/json");
 
         private long ServerTime =>
             DateTimeOffset.UtcNow.ToUnixTimeMilliseconds()
@@ -475,36 +442,4 @@ namespace Edi.Core.Device.Handy
         int Duration,
         long StartTime);
 
-    internal record HspStateResult(HspState result);
-
-    internal record HspState(
-        int stream_id,
-        int max_points,
-        int points,
-        int current_point,
-        long current_time,
-        bool loop,
-        double playback_rate,
-        long first_point_time,
-        long last_point_time,
-        string play_state,
-        int tail_point_stream_index,
-        int tail_point_stream_index_threshold);
-
-    internal record OffsetRequest(int offset);
-
-    internal record HspAddRequest(
-        List<Point> points,
-        bool flush,
-        int tail_point_stream_index);
-
-    internal record HspPlayRequest(
-        int start_time,
-        long server_time,
-        double playback_rate,
-        bool loop,
-        [property: JsonProperty(NullValueHandling = NullValueHandling.Ignore)]
-        HspAddRequest add);
-
-    internal record Point(int t, int x);
 }

@@ -54,7 +54,7 @@ public class HandyV3DeviceTests
         client.DefaultRequestHeaders.Add("X-Connection-Key", "TEST-KEY");
 
         var device = new HandyV3Device(
-            client,
+            new HandyHttpClient(client),
             repository,
             NullLogger.Instance);
         device.selectedVariant = "default";
@@ -122,7 +122,7 @@ public class HandyV3DeviceTests
         client.DefaultRequestHeaders.Add("X-Connection-Key", "TEST-KEY");
 
         var device = new HandyV3Device(
-            client,
+            new HandyHttpClient(client),
             repository,
             NullLogger.Instance);
         device.selectedVariant = "default";
@@ -173,7 +173,7 @@ public class HandyV3DeviceTests
         client.DefaultRequestHeaders.Add("X-Connection-Key", "TEST-KEY");
 
         var device = new HandyV3Device(
-            client,
+            new HandyHttpClient(client),
             repository,
             NullLogger.Instance);
         device.selectedVariant = "default";
@@ -243,7 +243,7 @@ public class HandyV3DeviceTests
         client.DefaultRequestHeaders.Add("X-Connection-Key", "TEST-KEY");
 
         var device = new HandyV3Device(
-            client,
+            new HandyHttpClient(client),
             repository,
             NullLogger.Instance);
         device.selectedVariant = "default";
@@ -324,7 +324,7 @@ public class HandyV3DeviceTests
         client.DefaultRequestHeaders.Add("X-Connection-Key", "TEST-KEY");
 
         var device = new HandyV3Device(
-            client,
+            new HandyHttpClient(client),
             repository,
             NullLogger.Instance);
         device.selectedVariant = "default";

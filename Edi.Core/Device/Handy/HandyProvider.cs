@@ -37,11 +37,17 @@ namespace Edi.Core.Device.Handy
         private FunscriptRepository funscriptRepository => _funscriptRepository ??= _serviceProvider.GetRequiredService<FunscriptRepository>();
         private readonly IHttpClientFactory _httpClientFactory;
         private readonly HandyDeviceFactory _deviceFactory;
+        private readonly IHandyBluetoothDiscovery _bluetoothDiscovery;
 
         // Re‑usamos un solo HttpClient por key
         private readonly ConcurrentDictionary<string, HttpClient> _clients = new();
+        private readonly ConcurrentDictionary<string, IHandyClient>
+            _bluetoothClients = new();
         private readonly ConcurrentDictionary<string, bool> _usesV3Api = new();
+        private readonly SemaphoreSlim _connectLock = new(1, 1);
         private readonly SemaphoreSlim _offsetApiLock = new(1, 1);
+        private readonly object _initTaskLock = new();
+        private Task _initTask = Task.CompletedTask;
         private int _pendingOffset;
         private int _lastAppliedOffset = int.MinValue;
         private int _offsetUpdateWorkerActive;
@@ -50,6 +56,7 @@ namespace Edi.Core.Device.Handy
                              ConfigurationManager config,
                              DeviceCollector deviceCollector,
                              IHttpClientFactory httpClientFactory,
+                             IHandyBluetoothDiscovery bluetoothDiscovery,
                              ILogger<HandyProvider> logger)
         {
             _logger = logger;
@@ -57,6 +64,7 @@ namespace Edi.Core.Device.Handy
             _serviceProvider = serviceProvider;
             _deviceCollector = deviceCollector;
             _httpClientFactory = httpClientFactory;
+            _bluetoothDiscovery = bluetoothDiscovery;
             _deviceFactory = new HandyDeviceFactory(logger);
             timerReconnect.Elapsed += TimerReconnect_Elapsed;
             _pendingOffset = Config.OffsetMS;
@@ -67,43 +75,143 @@ namespace Edi.Core.Device.Handy
 
         public HandyConfig Config { get; set; }
 
-        public async Task Init()
+        public Task Init()
+        {
+            lock (_initTaskLock)
+            {
+                if (!_initTask.IsCompleted)
+                    return _initTask;
+
+                _initTask = Initialize();
+                return _initTask;
+            }
+        }
+
+        private async Task Initialize()
         {
             if (string.IsNullOrEmpty(Config.Key))
             {
-                _logger.LogWarning("Configuration key is empty; initialization aborted.");
-                return;
+                _logger.LogInformation(
+                    "No Handy connection key is configured; " +
+                    "continuing with Bluetooth discovery.");
             }
 
-            await Task.Delay(500);
-            RemoveAll();
-
-            Keys = Config.Key.Split(',')
-                             .Where(x => !string.IsNullOrWhiteSpace(x))
-                             .Select(x => x.Trim())
-                             .ToList();
-
-            _logger.LogInformation($"Starting initialization with {Keys.Count} device keys.");
-
             timerReconnect.Stop();
-            ConnectAll();
-            timerReconnect.Start();
+            await _connectLock.WaitAsync();
+            try
+            {
+                await RemoveAll();
+
+                // Give Windows and the Handy time to release the previous
+                // GATT session before scanning for the same device again.
+                await Task.Delay(500);
+
+                Keys = (Config.Key ?? string.Empty).Split(',')
+                                 .Where(x => !string.IsNullOrWhiteSpace(x))
+                                 .Select(x => x.Trim())
+                                 .ToList();
+
+                _logger.LogInformation(
+                    "Starting initialization with {DeviceCount} device keys.",
+                    Keys.Count);
+
+                await ConnectAllCore();
+            }
+            finally
+            {
+                _connectLock.Release();
+                timerReconnect.Start();
+            }
         }
 
-        private void ConnectAll()
+        internal async Task ConnectAll()
         {
-            lock (Keys)
+            await _connectLock.WaitAsync();
+            try
             {
-                Keys.AsParallel().ForAll(async key =>
+                await ConnectAllCore();
+            }
+            finally
+            {
+                _connectLock.Release();
+            }
+        }
+
+        private async Task ConnectAllCore()
+        {
+            var internetTasks = Keys.Select(Connect);
+            await Task.WhenAll(
+                internetTasks.Append(ConnectBluetooth()));
+        }
+
+        private async Task ConnectBluetooth()
+        {
+            if (!_bluetoothClients.IsEmpty)
+                return;
+
+            var clients = await _bluetoothDiscovery.DiscoverAsync(
+                TimeSpan.FromSeconds(8),
+                CancellationToken.None);
+            foreach (var client in clients)
+            {
+                if (!_bluetoothClients.TryAdd(client.Id, client))
                 {
-                    await Connect(key);
-                });
+                    await client.DisposeAsync();
+                    continue;
+                }
+
+                client.Disconnected += BluetoothClient_Disconnected;
+                try
+                {
+                    await client.SetOffset(
+                        Config.OffsetMS,
+                        CancellationToken.None);
+                    var handyDevice = new HandyV3Device(
+                        client,
+                        funscriptRepository,
+                        _logger);
+
+                    var added = false;
+                    lock (devices)
+                    {
+                        if (!devices.ContainsKey(client.Id))
+                        {
+                            devices[client.Id] = handyDevice;
+                            added = true;
+                        }
+                    }
+
+                    if (!added)
+                    {
+                        client.Disconnected -=
+                            BluetoothClient_Disconnected;
+                        _bluetoothClients.TryRemove(client.Id, out _);
+                        await client.DisposeAsync();
+                        continue;
+                    }
+
+                    _deviceCollector.LoadDevice(handyDevice);
+                    _logger.LogInformation(
+                        "Loaded {DeviceName} from Bluetooth.",
+                        handyDevice.Name);
+                }
+                catch (Exception ex)
+                {
+                    client.Disconnected -= BluetoothClient_Disconnected;
+                    _bluetoothClients.TryRemove(client.Id, out _);
+                    await client.DisposeAsync();
+                    _logger.LogWarning(
+                        ex,
+                        "Could not load {DeviceName} from Bluetooth.",
+                        client.DisplayName);
+                }
             }
         }
 
         private async Task Connect(string key)
         {
-            _logger.LogInformation($"Connecting to device with Key: {key}");
+            _logger.LogInformation(
+                "Connecting to a configured Handy over internet.");
 
             var client = GetOrCreateClient(key);
 
@@ -114,14 +222,17 @@ namespace Edi.Core.Device.Handy
             }
             catch (Exception ex)
             {
-                _logger.LogError($"Connection failed for Key: {key} - {ex.Message}");
+                _logger.LogError(
+                    ex,
+                    "The configured internet Handy could not be reached.");
                 Remove(key);
                 return;
             }
 
             if (resp?.StatusCode != System.Net.HttpStatusCode.OK)
             {
-                _logger.LogWarning($"Device with Key: {key} not reachable, removing.");
+                _logger.LogWarning(
+                    "The configured internet Handy is not reachable.");
                 Remove(key);
                 return;
             }
@@ -129,7 +240,8 @@ namespace Edi.Core.Device.Handy
             var status = JsonConvert.DeserializeObject<ConnectedResponse>(await resp.Content.ReadAsStringAsync());
             if (!status.connected)
             {
-                _logger.LogWarning($"Device with Key: {key} not connected, removing.");
+                _logger.LogWarning(
+                    "The configured internet Handy is not connected.");
                 Remove(key);
                 return;
             }
@@ -150,9 +262,10 @@ namespace Edi.Core.Device.Handy
 
                 if (usesV3Api)
                 {
-                    _logger.LogInformation($"Creating HandyV3Device (HSP protocol) for Key: {key}");
+                    _logger.LogInformation(
+                        "Creating an internet Handy with the HSP protocol.");
                     handyDevice = new HandyV3Device(
-                        client,
+                        new HandyHttpClient(client),
                         funscriptRepository,
                         _logger);
                 }
@@ -164,7 +277,8 @@ namespace Edi.Core.Device.Handy
                             JsonConvert.SerializeObject(new ModeRequest(1)),
                             Encoding.UTF8,
                             "application/json"));
-                    _logger.LogInformation($"Creating HandyDevice (Legacy HSSP protocol) for Key: {key}");
+                    _logger.LogInformation(
+                        "Creating an internet Handy with the legacy HSSP protocol.");
                     handyDevice = new HandyDevice(client, indexRepository, _logger);
                 }
 
@@ -172,19 +286,37 @@ namespace Edi.Core.Device.Handy
                 {
                     devices[key] = handyDevice;
                     _deviceCollector.LoadDevice(handyDevice);
-                    _logger.LogInformation($"Device {handyDevice.Name} loaded with Key: {key} (Firmware: {firmwareVersion})");
+                    _logger.LogInformation(
+                        "Loaded an internet Handy running firmware " +
+                        "{FirmwareVersion}.",
+                        firmwareVersion);
                 }
 
                 _= ServerTimeSync.SyncServerTimeAsync();
             }
         }
 
-        private void RemoveAll()
+        private async Task RemoveAll()
         {
             _logger.LogInformation("Removing all devices.");
-            foreach (var key in Keys)
+            List<IDevice> loadedDevices;
+            lock (devices)
             {
-                Remove(key);
+                loadedDevices = devices.Values.ToList();
+                devices.Clear();
+            }
+
+            foreach (var device in loadedDevices)
+                _deviceCollector.UnloadDevice(device);
+
+            _clients.Clear();
+            _usesV3Api.Clear();
+            var bluetoothClients = _bluetoothClients.ToArray();
+            _bluetoothClients.Clear();
+            foreach (var entry in bluetoothClients)
+            {
+                entry.Value.Disconnected -= BluetoothClient_Disconnected;
+                await entry.Value.DisposeAsync();
             }
         }
 
@@ -193,13 +325,65 @@ namespace Edi.Core.Device.Handy
             _clients.TryRemove(key, out var client);
             _usesV3Api.TryRemove(key, out _);
 
-            if (devices.TryGetValue(key, out var device))
+            lock (devices)
             {
-                _deviceCollector.UnloadDevice(device);
-                devices.Remove(key);
-                _logger.LogInformation($"Device removed with Key: {key}");
+                if (devices.TryGetValue(key, out var device))
+                {
+                    _deviceCollector.UnloadDevice(device);
+                    devices.Remove(key);
+                    _logger.LogInformation(
+                        "Removed an unavailable internet Handy.");
+                }
             }
         }
+
+        private void BluetoothClient_Disconnected(IHandyClient client)
+            => _ = ObserveBluetoothDisconnect(client);
+
+        internal async Task ObserveBluetoothDisconnect(IHandyClient client)
+        {
+            await _connectLock.WaitAsync();
+            try
+            {
+                if (!_bluetoothClients.TryGetValue(
+                        client.Id,
+                        out var currentClient)
+                    || !ReferenceEquals(currentClient, client))
+                {
+                    return;
+                }
+
+                client.Disconnected -= BluetoothClient_Disconnected;
+                if (!_bluetoothClients.TryRemove(client.Id, out _))
+                    return;
+
+                IDevice device = null;
+                lock (devices)
+                {
+                    if (devices.TryGetValue(client.Id, out device))
+                        devices.Remove(client.Id);
+                }
+
+                if (device is not null)
+                    _deviceCollector.UnloadDevice(device);
+
+                await client.DisposeAsync();
+                _logger.LogInformation(
+                    "A Bluetooth Handy disconnected; starting discovery again.");
+                await ConnectAllCore();
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(
+                    ex,
+                    "Could not recover from a Bluetooth Handy disconnect.");
+            }
+            finally
+            {
+                _connectLock.Release();
+            }
+        }
+
         private HttpClient GetOrCreateClient(string key)
         {
             // Thread‑safe cache; creates the client only once per key
@@ -215,9 +399,20 @@ namespace Edi.Core.Device.Handy
             });
         }
 
-        private void TimerReconnect_Elapsed(object sender, ElapsedEventArgs e)
+        private async void TimerReconnect_Elapsed(
+            object sender,
+            ElapsedEventArgs e)
         {
-            ConnectAll();
+            try
+            {
+                await ConnectAll();
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(
+                    ex,
+                    "Handy reconnection failed.");
+            }
         }
 
         private void Config_PropertyChanged(
@@ -280,8 +475,17 @@ namespace Edi.Core.Device.Handy
                     continue;
 
                 var clients = _clients.ToArray();
-                await Task.WhenAll(clients.Select(entry =>
-                    ApplyOffsetForClient(entry.Key, entry.Value, offset)));
+                var internetUpdates = clients.Select(entry =>
+                    ApplyOffsetForClient(
+                        entry.Key,
+                        entry.Value,
+                        offset));
+                var bluetoothUpdates = _bluetoothClients.Values.Select(
+                    client => client.SetOffset(
+                        offset,
+                        CancellationToken.None));
+                await Task.WhenAll(
+                    internetUpdates.Concat(bluetoothUpdates));
 
                 Volatile.Write(ref _lastAppliedOffset, offset);
                 if (offset == Volatile.Read(ref _pendingOffset))

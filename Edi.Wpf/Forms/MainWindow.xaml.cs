@@ -286,11 +286,16 @@ namespace Edi.Forms
 
         private async void ReconnectButton_ClickAsync(object sender, RoutedEventArgs e)
         {
-            await Dispatcher.Invoke(async () =>
+            ReconnectButton.IsEnabled = false;
+            try
             {
                 loadOSRPorts();
                 await edi.InitDevices();
-            });
+            }
+            finally
+            {
+                ReconnectButton.IsEnabled = true;
+            }
         }
 
         private void Label_MouseDoubleClick(object sender, MouseButtonEventArgs e)

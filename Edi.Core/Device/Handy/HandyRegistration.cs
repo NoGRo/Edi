@@ -12,6 +12,9 @@ namespace Edi.Core.Device.Handy
     {
         public static void AddHandy(this IServiceCollection services)
         {
+            services.AddSingleton<
+                IHandyBluetoothDiscovery,
+                HandyBluetoothDiscovery>();
             services.AddSingleton<IDeviceProvider, HandyProvider>();
             services.AddHttpClient("HandyAPI", client =>
             {

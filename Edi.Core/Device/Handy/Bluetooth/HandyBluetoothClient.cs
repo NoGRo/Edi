@@ -1,0 +1,365 @@
+using Google.Protobuf;
+using Microsoft.Extensions.Logging;
+using System.Collections.Concurrent;
+using Proto = HdyRpc;
+
+namespace Edi.Core.Device.Handy;
+
+internal sealed class HandyBluetoothClient : IHandyClient
+{
+    private static readonly TimeSpan ResponseTimeout =
+        TimeSpan.FromSeconds(5);
+
+    private readonly IHandyBluetoothTransport _transport;
+    private readonly ILogger _logger;
+    private readonly ConcurrentDictionary<
+        uint,
+        TaskCompletionSource<Proto.Response>> _pending = new();
+    private int _nextRequestId;
+    private int _offset;
+    private int _disposed;
+
+    private HandyBluetoothClient(
+        IHandyBluetoothTransport transport,
+        ILogger logger)
+    {
+        _transport = transport;
+        _logger = logger;
+        _transport.FrameReceived += Transport_FrameReceived;
+        _transport.Disconnected += Transport_Disconnected;
+    }
+
+    public string Id => $"bluetooth:{_transport.Id}";
+    public string Key { get; private set; }
+    public string DisplayName => GetDisplayName(_transport.Name);
+
+    // Fifty HSP points stay below a 512-byte ATT payload even when
+    // timestamps require five-byte varints.
+    public int MaxPointsPerRequest => 50;
+
+    public event Action<IHandyClient> Disconnected;
+
+    internal static string GetDisplayName(string advertisedName)
+    {
+        if (advertisedName?.StartsWith(
+                "OHD_hw4_",
+                StringComparison.OrdinalIgnoreCase) == true)
+        {
+            return "The Handy 2 Pro (BLE)";
+        }
+
+        if (advertisedName?.StartsWith(
+                "OHD_hw3_",
+                StringComparison.OrdinalIgnoreCase) == true)
+        {
+            return "The Handy 2 Standard (BLE)";
+        }
+
+        return "The Handy (BLE)";
+    }
+
+    internal static async Task<HandyBluetoothClient> CreateAsync(
+        IHandyBluetoothTransport transport,
+        ILogger logger,
+        bool initialize,
+        CancellationToken cancellationToken)
+    {
+        var client = new HandyBluetoothClient(transport, logger);
+        try
+        {
+            if (initialize)
+            {
+                var keyResponse = await client.SendRequest(
+                    new Proto.Request
+                    {
+                        RequestConnectionKeyGet =
+                            new Proto.RequestConnectionKeyGet()
+                    },
+                    cancellationToken);
+                client.Key = keyResponse.ResponseConnectionKeyGet?.Key;
+                await client.SynchronizeClock(cancellationToken);
+            }
+
+            return client;
+        }
+        catch
+        {
+            await client.DisposeAsync();
+            throw;
+        }
+    }
+
+    public async Task<HspState> Setup(
+        HspSetupRequest request,
+        CancellationToken cancellationToken)
+    {
+        await SendRequest(
+            new Proto.Request
+            {
+                RequestModeSet = new Proto.RequestModeSet
+                {
+                    Mode = Proto.Mode.Hsp
+                }
+            },
+            cancellationToken);
+
+        var response = await SendRequest(
+            new Proto.Request
+            {
+                RequestHspSetup = new Proto.RequestHspSetup
+                {
+                    StreamId = checked((uint)request.stream_id)
+                }
+            },
+            cancellationToken);
+        return MapState(
+            response.ResponseHspSetup?.State,
+            "setup");
+    }
+
+    public async Task<HspState> AddPoints(
+        HspAddRequest request,
+        CancellationToken cancellationToken)
+    {
+        var add = new Proto.RequestHspAdd
+        {
+            Flush = request.flush,
+            TailPointStreamIndex =
+                checked((uint)request.tail_point_stream_index)
+        };
+        add.Points.Add(request.points.Select(point => new Proto.Point
+        {
+            T = checked((uint)point.t),
+            X = checked((uint)point.x)
+        }));
+
+        var response = await SendRequest(
+            new Proto.Request { RequestHspAdd = add },
+            cancellationToken);
+        return MapState(response.ResponseHspAdd?.State, "add");
+    }
+
+    public async Task<HspState> Play(
+        HspPlayRequest request,
+        CancellationToken cancellationToken)
+    {
+        if (request.add is not null)
+            await AddPoints(request.add, cancellationToken);
+
+        var serverTime = checked(request.server_time + _offset);
+        var response = await SendRequest(
+            new Proto.Request
+            {
+                RequestHspPlay = new Proto.RequestHspPlay
+                {
+                    StartTime = request.start_time,
+                    ServerTime = checked((ulong)serverTime),
+                    PlaybackRate =
+                        Convert.ToSingle(request.playback_rate),
+                    Loop = request.loop,
+                    PauseOnStarving = true
+                }
+            },
+            cancellationToken);
+        return MapState(response.ResponseHspPlay?.State, "play");
+    }
+
+    public async Task Stop(CancellationToken cancellationToken)
+    {
+        await SendRequest(
+            new Proto.Request
+            {
+                RequestHspStop = new Proto.RequestHspStop()
+            },
+            cancellationToken);
+    }
+
+    public async Task SetStroke(
+        SlideRequest request,
+        CancellationToken cancellationToken)
+    {
+        await SendRequest(
+            new Proto.Request
+            {
+                RequestSliderStrokeSet =
+                    new Proto.RequestSliderStrokeSet
+                    {
+                        Min = request.min / 100f,
+                        Max = request.max / 100f
+                    }
+            },
+            cancellationToken);
+    }
+
+    public Task SetOffset(
+        int offset,
+        CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        Volatile.Write(
+            ref _offset,
+            HandyConfig.NormalizeOffset(offset));
+        return Task.CompletedTask;
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        if (Interlocked.Exchange(ref _disposed, 1) != 0)
+            return;
+
+        _transport.FrameReceived -= Transport_FrameReceived;
+        _transport.Disconnected -= Transport_Disconnected;
+        FailPending(new IOException(
+            "The Handy Bluetooth client was disposed."));
+        await _transport.DisposeAsync();
+    }
+
+    private async Task SynchronizeClock(
+        CancellationToken cancellationToken)
+    {
+        var started = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
+        var getResponse = await SendRequest(
+            new Proto.Request
+            {
+                RequestClockOffsetGet =
+                    new Proto.RequestClockOffsetGet()
+            },
+            cancellationToken);
+        var ended = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
+        var clock = getResponse.ResponseClockOffsetGet
+            ?? throw new InvalidOperationException(
+                "The Handy returned no Bluetooth clock state.");
+        var roundTrip = checked((int)(ended - started));
+        var midpoint = started + roundTrip / 2L;
+
+        await SendRequest(
+            new Proto.Request
+            {
+                RequestClockOffsetSet =
+                    new Proto.RequestClockOffsetSet
+                    {
+                        ClockOffset = midpoint - clock.Time,
+                        Rtd = roundTrip
+                    }
+            },
+            cancellationToken);
+    }
+
+    private async Task<Proto.Response> SendRequest(
+        Proto.Request request,
+        CancellationToken cancellationToken)
+    {
+        ObjectDisposedException.ThrowIf(
+            Volatile.Read(ref _disposed) != 0,
+            this);
+
+        var id = unchecked((uint)Interlocked.Increment(
+            ref _nextRequestId));
+        if (id == 0)
+            id = unchecked((uint)Interlocked.Increment(
+                ref _nextRequestId));
+        request.Id = id;
+
+        var completion =
+            new TaskCompletionSource<Proto.Response>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+        if (!_pending.TryAdd(id, completion))
+        {
+            throw new InvalidOperationException(
+                $"Duplicate Handy request id {id}.");
+        }
+
+        try
+        {
+            var message = new Proto.RpcMessage
+            {
+                Type = Proto.MessageType.Request,
+                Request = request
+            };
+            var frame = message.ToByteArray();
+            await _transport.WriteAsync(frame, cancellationToken);
+            var response = await completion.Task.WaitAsync(
+                ResponseTimeout,
+                cancellationToken);
+            if (response.Error is not null)
+            {
+                throw new InvalidOperationException(
+                    $"Handy Bluetooth error {response.Error.Code}: " +
+                    response.Error.Message);
+            }
+
+            return response;
+        }
+        finally
+        {
+            _pending.TryRemove(id, out _);
+        }
+    }
+
+    private void Transport_FrameReceived(byte[] frame)
+    {
+        try
+        {
+            var message = Proto.RpcMessage.Parser.ParseFrom(frame);
+            if (message.Type == Proto.MessageType.Response
+                && message.Response is not null
+                && _pending.TryGetValue(
+                    message.Response.Id,
+                    out var completion))
+            {
+                completion.TrySetResult(message.Response);
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(
+                ex,
+                "Could not decode a Handy Bluetooth Protobuf frame.");
+        }
+    }
+
+    private void Transport_Disconnected()
+    {
+        FailPending(new IOException(
+            "The Handy Bluetooth connection was lost."));
+        Disconnected?.Invoke(this);
+    }
+
+    private void FailPending(Exception exception)
+    {
+        foreach (var completion in _pending.Values)
+            completion.TrySetException(exception);
+    }
+
+    private static HspState MapState(
+        Proto.HspState state,
+        string operation)
+    {
+        if (state is null)
+        {
+            throw new InvalidOperationException(
+                $"The Handy returned no HSP state for {operation}.");
+        }
+
+        return new HspState(
+            checked((int)state.StreamId),
+            checked((int)state.MaxPoints),
+            checked((int)state.Points),
+            state.CurrentPoint,
+            state.CurrentTime,
+            state.Loop,
+            state.PlaybackRate,
+            state.FirstPointTime,
+            state.LastPointTime,
+            state.PlayState switch
+            {
+                Proto.HspPlayState.HspStatePlaying => "playing",
+                Proto.HspPlayState.HspStateStopped => "stopped",
+                Proto.HspPlayState.HspStatePaused => "paused",
+                Proto.HspPlayState.HspStateStarving => "starving",
+                _ => "not_initialized"
+            },
+            state.TailPointStreamIndex,
+            checked((int)state.TailPointStreamIndexThreshold));
+    }
+}

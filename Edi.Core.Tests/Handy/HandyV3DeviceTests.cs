@@ -350,6 +350,147 @@ public class HandyV3DeviceTests
         await device.Stop();
     }
 
+    [Fact]
+    public async Task FirstPlaySynchronizesClocksThenCorrectsTimeAfterWarmup()
+    {
+        await using var rig = await PlayerTestRig.CreateAsync();
+        var repository = rig.Funscripts;
+        AddGallery(repository, new FunscriptGallery
+        {
+            Name = "warmup",
+            Variant = "default",
+            Duration = 10_000,
+            Loop = false,
+            Commands =
+            [
+                new CmdLinear { AbsoluteTime = 0, Value = 10 },
+                new CmdLinear { AbsoluteTime = 10_000, Value = 90 }
+            ]
+        });
+
+        var delayStarted = new TaskCompletionSource(
+            TaskCreationOptions.RunContinuationsAsynchronously);
+        var releaseDelay = new TaskCompletionSource(
+            TaskCreationOptions.RunContinuationsAsynchronously);
+        var releaseClockSynchronization = new TaskCompletionSource(
+            TaskCreationOptions.RunContinuationsAsynchronously);
+        var clockUsedAsyncMode = false;
+        var handler = new RecordingHttpMessageHandler(
+            async (request, token) =>
+            {
+                if (request.RequestUri?.AbsolutePath.EndsWith(
+                        "/hstp/clocksync") == true)
+                {
+                    clockUsedAsyncMode =
+                        request.RequestUri.Query.Contains("s=false");
+                    await releaseClockSynchronization.Task.WaitAsync(token);
+                }
+
+                return RecordingHttpMessageHandler.JsonResponse(
+                    HspStateJson(points: 2, maxPoints: 200, tail: 2));
+            });
+        using var client = new HttpClient(handler)
+        {
+            BaseAddress = new Uri("https://handy.test/")
+        };
+        client.DefaultRequestHeaders.Add("X-Connection-Key", "TEST-KEY");
+
+        var device = new HandyV3Device(
+            new HandyHttpClient(client),
+            repository,
+            NullLogger.Instance,
+            async (delay, token) =>
+            {
+                Assert.Equal(TimeSpan.FromMilliseconds(1500), delay);
+                delayStarted.SetResult();
+                await releaseDelay.Task.WaitAsync(token);
+            });
+        device.selectedVariant = "default";
+
+        await device.PlayGallery("warmup");
+        await delayStarted.Task.WaitAsync(
+            TestContext.Current.CancellationToken);
+
+        Assert.Equal(
+            [
+                "v3/hstp/clocksync",
+                "v3/hsp/setup",
+                "v3/hsp/play"
+            ],
+            handler.Requests.Select(request => request.Path));
+        Assert.True(clockUsedAsyncMode);
+
+        releaseDelay.SetResult();
+        Assert.DoesNotContain(
+            handler.Requests,
+            request => request.Path == "v3/hsp/synctime");
+
+        var syncRequest = await handler.WaitForPathAsync(
+            "v3/hsp/synctime");
+        releaseClockSynchronization.SetResult();
+        var sync = JObject.Parse(syncRequest.Content!);
+        Assert.InRange(sync.Value<int>("current_time"), 0, 10_000);
+        Assert.True(sync.Value<long>("server_time") > 0);
+        Assert.Equal(1.0, sync.Value<double>("filter"));
+
+        await device.Stop();
+    }
+
+    [Fact]
+    public async Task DeviceClockSynchronizationExpiresAfterTwentyMinutes()
+    {
+        await using var rig = await PlayerTestRig.CreateAsync();
+        var repository = rig.Funscripts;
+        AddGallery(repository, new FunscriptGallery
+        {
+            Name = "clock-expiration",
+            Variant = "default",
+            Duration = 10_000,
+            Loop = false,
+            Commands =
+            [
+                new CmdLinear { AbsoluteTime = 0, Value = 10 },
+                new CmdLinear { AbsoluteTime = 10_000, Value = 90 }
+            ]
+        });
+
+        var now = new DateTimeOffset(
+            2026, 7, 27, 12, 0, 0, TimeSpan.Zero);
+        var handler = new RecordingHttpMessageHandler((_, _) =>
+            Task.FromResult(RecordingHttpMessageHandler.JsonResponse(
+                HspStateJson(points: 2, maxPoints: 200, tail: 2))));
+        using var client = new HttpClient(handler)
+        {
+            BaseAddress = new Uri("https://handy.test/")
+        };
+        client.DefaultRequestHeaders.Add("X-Connection-Key", "TEST-KEY");
+
+        var device = new HandyV3Device(
+            new HandyHttpClient(client),
+            repository,
+            NullLogger.Instance,
+            (_, token) => Task.Delay(
+                Timeout.InfiniteTimeSpan,
+                token),
+            () => now);
+        device.selectedVariant = "default";
+
+        await device.PlayGallery("clock-expiration");
+        await device.PlayGallery("clock-expiration");
+        Assert.Single(
+            handler.Requests,
+            request => request.Path == "v3/hstp/clocksync");
+
+        now = now.AddMinutes(21);
+        await device.PlayGallery("clock-expiration");
+        Assert.Equal(
+            2,
+            handler.Requests.Count(
+                request => request.Path == "v3/hstp/clocksync"));
+
+        await device.Stop();
+    }
+
     private static string HspStateJson(int points, int maxPoints, int tail)
         => $$"""
              {

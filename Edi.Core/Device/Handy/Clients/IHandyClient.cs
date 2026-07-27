@@ -10,6 +10,8 @@ public interface IHandyClient : IAsyncDisposable
     int MaxPointsPerRequest { get; }
     event Action<IHandyClient> Disconnected;
 
+    Task SynchronizeClock(CancellationToken cancellationToken);
+
     Task<HspState> Setup(
         HspSetupRequest request,
         CancellationToken cancellationToken);
@@ -20,6 +22,10 @@ public interface IHandyClient : IAsyncDisposable
 
     Task<HspState> Play(
         HspPlayRequest request,
+        CancellationToken cancellationToken);
+
+    Task<HspState> SyncTime(
+        HspSyncTimeRequest request,
         CancellationToken cancellationToken);
 
     Task Stop(CancellationToken cancellationToken);
@@ -63,5 +69,10 @@ public record HspPlayRequest(
     bool loop,
     [property: JsonProperty(NullValueHandling = NullValueHandling.Ignore)]
     HspAddRequest add);
+
+public record HspSyncTimeRequest(
+    int current_time,
+    long server_time,
+    double filter);
 
 public record Point(int t, int x);

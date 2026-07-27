@@ -42,6 +42,9 @@ internal sealed class HandyBluetoothClient : IHandyClient
 
     public event Action<IHandyClient> Disconnected;
 
+    public Task SynchronizeClock(CancellationToken cancellationToken)
+        => SynchronizeDeviceClock(cancellationToken);
+
     internal static string GetDisplayName(string advertisedName)
     {
         if (advertisedName?.StartsWith(
@@ -86,7 +89,6 @@ internal sealed class HandyBluetoothClient : IHandyClient
                     },
                     cancellationToken);
                 client.Key = keyResponse.ResponseConnectionKeyGet?.Key;
-                await client.SynchronizeClock(cancellationToken);
             }
 
             return client;
@@ -178,6 +180,30 @@ internal sealed class HandyBluetoothClient : IHandyClient
         return MapState(response.ResponseHspPlay?.State, "play");
     }
 
+    public async Task<HspState> SyncTime(
+        HspSyncTimeRequest request,
+        CancellationToken cancellationToken)
+    {
+        var serverTime = checked(
+            _getUnixTimeMilliseconds()
+            + Volatile.Read(ref _offset));
+        var response = await SendRequest(
+            new Proto.Request
+            {
+                RequestHspCurrentTimeSet =
+                    new Proto.RequestHspCurrentTimeSet
+                    {
+                        CurrentTime = request.current_time,
+                        ServerTime = checked((ulong)serverTime),
+                        Filter = Convert.ToSingle(request.filter)
+                    }
+            },
+            cancellationToken);
+        return MapState(
+            response.ResponseHspCurrentTimeSet?.State,
+            "time synchronization");
+    }
+
     public async Task Stop(CancellationToken cancellationToken)
     {
         await SendRequest(
@@ -228,7 +254,7 @@ internal sealed class HandyBluetoothClient : IHandyClient
         await _transport.DisposeAsync();
     }
 
-    private async Task SynchronizeClock(
+    private async Task SynchronizeDeviceClock(
         CancellationToken cancellationToken)
     {
         var started = _getUnixTimeMilliseconds();

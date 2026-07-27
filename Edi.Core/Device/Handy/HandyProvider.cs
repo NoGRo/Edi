@@ -339,7 +339,7 @@ namespace Edi.Core.Device.Handy
                         firmwareVersion);
                 }
 
-                _= ServerTimeSync.SyncServerTimeAsync();
+                _ = ServerTimeSync.SyncServerTimeAsync();
             }
         }
 

@@ -261,6 +261,9 @@ public class HandyProviderReconnectTests
 
         public void RaiseDisconnected() => Disconnected(this);
 
+        public Task SynchronizeClock(CancellationToken cancellationToken)
+            => Task.CompletedTask;
+
         public Task<HspState> Setup(
             HspSetupRequest request,
             CancellationToken cancellationToken)
@@ -273,6 +276,11 @@ public class HandyProviderReconnectTests
 
         public Task<HspState> Play(
             HspPlayRequest request,
+            CancellationToken cancellationToken)
+            => Task.FromResult(State);
+
+        public Task<HspState> SyncTime(
+            HspSyncTimeRequest request,
             CancellationToken cancellationToken)
             => Task.FromResult(State);
 

@@ -21,6 +21,15 @@ internal sealed class HandyHttpClient(HttpClient client) : IHandyClient
         remove { }
     }
 
+    public async Task SynchronizeClock(
+        CancellationToken cancellationToken)
+    {
+        using var response = await client.GetAsync(
+            "v3/hstp/clocksync?s=false",
+            cancellationToken);
+        response.EnsureSuccessStatusCode();
+    }
+
     public async Task<HspState> Setup(
         HspSetupRequest request,
         CancellationToken cancellationToken)
@@ -46,6 +55,15 @@ internal sealed class HandyHttpClient(HttpClient client) : IHandyClient
             "v3/hsp/play",
             request,
             "play",
+            cancellationToken);
+
+    public async Task<HspState> SyncTime(
+        HspSyncTimeRequest request,
+        CancellationToken cancellationToken)
+        => await PutForState(
+            "v3/hsp/synctime",
+            request,
+            "time synchronization",
             cancellationToken);
 
     public async Task Stop(CancellationToken cancellationToken)

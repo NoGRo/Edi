@@ -24,23 +24,40 @@ public class HandyBluetoothClientTests
     }
 
     [Fact]
-    public async Task InitializationReadsKeyAndSynchronizesClock()
+    public async Task InitializationReadsKeyWithoutWaitingForClockSync()
+    {
+        var transport = new RecordingBluetoothTransport();
+        await using var client = await HandyBluetoothClient.CreateAsync(
+            transport,
+            NullLogger.Instance,
+            initialize: true,
+            TestContext.Current.CancellationToken,
+            () => 10_000);
+
+        Assert.Equal("TEST-KEY", client.Key);
+        var request = Assert.Single(transport.Requests);
+        Assert.Equal(
+            Proto.Request.ParamsOneofCase.RequestConnectionKeyGet,
+            request.ParamsCase);
+    }
+
+    [Fact]
+    public async Task ClockSynchronizationUsesBleTimingProtocol()
     {
         var transport = new RecordingBluetoothTransport();
         var timestamps = new Queue<long>([10_000, 10_040]);
         await using var client = await HandyBluetoothClient.CreateAsync(
             transport,
             NullLogger.Instance,
-            initialize: true,
+            initialize: false,
             TestContext.Current.CancellationToken,
             () => timestamps.Dequeue());
 
-        Assert.Equal("TEST-KEY", client.Key);
+        await client.SynchronizeClock(
+            TestContext.Current.CancellationToken);
+
         Assert.Collection(
             transport.Requests,
-            request => Assert.Equal(
-                Proto.Request.ParamsOneofCase.RequestConnectionKeyGet,
-                request.ParamsCase),
             request => Assert.Equal(
                 Proto.Request.ParamsOneofCase.RequestClockOffsetGet,
                 request.ParamsCase),
@@ -85,10 +102,17 @@ public class HandyBluetoothClientTests
                     flush: true,
                     tail_point_stream_index: 2)),
             CancellationToken.None);
+        var synchronized = await client.SyncTime(
+            new HspSyncTimeRequest(
+                current_time: 750,
+                server_time: 1_000,
+                filter: 1),
+            CancellationToken.None);
         await client.Stop(CancellationToken.None);
 
         Assert.Equal(42, setup.stream_id);
         Assert.Equal("playing", play.play_state);
+        Assert.Equal("playing", synchronized.play_state);
         Assert.Collection(
             transport.Requests,
             request => Assert.Equal(
@@ -138,6 +162,22 @@ public class HandyBluetoothClientTests
                     request.RequestHspPlay.ServerTime);
                 Assert.True(request.RequestHspPlay.Loop);
                 Assert.True(request.RequestHspPlay.PauseOnStarving);
+            },
+            request =>
+            {
+                Assert.Equal(
+                    Proto.Request.ParamsOneofCase
+                        .RequestHspCurrentTimeSet,
+                    request.ParamsCase);
+                Assert.Equal(
+                    750,
+                    request.RequestHspCurrentTimeSet.CurrentTime);
+                Assert.Equal(
+                    5_020uL,
+                    request.RequestHspCurrentTimeSet.ServerTime);
+                Assert.Equal(
+                    1f,
+                    request.RequestHspCurrentTimeSet.Filter);
             },
             request => Assert.Equal(
                 Proto.Request.ParamsOneofCase.RequestHspStop,
@@ -280,6 +320,16 @@ public class HandyBluetoothClientTests
                 case Proto.Request.ParamsOneofCase.RequestHspPlay:
                     response.ResponseHspPlay =
                         new Proto.ResponseHspPlay
+                        {
+                            State = State(
+                                42,
+                                Proto.HspPlayState.HspStatePlaying)
+                        };
+                    break;
+                case Proto.Request.ParamsOneofCase
+                    .RequestHspCurrentTimeSet:
+                    response.ResponseHspCurrentTimeSet =
+                        new Proto.ResponseHspCurrentTimeSet
                         {
                             State = State(
                                 42,

@@ -14,12 +14,22 @@ namespace Edi.Core.Device.Handy
         private const bool UseEmbeddedAddInPlay = true;
         private static readonly TimeSpan StreamingPollInterval =
             TimeSpan.FromMilliseconds(250);
+        private static readonly TimeSpan WarmupSynchronizationDelay =
+            TimeSpan.FromMilliseconds(1500);
+        private static readonly TimeSpan ClockSynchronizationLifetime =
+            TimeSpan.FromMinutes(20);
 
         private readonly ILogger _logger;
         private readonly object _sessionInitializationSync = new();
+        private readonly object _clockSynchronizationSync = new();
+        private readonly Func<TimeSpan, CancellationToken, Task> _delay;
+        private readonly Func<DateTimeOffset> _getUtcNow;
 
         private HspState _hspState;
         private Task _sessionInitializationTask;
+        private Task _clockSynchronizationTask = Task.CompletedTask;
+        private DateTimeOffset _clockSynchronizationValidUntil =
+            DateTimeOffset.MinValue;
         private int _streamId = -1;
         private int _tailPointStreamIndex;
         private bool _isStopCalled;
@@ -27,13 +37,17 @@ namespace Edi.Core.Device.Handy
         public HandyV3Device(
             IHandyClient client,
             FunscriptRepository repository,
-            ILogger logger)
+            ILogger logger,
+            Func<TimeSpan, CancellationToken, Task> delay = null,
+            Func<DateTimeOffset> getUtcNow = null)
             : base(repository, logger)
         {
             Client = client;
             Key = client.Key;
             Name = client.DisplayName;
             _logger = logger;
+            _delay = delay ?? Task.Delay;
+            _getUtcNow = getUtcNow ?? (() => DateTimeOffset.UtcNow);
             IsReady = true;
 
             _logger.LogInformation("Handy V3 device initialized.");
@@ -70,6 +84,7 @@ namespace Edi.Core.Device.Handy
             try
             {
                 await EnsureHspSession();
+                StartClockSynchronizationIfExpired();
 
                 var plan = CreatePlaybackPlan(gallery, seek);
                 CurrentDuration = plan.Duration;
@@ -345,6 +360,7 @@ namespace Edi.Core.Device.Handy
         {
             _logger.LogInformation("Initializing the Handy HSP session.");
 
+            StartClockSynchronizationIfExpired();
             var setupRequest = new HspSetupRequest(
                 Random.Shared.Next(1, int.MaxValue));
             _hspState = await Client.Setup(
@@ -357,6 +373,44 @@ namespace Edi.Core.Device.Handy
             _logger.LogInformation(
                 $"HSP session initialized. StreamId: {_streamId}, " +
                 $"MaxPoints: {_hspState.max_points}");
+        }
+
+        private void StartClockSynchronizationIfExpired()
+        {
+            TaskCompletionSource completion;
+            lock (_clockSynchronizationSync)
+            {
+                if (_getUtcNow() < _clockSynchronizationValidUntil
+                    || !_clockSynchronizationTask.IsCompleted)
+                {
+                    return;
+                }
+
+                completion = new TaskCompletionSource(
+                    TaskCreationOptions.RunContinuationsAsynchronously);
+                _clockSynchronizationTask = completion.Task;
+            }
+
+            _ = ObserveWarmupSynchronization(
+                SynchronizeDeviceClock(completion));
+        }
+
+        private async Task SynchronizeDeviceClock(
+            TaskCompletionSource completion)
+        {
+            try
+            {
+                await Client.SynchronizeClock(CancellationToken.None);
+                lock (_clockSynchronizationSync)
+                {
+                    _clockSynchronizationValidUntil =
+                        _getUtcNow() + ClockSynchronizationLifetime;
+                }
+            }
+            finally
+            {
+                completion.TrySetResult();
+            }
         }
 
         private async Task SendPointChunk(
@@ -403,6 +457,46 @@ namespace Edi.Core.Device.Handy
             _hspState = state;
             _logger.LogInformation(
                 $"Play command sent. PlayState: {_hspState.play_state}");
+
+            _ = ObserveWarmupSynchronization(
+                SynchronizePlaybackAfterWarmup(cancellationToken));
+        }
+
+        private async Task SynchronizePlaybackAfterWarmup(
+            CancellationToken cancellationToken)
+        {
+            await _delay(
+                WarmupSynchronizationDelay,
+                cancellationToken);
+            cancellationToken.ThrowIfCancellationRequested();
+            if (currentGallery is null || _isStopCalled)
+                return;
+
+            _hspState = await Client.SyncTime(
+                new HspSyncTimeRequest(
+                    CurrentTime,
+                    ServerTime,
+                    filter: 1.0),
+                cancellationToken);
+            _logger.LogInformation(
+                "Handy HSP playback time synchronized after connection warm-up.");
+        }
+
+        private async Task ObserveWarmupSynchronization(Task task)
+        {
+            try
+            {
+                await task;
+            }
+            catch (OperationCanceledException)
+            {
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(
+                    ex,
+                    "Could not synchronize Handy HSP playback time after warm-up.");
+            }
         }
 
         private int ReserveTailPointStreamIndex(int pointCount)

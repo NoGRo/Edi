@@ -33,10 +33,19 @@ namespace Edi.Core
         public string GalleryPath { get; private set; }
 
 
-        public IEnumerable<IRepository> repos { get; private set; }
+        private readonly RepositoryManager _repositoryManager;
+        public IEnumerable<IRepository> repos
+            => _repositoryManager.CreatedRepositories;
         private readonly PlayerLogService _logService;
 
-        public Edi(DeviceCollector deviceCollector, IPlayerChannels player, IEnumerable<IRepository> repos, ConfigurationManager configuration, DeviceConfiguration deviceConfiguration, PlayerLogService rfgLogService = null)
+        public Edi(
+            DeviceCollector deviceCollector,
+            IPlayerChannels player,
+            DefinitionRepository repository,
+            RepositoryManager repositoryManager,
+            ConfigurationManager configuration,
+            DeviceConfiguration deviceConfiguration,
+            PlayerLogService rfgLogService = null)
         {
             if (!Directory.Exists(OutputDir))
                 Directory.CreateDirectory(OutputDir);
@@ -44,8 +53,8 @@ namespace Edi.Core
             DeviceCollector = deviceCollector;
             Player = player;
 
-            _repository = (DefinitionRepository)repos.First(x => x is DefinitionRepository);
-            this.repos = repos;
+            _repository = repository;
+            _repositoryManager = repositoryManager;
 
             ConfigurationManager = configuration;
             Config = configuration.Get<EdiConfig>();
@@ -107,10 +116,7 @@ namespace Edi.Core
         {
             string galleryPath = ResolveGallery(path);
             GalleryPath = galleryPath;
-            foreach (var repo in repos)
-            {
-                await repo.Init(galleryPath);
-            }
+            await _repositoryManager.ChangePath(galleryPath);
             Player.ResetChannels(Config.Channels.ToList());
             _ = Task.Run(InitDevices);
         }

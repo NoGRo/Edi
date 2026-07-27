@@ -22,11 +22,11 @@ namespace Edi.Core.Device.Buttplug
     {
         private readonly ILogger _logger;
 
-        public ButtplugProvider(FunscriptRepository repository, ConfigurationManager config, DeviceCollector deviceCollector, ILogger<ButtplugProvider> logger)
+        public ButtplugProvider(RepositoryManager repositoryManager, ConfigurationManager config, DeviceCollector deviceCollector, ILogger<ButtplugProvider> logger)
         {
             _logger = logger;
             Config = config.Get<ButtplugConfig>();
-            this.repository = repository;
+            this.repositoryManager = repositoryManager;
             DeviceCollector = deviceCollector;
             Controller = new ButtplugController(Config, deviceCollector, _logger);
 
@@ -39,7 +39,7 @@ namespace Edi.Core.Device.Buttplug
         private DeviceCollector DeviceCollector;
         public ButtplugClient client { get; set; }
         public ButtplugController Controller { get; set; }
-        private FunscriptRepository repository { get; }
+        private RepositoryManager repositoryManager { get; }
 
         public async Task Init()
         {
@@ -122,9 +122,11 @@ namespace Edi.Core.Device.Buttplug
             _logger.LogInformation("All devices removed.");
         }
 
-        private void AddDeviceOn(ButtplugClientDevice Device)
+        private async Task AddDeviceOn(ButtplugClientDevice Device)
         {
             _logger.LogInformation($"Adding device: {Device.Name}");
+            var repository =
+                await repositoryManager.GetRepositoryAsync<FunscriptRepository>();
             var newdevices = new List<ButtplugDevice>();
 
             // OSR6: Detect if it's an OSR device and create a different Device class if necessary.
@@ -216,10 +218,19 @@ namespace Edi.Core.Device.Buttplug
             _logger.LogInformation("Device scanning finished.");
         }
 
-        private void Client_DeviceAdded(object sender, DeviceAddedEventArgs e)
+        private async void Client_DeviceAdded(object sender, DeviceAddedEventArgs e)
         {
-            _logger.LogInformation($"Device added: {e.Device.Name}");
-            AddDeviceOn(e.Device);
+            try
+            {
+                _logger.LogInformation($"Device added: {e.Device.Name}");
+                await AddDeviceOn(e.Device);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(
+                    ex,
+                    $"Could not load device '{e.Device.Name}'.");
+            }
         }
 
         private void timerReconnectevent(object sender, ElapsedEventArgs e)

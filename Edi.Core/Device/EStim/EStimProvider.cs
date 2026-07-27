@@ -1,5 +1,6 @@
 ﻿using Edi.Core.Device;
 using Edi.Core.Device.Interfaces;
+using Edi.Core.Gallery;
 using Edi.Core.Gallery.EStimAudio;
 using Edi.Core.Services;
 using Microsoft.Extensions.Logging;
@@ -15,11 +16,11 @@ namespace Edi.Core.Device.EStim
         private readonly ILogger _logger;
         private readonly List<EStimDevice> _devices = new List<EStimDevice>();
 
-        public EStimProvider(AudioRepository audioRepository, ConfigurationManager config, DeviceCollector deviceCollector, ILogger<EStimProvider> logger)
+        public EStimProvider(RepositoryManager repositoryManager, ConfigurationManager config, DeviceCollector deviceCollector, ILogger<EStimProvider> logger)
         {
             Config = config.Get<EStimConfig>();
             DeviceCollector = deviceCollector;
-            AudioRepository = audioRepository;
+            RepositoryManager = repositoryManager;
             _logger = logger;
 
             _logger.LogInformation($"EStimProvider initialized with Config: {Config.DeviceId}");
@@ -27,7 +28,7 @@ namespace Edi.Core.Device.EStim
 
         public EStimConfig Config { get; }
         public DeviceCollector DeviceCollector { get; }
-        public AudioRepository AudioRepository { get; }
+        public RepositoryManager RepositoryManager { get; }
 
         public async Task Init()
         {
@@ -50,8 +51,10 @@ namespace Edi.Core.Device.EStim
 
             try
             {
+                var audioRepository =
+                    await RepositoryManager.GetRepositoryAsync<AudioRepository>();
                 var outputDevice = new WaveOutEvent() { DeviceNumber = Config.DeviceId };
-                var device = new EStimDevice(AudioRepository, outputDevice, _logger);
+                var device = new EStimDevice(audioRepository, outputDevice, _logger);
 
                 DeviceCollector.LoadDevice(device);
                 _devices.Add(device);

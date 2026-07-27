@@ -27,16 +27,14 @@ namespace Edi.Core.Device.AutoBlow
         public HandyConfig Config { get; set; }
         private List<string> Keys = new List<string>();
         private Dictionary<string, AutoBlowDevice> devices = new Dictionary<string, AutoBlowDevice>();
-        private readonly IServiceProvider serviceProvider;
+        private readonly RepositoryManager repositoryManager;
         private DeviceCollector deviceCollector;
-        private IndexRepository _repository;
-        private IndexRepository repository => _repository ??= serviceProvider.GetRequiredService<IndexRepository>();
 
-        public AutoBlowProvider(IServiceProvider serviceProvider, ConfigurationManager config, DeviceCollector deviceCollector, ILogger<AutoBlowProvider> logger)
+        public AutoBlowProvider(RepositoryManager repositoryManager, ConfigurationManager config, DeviceCollector deviceCollector, ILogger<AutoBlowProvider> logger)
         {
             _logger = logger;
             Config = config.Get<HandyConfig>();
-            this.serviceProvider = serviceProvider;
+            this.repositoryManager = repositoryManager;
             this.deviceCollector = deviceCollector;
 
             timerReconnect.Elapsed += TimerReconnect_Elapsed;
@@ -122,6 +120,8 @@ namespace Edi.Core.Device.AutoBlow
             var status = JsonConvert.DeserializeObject<Status>(await resp.Content.ReadAsStringAsync());
 
 
+            var repository =
+                await repositoryManager.GetRepositoryAsync<IndexRepository>();
             var device = new AutoBlowDevice(Client, repository, _logger);
 
             lock (devices)

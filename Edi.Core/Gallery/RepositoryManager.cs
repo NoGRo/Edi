@@ -1,53 +1,88 @@
-﻿using Microsoft.Extensions.DependencyInjection;
-using System;
+using Edi.Core.Gallery.Definition;
+using Microsoft.Extensions.DependencyInjection;
 using System.Collections.Concurrent;
-using System.Linq;
 using System.Reflection;
-using System.Threading;
-using System.Threading.Tasks;
 
 namespace Edi.Core.Gallery
 {
-    public class RepositoryManager
+    public sealed class RepositoryManager
     {
         private readonly IServiceProvider _serviceProvider;
-        private string _configPath;
-        private readonly ConcurrentDictionary<Type, IRepository> _createdRepositories = new();
-        private readonly ConcurrentDictionary<Type, SemaphoreSlim> _semaphores = new();
+        private readonly ConcurrentDictionary<Type, RepositoryEntry>
+            _repositories = new();
+        private readonly ConcurrentDictionary<Type, SemaphoreSlim>
+            _semaphores = new();
+        private string _path = string.Empty;
+        private long _pathVersion;
 
-        public RepositoryManager(IServiceProvider serviceProvider, string configPath = "")
+        public RepositoryManager(
+            IServiceProvider serviceProvider,
+            DefinitionRepository definitions)
         {
-            _serviceProvider = serviceProvider ?? throw new ArgumentNullException(nameof(serviceProvider));
-            _configPath = configPath;
+            _serviceProvider = serviceProvider
+                ?? throw new ArgumentNullException(nameof(serviceProvider));
+            _repositories[typeof(DefinitionRepository)] =
+                new RepositoryEntry(definitions);
         }
 
-        public async Task<T> GetRepositoryAsync<T>() where T : class, IRepository
+        public async Task<T> GetRepositoryAsync<T>()
+            where T : class, IRepository
+            => (T)await GetRepositoryAsync(typeof(T));
+
+        public T GetRepository<T>()
+            where T : class, IRepository
+            => GetRepositoryAsync<T>().GetAwaiter().GetResult();
+
+        public IEnumerable<IRepository> CreatedRepositories
+            => _repositories.Values
+                .Select(entry => entry.Repository)
+                .ToArray();
+
+        public async Task ChangePath(string newPath)
         {
-            var type = typeof(T);
+            Volatile.Write(ref _path, newPath ?? string.Empty);
+            Interlocked.Increment(ref _pathVersion);
 
-            // Early escape si ya está inicializado
-            if (_createdRepositories.TryGetValue(type, out var existing) && existing.IsInitialized)
-                return (T)existing;
+            var repositoryTypes = _repositories.Keys.ToArray();
+            foreach (var repositoryType in repositoryTypes)
+                await GetRepositoryAsync(repositoryType);
+        }
 
-            var semaphore = _semaphores.GetOrAdd(type, _ => new SemaphoreSlim(1, 1));
+        internal bool IsCreated<T>() where T : class, IRepository
+            => _repositories.ContainsKey(typeof(T));
+
+        private async Task<IRepository> GetRepositoryAsync(Type type)
+        {
+            if (!typeof(IRepository).IsAssignableFrom(type))
+            {
+                throw new ArgumentException(
+                    $"{type.FullName} is not a repository type.",
+                    nameof(type));
+            }
+
+            var semaphore =
+                _semaphores.GetOrAdd(type, _ => new SemaphoreSlim(1, 1));
             await semaphore.WaitAsync();
             try
             {
-                if (_createdRepositories.TryGetValue(type, out existing) && existing.IsInitialized)
-                    return (T)existing;
+                if (!_repositories.TryGetValue(type, out var entry))
+                {
+                    entry = new RepositoryEntry(
+                        await CreateRepository(type));
+                    _repositories[type] = entry;
+                }
 
-                var constructor = type.GetConstructors().First();
-                var parameters = constructor.GetParameters();
-                var args = await Task.WhenAll(parameters.Select(async p =>
-                    typeof(IRepository).IsAssignableFrom(p.ParameterType) && p.ParameterType != type
-                        ? await GetRepositoryAsync(p.ParameterType)
-                        : p.ParameterType == typeof(string) ? _configPath
-                        : _serviceProvider.GetService(p.ParameterType)));
+                while (entry.InitializedPathVersion
+                       != Volatile.Read(ref _pathVersion))
+                {
+                    var version = Volatile.Read(ref _pathVersion);
+                    var path = Volatile.Read(ref _path);
+                    await InitializeDependencies(type);
+                    await entry.Repository.Init(path);
+                    entry.InitializedPathVersion = version;
+                }
 
-                var repository = (T)constructor.Invoke(args);
-                await repository.Init(_configPath);
-                _createdRepositories.TryAdd(type, repository);
-                return repository;
+                return entry.Repository;
             }
             finally
             {
@@ -55,20 +90,57 @@ namespace Edi.Core.Gallery
             }
         }
 
-        public async Task ChangePath(string newPath)
+        private async Task<IRepository> CreateRepository(Type type)
         {
-            _configPath = newPath;
-            var updateTasks = _createdRepositories.Values
-                .Where(r => r.IsInitialized)
-                .Select(r => r.Init(newPath));
-            await Task.WhenAll(updateTasks);
+            var constructor = type.GetConstructors()
+                .OrderByDescending(candidate =>
+                    candidate.GetParameters().Length)
+                .FirstOrDefault()
+                ?? throw new InvalidOperationException(
+                    $"Repository {type.FullName} has no public constructor.");
+
+            var arguments = new List<object>();
+            foreach (var parameter in constructor.GetParameters())
+            {
+                if (typeof(IRepository).IsAssignableFrom(
+                        parameter.ParameterType))
+                {
+                    arguments.Add(
+                        await GetRepositoryAsync(parameter.ParameterType));
+                    continue;
+                }
+
+                arguments.Add(_serviceProvider.GetRequiredService(
+                    parameter.ParameterType));
+            }
+
+            return (IRepository)constructor.Invoke(arguments.ToArray());
         }
 
-        private async Task<object> GetRepositoryAsync(Type type)
+        private async Task InitializeDependencies(Type type)
         {
-            var method = typeof(RepositoryManager).GetMethod(nameof(GetRepositoryAsync), BindingFlags.Instance | BindingFlags.Public)!
-                .MakeGenericMethod(type);
-            return await (Task<object>)method.Invoke(this, null)!;
+            var constructor = type.GetConstructors()
+                .OrderByDescending(candidate =>
+                    candidate.GetParameters().Length)
+                .FirstOrDefault();
+            if (constructor is null)
+                return;
+
+            foreach (var dependency in constructor.GetParameters()
+                         .Select(parameter => parameter.ParameterType)
+                         .Where(parameterType =>
+                             typeof(IRepository).IsAssignableFrom(
+                                 parameterType)
+                             && parameterType != type))
+            {
+                await GetRepositoryAsync(dependency);
+            }
+        }
+
+        private sealed class RepositoryEntry(IRepository repository)
+        {
+            public IRepository Repository { get; } = repository;
+            public long InitializedPathVersion { get; set; } = -1;
         }
     }
 }

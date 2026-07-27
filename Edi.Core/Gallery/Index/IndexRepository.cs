@@ -52,6 +52,7 @@ namespace Edi.Core.Gallery.Index
         {
             ClearOutputDirectory();
 
+            Bundler.Clear();
             Galleries.Clear();
             foreach (var variant in GetVariants())
             {

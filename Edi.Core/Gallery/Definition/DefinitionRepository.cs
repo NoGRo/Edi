@@ -28,6 +28,7 @@ namespace Edi.Core.Gallery.Definition
 
         public async Task Init(string path)
         {
+            dicDefinitions.Clear();
             path = path ?? Config.GalleryPath;
             var GalleryPath = $"{path}\\";
 
@@ -52,8 +53,6 @@ namespace Edi.Core.Gallery.Definition
                 definitionsDtos = csv.GetRecords<DefinitionReadDto>().ToList();
             }
             int linesCount = 0;
-
-            dicDefinitions.Clear();
 
             foreach (var definitionDto in definitionsDtos)
             {

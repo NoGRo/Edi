@@ -1,5 +1,6 @@
 ﻿using Edi.Core.Device;
 using Edi.Core.Device.Interfaces;
+using Edi.Core.Gallery;
 using Edi.Core.Device.OSR.Connection;
 using Edi.Core.Gallery.Funscript;
 using Edi.Core.Device.OSR.Connection;
@@ -18,19 +19,19 @@ namespace Edi.Core.Device.OSR
         private ILogger logger;
         private OSRDevice Device;
         private DeviceCollector DeviceCollector;
-        private FunscriptRepository Repository;
+        private RepositoryManager RepositoryManager;
         private readonly Timer TimerPing = new(5000);
         private int AliveCheckFails = 0;
         private int RetryCount = 0;
         private IOSRConnection Connection;
 
-        public OSRProvider(FunscriptRepository repository, ConfigurationManager config, DeviceCollector deviceCollector, ILogger<OSRProvider> logger)
+        public OSRProvider(RepositoryManager repositoryManager, ConfigurationManager config, DeviceCollector deviceCollector, ILogger<OSRProvider> logger)
         {
             this.logger = logger;
             Config = config.Get<OSRConfig>();
 
             DeviceCollector = deviceCollector;
-            Repository = repository;
+            RepositoryManager = repositoryManager;
 
             TimerPing.Elapsed += TimerPingEvent;
         }
@@ -98,7 +99,9 @@ namespace Edi.Core.Device.OSR
             try
             {
                 Connection.Connect();
-                Device = new(Connection, Repository, Config, logger);
+                var repository =
+                    await RepositoryManager.GetRepositoryAsync<FunscriptRepository>();
+                Device = new(Connection, repository, Config, logger);
 
                 _ = Device.ReturnToHome();
 

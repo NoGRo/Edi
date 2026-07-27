@@ -1,4 +1,5 @@
 using Edi.Core.Device.Interfaces;
+using Edi.Core.Gallery;
 using Edi.Core.Gallery.Funscript;
 using Edi.Core.Services;
 using Microsoft.Extensions.DependencyInjection;
@@ -19,14 +20,15 @@ namespace Edi.Core.Device.Simulator
     public class RecorderProvider : IDeviceProvider
     {
         private readonly ILogger _logger;
+        private readonly RepositoryManager repositoryManager;
         private readonly IServiceProvider serviceProvider;
         private readonly List<RecorderDevice> _devices = new List<RecorderDevice>();
 
-        public RecorderProvider(FunscriptRepository funscriptRepository, ConfigurationManager config, DeviceCollector deviceCollector, ILogger<RecorderProvider> logger, IServiceProvider serviceProvider)
+        public RecorderProvider(RepositoryManager repositoryManager, ConfigurationManager config, DeviceCollector deviceCollector, ILogger<RecorderProvider> logger, IServiceProvider serviceProvider)
         {
             Config = config.Get<RecorderConfig>();
             DeviceCollector = deviceCollector;
-            FunscriptRepository = funscriptRepository;
+            this.repositoryManager = repositoryManager;
             _logger = logger;
             this.serviceProvider = serviceProvider;
             _logger.LogInformation($"OutputRecorderProvider initialized with Config: Record={Config.Record}");
@@ -34,8 +36,6 @@ namespace Edi.Core.Device.Simulator
 
         public RecorderConfig Config { get; }
         public DeviceCollector DeviceCollector { get; }
-        public FunscriptRepository FunscriptRepository { get; }
-
         public async Task Init()
         {
             _logger.LogInformation("OutputRecorderProvider initialization started.");
@@ -56,6 +56,8 @@ namespace Edi.Core.Device.Simulator
 
             try
             {
+                await repositoryManager
+                    .GetRepositoryAsync<FunscriptRepository>();
                 foreach (var recorderName in Config.Recorders)
                 {
                     var device = serviceProvider.GetRequiredService<RecorderDevice>();

@@ -29,12 +29,8 @@ namespace Edi.Core.Device.Handy
         private Timer timerReconnect = new Timer(400000);
         private List<string> Keys = new List<string>();
         private Dictionary<string, IDevice> devices = new Dictionary<string, IDevice>();
-        private readonly IServiceProvider _serviceProvider;
+        private readonly RepositoryManager _repositoryManager;
         private DeviceCollector _deviceCollector;
-        private IndexRepository _indexRepository;
-        private FunscriptRepository _funscriptRepository;
-        private IndexRepository indexRepository => _indexRepository ??= _serviceProvider.GetRequiredService<IndexRepository>();
-        private FunscriptRepository funscriptRepository => _funscriptRepository ??= _serviceProvider.GetRequiredService<FunscriptRepository>();
         private readonly IHttpClientFactory _httpClientFactory;
         private readonly HandyDeviceFactory _deviceFactory;
         private readonly IHandyBluetoothDiscovery _bluetoothDiscovery;
@@ -52,7 +48,7 @@ namespace Edi.Core.Device.Handy
         private int _lastAppliedOffset = int.MinValue;
         private int _offsetUpdateWorkerActive;
 
-        public HandyProvider(IServiceProvider serviceProvider,
+        public HandyProvider(RepositoryManager repositoryManager,
                              ConfigurationManager config,
                              DeviceCollector deviceCollector,
                              IHttpClientFactory httpClientFactory,
@@ -61,7 +57,7 @@ namespace Edi.Core.Device.Handy
         {
             _logger = logger;
             Config = config.Get<HandyConfig>();
-            _serviceProvider = serviceProvider;
+            _repositoryManager = repositoryManager;
             _deviceCollector = deviceCollector;
             _httpClientFactory = httpClientFactory;
             _bluetoothDiscovery = bluetoothDiscovery;
@@ -166,6 +162,9 @@ namespace Edi.Core.Device.Handy
                     await client.SetOffset(
                         Config.OffsetMS,
                         CancellationToken.None);
+                    var funscriptRepository =
+                        await _repositoryManager
+                            .GetRepositoryAsync<FunscriptRepository>();
                     var handyDevice = new HandyV3Device(
                         client,
                         funscriptRepository,
@@ -264,6 +263,9 @@ namespace Edi.Core.Device.Handy
                 {
                     _logger.LogInformation(
                         "Creating an internet Handy with the HSP protocol.");
+                    var funscriptRepository =
+                        await _repositoryManager
+                            .GetRepositoryAsync<FunscriptRepository>();
                     handyDevice = new HandyV3Device(
                         new HandyHttpClient(client),
                         funscriptRepository,
@@ -271,6 +273,9 @@ namespace Edi.Core.Device.Handy
                 }
                 else
                 {
+                    var indexRepository =
+                        await _repositoryManager
+                            .GetRepositoryAsync<IndexRepository>();
                     _ = await client.PutAsync(
                         "v2/mode",
                         new StringContent(

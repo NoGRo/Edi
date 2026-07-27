@@ -1,7 +1,10 @@
 using Edi.Core.Device;
 using Edi.Core.Device.Handy;
+using Edi.Core.Gallery;
+using Edi.Core.Gallery.Funscript;
 using Edi.Core.Tests.Support;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 
 namespace Edi.Core.Tests.Handy;
@@ -248,13 +251,21 @@ public class HandyProviderReconnectTests
                 addDefaultDevice: false);
             var services = new ServiceCollection();
             services.AddHttpClient();
-            services.AddSingleton(playerRig.Funscripts);
+            services.AddSingleton(playerRig.Configuration);
+            services.AddSingleton(playerRig.Definitions);
+            services.AddSingleton<ILogger<FunscriptRepository>>(
+                NullLogger<FunscriptRepository>.Instance);
             var serviceProvider = services.BuildServiceProvider();
+            var repositoryManager = new RepositoryManager(
+                serviceProvider,
+                playerRig.Definitions);
+            await repositoryManager.ChangePath(
+                playerRig.TemporaryDirectory);
             var collector = new DeviceCollector(
                 playerRig.Configuration,
                 serviceProvider);
             var provider = new HandyProvider(
-                serviceProvider,
+                repositoryManager,
                 playerRig.Configuration,
                 collector,
                 serviceProvider.GetRequiredService<IHttpClientFactory>(),

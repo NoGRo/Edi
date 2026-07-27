@@ -16,6 +16,7 @@ namespace Edi.Core.Gallery.Index
     {
         private List<IndexGallery> Galleries = new List<IndexGallery>();
 
+        internal int RetainedGalleryCount => Galleries.Count;
 
 
         public GalleryBundler(ConfigurationManager configuration)
@@ -28,6 +29,7 @@ namespace Edi.Core.Gallery.Index
 
         public void Clear()
         {
+            Galleries.Clear();
             sb = new ScriptBuilder();
             sb.AddCommandMillis(Config.SpacerDuration, 0);
         }

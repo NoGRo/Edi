@@ -32,14 +32,17 @@ namespace Edi.Core
 
             services.AddSingleton<ConfigurationManager>(x => new(configPath));
 
-            services.AddSingleton<DefinitionRepository>(); ;
-            services.AddSingleton<FunscriptRepository>();
-            services.AddSingleton<IndexRepository>();
-            services.AddSingleton<AudioRepository>();
-            services.AddSingleton<IRepository>(sp => sp.GetRequiredService<DefinitionRepository>());
-            services.AddSingleton<IRepository>(sp => sp.GetRequiredService<FunscriptRepository>());
-            services.AddSingleton<IRepository>(sp => sp.GetRequiredService<IndexRepository>());
-            services.AddSingleton<IRepository>(sp => sp.GetRequiredService<AudioRepository>());
+            services.AddSingleton<DefinitionRepository>();
+            services.AddSingleton<RepositoryManager>();
+            services.AddSingleton(sp => sp
+                .GetRequiredService<RepositoryManager>()
+                .GetRepository<FunscriptRepository>());
+            services.AddSingleton(sp => sp
+                .GetRequiredService<RepositoryManager>()
+                .GetRepository<IndexRepository>());
+            services.AddSingleton(sp => sp
+                .GetRequiredService<RepositoryManager>()
+                .GetRepository<AudioRepository>());
 
             services.AddSingleton<GalleryBundler>();
 
@@ -49,6 +52,12 @@ namespace Edi.Core
             services.AddPlayers();
 
             services.AddSingleton<DeviceConfiguration>();
+            services.AddTransient<RecorderDevice>(sp => new RecorderDevice(
+                sp.GetRequiredService<RepositoryManager>()
+                    .GetRepository<FunscriptRepository>(),
+                sp.GetRequiredService<ILogger<RecorderDevice>>(),
+                sp.GetRequiredService<SyncPlaybackFactory>(),
+                "Recorder"));
 
             services.AddSingleton<IDeviceProvider, ButtplugProvider>();
             services.AddSingleton<IDeviceProvider, AutoBlowProvider>();

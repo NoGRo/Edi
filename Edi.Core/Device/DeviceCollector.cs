@@ -12,18 +12,60 @@ namespace Edi.Core.Device
     [AddINotifyPropertyChangedInterface]
     public class DeviceCollector(ConfigurationManager configuration, IServiceProvider serviceProvider)
     {
+        private readonly SemaphoreSlim lifecycleLock = new(1, 1);
         public List<IDeviceProvider> Providers { get; set; } = new List<IDeviceProvider>();
         public async Task Init()
         {
-            if (!Providers.Any() && serviceProvider != null)
+            await lifecycleLock.WaitAsync();
+            try
             {
-                var sProviders = serviceProvider.GetServices<IDeviceProvider>();
-                Providers.AddRange(sProviders);
+                EnsureProviders();
+                await InitProviders();
             }
+            finally
+            {
+                lifecycleLock.Release();
+            }
+        }
 
-            // Start all provider initializations and wait for them to complete so exceptions are observed
+        public async Task Reinitialize(Func<Task> reload)
+        {
+            ArgumentNullException.ThrowIfNull(reload);
+
+            await lifecycleLock.WaitAsync();
+            try
+            {
+                EnsureProviders();
+                await DisconnectProviders();
+                await reload();
+                await InitProviders();
+            }
+            finally
+            {
+                lifecycleLock.Release();
+            }
+        }
+
+        private void EnsureProviders()
+        {
+            if (Providers.Any() || serviceProvider == null)
+                return;
+
+            Providers.AddRange(
+                serviceProvider.GetServices<IDeviceProvider>());
+        }
+
+        private async Task InitProviders()
+        {
             var initTasks = Providers.Select(p => p.Init()).ToArray();
             await Task.WhenAll(initTasks);
+        }
+
+        private async Task DisconnectProviders()
+        {
+            var disconnectTasks =
+                Providers.Select(provider => provider.Disconnect()).ToArray();
+            await Task.WhenAll(disconnectTasks);
         }
 
         public List<IDevice> Devices { get; set; } = new List<IDevice>();

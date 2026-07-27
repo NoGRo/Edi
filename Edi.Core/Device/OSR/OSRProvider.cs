@@ -82,6 +82,15 @@ namespace Edi.Core.Device.OSR
             await Connect();
         }
 
+        public async Task Disconnect()
+        {
+            TimerPing.Stop();
+            await UnloadDevice();
+            Connection?.Disconnect();
+            Connection = null;
+            TimerPing.Stop();
+        }
+
         private void OnStatusChange(string e)
         {
             StatusChange?.Invoke(null, e);

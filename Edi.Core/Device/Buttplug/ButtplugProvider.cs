@@ -29,6 +29,7 @@ namespace Edi.Core.Device.Buttplug
             this.repositoryManager = repositoryManager;
             DeviceCollector = deviceCollector;
             Controller = new ButtplugController(Config, deviceCollector, _logger);
+            timerReconnect.Elapsed += timerReconnectevent;
 
             _logger.LogInformation("ButtplugProvider initialized with repository and device manager.");
         }
@@ -44,7 +45,6 @@ namespace Edi.Core.Device.Buttplug
         public async Task Init()
         {
             _logger.LogInformation("Initializing ButtplugProvider...");
-            timerReconnect.Elapsed += timerReconnectevent;
 
             await Connect();
 
@@ -52,6 +52,21 @@ namespace Edi.Core.Device.Buttplug
 
             
             _logger.LogInformation("ButtplugProvider initialization complete.");
+        }
+
+        public async Task Disconnect()
+        {
+            timerReconnect.Stop();
+            try
+            {
+                if (client?.Connected == true)
+                    await client.DisconnectAsync();
+            }
+            finally
+            {
+                timerReconnect.Stop();
+                RemoveAllDevices();
+            }
         }
 
         public event EventHandler<string> StatusChange;

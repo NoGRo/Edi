@@ -212,8 +212,20 @@ internal sealed class HandyBluetoothTransport : IHandyBluetoothTransport
         if (Interlocked.Exchange(ref _disposed, 1) != 0)
             return;
 
-        _device.ConnectionStatusChanged -=
-            Device_ConnectionStatusChanged;
+        var disconnected = new TaskCompletionSource(
+            TaskCreationOptions.RunContinuationsAsynchronously);
+        void ObserveDisconnect(
+            BluetoothLEDevice sender,
+            object args)
+        {
+            if (sender.ConnectionStatus ==
+                BluetoothConnectionStatus.Disconnected)
+            {
+                disconnected.TrySetResult();
+            }
+        }
+
+        _device.ConnectionStatusChanged += ObserveDisconnect;
         _rx.ValueChanged -= Rx_ValueChanged;
         try
         {
@@ -230,7 +242,28 @@ internal sealed class HandyBluetoothTransport : IHandyBluetoothTransport
             _session.MaintainConnection = false;
         _service.Dispose();
         _session.Dispose();
+
+        var wasDisconnected = _device.ConnectionStatus ==
+            BluetoothConnectionStatus.Disconnected;
         _device.Dispose();
+        if (!wasDisconnected)
+        {
+            try
+            {
+                await disconnected.Task.WaitAsync(
+                    TimeSpan.FromSeconds(2));
+            }
+            catch (TimeoutException)
+            {
+                // Windows can release the GATT session without publishing
+                // the status transition. The timeout still gives the stack
+                // time to release the radio link before a new scan starts.
+            }
+        }
+
+        _device.ConnectionStatusChanged -= ObserveDisconnect;
+        _device.ConnectionStatusChanged -=
+            Device_ConnectionStatusChanged;
         _writeLock.Dispose();
     }
 

@@ -273,15 +273,19 @@ namespace Edi.Forms
         }
         public async void GamesComboBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
-            await Dispatcher.Invoke(async () =>
+            if (GamesComboBox.SelectedItem is not GameInfo selectedGame)
+                return;
+
+            GamesComboBox.IsEnabled = false;
+            try
             {
-                if (GamesComboBox.SelectedItem is GameInfo selectedGame)
-                {
-                    // gamesConfig.SelectedGameinfo = selectedGame;
-                    await edi.SelectGame(selectedGame);
-                    viewModel.galleries = ReloadGalleries();
-                }
-            });
+                await edi.SelectGame(selectedGame);
+                viewModel.galleries = ReloadGalleries();
+            }
+            finally
+            {
+                GamesComboBox.IsEnabled = true;
+            }
         }
 
         private async void ReconnectButton_ClickAsync(object sender, RoutedEventArgs e)

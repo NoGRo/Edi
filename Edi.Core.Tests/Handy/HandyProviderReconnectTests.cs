@@ -95,6 +95,57 @@ public class HandyProviderReconnectTests
                 device.Name));
     }
 
+    [Fact]
+    public async Task ExplicitDisconnectReleasesClientBeforeReconnect()
+    {
+        var firstClient = new FakeHandyClient("same-device");
+        var replacementClient = new FakeHandyClient("same-device");
+        var discovery = new QueueDiscovery(
+            [firstClient],
+            [replacementClient]);
+        await using var rig = await ProviderRig.CreateAsync(discovery);
+
+        await rig.Provider.Init();
+
+        await rig.Provider.Disconnect();
+
+        Assert.True(firstClient.WasDisposed);
+        Assert.Empty(rig.Collector.Devices);
+
+        await rig.Provider.Init();
+
+        Assert.False(replacementClient.WasDisposed);
+        Assert.Collection(
+            rig.Collector.Devices,
+            device => Assert.Equal(
+                replacementClient.DisplayName,
+                device.Name));
+    }
+
+    [Fact]
+    public async Task ExplicitDisconnectRetriesUntilBluetoothDeviceReturns()
+    {
+        var firstClient = new FakeHandyClient("same-device");
+        var replacementClient = new FakeHandyClient("same-device");
+        var discovery = new CountingQueueDiscovery(
+            [firstClient],
+            [],
+            [replacementClient]);
+        await using var rig = await ProviderRig.CreateAsync(discovery);
+
+        await rig.Provider.Init();
+        await rig.Provider.Disconnect();
+        await rig.Provider.Init();
+
+        Assert.Equal(3, discovery.Calls);
+        Assert.True(firstClient.WasDisposed);
+        Assert.Collection(
+            rig.Collector.Devices,
+            device => Assert.Equal(
+                replacementClient.DisplayName,
+                device.Name));
+    }
+
     private sealed class BlockingDiscovery : IHandyBluetoothDiscovery
     {
         public int Calls { get; private set; }
@@ -161,6 +212,27 @@ public class HandyProviderReconnectTests
                 _results.Count > 0
                     ? _results.Dequeue()
                     : []);
+    }
+
+    private sealed class CountingQueueDiscovery(
+        params IReadOnlyList<IHandyClient>[] results)
+        : IHandyBluetoothDiscovery
+    {
+        private readonly Queue<IReadOnlyList<IHandyClient>> _results =
+            new(results);
+
+        public int Calls { get; private set; }
+
+        public Task<IReadOnlyList<IHandyClient>> DiscoverAsync(
+            TimeSpan timeout,
+            CancellationToken cancellationToken)
+        {
+            Calls++;
+            return Task.FromResult(
+                _results.Count > 0
+                    ? _results.Dequeue()
+                    : []);
+        }
     }
 
     private sealed class FakeHandyClient(string id) : IHandyClient

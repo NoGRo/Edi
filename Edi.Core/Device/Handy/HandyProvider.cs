@@ -47,6 +47,7 @@ namespace Edi.Core.Device.Handy
         private int _pendingOffset;
         private int _lastAppliedOffset = int.MinValue;
         private int _offsetUpdateWorkerActive;
+        private int _bluetoothReconnectExpected;
 
         public HandyProvider(RepositoryManager repositoryManager,
                              ConfigurationManager config,
@@ -80,6 +81,24 @@ namespace Edi.Core.Device.Handy
 
                 _initTask = Initialize();
                 return _initTask;
+            }
+        }
+
+        public async Task Disconnect()
+        {
+            timerReconnect.Stop();
+            await _connectLock.WaitAsync();
+            try
+            {
+                if (!_bluetoothClients.IsEmpty)
+                    Volatile.Write(ref _bluetoothReconnectExpected, 1);
+
+                await RemoveAll();
+            }
+            finally
+            {
+                _connectLock.Release();
+                timerReconnect.Stop();
             }
         }
 
@@ -145,64 +164,87 @@ namespace Edi.Core.Device.Handy
             if (!_bluetoothClients.IsEmpty)
                 return;
 
-            var clients = await _bluetoothDiscovery.DiscoverAsync(
-                TimeSpan.FromSeconds(8),
-                CancellationToken.None);
-            foreach (var client in clients)
+            var attempts = Volatile.Read(
+                ref _bluetoothReconnectExpected) != 0
+                    ? 3
+                    : 1;
+            for (var attempt = 1; attempt <= attempts; attempt++)
             {
-                if (!_bluetoothClients.TryAdd(client.Id, client))
+                var clients = await _bluetoothDiscovery.DiscoverAsync(
+                    TimeSpan.FromSeconds(8),
+                    CancellationToken.None);
+                foreach (var client in clients)
                 {
-                    await client.DisposeAsync();
-                    continue;
-                }
-
-                client.Disconnected += BluetoothClient_Disconnected;
-                try
-                {
-                    await client.SetOffset(
-                        Config.OffsetMS,
-                        CancellationToken.None);
-                    var funscriptRepository =
-                        await _repositoryManager
-                            .GetRepositoryAsync<FunscriptRepository>();
-                    var handyDevice = new HandyV3Device(
-                        client,
-                        funscriptRepository,
-                        _logger);
-
-                    var added = false;
-                    lock (devices)
+                    if (!_bluetoothClients.TryAdd(client.Id, client))
                     {
-                        if (!devices.ContainsKey(client.Id))
-                        {
-                            devices[client.Id] = handyDevice;
-                            added = true;
-                        }
+                        await client.DisposeAsync();
+                        continue;
                     }
 
-                    if (!added)
+                    client.Disconnected += BluetoothClient_Disconnected;
+                    try
+                    {
+                        await client.SetOffset(
+                            Config.OffsetMS,
+                            CancellationToken.None);
+                        var funscriptRepository =
+                            await _repositoryManager
+                                .GetRepositoryAsync<FunscriptRepository>();
+                        var handyDevice = new HandyV3Device(
+                            client,
+                            funscriptRepository,
+                            _logger);
+
+                        var added = false;
+                        lock (devices)
+                        {
+                            if (!devices.ContainsKey(client.Id))
+                            {
+                                devices[client.Id] = handyDevice;
+                                added = true;
+                            }
+                        }
+
+                        if (!added)
+                        {
+                            client.Disconnected -=
+                                BluetoothClient_Disconnected;
+                            _bluetoothClients.TryRemove(client.Id, out _);
+                            await client.DisposeAsync();
+                            continue;
+                        }
+
+                        _deviceCollector.LoadDevice(handyDevice);
+                        Volatile.Write(
+                            ref _bluetoothReconnectExpected,
+                            0);
+                        _logger.LogInformation(
+                            "Loaded {DeviceName} from Bluetooth.",
+                            handyDevice.Name);
+                    }
+                    catch (Exception ex)
                     {
                         client.Disconnected -=
                             BluetoothClient_Disconnected;
                         _bluetoothClients.TryRemove(client.Id, out _);
                         await client.DisposeAsync();
-                        continue;
+                        _logger.LogWarning(
+                            ex,
+                            "Could not load {DeviceName} from Bluetooth.",
+                            client.DisplayName);
                     }
-
-                    _deviceCollector.LoadDevice(handyDevice);
-                    _logger.LogInformation(
-                        "Loaded {DeviceName} from Bluetooth.",
-                        handyDevice.Name);
                 }
-                catch (Exception ex)
+
+                if (!_bluetoothClients.IsEmpty)
+                    return;
+
+                if (attempt < attempts)
                 {
-                    client.Disconnected -= BluetoothClient_Disconnected;
-                    _bluetoothClients.TryRemove(client.Id, out _);
-                    await client.DisposeAsync();
-                    _logger.LogWarning(
-                        ex,
-                        "Could not load {DeviceName} from Bluetooth.",
-                        client.DisplayName);
+                    _logger.LogInformation(
+                        "The previous Bluetooth Handy has not resumed " +
+                        "advertising yet; retrying discovery ({Attempt}/{Attempts}).",
+                        attempt + 1,
+                        attempts);
                 }
             }
         }
@@ -312,7 +354,20 @@ namespace Edi.Core.Device.Handy
             }
 
             foreach (var device in loadedDevices)
+            {
+                try
+                {
+                    await device.Stop();
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogWarning(
+                        ex,
+                        "Could not stop {DeviceName} before disconnecting.",
+                        device.Name);
+                }
                 _deviceCollector.UnloadDevice(device);
+            }
 
             _clients.Clear();
             _usesV3Api.Clear();

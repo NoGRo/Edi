@@ -67,6 +67,13 @@ namespace Edi.Core.Device.AutoBlow
             _logger.LogInformation("Initialization completed and reconnection timer started.");
         }
 
+        public Task Disconnect()
+        {
+            timerReconnect.Stop();
+            RemoveAll();
+            return Task.CompletedTask;
+        }
+
         private void ConnectAll()
         {
             _logger.LogInformation("Connecting all devices...");

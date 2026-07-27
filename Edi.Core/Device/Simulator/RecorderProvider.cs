@@ -40,13 +40,7 @@ namespace Edi.Core.Device.Simulator
         {
             _logger.LogInformation("OutputRecorderProvider initialization started.");
 
-            // Unload existing devices
-            foreach (var device in _devices)
-            {
-                _logger.LogInformation($"Unloading device: {device}");
-                DeviceCollector.UnloadDevice(device);
-            }
-            _devices.Clear();
+            await Disconnect();
 
             if (!Config.Record)
             {
@@ -74,6 +68,17 @@ namespace Edi.Core.Device.Simulator
             {
                 _logger.LogError($"Error initializing OutputRecorderDevice: {ex.Message}");
             }
+        }
+
+        public async Task Disconnect()
+        {
+            foreach (var device in _devices.ToArray())
+            {
+                _logger.LogInformation($"Unloading device: {device}");
+                await device.Stop();
+                DeviceCollector.UnloadDevice(device);
+            }
+            _devices.Clear();
         }
     }
 }

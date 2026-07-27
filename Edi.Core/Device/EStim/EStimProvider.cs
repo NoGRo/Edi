@@ -34,13 +34,7 @@ namespace Edi.Core.Device.EStim
         {
             _logger.LogInformation("Initialization started.");
 
-            // Unload existing devices
-            foreach (var eStimDevice in _devices)
-            {
-                _logger.LogInformation($"Unloading device: {eStimDevice}");
-                DeviceCollector.UnloadDevice(eStimDevice);
-            }
-            _devices.Clear();
+            await Disconnect();
 
             // Validate configuration
             if (Config.DeviceId == -1)
@@ -65,6 +59,17 @@ namespace Edi.Core.Device.EStim
             {
                 _logger.LogError($"Error initializing device with DeviceId {Config.DeviceId}: {ex.Message}");
             }
+        }
+
+        public async Task Disconnect()
+        {
+            foreach (var device in _devices.ToArray())
+            {
+                _logger.LogInformation($"Unloading device: {device}");
+                await device.Stop();
+                DeviceCollector.UnloadDevice(device);
+            }
+            _devices.Clear();
         }
     }
 }

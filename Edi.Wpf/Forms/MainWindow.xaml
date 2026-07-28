@@ -65,7 +65,7 @@
                         <Label Content="Device Keys:" VerticalAlignment="Center" Grid.ColumnSpan="2" Margin="0,0,112,0"/>
                         <TextBox Grid.Column="1"
                                  Text="{Binding handyConfig.Key}"
-                                 ToolTip="Your Handy or AutoBlow connection key" Margin="45,0,1,0"/>
+                                 ToolTip="Your Handy, AutoBlow Ultra, or VacuGlide 2 connection key" Margin="45,0,1,0"/>
                         <Label Grid.Column="2"
                                Content="Offset:"
                                Padding="4,5,0,5"
@@ -80,7 +80,7 @@
                                      HorizontalContentAlignment="Right"
                                      VerticalContentAlignment="Center"
                                      PreviewMouseWheel="HandyOffsetTextBox_PreviewMouseWheel"
-                                     ToolTip="Handy user offset in milliseconds (-7000 to +7000)"/>
+                                     ToolTip="Handy, AutoBlow Ultra, and VacuGlide 2 offset in milliseconds (-7000 to +7000)"/>
                             <Grid Grid.Column="1">
                                 <Grid.RowDefinitions>
                                     <RowDefinition Height="*"/>

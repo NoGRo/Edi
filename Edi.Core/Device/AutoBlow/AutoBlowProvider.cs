@@ -1,181 +1,268 @@
-﻿using Edi.Core.Device.Buttplug;
-using Edi.Core.Gallery;
-using Edi.Core.Gallery.Index;
-using NAudio.CoreAudioApi;
-using Newtonsoft.Json;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Runtime.CompilerServices;
-using System.Text;
-using System.Threading.Tasks;
-using System.Timers;
-using Microsoft.Extensions.Logging;
-using Timer = System.Timers.Timer;
-using Microsoft.Extensions.DependencyInjection;
-using Edi.Core.Device;
 using Edi.Core.Device.Handy;
 using Edi.Core.Device.Interfaces;
+using Edi.Core.Gallery;
+using Edi.Core.Gallery.Index;
 using Edi.Core.Services;
+using Microsoft.Extensions.Logging;
+using Newtonsoft.Json;
+using System.ComponentModel;
+using System.Timers;
 
-namespace Edi.Core.Device.AutoBlow
+namespace Edi.Core.Device.AutoBlow;
+
+internal sealed record AutoBlowDiscovery(bool IsVacuGlide, HttpClient Client);
+
+public class AutoBlowProvider : IDeviceProvider
 {
-    public class AutoBlowProvider : IDeviceProvider
+    private const string DefaultCluster = "https://latency.autoblowapi.com";
+    private readonly ILogger _logger;
+    private readonly System.Timers.Timer _timer = new(40000);
+    private readonly SemaphoreSlim _connectLock = new(1, 1);
+    private readonly Dictionary<string, AutoBlowDevice> _devices = new();
+    private readonly RepositoryManager _repositoryManager;
+    private readonly DeviceCollector _deviceCollector;
+    private List<string> _keys = new();
+
+    public HandyConfig Config { get; }
+
+    public AutoBlowProvider(
+        RepositoryManager repositoryManager,
+        ConfigurationManager config,
+        DeviceCollector deviceCollector,
+        ILogger<AutoBlowProvider> logger)
     {
-        private readonly ILogger _logger;
-        private Timer timerReconnect = new Timer(40000);
-        public HandyConfig Config { get; set; }
-        private List<string> Keys = new List<string>();
-        private Dictionary<string, AutoBlowDevice> devices = new Dictionary<string, AutoBlowDevice>();
-        private readonly RepositoryManager repositoryManager;
-        private DeviceCollector deviceCollector;
+        _repositoryManager = repositoryManager;
+        _deviceCollector = deviceCollector;
+        _logger = logger;
+        Config = config.Get<HandyConfig>();
+        _timer.Elapsed += TimerElapsed;
+        ((INotifyPropertyChanged)Config).PropertyChanged += ConfigChanged;
+    }
 
-        public AutoBlowProvider(RepositoryManager repositoryManager, ConfigurationManager config, DeviceCollector deviceCollector, ILogger<AutoBlowProvider> logger)
+    public async Task Init()
+    {
+        _timer.Stop();
+        _keys = ParseAutoBlowKeys(Config.Key);
+        await ConnectAll();
+        if (_keys.Count > 0)
+            _timer.Start();
+    }
+
+    public async Task Disconnect()
+    {
+        _timer.Stop();
+        await _connectLock.WaitAsync();
+        try
         {
-            _logger = logger;
-            Config = config.Get<HandyConfig>();
-            this.repositoryManager = repositoryManager;
-            this.deviceCollector = deviceCollector;
-
-            timerReconnect.Elapsed += TimerReconnect_Elapsed;
-
-            _logger.LogInformation("AutoBlowProvider initialized with configuration and device manager.");
-        }
-
-        public async Task Init()
-        {
-            if (string.IsNullOrEmpty(Config.Key))
-            {
-                _logger.LogWarning("Config.Key is null or empty. Initialization aborted.");
-                return;
-            }
-
-            _logger.LogInformation("Initializing AutoBlowProvider...");
-            await Task.Delay(500);
             RemoveAll();
-
-            Keys = Config.Key.Split(',')
-                             .Where(x => !string.IsNullOrWhiteSpace(x) && x.Trim().Length == 12)
-                             .Select(x => x.Trim())
-                             .ToList();
-
-            _logger.LogInformation($"Parsed {Keys.Count} keys from Config.Key.");
-
-            timerReconnect.Stop();
-            ConnectAll();
-            timerReconnect.Start();
-            _logger.LogInformation("Initialization completed and reconnection timer started.");
+            _keys.Clear();
         }
-
-        public Task Disconnect()
+        finally
         {
-            timerReconnect.Stop();
-            RemoveAll();
-            return Task.CompletedTask;
+            _connectLock.Release();
         }
+    }
 
-        private void ConnectAll()
+    private async Task ConnectAll()
+    {
+        if (!await _connectLock.WaitAsync(0))
+            return;
+
+        try
         {
-            _logger.LogInformation("Connecting all devices...");
-            Keys.AsParallel().ForAll(async key =>
-            {
-                await Connect(key);
-            });
+            await Task.WhenAll(_keys.Select(Connect));
         }
-
-        private async Task Connect(string Key)
+        finally
         {
-            _logger.LogInformation($"Attempting to connect to device with Key: {Key}");
+            _connectLock.Release();
+        }
+    }
 
-            HttpClient Client = devices.ContainsKey(Key) ? devices[Key].Client : NewClient(Key);
-            HttpResponseMessage resp = null;
+    private async Task Connect(string key)
+    {
+        AutoBlowDevice current;
+        lock (_devices)
+            _devices.TryGetValue(key, out current);
 
-            try
-            {
-                resp = await Client.GetAsync("connected");
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError($"Connection attempt failed for Key: {Key}. Exception: {ex.Message}");
-            }
+        if (current != null && await IsConnected(current.Client))
+            return;
 
-            if (resp?.StatusCode != System.Net.HttpStatusCode.OK)
+        Remove(key);
+        var discovery = await DiscoverAsync(key, NewClient);
+        if (discovery == null)
+            return;
+
+        var repository =
+            await _repositoryManager.GetRepositoryAsync<IndexRepository>();
+        var device = discovery.IsVacuGlide
+            ? new VacuGlide2Device(discovery.Client, repository, _logger)
+            : new AutoBlowDevice(discovery.Client, repository, _logger);
+
+        lock (_devices)
+        {
+            if (_devices.ContainsKey(key))
             {
-                _logger.LogWarning($"Device with Key: {Key} not responding. Removing from active devices.");
-                Remove(Key);
+                discovery.Client.Dispose();
                 return;
             }
 
-            var connected = JsonConvert.DeserializeObject<ConnectedResponse>(await resp.Content.ReadAsStringAsync());
-            if (!connected.connected)
+            _devices.Add(key, device);
+        }
+
+        await TryApplyOffset(device, Config.OffsetMS);
+        _deviceCollector.LoadDevice(device);
+    }
+
+    private static async Task<bool> IsConnected(HttpClient client)
+        => (await GetConnected(client))?.connected == true;
+
+    internal static async Task<AutoBlowDiscovery> DiscoverAsync(
+        string key,
+        Func<string, string, bool, HttpClient> clientFactory)
+    {
+        foreach (var isVacuGlide in new[] { false, true })
+        {
+            using var probe = clientFactory(key, null, isVacuGlide);
+            var connected = await GetConnected(probe);
+            if (connected?.connected == true)
             {
-                _logger.LogWarning($"Device with Key: {Key} is not connected. Removing from active devices.");
-                Remove(Key);
+                return new(
+                    isVacuGlide,
+                    clientFactory(key, connected.cluster, isVacuGlide));
+            }
+        }
+
+        return null;
+    }
+
+    private static async Task<ConnectedResponse> GetConnected(
+        HttpClient client)
+    {
+        try
+        {
+            using var response = await client.GetAsync("connected");
+            if (!response.IsSuccessStatusCode)
+                return null;
+
+            return JsonConvert.DeserializeObject<ConnectedResponse>(
+                await response.Content.ReadAsStringAsync());
+        }
+        catch
+        {
+            return null;
+        }
+    }
+
+    private void RemoveAll()
+    {
+        string[] keys;
+        lock (_devices)
+            keys = _devices.Keys.ToArray();
+
+        foreach (var key in keys)
+            Remove(key);
+    }
+
+    private void Remove(string key)
+    {
+        AutoBlowDevice device;
+        lock (_devices)
+        {
+            if (!_devices.Remove(key, out device))
                 return;
-            }
-
-            if (devices.ContainsKey(Key))
-            {
-                _logger.LogInformation($"Device with Key: {Key} is already connected.");
-                return;
-            }
-
-            Client.Dispose();
-            Client = NewClient(Key, connected.cluster);
-            resp = await Client.GetAsync("state");
-
-            var status = JsonConvert.DeserializeObject<Status>(await resp.Content.ReadAsStringAsync());
-
-
-            var repository =
-                await repositoryManager.GetRepositoryAsync<IndexRepository>();
-            var device = new AutoBlowDevice(Client, repository, _logger);
-
-            lock (devices)
-            {
-                if (devices.ContainsKey(Key))
-                {
-                    _logger.LogInformation($"Device with Key: {Key} is already registered in the devices list.");
-                    return;
-                }
-
-                devices.Add(Key, device);
-                deviceCollector.LoadDevice(device);
-                _logger.LogInformation($"Device with Key: {Key} successfully connected and loaded.");
-            }
         }
 
-        private void RemoveAll()
-        {
-            _logger.LogInformation("Removing all devices.");
-            foreach (var key in Keys)
-            {
-                Remove(key);
-            }
-        }
+        _deviceCollector.UnloadDevice(device);
+    }
 
-        private void Remove(string Key)
-        {
-            if (devices.ContainsKey(Key))
-            {
-                _logger.LogInformation($"Removing device with Key: {Key}");
-                deviceCollector.UnloadDevice(devices[Key]);
-                devices.Remove(Key);
-            }
-        }
+    internal static List<string> ParseAutoBlowKeys(string value)
+        => (value ?? string.Empty)
+            .Split(',')
+            .Select(key => key.Trim())
+            .Where(key => key.Length == 12)
+            .Distinct(StringComparer.Ordinal)
+            .ToList();
 
-        public static HttpClient NewClient(string Key, string Cluster = null)
-        {
-            Cluster ??= "us-east-1.autoblowapi.com";
-            var Client = new HttpClient { BaseAddress = new Uri($"https://{Cluster}/autoblow/") };
-            Client.DefaultRequestHeaders.Remove("x-device-token");
-            Client.DefaultRequestHeaders.Add("x-device-token", Key);
-            return Client;
-        }
+    public static HttpClient NewClient(string key, string cluster = null)
+        => NewClient(key, cluster, false, null);
 
-        private void TimerReconnect_Elapsed(object sender, ElapsedEventArgs e)
+    internal static HttpClient NewClient(
+        string key,
+        string cluster,
+        bool isVacuGlide)
+        => NewClient(key, cluster, isVacuGlide, null);
+
+    internal static HttpClient NewClient(
+        string key,
+        string cluster,
+        bool isVacuGlide,
+        HttpMessageHandler handler)
+    {
+        var root = NormalizeCluster(cluster);
+        var client = handler == null
+            ? new HttpClient()
+            : new HttpClient(handler);
+        client.BaseAddress = new Uri(
+            root,
+            isVacuGlide ? "vacuglide/" : "autoblow/");
+        client.DefaultRequestHeaders.Add("x-device-token", key);
+        return client;
+    }
+
+    private static Uri NormalizeCluster(string cluster)
+    {
+        var value = string.IsNullOrWhiteSpace(cluster)
+            ? DefaultCluster
+            : cluster.Trim();
+        if (!Uri.TryCreate(value, UriKind.Absolute, out var uri))
+            uri = new Uri($"https://{value}");
+
+        return new UriBuilder(uri)
         {
-            ConnectAll();
+            Path = "/",
+            Query = string.Empty,
+            Fragment = string.Empty
+        }.Uri;
+    }
+
+    private async void ConfigChanged(
+        object sender,
+        PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName != nameof(HandyConfig.OffsetMS))
+            return;
+
+        AutoBlowDevice[] devices;
+        lock (_devices)
+            devices = _devices.Values.ToArray();
+
+        await Task.WhenAll(devices.Select(
+            device => TryApplyOffset(device, Config.OffsetMS)));
+    }
+
+    private async Task TryApplyOffset(AutoBlowDevice device, int offset)
+    {
+        try
+        {
+            await device.ApplyOffset(offset);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(
+                ex,
+                "The Autoblow offset could not be applied.");
+        }
+    }
+
+    private async void TimerElapsed(object sender, ElapsedEventArgs e)
+    {
+        try
+        {
+            await ConnectAll();
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Autoblow reconnect failed.");
         }
     }
 }

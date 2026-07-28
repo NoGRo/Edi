@@ -1,275 +1,243 @@
-using Edi.Core.Services;
-using Edi.Core.Device;
 using Edi.Core.Device.Interfaces;
+using Edi.Core.Funscript.FileJson;
 using Edi.Core.Gallery.Funscript;
 using Microsoft.Extensions.Logging;
-using NAudio.CoreAudioApi;
 using Newtonsoft.Json;
 using PropertyChanged;
-using System;
-using System.Collections.Generic;
-using System.IO;
-using System.Linq;
-using System.Numerics;
-using System.Text.RegularExpressions;
-using System.Threading;
-using System.Threading.Tasks;
-using System.Timers;
-using Edi.Core.Funscript.FileJson;
-using Edi.Core.Funscript.Command;
-using Edi.Core.Players;
-using Microsoft.AspNetCore.Hosting;
+using System.Text;
 
-namespace Edi.Core.Device.Simulator
+namespace Edi.Core.Device.Simulator;
+
+[AddINotifyPropertyChangedInterface]
+public class RecorderDevice : DeviceBase<FunscriptRepository, FunscriptGallery>, IRange
 {
+    private static readonly TimeSpan FlushInterval = TimeSpan.FromSeconds(2);
 
+    private readonly ILogger logger;
+    private readonly TimeProvider timeProvider;
+    private readonly object recordingLock = new();
+    private readonly SemaphoreSlim fileLock = new(1, 1);
+    private RecordingTimeline timeline;
+    private long recordingStartedAt;
+    private CancellationTokenSource flushCancellation;
+    private Task flushTask = Task.CompletedTask;
 
-    [AddINotifyPropertyChangedInterface]
-    public class RecorderDevice : DeviceBase<FunscriptRepository, FunscriptGallery>, IRange
+    internal override bool SelfManagedLoop => true;
+
+    public RecorderDevice(
+        FunscriptRepository repository,
+        ILogger<RecorderDevice> logger,
+        TimeProvider timeProvider = null)
+        : base(repository, logger)
     {
-        private readonly ILogger _logger;
-        private readonly SyncPlaybackFactory syncPlaybackFactory;
-        private  string _outputFilePath;
-        private  DateTime _recordingStartTime;
-        public long RecordingAbsolueTime => (long)(DateTime.Now - _recordingStartTime).TotalMilliseconds;
+        this.logger = logger;
+        this.timeProvider = timeProvider ?? TimeProvider.System;
+        Name = "Recorder";
+    }
 
-        private readonly object _lock = new object();
-        private readonly System.Timers.Timer _flushTimer;
-        private bool _isFlushing = false;
-        private int _lastWritePosition = 0; // Cambiado a int para Substring
-        private string _postActionsContent = "]}"; // Contenido posterior al array actions
-        private string variantPrev;
-        private SyncPlayback syncPrev;
-        private List<FunScriptAction> _actions = new() { new() { at = 0, pos = 0 } };
-        private ScriptBuilder scriptBuilder =  new();
+    public bool IsRecording { get; private set; }
+    public string OutputFilePath { get; private set; }
+    public int RecordedActionCount { get; private set; }
 
-        internal override bool SelfManagedLoop => true;
+    public override string DefaultVariant()
+        => Variants.FirstOrDefault() ?? base.DefaultVariant();
 
-        public RecorderDevice(FunscriptRepository repository, ILogger logger, SyncPlaybackFactory syncPlaybackFactory, string name)
-            : base(repository, logger)
+    public string StartRecording(string outputFilePath = null)
+    {
+        lock (recordingLock)
         {
-            _logger = logger;
-            this.syncPlaybackFactory = syncPlaybackFactory;
-            Name = "Recorder";
-            // Inicializa metadata con valores útiles
-            _flushTimer = new System.Timers.Timer(10000); // 10 segundos
-            _flushTimer.Elapsed += (s, e) => FlushToDisk();
-            // Asegura que la carpeta de salida exista antes de usarla
-            
+            if (IsRecording)
+                return OutputFilePath;
+
+            var startedAt = timeProvider.GetUtcNow();
+            var outputDirectory = Path.Combine(
+                global::Edi.Core.Edi.OutputDir,
+                "Recordings");
+            Directory.CreateDirectory(outputDirectory);
+
+            OutputFilePath = outputFilePath
+                ?? Path.Combine(
+                    outputDirectory,
+                    $"{SanitizeFileName(Name)}_{startedAt:yyyy-MM-dd_HH-mm-ss-fff}.funscript");
+
+            var parentDirectory = Path.GetDirectoryName(OutputFilePath);
+            if (!string.IsNullOrWhiteSpace(parentDirectory))
+                Directory.CreateDirectory(parentDirectory);
+
+            timeline = new RecordingTimeline();
+            recordingStartedAt = timeProvider.GetTimestamp();
+            flushCancellation = new CancellationTokenSource();
+            IsRecording = true;
+            RecordedActionCount = 1;
+            flushTask = FlushPeriodically(flushCancellation.Token);
         }
 
-        public void StartRecording()
-        {
-            var outputPath = Path.Combine(Edi.OutputDir, "Recordings");
-            if (!Directory.Exists(outputPath))
-            {
-                Directory.CreateDirectory(outputPath);
-            }
-            _recordingStartTime = DateTime.Now;
-            var filename = $"{Name}_{_recordingStartTime:yyyy-MM-dd_HH-mm-ss-nnn}.funscript";
-            _outputFilePath = Path.Combine(outputPath, filename);
-                        
-            _flushTimer.Start();
-            _logger.LogInformation($"OutputRecorderDevice initialized. Output file: {_outputFilePath}");
-        }
+        logger.LogInformation(
+            "Recorder {RecorderName} started writing {OutputFilePath}.",
+            Name,
+            OutputFilePath);
+        return OutputFilePath;
+    }
 
-        public override string DefaultVariant()
-            => base.DefaultVariant() ?? Variants.FirstOrDefault();
-        
-        public override async Task PlayGallery(FunscriptGallery gallery, long seek = 0)
-        {
-            _logger.LogInformation($"PlayGallery called on Recorder: {Name}, Gallery: {gallery?.Name ?? "Unknown"}, Seek: {seek}");
-            savePrevius();
-            syncPrev = null;
-            
-            var cmds = gallery?.Commands;
+    public async Task StopRecording()
+    {
+        CancellationTokenSource cancellation;
+        Task backgroundFlush;
 
-            if (cmds == null)
+        lock (recordingLock)
+        {
+            if (!IsRecording)
                 return;
 
-            _logger.LogInformation($"PlayGallery finished adding commands for Recorder: {Name}");
-
-            syncPrev = syncPlaybackFactory.Create(gallery.Name , seek);
+            timeline.StopSegment(ElapsedMilliseconds());
+            IsRecording = false;
+            cancellation = flushCancellation;
+            backgroundFlush = flushTask;
+            flushCancellation = null;
+            flushTask = Task.CompletedTask;
         }
 
-
-
-        public override async Task StopGallery()
+        cancellation.Cancel();
+        try
         {
-            savePrevius();
-            syncPrev = null;
-            _logger.LogInformation($"Stopping gallery playback for Recorder: {Name}");
-
-            await Task.CompletedTask;
+            await backgroundFlush;
         }
-        internal override Task applyRange()
+        catch (OperationCanceledException) when (cancellation.IsCancellationRequested)
         {
-            savePrevius();
-            syncPrev = syncPlaybackFactory.Create(syncPrev.GalleryName, syncPrev.CurrentTime);
-            return Task.CompletedTask;
+        }
+        finally
+        {
+            cancellation.Dispose();
         }
 
-        internal override void SetVariant()
-        {
-            savePrevius();
-            variantPrev = this.selectedVariant;
-            syncPrev = syncPlaybackFactory.Create(syncPrev.GalleryName, syncPrev.CurrentTime);
-        }  
+        await FlushToDisk(throwOnFailure: true);
+        logger.LogInformation(
+            "Recorder {RecorderName} stopped. Recording saved to {OutputFilePath}.",
+            Name,
+            OutputFilePath);
+    }
 
-        private void savePrevius()
+    public override Task PlayGallery(FunscriptGallery gallery, long seek = 0)
+    {
+        lock (recordingLock)
         {
-            if (syncPrev == null)
+            if (IsRecording && gallery?.Commands?.Count > 0)
             {
-                addNonAction();
+                timeline.StartSegment(
+                    gallery,
+                    seek,
+                    Min,
+                    Max,
+                    ElapsedMilliseconds());
+            }
+        }
+
+        return Task.CompletedTask;
+    }
+
+    public override Task StopGallery()
+    {
+        lock (recordingLock)
+        {
+            if (IsRecording)
+                timeline.StopSegment(ElapsedMilliseconds());
+        }
+
+        return Task.CompletedTask;
+    }
+
+    internal override Task applyRange()
+    {
+        lock (recordingLock)
+        {
+            if (IsRecording && currentGallery?.Commands?.Count > 0)
+            {
+                timeline.StartSegment(
+                    currentGallery,
+                    CurrentTime,
+                    Min,
+                    Max,
+                    ElapsedMilliseconds());
+            }
+        }
+
+        return Task.CompletedTask;
+    }
+
+    private long ElapsedMilliseconds()
+        => (long)timeProvider
+            .GetElapsedTime(recordingStartedAt, timeProvider.GetTimestamp())
+            .TotalMilliseconds;
+
+    private async Task FlushPeriodically(CancellationToken cancellationToken)
+    {
+        using var timer = new PeriodicTimer(FlushInterval, timeProvider);
+        while (await timer.WaitForNextTickAsync(cancellationToken))
+            await FlushToDisk();
+    }
+
+    private async Task FlushToDisk(bool throwOnFailure = false)
+    {
+        List<FunScriptAction> actions;
+        string outputPath;
+
+        lock (recordingLock)
+        {
+            if (timeline == null || string.IsNullOrWhiteSpace(OutputFilePath))
                 return;
-            }
 
-            var gallery = repository.Get(syncPrev.GalleryName, this.variantPrev);
-
-            if(gallery == null)
-            {
-                addNonAction();
-                return;
-            }
-
-            var cmds = gallery.Commands.Where(c => c.AbsoluteTime > syncPrev.Seek);
-            if (!cmds.Any() && !syncPrev.IsLoop)
-            {
-                addNonAction();
-                return;
-            }
-
-            var millisFrist = cmds.First().AbsoluteTime - syncPrev.Seek;
-
-            scriptBuilder.AddCommandMillis(millisFrist, cmds.First().Value);
-
-            if(cmds.Count() > 1)
-                scriptBuilder.addCommands(cmds.Skip(1));
-
-            while (scriptBuilder.TotalTime < syncPrev.PlaybackDuration
-                    && syncPrev.IsLoop)
-            {
-                scriptBuilder.addCommands(gallery.Commands);
-            }
-
-            scriptBuilder.CutToTime(syncPrev.PlaybackDuration);
-            scriptBuilder.ApplyRange(lastMin, lastMax);
-
-            var offset = Convert.ToInt64((syncPrev.SendTime - _recordingStartTime).TotalMicroseconds);
-
-            var newActiosn = scriptBuilder.Generate(offset)
-                                .Select(c => new FunScriptAction
-                                {
-                                    at = c.AbsoluteTime,
-                                    pos = Convert.ToInt32(c.Value)
-                                });
-
-            _actions.AddRange(newActiosn);
-
-            
+            actions = timeline.Snapshot(ElapsedMilliseconds());
+            outputPath = OutputFilePath;
+            RecordedActionCount = actions.Count;
         }
 
-        private void addNonAction()
+        var script = new FunScriptFile { actions = actions };
+        var json = JsonConvert.SerializeObject(script, Formatting.Indented);
+        var temporaryPath = $"{outputPath}.{Guid.NewGuid():N}.tmp";
+
+        await fileLock.WaitAsync();
+        try
         {
-            _actions.Add(new()
-            {
-                at = RecordingAbsolueTime,
-                pos = _actions.Last().pos
-            });
+            await File.WriteAllTextAsync(
+                temporaryPath,
+                json,
+                new UTF8Encoding(encoderShouldEmitUTF8Identifier: false));
+            File.Move(temporaryPath, outputPath, overwrite: true);
         }
-
-        private void FlushToDisk()
+        catch (Exception ex)
         {
-            if (_isFlushing) return;
-            _isFlushing = true;
-            try
-            {
-                List<FunScriptAction> newActions;
-                FunScriptAction lastAction = null;
-                lock (_lock)
-                {
-                    if (_actions.Count == 0 || _actions.Count == 1)
-                    {
-                        _isFlushing = false;
-                        return;
-                    }
-                    newActions = _actions.Take(_actions.Count-1).ToList();
-                    lastAction = _actions.Last();
-                    _actions.Clear();
-                    if (lastAction != null)
-                    {
-                        _actions.Add(lastAction);
-                    }
-                }
+            logger.LogError(
+                ex,
+                "Recorder {RecorderName} could not write {OutputFilePath}.",
+                Name,
+                outputPath);
+            TryDelete(temporaryPath);
+            if (throwOnFailure)
+                throw;
+        }
+        finally
+        {
+            fileLock.Release();
+        }
+    }
 
-                if (!File.Exists(_outputFilePath))
-                {
-                    var initialFunscript = new FunScriptFile { actions = new List<FunScriptAction>()};
-                    var initialJson = JsonConvert.SerializeObject(initialFunscript, Formatting.Indented);
-                    File.WriteAllText(_outputFilePath, initialJson);
-                    _lastWritePosition = initialJson.LastIndexOf("]");
-                    _postActionsContent = initialJson.Substring(_lastWritePosition);
-                }
-                else if (_lastWritePosition == 0)
-                {
-                    // Solo la primera vez: leer el archivo y buscar el último elemento con regex
-                    string content = File.ReadAllText(_outputFilePath);
-                    var match = Regex.Match(content, @"actions""\s*:\s*\[(.*)\](.*)}", RegexOptions.Singleline);
-                    if (match.Success)
-                    {
-                        // match.Groups[1] = contenido del array, match.Groups[2] = posterior
-                        int arrayStart = content.IndexOf("[", content.IndexOf("actions"));
-                        int arrayEnd = content.LastIndexOf("]");
-                        _lastWritePosition = arrayEnd;
-                        _postActionsContent = content.Substring(arrayEnd);
-                    }
-                    else
-                    {
-                        // fallback
-                        _lastWritePosition = content.LastIndexOf("]");
-                        _postActionsContent = content.Substring(_lastWritePosition);
-                    }
-                }
+    private static string SanitizeFileName(string value)
+    {
+        var invalidCharacters = Path.GetInvalidFileNameChars();
+        return string.Concat(
+            (string.IsNullOrWhiteSpace(value) ? "Recorder" : value)
+            .Select(character => invalidCharacters.Contains(character) ? '_' : character));
+    }
 
-                // Escribir solo los nuevos actions en la posición guardada
-                using (var fs = new FileStream(_outputFilePath, FileMode.Open, FileAccess.ReadWrite))
-                {
-                    fs.Position = _lastWritePosition;
-                    using (var writer = new StreamWriter(fs))
-                    {
-                        bool needsComma = false;
-                        // Detectar si ya hay al menos un elemento en el array
-                        if (_lastWritePosition > 0)
-                        {
-                            // Leer el carácter anterior para ver si es '[' o ',')
-                            fs.Position = _lastWritePosition - 1;
-                            int prevChar = fs.ReadByte();
-                            if (prevChar != '[') // Si no es el inicio del array, hay elementos previos
-                                needsComma = true;
-                            fs.Position = _lastWritePosition;
-                        }
-                        for (int i = 0; i < newActions.Count; i++)
-                        {
-                            if (needsComma) writer.Write(",");
-                            writer.Write(JsonConvert.SerializeObject(newActions[i]));
-                            needsComma = true;
-                        }
-                        writer.Write(_postActionsContent);
-                        writer.Flush();
-                        _lastWritePosition = (int)fs.Position - _postActionsContent.Length;
-                    }
-                }
-
-                _logger.LogInformation($"Appended {newActions.Count} new actions to {_outputFilePath} (regex/seek optimized)");
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, $"Failed to flush session recording to {_outputFilePath}");
-            }
-            finally
-            {
-                _isFlushing = false;
-            }
+    private static void TryDelete(string path)
+    {
+        try
+        {
+            File.Delete(path);
+        }
+        catch
+        {
+            // A later recording must not fail because a temporary file could not be removed.
         }
     }
 }

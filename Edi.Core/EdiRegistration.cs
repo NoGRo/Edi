@@ -52,12 +52,7 @@ namespace Edi.Core
             services.AddPlayers();
 
             services.AddSingleton<DeviceConfiguration>();
-            services.AddTransient<RecorderDevice>(sp => new RecorderDevice(
-                sp.GetRequiredService<RepositoryManager>()
-                    .GetRepository<FunscriptRepository>(),
-                sp.GetRequiredService<ILogger<RecorderDevice>>(),
-                sp.GetRequiredService<SyncPlaybackFactory>(),
-                "Recorder"));
+            services.AddTransient<RecorderDevice>();
 
             services.AddSingleton<IDeviceProvider, ButtplugProvider>();
             services.AddSingleton<IDeviceProvider, AutoBlowProvider>();

@@ -55,7 +55,7 @@ namespace Edi.Core.Device.Simulator
                 foreach (var recorderName in Config.Recorders)
                 {
                     var device = serviceProvider.GetRequiredService<RecorderDevice>();
-                    device.Name += $"_{recorderName}";
+                    device.Name = $"Recorder {recorderName}";
                     DeviceCollector.LoadDevice(device);
                     _devices.Add(device);
                     _logger.LogInformation($"OutputRecorderDevice loaded successfully: {device}");
@@ -76,6 +76,7 @@ namespace Edi.Core.Device.Simulator
             {
                 _logger.LogInformation($"Unloading device: {device}");
                 await device.Stop();
+                await device.StopRecording();
                 DeviceCollector.UnloadDevice(device);
             }
             _devices.Clear();

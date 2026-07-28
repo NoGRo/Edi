@@ -6,18 +6,17 @@ namespace Edi.Core.Players
     {
         public static void AddPlayers(this IServiceCollection services)
         {
-            services.AddSingleton<IPlayerChannels, MultiChannelPlayer>();
             services.AddSingleton(sp => new ChannelManager<IPlayer>(
-                        () => new IPlayer[] {
-                            sp.GetRequiredService<ReactionGalleryFillerPlayer>(), // Default player for new channels 
-                            sp.GetRequiredService<OBSPlayer>()
-                        }
+                        () => sp.GetRequiredService<ReactionGalleryFillerPlayer>()
                     ));
 
             services.AddTransient<ReactionGalleryFillerPlayer>();
-            services.AddSingleton<OBSPlayer>();
             services.AddTransient<DevicePlayer>();
-           
+            services.AddSingleton<MultiChannelPlayer>();
+            services.AddSingleton<OBSPlayer>();
+            services.AddSingleton<IPlayerChannels>(
+                sp => sp.GetRequiredService<OBSPlayer>());
+
             services.AddSingleton<SyncPlaybackFactory>();
             services.AddSingleton<PlayerLogService>();
         }

@@ -16,7 +16,7 @@ namespace Edi.Core.Players
         public int ChapterEndBuffer { get; set; } = 0;
     }
 
-    public class OBSPlayer : ProxyPlayer
+    public class OBSPlayer : IPlayerChannels
     {
         private class ObsMessage
         {
@@ -74,16 +74,28 @@ namespace Edi.Core.Players
         private readonly EdiConfig ediConfig;
         private readonly OBSConfig config;
         private readonly PlayerLogService logService;
+        private readonly IPlayerChannels player;
 
         private bool isConnected => ws != null && ws.State == WebSocketState.Open;
 
-
-        public OBSPlayer(DevicePlayer dp, ConfigurationManager cfg, PlayerLogService logService)
-            : base(dp)
+        public OBSPlayer(
+            MultiChannelPlayer player,
+            ConfigurationManager cfg,
+            PlayerLogService logService)
+            : this(player, cfg.Get<EdiConfig>(), cfg.Get<OBSConfig>(), logService)
         {
+        }
+
+        internal OBSPlayer(
+            IPlayerChannels player,
+            EdiConfig ediConfig,
+            OBSConfig config,
+            PlayerLogService logService)
+        {
+            this.player = player;
             this.logService = logService;
-            ediConfig = cfg.Get<EdiConfig>();
-            config = cfg.Get<OBSConfig>();
+            this.ediConfig = ediConfig;
+            this.config = config;
 
             if (ediConfig.UseObsChapterGenerator == false)
                 return;
@@ -91,8 +103,25 @@ namespace Edi.Core.Players
             _ = ConnectAsync();
         }
 
+        public List<string> Channels => player.Channels;
 
-        public override async Task Play(string name, long seek = 0)
+        public event Action<List<string>> ChannelsChanged
+        {
+            add => player.ChannelsChanged += value;
+            remove => player.ChannelsChanged -= value;
+        }
+
+        public void ResetChannels(List<string> channels = null)
+            => player.ResetChannels(channels);
+
+        public async Task Play(string name, long seek = 0, string[] channels = null)
+        {
+            var playbackTask = player.Play(name, seek, channels);
+            var chapterTask = RecordPlay(name, seek);
+            await Task.WhenAll(playbackTask, chapterTask);
+        }
+
+        private async Task RecordPlay(string name, long seek)
         {
             if (ediConfig.UseObsChapterGenerator == false)
                 return;
@@ -141,20 +170,36 @@ namespace Edi.Core.Players
             }
         }
 
+        public async Task Stop(string[] channels = null)
+        {
+            var playbackTask = player.Stop(channels);
+            var chapterTask = RecordStop();
+            await Task.WhenAll(playbackTask, chapterTask);
+        }
 
-        public override async Task Stop()
+        private Task RecordStop()
         {
             if (ediConfig.UseObsChapterGenerator == false)
-                return;
+                return Task.CompletedTask;
 
             if (!recording)
             {
                 logService.AddLog("OBS: Not recording, skipping chapter record");
-                return;
+                return Task.CompletedTask;
             }
 
             SaveChapter();
+            return Task.CompletedTask;
         }
+
+        public Task Pause(bool untilResume = false, string[] channels = null)
+            => player.Pause(untilResume, channels);
+
+        public Task Resume(bool atCurrentTime = false, string[] channels = null)
+            => player.Resume(atCurrentTime, channels);
+
+        public Task Intensity(int max, string[] channels = null)
+            => player.Intensity(max, channels);
 
         private void SaveChapter()
         {

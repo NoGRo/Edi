@@ -44,6 +44,13 @@ namespace Edi.Core.Funscript.Command
             TotalTime += cmd.Millis;
             cmd.AbsoluteTime = TotalTime;
 
+            if (cmd.Prev?.AbsoluteTime == cmd.AbsoluteTime)
+            {
+                cmd.Prev.Value = cmd.Value;
+                cmd.Prev.Next = null;
+                return;
+            }
+
             if (cmd.Prev?.Value !=  cmd.Value 
                 || cmd.Prev?.AbsoluteTime != cmd.AbsoluteTime)
                 Sequence.Add(cmd);
@@ -57,7 +64,9 @@ namespace Edi.Core.Funscript.Command
         {
             addCommand(CmdLinear.GetCommandMillis(cmd.Millis, cmd.Value));
         }
-        public void addCommands(IEnumerable<CmdLinear> cmds, long? timeLimit = null)
+        public void addCommands(
+            IEnumerable<CmdLinear> cmds,
+            long? timeLimit = null)
         {
             foreach (var cmd in cmds)
             {

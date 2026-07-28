@@ -131,6 +131,85 @@ public class RepositoryManagerTests
         }
     }
 
+    [Fact]
+    public void GalleryBundlerExpandsMaxTheElfFillerWithoutDuplicateTimes()
+    {
+        var temporaryDirectory = Path.Combine(
+            Path.GetTempPath(),
+            "edi-bundler-tests",
+            Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(temporaryDirectory);
+
+        try
+        {
+            var configuration = new ConfigurationManager(
+                Path.Combine(temporaryDirectory, "EdiConfig.json"),
+                Path.Combine(temporaryDirectory, "UserConfig.json"));
+            var bundler = new GalleryBundler(configuration);
+            var gallery = CreateLoopGallery(
+                "filler",
+                (0, 0),
+                (600, 40),
+                (1200, 0));
+
+            bundler.Clear();
+            var index = bundler.Add(gallery, "default");
+
+            Assert.Equal(7200, index.Duration);
+            Assert.All(
+                index.Actions.GroupBy(action => action.at),
+                group => Assert.Single(group));
+            Assert.Collection(
+                index.Actions.Take(4),
+                action => Assert.Equal((0L, 0), (action.at, action.pos)),
+                action => Assert.Equal((600L, 40), (action.at, action.pos)),
+                action => Assert.Equal((1200L, 0), (action.at, action.pos)),
+                action => Assert.Equal((1800L, 40), (action.at, action.pos)));
+        }
+        finally
+        {
+            Directory.Delete(temporaryDirectory, recursive: true);
+        }
+    }
+
+    [Fact]
+    public void GalleryBundlerKeepsOneIncomingPositionAtConflictingSeam()
+    {
+        var temporaryDirectory = Path.Combine(
+            Path.GetTempPath(),
+            "edi-bundler-tests",
+            Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(temporaryDirectory);
+
+        try
+        {
+            var configuration = new ConfigurationManager(
+                Path.Combine(temporaryDirectory, "EdiConfig.json"),
+                Path.Combine(temporaryDirectory, "UserConfig.json"));
+            var bundler = new GalleryBundler(configuration);
+            var gallery = CreateLoopGallery(
+                "loop",
+                (0, 0),
+                (600, 40),
+                (1200, 100));
+
+            bundler.Clear();
+            var index = bundler.Add(gallery, "default");
+            var seam = Assert.Single(
+                index.Actions,
+                action => action.at == 1200);
+
+            Assert.Equal(0, seam.pos);
+            Assert.All(
+                index.Actions.GroupBy(action => action.at),
+                group => Assert.Single(group));
+        }
+        finally
+        {
+            Directory.Delete(temporaryDirectory, recursive: true);
+        }
+    }
+
     private static string CreateGalleryDirectory()
     {
         var temporaryDirectory = Path.Combine(
@@ -166,6 +245,33 @@ public class RepositoryManagerTests
             {
                 [Axis.Default] = builder.Generate()
             }
+        };
+    }
+
+    private static FunscriptGallery CreateLoopGallery(
+        string name,
+        params (int Time, int Position)[] points)
+    {
+        var commands = new List<CmdLinear>();
+        var previousTime = 0;
+        foreach (var point in points)
+        {
+            commands.Add(new CmdLinear
+            {
+                AbsoluteTime = point.Time,
+                Millis = point.Time - previousTime,
+                Value = point.Position
+            });
+            previousTime = point.Time;
+        }
+
+        return new FunscriptGallery
+        {
+            Name = name,
+            Variant = "default",
+            Duration = points[^1].Time,
+            Loop = true,
+            Commands = commands
         };
     }
 }

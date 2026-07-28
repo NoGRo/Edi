@@ -63,7 +63,9 @@ namespace Edi.Core.Gallery.Index
                 sbGallery.addCommands(gallery.Commands);
                 while (sbGallery.TotalTime < NewTotalTime)
                 {
-                    sbGallery.addCommands(gallery.Commands, timeLimit: NewTotalTime);
+                    sbGallery.addCommands(
+                        gallery.Commands,
+                        timeLimit: NewTotalTime);
                 }
                 indexGallery.Duration = newDuration;
 

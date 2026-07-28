@@ -63,7 +63,7 @@ namespace Edi.Core.Device
                 if (gallery == null || duration <= 0)
                     return 0;
 
-                var elapsed = (long)(DateTime.UtcNow - SyncSend).TotalMilliseconds + SeekTime;
+                var elapsed = (long)(GetUtcNow() - SyncSend).TotalMilliseconds + SeekTime;
                 return gallery.Loop
                     ? (int)((elapsed % duration + duration) % duration)
                     : (int)Math.Clamp(elapsed, 0, duration);
@@ -199,7 +199,7 @@ namespace Edi.Core.Device
             Task DeviceTask) StartPlayback(TGallery gallery, long seek)
         {
             SeekTime = seek;
-            SyncSend = DateTime.UtcNow;
+            SyncSend = GetUtcNow();
             currentGallery = gallery;
             CurrentDuration = gallery.Duration;
             IsPause = false;
@@ -221,8 +221,9 @@ namespace Edi.Core.Device
         {
             try
             {
-                var durationTask = Task.Delay(
-                    Math.Max(0, gallery.Duration - CurrentTime),
+                var durationTask = PlaybackDelay(
+                    TimeSpan.FromMilliseconds(
+                        Math.Max(0, gallery.Duration - CurrentTime)),
                     token);
                 if (await Task.WhenAny(deviceTask, durationTask) == deviceTask)
                     await deviceTask;
@@ -256,7 +257,7 @@ namespace Edi.Core.Device
                 if (shouldLoop)
                 {
                     var (nextSource, nextToken, nextTask) =
-                        StartPlayback(gallery, seek: 0);
+                        StartPlayback(gallery, CurrentTime);
                     nextLifecycle = MonitorPlayback(
                         version,
                         gallery,
@@ -385,6 +386,13 @@ namespace Edi.Core.Device
 
         private void Observe(Task task, string operation)
             => _ = ObserveTask(task, operation);
+
+        internal virtual DateTime GetUtcNow() => DateTime.UtcNow;
+
+        internal virtual Task PlaybackDelay(
+            TimeSpan delay,
+            CancellationToken cancellationToken)
+            => Task.Delay(delay, cancellationToken);
 
         private async Task ObserveTask(Task task, string operation)
         {

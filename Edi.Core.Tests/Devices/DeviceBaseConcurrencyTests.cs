@@ -130,6 +130,60 @@ public class DeviceBaseConcurrencyTests
     }
 
     [Fact]
+    public async Task LoopPreservesTimerOvershootAsNextSeek()
+    {
+        var now = new DateTime(
+            2026, 7, 28, 12, 0, 0, DateTimeKind.Utc);
+        var firstDelayStarted = NewSignal();
+        var releaseFirstDelay = NewSignal();
+        var delayCalls = 0;
+
+        async Task ControlledDelay(
+            TimeSpan delay,
+            CancellationToken cancellationToken)
+        {
+            if (Interlocked.Increment(ref delayCalls) == 1)
+            {
+                Assert.Equal(TimeSpan.FromMilliseconds(1200), delay);
+                firstDelayStarted.TrySetResult();
+                await releaseFirstDelay.Task.WaitAsync(cancellationToken);
+                return;
+            }
+
+            await Task.Delay(
+                Timeout.InfiniteTimeSpan,
+                cancellationToken);
+        }
+
+        var device = new TestDevice(
+            CreateRepository("filler", duration: 1200, loop: true))
+        {
+            UtcNowBehavior = () => now,
+            PlaybackDelayBehavior = ControlledDelay
+        };
+
+        try
+        {
+            await device.PlayGallery("filler");
+            await WaitAsync(firstDelayStarted.Task);
+
+            now = now.AddMilliseconds(1325);
+            releaseFirstDelay.TrySetResult();
+
+            var loop = await device.WaitForCommandAsync(
+                command => command.Kind == DeviceCommandKind.Play,
+                occurrence: 2);
+
+            Assert.Equal(125, loop.Seek);
+        }
+        finally
+        {
+            releaseFirstDelay.TrySetResult();
+            await device.Stop();
+        }
+    }
+
+    [Fact]
     public async Task StopGalleryReceivesUsableToken()
     {
         var device = new TestDevice(CreateRepository("scene"));
@@ -255,10 +309,13 @@ internal enum DeviceCommandKind
 internal sealed record DeviceCommand(
     DeviceCommandKind Kind,
     string? GalleryName = null,
+    long Seek = 0,
     bool TokenWasCancelled = false);
 
 internal sealed class TestDevice(TestGalleryRepository repository)
-    : DeviceBase<TestGalleryRepository, TestGallery>(repository, NullLogger.Instance)
+    : DeviceBase<TestGalleryRepository, TestGallery>(
+        repository,
+        NullLogger.Instance)
 {
     private readonly object commandLock = new();
     private readonly List<DeviceCommand> commands = [];
@@ -266,6 +323,8 @@ internal sealed class TestDevice(TestGalleryRepository repository)
 
     public Func<TestGallery, long, CancellationToken, Task>? PlayBehavior { get; set; }
     public Func<Task>? ApplyRangeBehavior { get; set; }
+    public Func<DateTime>? UtcNowBehavior { get; set; }
+    public Func<TimeSpan, CancellationToken, Task>? PlaybackDelayBehavior { get; set; }
     public int SetVariantCalls { get; private set; }
 
     public IReadOnlyList<DeviceCommand> Commands
@@ -290,6 +349,7 @@ internal sealed class TestDevice(TestGalleryRepository repository)
         Record(new(
             DeviceCommandKind.Play,
             gallery.Name,
+            seek,
             cancellationToken.IsCancellationRequested));
         return PlayBehavior?.Invoke(gallery, seek, cancellationToken)
                ?? Task.CompletedTask;
@@ -311,6 +371,15 @@ internal sealed class TestDevice(TestGalleryRepository repository)
 
     internal override void SetVariant()
         => SetVariantCalls++;
+
+    internal override DateTime GetUtcNow()
+        => UtcNowBehavior?.Invoke() ?? base.GetUtcNow();
+
+    internal override Task PlaybackDelay(
+        TimeSpan delay,
+        CancellationToken cancellationToken)
+        => PlaybackDelayBehavior?.Invoke(delay, cancellationToken)
+           ?? base.PlaybackDelay(delay, cancellationToken);
 
     public async Task<DeviceCommand> WaitForCommandAsync(
         Func<DeviceCommand, bool> predicate,

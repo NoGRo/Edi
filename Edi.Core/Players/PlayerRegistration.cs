@@ -1,9 +1,4 @@
 ﻿using Microsoft.Extensions.DependencyInjection;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace Edi.Core.Players
 {
@@ -13,10 +8,14 @@ namespace Edi.Core.Players
         {
             services.AddSingleton<IPlayerChannels, MultiChannelPlayer>();
             services.AddSingleton(sp => new ChannelManager<IPlayer>(
-                        () => sp.GetRequiredService<ReactionGalleryFillerPlayer>()// Default player for new channels
+                        () => new IPlayer[] {
+                            sp.GetRequiredService<ReactionGalleryFillerPlayer>(), // Default player for new channels 
+                            sp.GetRequiredService<OBSPlayer>()
+                        }
                     ));
 
             services.AddTransient<ReactionGalleryFillerPlayer>();
+            services.AddSingleton<OBSPlayer>();
             services.AddTransient<DevicePlayer>();
            
             services.AddSingleton<SyncPlaybackFactory>();

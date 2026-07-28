@@ -20,5 +20,6 @@ namespace Edi.Core
         public string ExecuteOnReady { get; set; } = "";
         public bool UseHttps { get; set; } = false;
         public bool UseLogs { get; set; } = false;
+        public bool UseObsChapterGenerator { get; set; } = false;
     }
 }

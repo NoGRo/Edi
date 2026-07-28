@@ -2,8 +2,8 @@
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="Preview Player"
-        Height="720"
-        Width="520"
+        Height="713"
+        Width="189"
         ResizeMode="CanResize"
         WindowStyle="SingleBorderWindow"
         WindowStartupLocation="Manual"
@@ -13,7 +13,7 @@
     <Grid Margin="10">
         <Grid.RowDefinitions>
             <RowDefinition Height="*"/>
-            <RowDefinition Height="168"/>
+            <RowDefinition Height="190"/>
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
@@ -31,10 +31,11 @@
                 Padding="0,6,0,2">
             <Grid>
                 <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="70"/>
+                    <ColumnDefinition Width="90"/>
                     <ColumnDefinition Width="*"/>
                 </Grid.ColumnDefinitions>
                 <Grid.RowDefinitions>
+                    <RowDefinition Height="22"/>
                     <RowDefinition Height="22"/>
                     <RowDefinition Height="22"/>
                     <RowDefinition Height="22"/>
@@ -57,14 +58,17 @@
                 <TextBlock Grid.Row="3" Text="Seek:" FontWeight="Bold"/>
                 <TextBlock Grid.Row="3" Grid.Column="1"
                            Text="{Binding SimulatorDevice.GallerySeek}"/>
-                <TextBlock Grid.Row="4" Text="Duration:" FontWeight="Bold"/>
+                <TextBlock Grid.Row="4" Text="Current time:" FontWeight="Bold"/>
                 <TextBlock Grid.Row="4" Grid.Column="1"
-                           Text="{Binding SimulatorDevice.GalleryDuration}"/>
-                <TextBlock Grid.Row="5" Text="Channel:" FontWeight="Bold"/>
+                           Text="{Binding SimulatorDevice.GalleryCurrentTime}"/>
+                <TextBlock Grid.Row="5" Text="Duration:" FontWeight="Bold"/>
                 <TextBlock Grid.Row="5" Grid.Column="1"
-                           Text="{Binding SimulatorDevice.Channel, TargetNullValue=-}"/>
-                <TextBlock Grid.Row="6" Text="Variant:" FontWeight="Bold"/>
+                           Text="{Binding SimulatorDevice.GalleryDuration}"/>
+                <TextBlock Grid.Row="6" Text="Channel:" FontWeight="Bold"/>
                 <TextBlock Grid.Row="6" Grid.Column="1"
+                           Text="{Binding SimulatorDevice.Channel, TargetNullValue=-}"/>
+                <TextBlock Grid.Row="7" Text="Variant:" FontWeight="Bold"/>
+                <TextBlock Grid.Row="7" Grid.Column="1"
                            Text="{Binding SimulatorDevice.SelectedVariant, TargetNullValue=-}"/>
             </Grid>
         </Border>

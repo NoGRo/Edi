@@ -25,4 +25,20 @@ public class PreviewDeviceTests
         Assert.Equal(expected, result);
     }
 
+    [Theory]
+    [InlineData(0, "00:00:00.000")]
+    [InlineData(1, "00:00:00.001")]
+    [InlineData(61_234, "00:01:01.234")]
+    [InlineData(3_661_007, "01:01:01.007")]
+    [InlineData(97_200_005, "27:00:00.005")]
+    [InlineData(-1, "00:00:00.000")]
+    public void FormatTimeUsesHoursMinutesSecondsAndMilliseconds(
+        long milliseconds,
+        string expected)
+    {
+        var result = PreviewDevice.FormatTime(milliseconds);
+
+        Assert.Equal(expected, result);
+    }
+
 }

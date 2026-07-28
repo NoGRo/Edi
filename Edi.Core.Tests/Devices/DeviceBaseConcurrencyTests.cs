@@ -129,8 +129,14 @@ public class DeviceBaseConcurrencyTests
         }
     }
 
-    [Fact]
-    public async Task LoopPreservesTimerOvershootAsNextSeek()
+    [Theory]
+    [InlineData(1325, 125)]
+    [InlineData(1200, 0)]
+    [InlineData(1199, 0)]
+    [InlineData(1100, 0)]
+    public async Task LoopUsesZeroBeforeBoundaryAndOvershootAfterBoundary(
+        int elapsedMilliseconds,
+        int expectedSeek)
     {
         var now = new DateTime(
             2026, 7, 28, 12, 0, 0, DateTimeKind.Utc);
@@ -167,14 +173,14 @@ public class DeviceBaseConcurrencyTests
             await device.PlayGallery("filler");
             await WaitAsync(firstDelayStarted.Task);
 
-            now = now.AddMilliseconds(1325);
+            now = now.AddMilliseconds(elapsedMilliseconds);
             releaseFirstDelay.TrySetResult();
 
             var loop = await device.WaitForCommandAsync(
                 command => command.Kind == DeviceCommandKind.Play,
                 occurrence: 2);
 
-            Assert.Equal(125, loop.Seek);
+            Assert.Equal(expectedSeek, loop.Seek);
         }
         finally
         {

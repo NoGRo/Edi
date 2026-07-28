@@ -63,7 +63,7 @@ namespace Edi.Core.Device
                 if (gallery == null || duration <= 0)
                     return 0;
 
-                var elapsed = (long)(GetUtcNow() - SyncSend).TotalMilliseconds + SeekTime;
+                var elapsed = ElapsedPlaybackTime;
                 return gallery.Loop
                     ? (int)((elapsed % duration + duration) % duration)
                     : (int)Math.Clamp(elapsed, 0, duration);
@@ -257,7 +257,11 @@ namespace Edi.Core.Device
                 if (shouldLoop)
                 {
                     var (nextSource, nextToken, nextTask) =
-                        StartPlayback(gallery, CurrentTime);
+                        StartPlayback(
+                            gallery,
+                            NormalizeLoopSeek(
+                                ElapsedPlaybackTime,
+                                gallery.Duration));
                     nextLifecycle = MonitorPlayback(
                         version,
                         gallery,
@@ -280,6 +284,16 @@ namespace Edi.Core.Device
             if (nextLifecycle != null)
                 Observe(nextLifecycle, $"monitoring loop '{gallery.Name}'");
         }
+
+        private static int NormalizeLoopSeek(
+            long elapsedTime,
+            int duration)
+            => duration <= 0 || elapsedTime < duration
+                ? 0
+                : (int)(elapsedTime % duration);
+
+        private long ElapsedPlaybackTime =>
+            (long)(GetUtcNow() - SyncSend).TotalMilliseconds + SeekTime;
 
         private void CancelActiveTask()
         {

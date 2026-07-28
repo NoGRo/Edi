@@ -55,6 +55,7 @@ namespace Edi.Core.Device.Simulator
         public string GalleryLoop { get; set; } = "-";
         public string GallerySeek { get; set; } = "-";
         public string GalleryDuration { get; set; } = "-";
+        public string GalleryCurrentTime { get; set; } = FormatTime(0);
 
         private const int REFRESH_RATE_MS = 16; // ~60 FPS (1000ms / 60 ≈ 16.67ms)
 
@@ -96,7 +97,7 @@ namespace Edi.Core.Device.Simulator
                 CurrentCmd = cmds[currentCmdIndex];
 
                 // Calcular posición interpolada
-                await UpdateProgressBar();
+                UpdateProgressBar();
 
                 try
                 {
@@ -115,21 +116,23 @@ namespace Edi.Core.Device.Simulator
                 catch (TaskCanceledException)
                 {
                     _logger.LogWarning($"PlayGallery canceled for Simulator: {Name}");
-                    ProgressValue = 0;
+                    ResetProgress();
                     return;
                 }
             }
 
-            ProgressValue = 0; // Resetear al finalizar
+            ResetProgress();
             _logger.LogInformation($"PlayGallery completed for Simulator: {Name}");
         }
 
-        private async Task UpdateProgressBar()
+        private void UpdateProgressBar()
         {
             if (CurrentCmd == null) return;
 
+            var currentTime = CurrentTime;
+
             // Calcular la posición interpolada basada en el tiempo actual
-            double progress = (CurrentTime - (CurrentCmd.AbsoluteTime - CurrentCmd.Millis)) / (double)CurrentCmd.Millis;
+            double progress = (currentTime - (CurrentCmd.AbsoluteTime - CurrentCmd.Millis)) / (double)CurrentCmd.Millis;
             progress = Math.Clamp(progress, 0, 1);
 
             // Interpolar entre la posición anterior y la actual
@@ -139,6 +142,7 @@ namespace Edi.Core.Device.Simulator
 
             // Actualizar el valor del progress bar (0-100)
             ProgressValue = ScalePosition(interpolatedPosition, Min, Max);
+            GalleryCurrentTime = FormatTime(currentTime);
 
             lastUpdateAt = DateTime.Now;
         }
@@ -150,6 +154,17 @@ namespace Edi.Core.Device.Simulator
             return (int)Math.Round(scaledPosition);
         }
 
+        internal static string FormatTime(long milliseconds)
+        {
+            var totalMilliseconds = Math.Max(0, milliseconds);
+            var hours = totalMilliseconds / 3_600_000;
+            var minutes = totalMilliseconds / 60_000 % 60;
+            var seconds = totalMilliseconds / 1_000 % 60;
+            var remainingMilliseconds = totalMilliseconds % 1_000;
+
+            return $"{hours:00}:{minutes:00}:{seconds:00}.{remainingMilliseconds:000}";
+        }
+
         private void SetGalleryInfo(FunscriptGallery gallery, long seek)
         {
             if (gallery == null)
@@ -159,6 +174,7 @@ namespace Edi.Core.Device.Simulator
                 GalleryLoop = "-";
                 GallerySeek = "-";
                 GalleryDuration = "-";
+                GalleryCurrentTime = FormatTime(0);
                 return;
             }
 
@@ -166,15 +182,22 @@ namespace Edi.Core.Device.Simulator
             GalleryName = gallery.Name;
             GalleryType = definition?.Type ?? "gallery";
             GalleryLoop = gallery.Loop ? "Yes" : "No";
-            GallerySeek = $"{seek} ms";
-            GalleryDuration = $"{gallery.Duration} ms";
+            GallerySeek = FormatTime(seek);
+            GalleryDuration = FormatTime(gallery.Duration);
+            GalleryCurrentTime = FormatTime(seek);
         }
 
         public override async Task StopGallery()
         {
             _logger.LogInformation($"Stopping gallery playback for Simulator: {Name}");
-            ProgressValue = 0;
+            ResetProgress();
             await Task.CompletedTask;
+        }
+
+        private void ResetProgress()
+        {
+            ProgressValue = 0;
+            GalleryCurrentTime = FormatTime(0);
         }
     }
 }

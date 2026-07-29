@@ -23,7 +23,7 @@
                      VerticalAlignment="Stretch"
                      Margin="12,8"
                      Orientation="Vertical"
-                     Value="{Binding SimulatorDevice.ProgressValue}"/>
+                     Value="{Binding DisplayDevice.ProgressValue}"/>
 
         <Border Grid.Row="1"
                 BorderBrush="#DDD"
@@ -47,23 +47,23 @@
 
                 <TextBlock Grid.Row="0" Text="Name:" FontWeight="Bold"/>
                 <TextBlock Grid.Row="0" Grid.Column="1"
-                           Text="{Binding SimulatorDevice.GalleryName}"
+                           Text="{Binding DisplayDevice.GalleryName}"
                            TextTrimming="CharacterEllipsis"/>
                 <TextBlock Grid.Row="1" Text="Type:" FontWeight="Bold"/>
                 <TextBlock Grid.Row="1" Grid.Column="1"
-                           Text="{Binding SimulatorDevice.GalleryType}"/>
+                           Text="{Binding DisplayDevice.GalleryType}"/>
                 <TextBlock Grid.Row="2" Text="Loop:" FontWeight="Bold"/>
                 <TextBlock Grid.Row="2" Grid.Column="1"
-                           Text="{Binding SimulatorDevice.GalleryLoop}"/>
+                           Text="{Binding DisplayDevice.GalleryLoop}"/>
                 <TextBlock Grid.Row="3" Text="Seek:" FontWeight="Bold"/>
                 <TextBlock Grid.Row="3" Grid.Column="1"
-                           Text="{Binding SimulatorDevice.GallerySeek}"/>
+                           Text="{Binding DisplayDevice.GallerySeek}"/>
                 <TextBlock Grid.Row="4" Text="Current time:" FontWeight="Bold"/>
                 <TextBlock Grid.Row="4" Grid.Column="1"
-                           Text="{Binding SimulatorDevice.GalleryCurrentTime}"/>
+                           Text="{Binding DisplayDevice.GalleryCurrentTime}"/>
                 <TextBlock Grid.Row="5" Text="Duration:" FontWeight="Bold"/>
                 <TextBlock Grid.Row="5" Grid.Column="1"
-                           Text="{Binding SimulatorDevice.GalleryDuration}"/>
+                           Text="{Binding DisplayDevice.GalleryDuration}"/>
                 <Grid x:Name="PreviewChannelRow"
                       Grid.Row="6"
                       Grid.ColumnSpan="2"
@@ -74,11 +74,11 @@
                     </Grid.ColumnDefinitions>
                     <TextBlock Text="Channel:" FontWeight="Bold"/>
                     <TextBlock Grid.Column="1"
-                               Text="{Binding SimulatorDevice.Channel, TargetNullValue=-}"/>
+                               Text="{Binding DisplayDevice.Channel, TargetNullValue=-}"/>
                 </Grid>
                 <TextBlock Grid.Row="7" Text="Variant:" FontWeight="Bold"/>
                 <TextBlock Grid.Row="7" Grid.Column="1"
-                           Text="{Binding SimulatorDevice.SelectedVariant, TargetNullValue=-}"/>
+                           Text="{Binding DisplayDevice.SelectedVariant, TargetNullValue=-}"/>
             </Grid>
         </Border>
 

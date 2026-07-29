@@ -69,6 +69,8 @@ public partial class SimulateGame : Window, INotifyPropertyChanged
     public event PropertyChangedEventHandler? PropertyChanged;
 
     public PreviewDevice SimulatorDevice { get; private set; }
+    public SimulatorDevice DisplayDevice =>
+        (SimulatorDevice?)SelectedRecorderSlot?.Device ?? SimulatorDevice;
     public ObservableCollection<RecorderSlot> RecorderSlots { get; } = [];
     public ObservableCollection<string> Channels { get; } = [];
     public ObservableCollection<string> Variants { get; } = [];
@@ -82,6 +84,7 @@ public partial class SimulateGame : Window, INotifyPropertyChanged
                 return;
             selectedRecorderSlot = value;
             OnPropertyChanged();
+            OnPropertyChanged(nameof(DisplayDevice));
         }
     }
 
@@ -157,6 +160,7 @@ public partial class SimulateGame : Window, INotifyPropertyChanged
         if (RecorderSlots.Count == 0)
             AddRecorderSlot();
 
+        SelectedRecorderSlot = RecorderSlots[0];
         CanEditRecorders = false;
         StartRecordingButton.IsEnabled = false;
 
@@ -180,6 +184,8 @@ public partial class SimulateGame : Window, INotifyPropertyChanged
                 slot.Device = recorder;
                 slot.OutputFilePath = outputPath;
                 slot.Status = "Recording";
+                if (ReferenceEquals(slot, SelectedRecorderSlot))
+                    OnPropertyChanged(nameof(DisplayDevice));
             }
 
             StopRecordingButton.IsEnabled = true;
@@ -248,6 +254,8 @@ public partial class SimulateGame : Window, INotifyPropertyChanged
             {
                 deviceCollector.UnloadDevice(recorder);
                 slot.Device = null;
+                if (ReferenceEquals(slot, SelectedRecorderSlot))
+                    OnPropertyChanged(nameof(DisplayDevice));
             }
         }
 

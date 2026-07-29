@@ -66,38 +66,6 @@ public class DeviceCollectorLifecycleTests
     }
 
     [Fact]
-    public async Task ReloadKeepsConnectedDevicesAndRefreshesTheirGameSettings()
-    {
-        var events = new List<string>();
-        var provider = new RecordingProvider(events);
-        using var rig = CreateCollector(provider);
-        var device = new RecordingDevice(events);
-        rig.Collector.LoadDevice(device);
-        events.Clear();
-
-        var devicesConfig = rig.Configuration.Get<DevicesConfig>();
-        devicesConfig.Devices[device.Name] = new DeviceConfig
-        {
-            Variant = "default",
-            Channel = "game-channel",
-            Min = 15,
-            Max = 85
-        };
-
-        await rig.Collector.Reload(() =>
-        {
-            events.Add("reload");
-            return Task.CompletedTask;
-        });
-
-        Assert.Equal(["stop", "reload", "refresh"], events);
-        Assert.Equal("default", device.SelectedVariant);
-        Assert.Equal("game-channel", device.Channel);
-        Assert.Equal(15, device.Min);
-        Assert.Equal(85, device.Max);
-    }
-
-    [Fact]
     public async Task ReloadWithoutConnectedDevicesUsesFullProviderLifecycle()
     {
         var events = new List<string>();

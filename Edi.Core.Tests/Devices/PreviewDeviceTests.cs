@@ -41,7 +41,7 @@ public class PreviewDeviceTests
         int max,
         int expected)
     {
-        var result = PreviewDevice.ScalePosition(position, min, max);
+        var result = SimulatorDevice.ScalePosition(position, min, max);
 
         Assert.Equal(expected, result);
     }
@@ -57,9 +57,18 @@ public class PreviewDeviceTests
         long milliseconds,
         string expected)
     {
-        var result = PreviewDevice.FormatTime(milliseconds);
+        var result = SimulatorDevice.FormatTime(milliseconds);
 
         Assert.Equal(expected, result);
+    }
+
+    [Fact]
+    public void RecorderDevicesAreHiddenFromTheMainDeviceGrid()
+    {
+        Assert.True(
+            typeof(IHiddenDevice).IsAssignableFrom(typeof(RecorderDevice)));
+        Assert.True(
+            typeof(SimulatorDevice).IsAssignableFrom(typeof(RecorderDevice)));
     }
 
 }

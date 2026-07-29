@@ -8,8 +8,8 @@
         Title="Edi Launcher"
         Height="670"
         Width="900"
-        MinHeight="260"
-        MinWidth="850"
+        MinHeight="230"
+        MinWidth="650"
         ResizeMode="CanResize">
 
     <Window.Resources>

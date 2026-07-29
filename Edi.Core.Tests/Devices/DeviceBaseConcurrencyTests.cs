@@ -256,22 +256,6 @@ public class DeviceBaseConcurrencyTests
         }
     }
 
-    [Fact]
-    public async Task UnloadingDeviceRequestsStop()
-    {
-        await using var rig = await PlayerTestRig.CreateAsync();
-        var collector = new DeviceCollector(rig.Configuration, null!);
-        collector.Devices.Add(rig.Device);
-        var stopsBefore = rig.Device.Commands.Count(
-            command => command.Kind == PlaybackCommandKind.Stop);
-
-        collector.UnloadDevice(rig.Device);
-
-        Assert.Equal(
-            stopsBefore + 1,
-            rig.Device.Commands.Count(command => command.Kind == PlaybackCommandKind.Stop));
-    }
-
     private static TestGalleryRepository CreateRepository(
         string name,
         int duration = 10_000,

@@ -3,6 +3,7 @@ using Edi.Core.Device;
 using NAudio.Wave;
 using System;
 using System.Collections.Generic;
+using System.Collections.ObjectModel;
 using System.Diagnostics;
 using System.Globalization;
 using System.IO.Ports;
@@ -69,7 +70,7 @@ namespace Edi.Forms
                 estimConfig = estimConfig,
                 osrConfig = osrConfig,
                 gamesConfig = gamesConfig,
-                devices = edi.Devices,
+                devices = GetVisibleDevices(),
                 channels = edi.Player.Channels,
                 galleries = galleries,
             };
@@ -181,7 +182,7 @@ namespace Edi.Forms
             }
             audioDevicesComboBox.ItemsSource = audios;
             loadOSRPorts();
-            DevicesGrid.ItemsSource = edi.Devices;
+            DevicesGrid.ItemsSource = GetVisibleDevices();
         }
 
         private void loadOSRPorts()
@@ -213,7 +214,7 @@ namespace Edi.Forms
             await Task.Delay(1000);
             await Dispatcher.InvokeAsync(() =>
             {
-                DevicesGrid.ItemsSource = edi.Devices;
+                DevicesGrid.ItemsSource = GetVisibleDevices();
 
                 //DevicesGrid.Items.Refresh();
             });
@@ -226,7 +227,7 @@ namespace Edi.Forms
 
             await Dispatcher.InvokeAsync(() =>
             {
-                DevicesGrid.ItemsSource = edi.Devices;
+                DevicesGrid.ItemsSource = GetVisibleDevices();
                 //DevicesGrid.Items.Refresh();
             });
         }
@@ -259,6 +260,9 @@ namespace Edi.Forms
                 ShowGameEditor(null, selectedPath);
             }
         }
+
+        private ObservableCollection<IDevice> GetVisibleDevices()
+            => new(edi.Devices.Where(device => device is not IHiddenDevice));
 
         private void EditGameButton_Click(
             object sender,

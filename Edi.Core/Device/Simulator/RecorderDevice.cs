@@ -1,5 +1,6 @@
 using Edi.Core.Device.Interfaces;
 using Edi.Core.Funscript.FileJson;
+using Edi.Core.Gallery.Definition;
 using Edi.Core.Gallery.Funscript;
 using Microsoft.Extensions.Logging;
 using Newtonsoft.Json;
@@ -9,7 +10,7 @@ using System.Text;
 namespace Edi.Core.Device.Simulator;
 
 [AddINotifyPropertyChangedInterface]
-public class RecorderDevice : DeviceBase<FunscriptRepository, FunscriptGallery>, IRange
+public class RecorderDevice : SimulatorDevice, IRange, IHiddenDevice
 {
     private static readonly TimeSpan FlushInterval = TimeSpan.FromSeconds(2);
 
@@ -26,9 +27,10 @@ public class RecorderDevice : DeviceBase<FunscriptRepository, FunscriptGallery>,
 
     public RecorderDevice(
         FunscriptRepository repository,
+        DefinitionRepository definitionRepository,
         ILogger<RecorderDevice> logger,
         TimeProvider timeProvider = null)
-        : base(repository, logger)
+        : base(repository, definitionRepository, logger)
     {
         this.logger = logger;
         this.timeProvider = timeProvider ?? TimeProvider.System;
@@ -38,9 +40,6 @@ public class RecorderDevice : DeviceBase<FunscriptRepository, FunscriptGallery>,
     public bool IsRecording { get; private set; }
     public string OutputFilePath { get; private set; }
     public int RecordedActionCount { get; private set; }
-
-    public override string DefaultVariant()
-        => Variants.FirstOrDefault() ?? base.DefaultVariant();
 
     public string StartRecording(string outputFilePath = null)
     {
@@ -117,7 +116,10 @@ public class RecorderDevice : DeviceBase<FunscriptRepository, FunscriptGallery>,
             OutputFilePath);
     }
 
-    public override Task PlayGallery(FunscriptGallery gallery, long seek = 0)
+    protected override Task PlayGallery(
+        FunscriptGallery gallery,
+        long seek,
+        CancellationToken cancellationToken)
     {
         lock (recordingLock)
         {
@@ -132,10 +134,10 @@ public class RecorderDevice : DeviceBase<FunscriptRepository, FunscriptGallery>,
             }
         }
 
-        return Task.CompletedTask;
+        return base.PlayGallery(gallery, seek, cancellationToken);
     }
 
-    public override Task StopGallery()
+    public override async Task StopGallery()
     {
         lock (recordingLock)
         {
@@ -143,7 +145,7 @@ public class RecorderDevice : DeviceBase<FunscriptRepository, FunscriptGallery>,
                 timeline.StopSegment(ElapsedMilliseconds());
         }
 
-        return Task.CompletedTask;
+        await base.StopGallery();
     }
 
     internal override Task applyRange()

@@ -150,7 +150,10 @@ This section controls auto-repeat and timing between galleries. All values are i
 #### `Edi` Section
 
 - Toggle active gallery types: `Filler`, `Gallery`, `Reactive`
-- `ExecuteOnReady`: launches the game when EDI is ready.
+- `ExecuteOnReady`: game executable or URL. Relative executable paths are resolved from the
+  folder containing that game's `EdiConfig.json`.
+- `AutoLaunch`: automatically launches `ExecuteOnReady` when a device is ready. Defaults to
+  `false`, so each game must first be launched manually or explicitly opted into auto launch.
 - `UseHttps`, `UseLogs`: debugging and security options.
 
 #### `Devices` Section

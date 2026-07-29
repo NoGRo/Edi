@@ -353,6 +353,22 @@
                 </StackPanel>
                 <StackPanel Grid.Column="1" Orientation="Horizontal">
                     <Label Foreground="Blue" Content="API Documentation (Swagger)" Cursor="Hand" MouseDoubleClick="Label_MouseDoubleClick" ToolTip="Double-click to open API documentation in browser" Margin="0,0,10,0" VerticalAlignment="Center"/>
+                    <StackPanel Orientation="Horizontal"
+                                VerticalAlignment="Center"
+                                Margin="0,0,6,0">
+                        <Button x:Name="btnLaunch"
+                                Content="Launch"
+                                Width="78"
+                                Height="27"
+                                IsEnabled="False"
+                                Click="btnLaunch_Click"
+                                ToolTip="Launch the configured game (requires a ready device)"/>
+                        <CheckBox Content="Auto"
+                                  Margin="7,0,0,0"
+                                  VerticalAlignment="Center"
+                                  IsChecked="{Binding config.AutoLaunch, Mode=TwoWay}"
+                                  ToolTip="Automatically launch this game when a device becomes ready"/>
+                    </StackPanel>
                     <Button Content="🛠" Width="25" x:Name="btnOpenOutput" Click="btnOpenOutput_Click" ToolTip="Open configuration/log directory"/>
                 </StackPanel>
             </Grid>

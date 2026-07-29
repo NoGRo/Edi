@@ -6,6 +6,7 @@
     "UseChannels": false,
     "Channels": [],
     "ExecuteOnReady": "",
+    "AutoLaunch": false,
     "UseHttps": false,
     "UseLogs": false,
     "UseObsChapterGenerator": false

@@ -18,6 +18,7 @@ namespace Edi.Core
         public bool UseChannels { get; set; } = false;
         public IEnumerable<string> Channels { get; set; } = [];
         public string ExecuteOnReady { get; set; } = "";
+        public bool AutoLaunch { get; set; } = false;
         public bool UseHttps { get; set; } = false;
         public bool UseLogs { get; set; } = false;
         public bool UseObsChapterGenerator { get; set; } = false;

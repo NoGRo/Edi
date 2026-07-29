@@ -123,6 +123,69 @@ public class HandyProviderReconnectTests
     }
 
     [Fact]
+    public async Task RefreshRecreatesDeviceWithoutReleasingBluetoothClient()
+    {
+        var client = new FakeHandyClient("same-device");
+        var discovery = new QueueDiscovery(
+            [client],
+            []);
+        await using var rig = await ProviderRig.CreateAsync(discovery);
+
+        await rig.Provider.Init();
+        var originalDevice = Assert.Single(rig.Collector.Devices);
+
+        await rig.Provider.Refresh();
+
+        var refreshedDevice = Assert.Single(rig.Collector.Devices);
+        Assert.NotSame(originalDevice, refreshedDevice);
+        Assert.False(client.WasDisposed);
+        Assert.Equal([0, 0], discovery.ExpectedDeviceCounts);
+    }
+
+    [Fact]
+    public async Task RefreshRetainsEveryConnectedBluetoothClient()
+    {
+        var firstClient = new FakeHandyClient("first-device");
+        var secondClient = new FakeHandyClient("second-device");
+        var discovery = new QueueDiscovery(
+            [firstClient, secondClient],
+            []);
+        await using var rig = await ProviderRig.CreateAsync(discovery);
+
+        await rig.Provider.Init();
+        await rig.Provider.Refresh();
+
+        Assert.Equal(2, rig.Collector.Devices.Count);
+        Assert.False(firstClient.WasDisposed);
+        Assert.False(secondClient.WasDisposed);
+    }
+
+    [Fact]
+    public async Task RefreshReplacesOnlyRetainedClientThatNoLongerResponds()
+    {
+        var staleClient = new FakeHandyClient(
+            "stale-device",
+            failOffset: true);
+        var healthyClient = new FakeHandyClient("healthy-device");
+        var replacementClient = new FakeHandyClient("stale-device");
+        var discovery = new QueueDiscovery(
+            [staleClient, healthyClient],
+            [replacementClient]);
+        await using var rig = await ProviderRig.CreateAsync(discovery);
+
+        staleClient.FailOffset = false;
+        await rig.Provider.Init();
+        staleClient.FailOffset = true;
+
+        await rig.Provider.Refresh();
+
+        Assert.True(staleClient.WasDisposed);
+        Assert.False(healthyClient.WasDisposed);
+        Assert.False(replacementClient.WasDisposed);
+        Assert.Equal(2, rig.Collector.Devices.Count);
+    }
+
+    [Fact]
     public async Task ExplicitDisconnectRetriesUntilBluetoothDeviceReturns()
     {
         var firstClient = new FakeHandyClient("same-device");
@@ -144,6 +207,111 @@ public class HandyProviderReconnectTests
             device => Assert.Equal(
                 replacementClient.DisplayName,
                 device.Name));
+    }
+
+    [Fact]
+    public async Task ExplicitDisconnectReleasesBluetoothClientsConcurrently()
+    {
+        var releaseDisposals = NewCompletion();
+        var firstClient = new FakeHandyClient(
+            "first-device",
+            releaseDisposals.Task);
+        var secondClient = new FakeHandyClient(
+            "second-device",
+            releaseDisposals.Task);
+        var discovery = new QueueDiscovery(
+            [firstClient, secondClient]);
+        await using var rig = await ProviderRig.CreateAsync(discovery);
+        await rig.Provider.Init();
+
+        var disconnect = rig.Provider.Disconnect();
+        await Task.WhenAll(
+                firstClient.DisposeStarted.Task,
+                secondClient.DisposeStarted.Task)
+            .WaitAsync(
+                TimeSpan.FromSeconds(3),
+                TestContext.Current.CancellationToken);
+
+        Assert.False(disconnect.IsCompleted);
+        releaseDisposals.SetResult();
+        await disconnect;
+
+        Assert.True(firstClient.WasDisposed);
+        Assert.True(secondClient.WasDisposed);
+    }
+
+    [Fact]
+    public async Task IntentionalReconnectWaitsForEveryKnownBluetoothHandy()
+    {
+        var firstClient = new FakeHandyClient("first-device");
+        var secondClient = new FakeHandyClient("second-device");
+        var firstReplacement = new FakeHandyClient(
+            "first-replacement");
+        var secondReplacement = new FakeHandyClient(
+            "second-replacement");
+        var discovery = new QueueDiscovery(
+            [firstClient, secondClient],
+            [firstReplacement, secondReplacement]);
+        await using var rig = await ProviderRig.CreateAsync(discovery);
+
+        await rig.Provider.Init();
+        await rig.Provider.Disconnect();
+        await rig.Provider.Init();
+
+        Assert.Equal([0, 2], discovery.ExpectedDeviceCounts);
+        Assert.Equal(2, rig.Collector.Devices.Count);
+        Assert.True(firstClient.WasDisposed);
+        Assert.True(secondClient.WasDisposed);
+        Assert.False(firstReplacement.WasDisposed);
+        Assert.False(secondReplacement.WasDisposed);
+    }
+
+    [Fact]
+    public async Task BluetoothDropRetriesUntilDeviceAdvertisesAgain()
+    {
+        var firstClient = new FakeHandyClient("same-device");
+        var replacementClient = new FakeHandyClient("same-device");
+        var discovery = new CountingQueueDiscovery(
+            [firstClient],
+            [],
+            [replacementClient]);
+        await using var rig = await ProviderRig.CreateAsync(discovery);
+
+        await rig.Provider.Init();
+        await rig.Provider.ObserveBluetoothDisconnect(firstClient);
+
+        Assert.Equal(3, discovery.Calls);
+        Assert.True(firstClient.WasDisposed);
+        Assert.Collection(
+            rig.Collector.Devices,
+            device => Assert.Equal(
+                replacementClient.DisplayName,
+                device.Name));
+    }
+
+    [Fact]
+    public async Task DroppingOneBluetoothHandyKeepsAndRecoversTheOthers()
+    {
+        var firstClient = new FakeHandyClient("first-device");
+        var secondClient = new FakeHandyClient("second-device");
+        var replacementClient = new FakeHandyClient("first-device");
+        var discovery = new QueueDiscovery(
+            [firstClient, secondClient],
+            [replacementClient]);
+        await using var rig = await ProviderRig.CreateAsync(discovery);
+
+        await rig.Provider.Init();
+        await rig.Provider.ObserveBluetoothDisconnect(firstClient);
+
+        Assert.True(firstClient.WasDisposed);
+        Assert.False(secondClient.WasDisposed);
+        Assert.False(replacementClient.WasDisposed);
+        Assert.Equal(
+            2,
+            rig.Collector.Devices.Count);
+        Assert.Contains(
+            rig.Collector.Devices,
+            device => device.Name == secondClient.DisplayName);
     }
 
     private sealed class BlockingDiscovery : IHandyBluetoothDiscovery
@@ -205,6 +373,8 @@ public class HandyProviderReconnectTests
         private readonly Queue<IReadOnlyList<IHandyClient>> _results =
             new(results);
 
+        public List<int> ExpectedDeviceCounts { get; } = [];
+
         public Task<IReadOnlyList<IHandyClient>> DiscoverAsync(
             TimeSpan timeout,
             CancellationToken cancellationToken)
@@ -212,6 +382,15 @@ public class HandyProviderReconnectTests
                 _results.Count > 0
                     ? _results.Dequeue()
                     : []);
+
+        public Task<IReadOnlyList<IHandyClient>> DiscoverAsync(
+            TimeSpan timeout,
+            int expectedDeviceCount,
+            CancellationToken cancellationToken)
+        {
+            ExpectedDeviceCounts.Add(expectedDeviceCount);
+            return DiscoverAsync(timeout, cancellationToken);
+        }
     }
 
     private sealed class CountingQueueDiscovery(
@@ -235,7 +414,7 @@ public class HandyProviderReconnectTests
         }
     }
 
-    private sealed class FakeHandyClient(string id) : IHandyClient
+    private sealed class FakeHandyClient : IHandyClient
     {
         private static readonly HspState State = new(
             stream_id: 1,
@@ -251,11 +430,26 @@ public class HandyProviderReconnectTests
             tail_point_stream_index: 0,
             tail_point_stream_index_threshold: 0);
 
-        public string Id { get; } = id;
+        private readonly Task? _disposeRelease;
+
+        public FakeHandyClient(
+            string id,
+            Task? disposeRelease = null,
+            bool failOffset = false)
+        {
+            Id = id;
+            _disposeRelease = disposeRelease;
+            FailOffset = failOffset;
+        }
+
+        public string Id { get; }
         public string Key => string.Empty;
         public string DisplayName => "The Handy 2 Pro (BLE)";
         public int MaxPointsPerRequest => 50;
         public bool WasDisposed { get; private set; }
+        public bool FailOffset { get; set; }
+        public TaskCompletionSource DisposeStarted { get; } =
+            NewCompletion();
 
         public event Action<IHandyClient> Disconnected = delegate { };
 
@@ -295,12 +489,18 @@ public class HandyProviderReconnectTests
         public Task SetOffset(
             int offset,
             CancellationToken cancellationToken)
-            => Task.CompletedTask;
+            => FailOffset
+                ? Task.FromException(
+                    new InvalidOperationException(
+                        "The simulated GATT connection is stale."))
+                : Task.CompletedTask;
 
-        public ValueTask DisposeAsync()
+        public async ValueTask DisposeAsync()
         {
             WasDisposed = true;
-            return ValueTask.CompletedTask;
+            DisposeStarted.TrySetResult();
+            if (_disposeRelease is not null)
+                await _disposeRelease;
         }
     }
 

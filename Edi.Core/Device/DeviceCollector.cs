@@ -46,6 +46,22 @@ namespace Edi.Core.Device
             }
         }
 
+        public async Task Refresh()
+        {
+            await lifecycleLock.WaitAsync();
+            try
+            {
+                EnsureProviders();
+                var refreshTasks =
+                    Providers.Select(provider => provider.Refresh()).ToArray();
+                await Task.WhenAll(refreshTasks);
+            }
+            finally
+            {
+                lifecycleLock.Release();
+            }
+        }
+
         public async Task Reload(Func<Task> reload)
         {
             ArgumentNullException.ThrowIfNull(reload);

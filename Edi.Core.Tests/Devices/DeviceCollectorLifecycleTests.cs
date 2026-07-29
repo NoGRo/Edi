@@ -66,6 +66,18 @@ public class DeviceCollectorLifecycleTests
     }
 
     [Fact]
+    public async Task RefreshUsesProviderRefreshWithoutForcingDisconnect()
+    {
+        var events = new List<string>();
+        var provider = new RecordingProvider(events);
+        using var rig = CreateCollector(provider);
+
+        await rig.Collector.Refresh();
+
+        Assert.Equal(["refresh-provider"], events);
+    }
+
+    [Fact]
     public async Task ReloadWithoutConnectedDevicesUsesFullProviderLifecycle()
     {
         var events = new List<string>();
@@ -115,6 +127,12 @@ public class DeviceCollectorLifecycleTests
         public Task Disconnect()
         {
             events.Add("disconnect");
+            return Task.CompletedTask;
+        }
+
+        public Task Refresh()
+        {
+            events.Add("refresh-provider");
             return Task.CompletedTask;
         }
     }

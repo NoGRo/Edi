@@ -26,7 +26,7 @@ namespace Edi.Core.Device.Handy
     {
 
         private readonly ILogger _logger;
-        private Timer timerReconnect = new Timer(400000);
+        private Timer timerReconnect = new Timer(40000);
         private List<string> Keys = new List<string>();
         private Dictionary<string, IDevice> devices = new Dictionary<string, IDevice>();
         private readonly RepositoryManager _repositoryManager;
@@ -47,7 +47,7 @@ namespace Edi.Core.Device.Handy
         private int _pendingOffset;
         private int _lastAppliedOffset = int.MinValue;
         private int _offsetUpdateWorkerActive;
-        private int _bluetoothReconnectExpected;
+        private int _expectedBluetoothDeviceCount;
 
         public HandyProvider(RepositoryManager repositoryManager,
                              ConfigurationManager config,
@@ -90,15 +90,32 @@ namespace Edi.Core.Device.Handy
             await _connectLock.WaitAsync();
             try
             {
-                if (!_bluetoothClients.IsEmpty)
-                    Volatile.Write(ref _bluetoothReconnectExpected, 1);
-
                 await RemoveAll();
             }
             finally
             {
                 _connectLock.Release();
                 timerReconnect.Stop();
+            }
+        }
+
+        public async Task Refresh()
+        {
+            timerReconnect.Stop();
+            await _connectLock.WaitAsync();
+            try
+            {
+                await RemoveDeviceWrappers();
+                LoadConfiguredKeys();
+
+                var internetTasks = Keys.Select(Connect);
+                await Task.WhenAll(
+                    internetTasks.Append(RefreshBluetooth()));
+            }
+            finally
+            {
+                _connectLock.Release();
+                timerReconnect.Start();
             }
         }
 
@@ -116,15 +133,7 @@ namespace Edi.Core.Device.Handy
             try
             {
                 await RemoveAll();
-
-                // Give Windows and the Handy time to release the previous
-                // GATT session before scanning for the same device again.
-                await Task.Delay(500);
-
-                Keys = (Config.Key ?? string.Empty).Split(',')
-                                 .Where(x => !string.IsNullOrWhiteSpace(x))
-                                 .Select(x => x.Trim())
-                                 .ToList();
+                LoadConfiguredKeys();
 
                 _logger.LogInformation(
                     "Starting initialization with {DeviceCount} device keys.",
@@ -159,19 +168,61 @@ namespace Edi.Core.Device.Handy
                 internetTasks.Append(ConnectBluetooth()));
         }
 
-        private async Task ConnectBluetooth()
+        private async Task RefreshBluetooth()
         {
-            if (!_bluetoothClients.IsEmpty)
-                return;
+            var retainedClients = _bluetoothClients.Values.ToArray();
+            await Task.WhenAll(
+                retainedClients.Select(RefreshBluetoothClient));
 
-            var attempts = Volatile.Read(
-                ref _bluetoothReconnectExpected) != 0
-                    ? 3
-                    : 1;
+            await ConnectBluetooth(scanForNewDevices: true);
+        }
+
+        private async Task RefreshBluetoothClient(IHandyClient client)
+        {
+            try
+            {
+                await LoadBluetoothDevice(client);
+            }
+            catch (Exception ex)
+            {
+                if (_bluetoothClients.TryGetValue(
+                        client.Id,
+                        out var currentClient)
+                    && ReferenceEquals(currentClient, client))
+                {
+                    _bluetoothClients.TryRemove(client.Id, out _);
+                }
+
+                await DisposeBluetoothClient(client);
+                _logger.LogWarning(
+                    ex,
+                    "The retained Bluetooth connection for {DeviceName} " +
+                    "is no longer usable; rediscovering it.",
+                    client.DisplayName);
+            }
+        }
+
+        private async Task ConnectBluetooth(
+            bool scanForNewDevices = false)
+        {
+            var missingDeviceCount = GetMissingBluetoothDeviceCount();
+            if (missingDeviceCount == 0
+                && !_bluetoothClients.IsEmpty
+                && !scanForNewDevices)
+            {
+                return;
+            }
+
+            var attempts = missingDeviceCount > 0 ? 3 : 1;
+            var discoveryTimeout =
+                scanForNewDevices && missingDeviceCount == 0
+                    ? TimeSpan.FromSeconds(2)
+                    : TimeSpan.FromSeconds(8);
             for (var attempt = 1; attempt <= attempts; attempt++)
             {
                 var clients = await _bluetoothDiscovery.DiscoverAsync(
-                    TimeSpan.FromSeconds(8),
+                    discoveryTimeout,
+                    missingDeviceCount,
                     CancellationToken.None);
                 foreach (var client in clients)
                 {
@@ -184,43 +235,7 @@ namespace Edi.Core.Device.Handy
                     client.Disconnected += BluetoothClient_Disconnected;
                     try
                     {
-                        await client.SetOffset(
-                            Config.OffsetMS,
-                            CancellationToken.None);
-                        var funscriptRepository =
-                            await _repositoryManager
-                                .GetRepositoryAsync<FunscriptRepository>();
-                        var handyDevice = new HandyV3Device(
-                            client,
-                            funscriptRepository,
-                            _logger);
-
-                        var added = false;
-                        lock (devices)
-                        {
-                            if (!devices.ContainsKey(client.Id))
-                            {
-                                devices[client.Id] = handyDevice;
-                                added = true;
-                            }
-                        }
-
-                        if (!added)
-                        {
-                            client.Disconnected -=
-                                BluetoothClient_Disconnected;
-                            _bluetoothClients.TryRemove(client.Id, out _);
-                            await client.DisposeAsync();
-                            continue;
-                        }
-
-                        _deviceCollector.LoadDevice(handyDevice);
-                        Volatile.Write(
-                            ref _bluetoothReconnectExpected,
-                            0);
-                        _logger.LogInformation(
-                            "Loaded {DeviceName} from Bluetooth.",
-                            handyDevice.Name);
+                        await LoadBluetoothDevice(client);
                     }
                     catch (Exception ex)
                     {
@@ -235,8 +250,12 @@ namespace Edi.Core.Device.Handy
                     }
                 }
 
-                if (!_bluetoothClients.IsEmpty)
+                missingDeviceCount = GetMissingBluetoothDeviceCount();
+                if (missingDeviceCount == 0
+                    && !_bluetoothClients.IsEmpty)
+                {
                     return;
+                }
 
                 if (attempt < attempts)
                 {
@@ -247,6 +266,40 @@ namespace Edi.Core.Device.Handy
                         attempts);
                 }
             }
+        }
+
+        private async Task LoadBluetoothDevice(IHandyClient client)
+        {
+            lock (devices)
+            {
+                if (devices.ContainsKey(client.Id))
+                    return;
+            }
+
+            await client.SetOffset(
+                Config.OffsetMS,
+                CancellationToken.None);
+            var funscriptRepository =
+                await _repositoryManager
+                    .GetRepositoryAsync<FunscriptRepository>();
+            var handyDevice = new HandyV3Device(
+                client,
+                funscriptRepository,
+                _logger);
+
+            lock (devices)
+            {
+                if (devices.ContainsKey(client.Id))
+                    return;
+
+                devices[client.Id] = handyDevice;
+            }
+
+            _deviceCollector.LoadDevice(handyDevice);
+            RememberBluetoothDeviceCount();
+            _logger.LogInformation(
+                "Loaded {DeviceName} from Bluetooth.",
+                handyDevice.Name);
         }
 
         private async Task Connect(string key)
@@ -346,6 +399,21 @@ namespace Edi.Core.Device.Handy
         private async Task RemoveAll()
         {
             _logger.LogInformation("Removing all devices.");
+            await RemoveDeviceWrappers();
+
+            _clients.Clear();
+            _usesV3Api.Clear();
+            var bluetoothClients = _bluetoothClients.ToArray();
+            _bluetoothClients.Clear();
+            await Task.WhenAll(
+                bluetoothClients.Select(
+                    entry => DisposeBluetoothClient(entry.Value)));
+        }
+
+        private async Task RemoveDeviceWrappers()
+        {
+            _logger.LogInformation(
+                "Recreating device wrappers while retaining transports.");
             List<IDevice> loadedDevices;
             lock (devices)
             {
@@ -368,15 +436,29 @@ namespace Edi.Core.Device.Handy
                 }
                 _deviceCollector.UnloadDevice(device);
             }
+        }
 
-            _clients.Clear();
-            _usesV3Api.Clear();
-            var bluetoothClients = _bluetoothClients.ToArray();
-            _bluetoothClients.Clear();
-            foreach (var entry in bluetoothClients)
+        private void LoadConfiguredKeys()
+        {
+            Keys = (Config.Key ?? string.Empty).Split(',')
+                             .Where(x => !string.IsNullOrWhiteSpace(x))
+                             .Select(x => x.Trim())
+                             .ToList();
+        }
+
+        private async Task DisposeBluetoothClient(IHandyClient client)
+        {
+            client.Disconnected -= BluetoothClient_Disconnected;
+            try
             {
-                entry.Value.Disconnected -= BluetoothClient_Disconnected;
-                await entry.Value.DisposeAsync();
+                await client.DisposeAsync();
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(
+                    ex,
+                    "Could not release {DeviceName}.",
+                    client.DisplayName);
             }
         }
 
@@ -441,6 +523,30 @@ namespace Edi.Core.Device.Handy
             finally
             {
                 _connectLock.Release();
+            }
+        }
+
+        private int GetMissingBluetoothDeviceCount()
+            => Math.Max(
+                0,
+                Volatile.Read(ref _expectedBluetoothDeviceCount)
+                    - _bluetoothClients.Count);
+
+        private void RememberBluetoothDeviceCount()
+        {
+            var connectedCount = _bluetoothClients.Count;
+            var expectedCount =
+                Volatile.Read(ref _expectedBluetoothDeviceCount);
+            while (connectedCount > expectedCount)
+            {
+                var observed = Interlocked.CompareExchange(
+                    ref _expectedBluetoothDeviceCount,
+                    connectedCount,
+                    expectedCount);
+                if (observed == expectedCount)
+                    return;
+
+                expectedCount = observed;
             }
         }
 

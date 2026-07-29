@@ -1,4 +1,5 @@
 using System.Collections.Concurrent;
+using System.Threading.Channels;
 using InTheHand.Bluetooth;
 using Microsoft.Extensions.Logging;
 
@@ -9,14 +10,32 @@ public interface IHandyBluetoothDiscovery
     Task<IReadOnlyList<IHandyClient>> DiscoverAsync(
         TimeSpan timeout,
         CancellationToken cancellationToken);
+
+    Task<IReadOnlyList<IHandyClient>> DiscoverAsync(
+        TimeSpan timeout,
+        int expectedDeviceCount,
+        CancellationToken cancellationToken)
+        => DiscoverAsync(timeout, cancellationToken);
 }
 
 internal sealed class HandyBluetoothDiscovery(
     ILogger<HandyBluetoothDiscovery> logger)
     : IHandyBluetoothDiscovery
 {
+    private static readonly TimeSpan DiscoveryQuietPeriod =
+        TimeSpan.FromMilliseconds(750);
+
     public async Task<IReadOnlyList<IHandyClient>> DiscoverAsync(
         TimeSpan timeout,
+        CancellationToken cancellationToken)
+        => await DiscoverAsync(
+            timeout,
+            0,
+            cancellationToken);
+
+    public async Task<IReadOnlyList<IHandyClient>> DiscoverAsync(
+        TimeSpan timeout,
+        int expectedDeviceCount,
         CancellationToken cancellationToken)
     {
         try
@@ -30,6 +49,12 @@ internal sealed class HandyBluetoothDiscovery(
 
             var discoveredDevices =
                 new ConcurrentDictionary<string, BluetoothDevice>();
+            var newDevices = Channel.CreateUnbounded<bool>(
+                new UnboundedChannelOptions
+                {
+                    SingleReader = true,
+                    SingleWriter = false
+                });
             void OnAdvertisementReceived(
                 object sender,
                 BluetoothAdvertisingEvent advertisement)
@@ -38,8 +63,12 @@ internal sealed class HandyBluetoothDiscovery(
                     advertisement.Name,
                     advertisement.Uuids.Select(uuid => uuid.Value)))
                 {
-                    discoveredDevices[advertisement.Device.Id] =
-                        advertisement.Device;
+                    if (discoveredDevices.TryAdd(
+                            advertisement.Device.Id,
+                            advertisement.Device))
+                    {
+                        newDevices.Writer.TryWrite(true);
+                    }
                 }
             }
 
@@ -55,7 +84,11 @@ internal sealed class HandyBluetoothDiscovery(
                     });
                 try
                 {
-                    await Task.Delay(timeout, cancellationToken);
+                    await WaitForDiscoveryWindowAsync(
+                        newDevices.Reader,
+                        timeout,
+                        expectedDeviceCount,
+                        cancellationToken);
                 }
                 finally
                 {
@@ -68,36 +101,14 @@ internal sealed class HandyBluetoothDiscovery(
                     OnAdvertisementReceived;
             }
 
-            var clients = new List<IHandyClient>();
-            foreach (var device in discoveredDevices.Values)
-            {
-                try
-                {
-                    var transport =
-                        await HandyBluetoothTransport.ConnectAsync(
-                            device,
-                            cancellationToken);
-                    var client = await HandyBluetoothClient.CreateAsync(
-                        transport,
-                        logger,
-                        initialize: true,
-                        cancellationToken);
-                    clients.Add(client);
-                    logger.LogInformation(
-                        "Connected to Handy {DeviceName} over Bluetooth.",
-                        device.Name);
-                }
-                catch (Exception ex)
-                {
-                    logger.LogWarning(
-                        ex,
-                        "Could not connect to Handy {DeviceName} over Bluetooth.",
-                        device.Name);
-                    device.Gatt.Disconnect();
-                }
-            }
-
-            return clients;
+            var clients = await Task.WhenAll(
+                discoveredDevices.Values.Select(
+                    device => ConnectDeviceAsync(
+                        device,
+                        cancellationToken)));
+            return clients
+                .Where(client => client is not null)
+                .ToArray();
         }
         catch (OperationCanceledException)
             when (cancellationToken.IsCancellationRequested)
@@ -120,4 +131,106 @@ internal sealed class HandyBluetoothDiscovery(
             "OHD",
             StringComparison.OrdinalIgnoreCase) == true ||
            serviceUuids.Contains(HandyBluetoothTransport.ServiceUuid);
+
+    private async Task<IHandyClient> ConnectDeviceAsync(
+        BluetoothDevice device,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            var transport =
+                await HandyBluetoothTransport.ConnectAsync(
+                    device,
+                    cancellationToken);
+            var client = await HandyBluetoothClient.CreateAsync(
+                transport,
+                logger,
+                initialize: true,
+                cancellationToken);
+            logger.LogInformation(
+                "Connected to Handy {DeviceName} over Bluetooth.",
+                device.Name);
+            return client;
+        }
+        catch (Exception ex)
+        {
+            logger.LogWarning(
+                ex,
+                "Could not connect to Handy {DeviceName} over Bluetooth.",
+                device.Name);
+            device.Gatt.Disconnect();
+            return null;
+        }
+    }
+
+    internal static Task WaitForDiscoveryWindowAsync(
+        ChannelReader<bool> newDevices,
+        TimeSpan timeout,
+        int expectedDeviceCount,
+        CancellationToken cancellationToken)
+        => WaitForDiscoveryWindowAsync(
+            newDevices,
+            timeout,
+            expectedDeviceCount,
+            cancellationToken,
+            Task.Delay);
+
+    internal static async Task WaitForDiscoveryWindowAsync(
+        ChannelReader<bool> newDevices,
+        TimeSpan timeout,
+        int expectedDeviceCount,
+        CancellationToken cancellationToken,
+        Func<TimeSpan, CancellationToken, Task> delay)
+    {
+        using var scanCancellation =
+            CancellationTokenSource.CreateLinkedTokenSource(
+                cancellationToken);
+        var scanToken = scanCancellation.Token;
+        var timeoutTask = delay(timeout, scanToken);
+        try
+        {
+            if (expectedDeviceCount <= 0)
+            {
+                await timeoutTask;
+                return;
+            }
+
+            Task<bool> nextDeviceTask;
+            Task completed;
+            for (var discoveredCount = 0;
+                 discoveredCount < expectedDeviceCount;
+                 discoveredCount++)
+            {
+                nextDeviceTask =
+                    newDevices.ReadAsync(scanToken).AsTask();
+                completed = await Task.WhenAny(
+                    timeoutTask,
+                    nextDeviceTask);
+                await completed;
+                if (ReferenceEquals(completed, timeoutTask))
+                    return;
+
+                await nextDeviceTask;
+            }
+
+            while (true)
+            {
+                var quietPeriodTask =
+                    delay(DiscoveryQuietPeriod, scanToken);
+                nextDeviceTask =
+                    newDevices.ReadAsync(scanToken).AsTask();
+                completed = await Task.WhenAny(
+                    timeoutTask,
+                    quietPeriodTask,
+                    nextDeviceTask);
+                await completed;
+                if (!ReferenceEquals(completed, nextDeviceTask))
+                    return;
+            }
+        }
+        finally
+        {
+            scanCancellation.Cancel();
+        }
+    }
 }

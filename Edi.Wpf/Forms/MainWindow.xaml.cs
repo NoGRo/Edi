@@ -27,6 +27,7 @@ using Edi.Core.Device.Handy;
 using Edi.Core.Device.Interfaces;
 using Edi.Core.Device.OSR;
 using Edi.Core.Gallery;
+using Edi.Core.Services;
 using Path = System.IO.Path;
 
 namespace Edi.Forms
@@ -128,24 +129,80 @@ namespace Edi.Forms
         }
         private void RefrehGrid(object? o)
         {
-            Dispatcher.InvokeAsync(async () =>
+            Dispatcher.InvokeAsync(() =>
             {
-                if (edi.DeviceCollector.Devices.Any(x => x.IsReady) 
+                var hasReadyDevice = HasReadyDevice();
+                btnLaunch.IsEnabled = hasReadyDevice;
+
+                if (hasReadyDevice
+                    && config.AutoLaunch
                     && !launched
+                    && !_isSelectingGame
                     && !string.IsNullOrEmpty(config.ExecuteOnReady)
                     )
                 {
-                    launched = true;
-                    lblStatus.Content = "launched: " + config.ExecuteOnReady;
-                    ExecuteCommandOrOpenPath(config.ExecuteOnReady);
+                    LaunchConfiguredGame(isAutomatic: true);
                 }
             });
         }
-        private void ExecuteCommandOrOpenPath(string commandOrPath)
+
+        private bool HasReadyDevice()
+        {
+            lock (edi.DeviceCollector.Devices)
+            {
+                return edi.DeviceCollector.Devices.Any(
+                    device => device.IsReady);
+            }
+        }
+
+        private void LaunchConfiguredGame(bool isAutomatic = false)
+        {
+            if (!HasReadyDevice())
+            {
+                return;
+            }
+
+            if (string.IsNullOrWhiteSpace(config.ExecuteOnReady))
+            {
+                MessageBox.Show(
+                    "Set ExecuteOnReady in this game's EdiConfig.json before launching.",
+                    "Game not configured",
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Information);
+                return;
+            }
+
+            if (isAutomatic)
+            {
+                launched = true;
+            }
+
+            try
+            {
+                var target = GameLaunchTarget.Resolve(
+                    config.ExecuteOnReady,
+                    edi.ConfigurationManager.GamePathConfig);
+                if (ExecuteCommandOrOpenPath(target))
+                {
+                    launched = true;
+                    lblStatus.Content = "launched: " + config.ExecuteOnReady;
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show(
+                    $"Error al resolver la ruta configurada: {ex.Message}",
+                    "Error",
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Error);
+            }
+        }
+
+        private bool ExecuteCommandOrOpenPath(string commandOrPath)
         {
             try
             {
-                if (commandOrPath.StartsWith("http://") || commandOrPath.StartsWith("https://"))
+                if (GameLaunchTarget.IsWebAddress(commandOrPath))
                 {
                     // Abrir URL en el navegador predeterminado
                     Process.Start(new ProcessStartInfo
@@ -166,10 +223,13 @@ namespace Edi.Forms
                 {
                     throw new FileNotFoundException($"El archivo o comando no existe: {commandOrPath}");
                 }
+
+                return true;
             }
             catch (Exception ex)
             {
                 MessageBox.Show($"Error al ejecutar el comando o abrir la ruta: {ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+                return false;
             }
         }
 
@@ -183,6 +243,7 @@ namespace Edi.Forms
             audioDevicesComboBox.ItemsSource = audios;
             loadOSRPorts();
             DevicesGrid.ItemsSource = GetVisibleDevices();
+            btnLaunch.IsEnabled = HasReadyDevice();
         }
 
         private void loadOSRPorts()
@@ -460,6 +521,8 @@ namespace Edi.Forms
                 var resolvedGame = await edi.SelectGame(selectedGame);
                 GamesComboBox.SelectedItem = resolvedGame;
                 viewModel.galleries = ReloadGalleries();
+                launched = false;
+                btnLaunch.IsEnabled = HasReadyDevice();
             }
             finally
             {
@@ -704,6 +767,13 @@ namespace Edi.Forms
         private void btnOpenOutput_Click(object sender, RoutedEventArgs e)
         {
             Process.Start(new ProcessStartInfo("explorer.exe",Edi.Core.Edi.OutputDir) { UseShellExecute = true });
+        }
+
+        private void btnLaunch_Click(
+            object sender,
+            RoutedEventArgs e)
+        {
+            LaunchConfiguredGame();
         }
 
         private async void MainWindow_Closing(object? sender, System.ComponentModel.CancelEventArgs e)

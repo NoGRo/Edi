@@ -2,6 +2,7 @@ using Edi.Core.Device.Handy;
 using Google.Protobuf;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging.Abstractions;
+using System.Threading.Channels;
 using Proto = HdyRpc;
 
 namespace Edi.Core.Tests.Handy;
@@ -231,6 +232,71 @@ public class HandyBluetoothClientTests
             TestContext.Current.CancellationToken);
     }
 
+    [Fact]
+    public async Task DiscoveryStopsAfterNoNewHandyAppears()
+    {
+        var newDevices = Channel.CreateUnbounded<bool>();
+        var delays = new ControlledDelays();
+        newDevices.Writer.TryWrite(true);
+
+        var scan = HandyBluetoothDiscovery.WaitForDiscoveryWindowAsync(
+            newDevices.Reader,
+            TimeSpan.FromSeconds(8),
+            1,
+            TestContext.Current.CancellationToken,
+            delays.Delay);
+
+        var timeout = await delays.NextRequest();
+        Assert.Equal(TimeSpan.FromSeconds(8), timeout.Duration);
+        var firstQuietPeriod = await delays.NextRequest();
+        Assert.Equal(
+            TimeSpan.FromMilliseconds(750),
+            firstQuietPeriod.Duration);
+
+        newDevices.Writer.TryWrite(true);
+        var secondQuietPeriod = await delays.NextRequest();
+        Assert.Equal(
+            TimeSpan.FromMilliseconds(750),
+            secondQuietPeriod.Duration);
+        Assert.False(scan.IsCompleted);
+
+        secondQuietPeriod.Complete();
+        await scan;
+
+        Assert.True(timeout.CancellationToken.IsCancellationRequested);
+        Assert.True(
+            firstQuietPeriod.CancellationToken.IsCancellationRequested);
+    }
+
+    [Fact]
+    public async Task DiscoveryWaitsForEveryExpectedHandy()
+    {
+        var newDevices = Channel.CreateUnbounded<bool>();
+        var delays = new ControlledDelays();
+        newDevices.Writer.TryWrite(true);
+
+        var scan = HandyBluetoothDiscovery.WaitForDiscoveryWindowAsync(
+            newDevices.Reader,
+            TimeSpan.FromSeconds(8),
+            2,
+            TestContext.Current.CancellationToken,
+            delays.Delay);
+
+        var timeout = await delays.NextRequest();
+        Assert.Equal(TimeSpan.FromSeconds(8), timeout.Duration);
+        Assert.Equal(1, delays.RequestCount);
+        Assert.False(scan.IsCompleted);
+
+        newDevices.Writer.TryWrite(true);
+        var quietPeriod = await delays.NextRequest();
+        Assert.Equal(
+            TimeSpan.FromMilliseconds(750),
+            quietPeriod.Duration);
+
+        quietPeriod.Complete();
+        await scan;
+    }
+
     private sealed class RecordingBluetoothTransport
         : IHandyBluetoothTransport
     {
@@ -370,5 +436,53 @@ public class HandyBluetoothClientTests
                 PlayState = playState,
                 PlaybackRate = 1
             };
+    }
+
+    private sealed class ControlledDelays
+    {
+        private readonly Channel<DelayRequest> _requests =
+            Channel.CreateUnbounded<DelayRequest>();
+        private int _requestCount;
+
+        public int RequestCount => Volatile.Read(ref _requestCount);
+
+        public Task Delay(
+            TimeSpan duration,
+            CancellationToken cancellationToken)
+        {
+            var request = new DelayRequest(
+                duration,
+                cancellationToken);
+            Interlocked.Increment(ref _requestCount);
+            _requests.Writer.TryWrite(request);
+            return request.Task;
+        }
+
+        public Task<DelayRequest> NextRequest()
+            => _requests.Reader.ReadAsync(
+                    TestContext.Current.CancellationToken)
+                .AsTask();
+    }
+
+    private sealed class DelayRequest
+    {
+        private readonly TaskCompletionSource _completion =
+            new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        public DelayRequest(
+            TimeSpan duration,
+            CancellationToken cancellationToken)
+        {
+            Duration = duration;
+            CancellationToken = cancellationToken;
+            cancellationToken.Register(
+                () => _completion.TrySetCanceled(cancellationToken));
+        }
+
+        public TimeSpan Duration { get; }
+        public CancellationToken CancellationToken { get; }
+        public Task Task => _completion.Task;
+
+        public void Complete() => _completion.TrySetResult();
     }
 }

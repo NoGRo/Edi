@@ -134,8 +134,7 @@ namespace Edi.Core
 
         public async Task InitDevices()
         {
-            await DeviceCollector.Reinitialize(
-                () => Task.CompletedTask);
+            await DeviceCollector.Refresh();
         }
 
         public void CleanDirectory()

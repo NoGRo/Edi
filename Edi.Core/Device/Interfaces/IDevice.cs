@@ -19,6 +19,7 @@ namespace Edi.Core.Device.Interfaces
 
         string Name { get; set; }
         public bool IsReady { get; }
+        public void RefreshRepository() { }
         public Task PlayGallery(string name, long seek = 0);
         public Task Stop();
     }

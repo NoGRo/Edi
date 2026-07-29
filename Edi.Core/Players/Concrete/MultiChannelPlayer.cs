@@ -63,17 +63,32 @@ namespace Edi.Core.Players
 
         public void ResetChannels( List<string> channels = null)
         {
-            Manager.Reset();
-
-            foreach (var device in deviceChannel.Keys)
+            var devices = deviceChannel.Keys.ToList();
+            var previousPlayers = Manager.Channels
+                .Select(Manager.Get)
+                .ToList();
+            foreach (var player in previousPlayers)
             {
-                Manager.WithChannel(null, c => c.Add(device));
+                foreach (var device in devices)
+                    player.Remove(device);
             }
-            deviceChannel.Clear();
-            
+
+            Manager.Reset();
             Manager.UseChannels(channels?.ToArray());
 
+            foreach (var device in devices)
+            {
+                var channel = device.Channel;
+                if (string.IsNullOrEmpty(channel)
+                    || !Manager.Channels.Contains(channel))
+                {
+                    channel = Manager.ActiveChannels.FirstOrDefault()
+                        ?? ChannelManager<IPlayer>.MAIN_CHANNEL;
+                }
 
+                Manager.Get(channel).Add(device);
+                deviceChannel[device] = channel;
+            }
         }
 
         private void DeviceCollector_OnUnloadDevice(IDevice device, List<IDevice> devices)

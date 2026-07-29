@@ -23,9 +23,14 @@ namespace Edi.Core.Device.OSR
                 logger.LogInformation($"Setting variant on device '{Name}' with SelectedVariant: {SelectedVariant}.");
             }
         }
+        public int RepositoryVersion { get; private set; }
+
+        [DependsOn(nameof(RepositoryVersion))]
         public IEnumerable<string> Variants => repository.GetVariants();
         public bool IsPause { get; private set; } = true;
         public bool IsReady => Connection.IsReady == true;
+
+        public void RefreshRepository() => RepositoryVersion++;
 
         internal OSRPosition LastPosition { get; private set; }
 

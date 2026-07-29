@@ -46,6 +46,36 @@ namespace Edi.Core.Device
             }
         }
 
+        public async Task Reload(Func<Task> reload)
+        {
+            ArgumentNullException.ThrowIfNull(reload);
+
+            await lifecycleLock.WaitAsync();
+            try
+            {
+                EnsureProviders();
+                List<IDevice> devices;
+                lock (Devices)
+                    devices = Devices.ToList();
+
+                if (!devices.Any())
+                {
+                    await DisconnectProviders();
+                    await reload();
+                    await InitProviders();
+                    return;
+                }
+
+                await reload();
+                foreach (var device in devices)
+                    ConfigureDevice(device, refreshRepository: true);
+            }
+            finally
+            {
+                lifecycleLock.Release();
+            }
+        }
+
         private void EnsureProviders()
         {
             if (Providers.Any() || serviceProvider == null)
@@ -75,31 +105,43 @@ namespace Edi.Core.Device
         public event OnloadDeviceHandler OnloadDevice;
         public void LoadDevice(IDevice device)
         {
-
-            DevicesConfig Config = configuration.Get<DevicesConfig>();
-            EdiConfig ediConfig = configuration.Get<EdiConfig>();
             lock (Devices)
             {
                 UniqueName(device);
                 Devices.Add(device);
-                Config.Devices.TryAdd(device.Name, new DeviceConfig());
             }
 
-            var deviceConfig = Config.Devices[device.Name];
+            ConfigureDevice(device);
+            OnloadDevice?.Invoke(device, Devices);
+        }
 
-            deviceConfig.Variant = device.Variants.Contains(deviceConfig.Variant)  && deviceConfig.Variant != "None"
-                                    ? deviceConfig.Variant
-                                    : device.DefaultVariant();
+        private void ConfigureDevice(
+            IDevice device,
+            bool refreshRepository = false)
+        {
+            var config = configuration.Get<DevicesConfig>();
+            var ediConfig = configuration.Get<EdiConfig>();
+            config.Devices.TryAdd(device.Name, new DeviceConfig());
 
+            var deviceConfig = config.Devices[device.Name];
+            var nextVariant =
+                device.Variants.Contains(deviceConfig.Variant)
+                && deviceConfig.Variant != "None"
+                    ? deviceConfig.Variant
+                    : device.DefaultVariant();
+
+            deviceConfig.Variant = nextVariant;
             (device as IRange)?.SetRange(deviceConfig);
-            device.SelectedVariant = deviceConfig.Variant;
+            device.SelectedVariant = nextVariant;
             device.Channel = deviceConfig.Channel;
 
             if (string.IsNullOrEmpty(device.Channel) && ediConfig.UseChannels)
                 device.Channel = ediConfig.Channels.FirstOrDefault();
 
-            configuration.Save(Config);
-            OnloadDevice?.Invoke(device, Devices);
+            if (refreshRepository)
+                device.RefreshRepository();
+
+            configuration.Save(config);
         }
 
         private void UniqueName(IDevice device)

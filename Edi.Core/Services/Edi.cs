@@ -115,12 +115,13 @@ namespace Edi.Core
         public async Task Init(string path)
         {
             string galleryPath = ResolveGallery(path);
-            await DeviceCollector.Reinitialize(async () =>
+            await Player.Stop();
+            await DeviceCollector.Reload(async () =>
             {
                 GalleryPath = galleryPath;
                 await _repositoryManager.ChangePath(galleryPath);
-                Player.ResetChannels(Config.Channels.ToList());
             });
+            Player.ResetChannels(Config.Channels.ToList());
         }
 
         public async Task InitDevices()

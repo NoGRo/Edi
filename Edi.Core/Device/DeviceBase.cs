@@ -50,6 +50,9 @@ namespace Edi.Core.Device
             }
         }
 
+        public int RepositoryVersion { get; private set; }
+
+        [DependsOn(nameof(RepositoryVersion))]
         public virtual IEnumerable<string> Variants => repository.GetVariants();
         public DateTime SyncSend { get; private set; }
         public long SeekTime { get; internal set; }
@@ -103,6 +106,16 @@ namespace Edi.Core.Device
         }
 
         internal virtual void SetVariant() { }
+        public virtual void RefreshRepository()
+        {
+            RepositoryVersion++;
+            if (!string.IsNullOrEmpty(selectedVariant)
+                && selectedVariant != "None")
+            {
+                SetVariant();
+            }
+        }
+
         internal virtual Task applyRange() => Task.CompletedTask;
         internal bool isStopRange(int min, int max) => min == max;
 

@@ -1,9 +1,30 @@
+using Edi.Core.Device.Interfaces;
 using Edi.Core.Device.Simulator;
+using Edi.Core.Tests.Support;
+using Microsoft.Extensions.Logging.Abstractions;
+using System.ComponentModel;
 
 namespace Edi.Core.Tests.Devices;
 
 public class PreviewDeviceTests
 {
+    [Fact]
+    public async Task RefreshRepositoryNotifiesTheVariantsBinding()
+    {
+        await using var rig = await PlayerTestRig.CreateAsync();
+        var device = new PreviewDevice(
+            rig.Funscripts,
+            rig.Definitions,
+            NullLogger<PreviewDevice>.Instance);
+        var notifications = new List<string?>();
+        ((INotifyPropertyChanged)device).PropertyChanged +=
+            (_, args) => notifications.Add(args.PropertyName);
+
+        device.RefreshRepository();
+
+        Assert.Contains(nameof(IDevice.Variants), notifications);
+    }
+
     [Theory]
     [InlineData(0, 0, 50, 0)]
     [InlineData(25, 0, 50, 12)]

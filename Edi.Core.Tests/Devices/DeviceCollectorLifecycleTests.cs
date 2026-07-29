@@ -65,6 +65,54 @@ public class DeviceCollectorLifecycleTests
             events);
     }
 
+    [Fact]
+    public async Task ReloadKeepsConnectedDevicesAndRefreshesTheirGameSettings()
+    {
+        var events = new List<string>();
+        var provider = new RecordingProvider(events);
+        using var rig = CreateCollector(provider);
+        var device = new RecordingDevice(events);
+        rig.Collector.LoadDevice(device);
+        events.Clear();
+
+        var devicesConfig = rig.Configuration.Get<DevicesConfig>();
+        devicesConfig.Devices[device.Name] = new DeviceConfig
+        {
+            Variant = "default",
+            Channel = "game-channel",
+            Min = 15,
+            Max = 85
+        };
+
+        await rig.Collector.Reload(() =>
+        {
+            events.Add("reload");
+            return Task.CompletedTask;
+        });
+
+        Assert.Equal(["stop", "reload", "refresh"], events);
+        Assert.Equal("default", device.SelectedVariant);
+        Assert.Equal("game-channel", device.Channel);
+        Assert.Equal(15, device.Min);
+        Assert.Equal(85, device.Max);
+    }
+
+    [Fact]
+    public async Task ReloadWithoutConnectedDevicesUsesFullProviderLifecycle()
+    {
+        var events = new List<string>();
+        var provider = new RecordingProvider(events);
+        using var rig = CreateCollector(provider);
+
+        await rig.Collector.Reload(() =>
+        {
+            events.Add("reload");
+            return Task.CompletedTask;
+        });
+
+        Assert.Equal(["disconnect", "reload", "init"], events);
+    }
+
     private static CollectorRig CreateCollector(
         IDeviceProvider provider)
     {
@@ -78,7 +126,10 @@ public class DeviceCollectorLifecycleTests
             Path.Combine(temporaryDirectory, "UserConfig.json"));
         var collector = new DeviceCollector(configuration, null);
         collector.Providers.Add(provider);
-        return new CollectorRig(temporaryDirectory, collector);
+        return new CollectorRig(
+            temporaryDirectory,
+            configuration,
+            collector);
     }
 
     private static TaskCompletionSource NewCompletion()
@@ -100,10 +151,41 @@ public class DeviceCollectorLifecycleTests
         }
     }
 
+    private sealed class RecordingDevice(List<string> events)
+        : IDevice, IRange
+    {
+        private string selectedVariant = string.Empty;
+
+        public string Channel { get; set; } = string.Empty;
+        public string SelectedVariant
+        {
+            get => selectedVariant;
+            set => selectedVariant = value;
+        }
+
+        public IEnumerable<string> Variants => ["default"];
+        public string Name { get; set; } = "connected-device";
+        public bool IsReady => true;
+        public int Min { get; set; }
+        public int Max { get; set; } = 100;
+
+        public string DefaultVariant() => "default";
+        public void RefreshRepository() => events.Add("refresh");
+        public Task PlayGallery(string name, long seek = 0)
+            => Task.CompletedTask;
+        public Task Stop()
+        {
+            events.Add("stop");
+            return Task.CompletedTask;
+        }
+    }
+
     private sealed class CollectorRig(
         string temporaryDirectory,
+        ConfigurationManager configuration,
         DeviceCollector collector) : IDisposable
     {
+        public ConfigurationManager Configuration { get; } = configuration;
         public DeviceCollector Collector { get; } = collector;
 
         public void Dispose()

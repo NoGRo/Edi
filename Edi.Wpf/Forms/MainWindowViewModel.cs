@@ -13,6 +13,8 @@ namespace Edi.Forms
 {
     public class MainWindowViewModel : INotifyPropertyChanged
     {
+        public const string AllChannelsOption = "All";
+
         private EdiConfig _config;
         public EdiConfig config
         {
@@ -83,14 +85,19 @@ namespace Edi.Forms
             {
                 _channels = value ?? new List<string>();
                 OnPropertyChanged(nameof(channels));
+                OnPropertyChanged(nameof(playbackChannels));
 
                 if (selectedChannel is null
-                    || !_channels.Contains(selectedChannel))
+                    || (selectedChannel != AllChannelsOption
+                        && !_channels.Contains(selectedChannel)))
                 {
-                    selectedChannel = _channels.FirstOrDefault();
+                    selectedChannel = AllChannelsOption;
                 }
             }
         }
+
+        public List<string> playbackChannels =>
+            [AllChannelsOption, .. _channels];
 
         private string? _selectedChannel;
         public string? selectedChannel

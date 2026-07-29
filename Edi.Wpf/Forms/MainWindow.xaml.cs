@@ -732,7 +732,8 @@ namespace Edi.Forms
         {
             var selectedChannel = viewModel.selectedChannel;
             if (!config.UseChannels
-                || string.IsNullOrWhiteSpace(selectedChannel))
+                || string.IsNullOrWhiteSpace(selectedChannel)
+                || selectedChannel == MainWindowViewModel.AllChannelsOption)
             {
                 return null;
             }

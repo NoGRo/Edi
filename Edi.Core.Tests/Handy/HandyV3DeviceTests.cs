@@ -198,6 +198,72 @@ public class HandyV3DeviceTests
     }
 
     [Fact]
+    public async Task RemainingPointsUploadThreeSecondsBeforeBufferSpaceIsNeeded()
+    {
+        await using var rig = await PlayerTestRig.CreateAsync();
+        var repository = rig.Funscripts;
+        AddGallery(repository, new FunscriptGallery
+        {
+            Name = "streaming-grace",
+            Variant = "default",
+            Duration = 10_000,
+            Loop = false,
+            Commands = Enumerable.Range(0, 6)
+                .Select(index => new CmdLinear
+                {
+                    AbsoluteTime = index * 2_000,
+                    Value = index * 10
+                })
+                .ToList()
+        });
+
+        var handler = new RecordingHttpMessageHandler((_, _) =>
+            Task.FromResult(RecordingHttpMessageHandler.JsonResponse(
+                HspStateJson(points: 3, maxPoints: 3, tail: 3))));
+        using var client = new HttpClient(handler)
+        {
+            BaseAddress = new Uri("https://handy.test/")
+        };
+        client.DefaultRequestHeaders.Add("X-Connection-Key", "TEST-KEY");
+
+        var streamingDelayStarted = new TaskCompletionSource(
+            TaskCreationOptions.RunContinuationsAsynchronously);
+        var releaseStreamingDelay = new TaskCompletionSource(
+            TaskCreationOptions.RunContinuationsAsynchronously);
+        var now = new DateTime(2026, 7, 29, 12, 0, 0, DateTimeKind.Utc);
+        var device = new TestableHandyV3Device(
+            new HandyHttpClient(client),
+            repository,
+            async (delay, token) =>
+            {
+                if (delay == TimeSpan.FromMilliseconds(250))
+                {
+                    streamingDelayStarted.SetResult();
+                    await releaseStreamingDelay.Task.WaitAsync(token);
+                    return;
+                }
+
+                await Task.Delay(Timeout.InfiniteTimeSpan, token);
+            },
+            () => now);
+        device.selectedVariant = "default";
+
+        await device.PlayGallery("streaming-grace");
+        await streamingDelayStarted.Task.WaitAsync(
+            TestContext.Current.CancellationToken);
+        Assert.DoesNotContain(
+            handler.Requests,
+            request => request.Path == "v3/hsp/add");
+
+        now = now.AddMilliseconds(1_001);
+        releaseStreamingDelay.SetResult();
+        await handler.WaitForPathAsync("v3/hsp/add");
+
+        Assert.InRange(device.CurrentTime, 1_001, 1_100);
+        await device.Stop();
+    }
+
+    [Fact]
     public async Task ConsecutivePlaysReuseStreamAndAdvanceTailIndex()
     {
         await using var rig = await PlayerTestRig.CreateAsync();
@@ -524,5 +590,22 @@ public class HandyV3DeviceTests
             (Dictionary<string, List<FunscriptGallery>>)property
                 .GetValue(repository)!;
         galleries[gallery.Name] = [gallery];
+    }
+
+    private sealed class TestableHandyV3Device : HandyV3Device
+    {
+        private readonly Func<DateTime> _getUtcNow;
+
+        public TestableHandyV3Device(
+            IHandyClient client,
+            FunscriptRepository repository,
+            Func<TimeSpan, CancellationToken, Task> delay,
+            Func<DateTime> getUtcNow)
+            : base(client, repository, NullLogger.Instance, delay)
+        {
+            _getUtcNow = getUtcNow;
+        }
+
+        internal override DateTime GetUtcNow() => _getUtcNow();
     }
 }

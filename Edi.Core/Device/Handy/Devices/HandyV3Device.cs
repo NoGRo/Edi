@@ -10,8 +10,8 @@ namespace Edi.Core.Device.Handy
     internal class HandyV3Device
         : DeviceBase<FunscriptRepository, FunscriptGallery>
     {
-        // Set to false only to diagnose devices that reject HSP play(add).
-        private const bool UseEmbeddedAddInPlay = true;
+        private static readonly TimeSpan StreamingBufferGracePeriod =
+            TimeSpan.FromSeconds(3);
         private static readonly TimeSpan StreamingPollInterval =
             TimeSpan.FromMilliseconds(250);
         private static readonly TimeSpan WarmupSynchronizationDelay =
@@ -113,7 +113,7 @@ namespace Edi.Core.Device.Handy
                 var remainingPoints =
                     plan.Points.Skip(initialPointCount).ToList();
 
-                await StartPlaybackWithoutAddRoundTrip(
+                await StartPlayback(
                     initialPoints,
                     plan.StartTime,
                     loop: canUseDeviceLoop,
@@ -201,55 +201,21 @@ namespace Edi.Core.Device.Handy
                 _hspState?.max_points
                 ?? Client.MaxPointsPerRequest);
 
-        private async Task StartPlaybackWithoutAddRoundTrip(
+        private Task StartPlayback(
             List<Point> points,
             long startTime,
             bool loop,
             CancellationToken cancellationToken)
         {
-            if (UseEmbeddedAddInPlay
-                && points.Count <= Client.MaxPointsPerRequest)
-            {
-                var add = new HspAddRequest(
-                    points,
-                    flush: true,
-                    ReserveTailPointStreamIndex(points.Count));
-                await SendPlayCommand(
-                    startTime,
-                    loop,
-                    add,
-                    cancellationToken);
-                return;
-            }
-
-            var bufferLoadTask = LoadInitialBuffer(
+            var add = new HspAddRequest(
                 points,
-                cancellationToken);
-
-            await SendPlayCommand(
+                flush: true,
+                ReserveTailPointStreamIndex(points.Count));
+            return SendPlayCommand(
                 startTime,
                 loop,
-                add: null,
+                add,
                 cancellationToken);
-            await bufferLoadTask;
-        }
-
-        private async Task LoadInitialBuffer(
-            List<Point> points,
-            CancellationToken cancellationToken)
-        {
-            var flush = true;
-
-            foreach (var chunk in points.Chunk(
-                Client.MaxPointsPerRequest))
-            {
-                var pointChunk = chunk.ToList();
-                await SendPointChunk(
-                    pointChunk,
-                    flush,
-                    cancellationToken);
-                flush = false;
-            }
         }
 
         private async Task StreamRemainingPoints(
@@ -294,14 +260,19 @@ namespace Edi.Core.Device.Handy
             int playbackTime,
             CancellationToken cancellationToken)
         {
-            while (CurrentTime < playbackTime)
+            var uploadTime = Math.Max(
+                0,
+                playbackTime
+                    - Convert.ToInt32(
+                        StreamingBufferGracePeriod.TotalMilliseconds));
+            while (CurrentTime < uploadTime)
             {
                 var remaining =
-                    TimeSpan.FromMilliseconds(playbackTime - CurrentTime);
+                    TimeSpan.FromMilliseconds(uploadTime - CurrentTime);
                 var delay = remaining < StreamingPollInterval
                     ? remaining
                     : StreamingPollInterval;
-                await Task.Delay(delay, cancellationToken);
+                await _delay(delay, cancellationToken);
             }
         }
 

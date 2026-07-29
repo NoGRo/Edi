@@ -253,9 +253,9 @@
                         <ComboBox Grid.Column="2"
                                   Width="90"
                                   Margin="5,0,0,0"
-                                  ItemsSource="{Binding channels}"
+                                  ItemsSource="{Binding playbackChannels}"
                                   SelectedItem="{Binding selectedChannel, Mode=TwoWay}"
-                                  ToolTip="Select the playback channel">
+                                  ToolTip="Select a playback channel or all channels">
                             <ComboBox.Style>
                                 <Style TargetType="ComboBox">
                                     <Setter Property="Visibility" Value="Collapsed"/>

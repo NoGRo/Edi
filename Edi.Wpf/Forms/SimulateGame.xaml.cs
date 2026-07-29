@@ -10,6 +10,8 @@ using Edi.Core.Device.Simulator;
 using Edi.Core.Gallery.Definition;
 using Edi.Core.Gallery.Funscript;
 using Edi.Core.Services;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 
 namespace Edi.Forms;
 

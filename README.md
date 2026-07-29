@@ -10,16 +10,16 @@ EDI operates as an independent service that:
 
 ### Download and requirements
 
-Download the latest self-contained Windows build from
-[GitHub Releases](https://github.com/NoGRo/Edi/releases/latest). Extract the ZIP and run
-`Edi.exe`.
+Download `Edi.exe` and `certificate.pfx` from
+[GitHub Releases](https://github.com/NoGRo/Edi/releases/latest), keep both files in the same
+folder, and run `Edi.exe`.
 
-The published `Edi-win-x64.zip` requires:
+The published build requires:
 
 - Windows 10/11 x64 (build 19041 or newer).
 - A Bluetooth LE adapter enabled in Windows for local Handy Bluetooth connections.
 
-The ZIP is self-contained, so users do not need to install .NET separately. Developers who
+The executable is self-contained, so users do not need to install .NET separately. Developers who
 intentionally make a framework-dependent build can install the
 [.NET 8 Desktop Runtime (x64)](https://dotnet.microsoft.com/en-us/download/dotnet/8.0/runtime?cid=getdotnetcore&runtime=desktop&os=windows&arch=x64)
 and the

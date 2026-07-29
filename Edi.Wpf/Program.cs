@@ -1,5 +1,7 @@
 ﻿using Edi.Core;
 using Edi.Forms;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
 using Serilog;
 
 Thread thread = new Thread(() =>

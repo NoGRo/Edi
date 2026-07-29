@@ -103,13 +103,21 @@ namespace Edi.Core
         }
         public async Task<GameInfo> SelectGame(GameInfo game)
         {
-            
-            await Init(game?.Path);
-            var name = new DirectoryInfo(ConfigurationManager.GamePathConfig).Parent.FullName;
-            var resolveGameinfo = new GameInfo(name, ConfigurationManager.GamePathConfig);
-            
-            ConfigurationManager.Get<GamesConfig>().SelectedGameinfo = resolveGameinfo;
-            return resolveGameinfo;
+            ArgumentNullException.ThrowIfNull(game);
+
+            await Init(game.Path);
+
+            var resolvedGameInfo = game with
+            {
+                Path = ConfigurationManager.GamePathConfig
+            };
+            var gamesConfig = ConfigurationManager.Get<GamesConfig>();
+            resolvedGameInfo = gamesConfig.UpsertGame(
+                resolvedGameInfo,
+                game);
+            gamesConfig.SelectedGameinfo = resolvedGameInfo;
+
+            return resolvedGameInfo;
 
         }
         public async Task Init(string path)

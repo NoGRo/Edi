@@ -57,6 +57,7 @@ namespace Edi.Forms
             estimConfig = edi.ConfigurationManager.Get<EStimConfig>();
             osrConfig = edi.ConfigurationManager.Get<OSRConfig>();
             gamesConfig = edi.ConfigurationManager.Get<GamesConfig>();
+            gamesConfig.UpgradeLegacyPathNames();
             List<Core.Gallery.Definition.DefinitionGallery> galleries = ReloadGalleries();
 
             viewModel = new MainWindowViewModel
@@ -249,43 +250,310 @@ namespace Edi.Forms
         }
 
 
-        private async void ReloadButton_Click(object sender, RoutedEventArgs e)
+        private void AddGameButton_Click(
+            object sender,
+            RoutedEventArgs e)
         {
-            using (var dialog = new System.Windows.Forms.OpenFileDialog())
+            if (TryChooseGameFile(null, out var selectedPath))
             {
-                dialog.Title = "Select EdiConfig.json or Definition.csv file";
-                dialog.Filter = "EdiConfig.json|EdiConfig.json|Definitions.csv|Definitions.csv";
-                dialog.FilterIndex = 1;
-                
-                if (dialog.ShowDialog() == System.Windows.Forms.DialogResult.OK)
-                {
-                    string configPath = dialog.FileName;
-
-                    var game = new GameInfo(configPath, configPath);
-                    if (!gamesConfig.GamesInfo.Any(x => x.Path == configPath))
-                    {
-                        gamesConfig.GamesInfo.Add(game);
-                    }
-                    await edi.SelectGame(game);
-                    
-                }
+                ShowGameEditor(null, selectedPath);
             }
         }
-        public async void GamesComboBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
-        {
-            if (GamesComboBox.SelectedItem is not GameInfo selectedGame)
-                return;
 
-            GamesComboBox.IsEnabled = false;
+        private void EditGameButton_Click(
+            object sender,
+            RoutedEventArgs e)
+        {
+            if (GamesComboBox.SelectedItem is GameInfo selectedGame)
+            {
+                ShowGameEditor(selectedGame, selectedGame.Path);
+            }
+        }
+
+        private void ChangeGamePathButton_Click(
+            object sender,
+            RoutedEventArgs e)
+        {
+            var previousSuggestedName = SuggestGameName(
+                GamePathTextBox.Text);
+            if (!TryChooseGameFile(
+                    GamePathTextBox.Text,
+                    out var selectedPath))
+            {
+                return;
+            }
+
+            GamePathTextBox.Text = selectedPath;
+            if (_gameBeingEdited is null
+                && (string.IsNullOrWhiteSpace(GameNameTextBox.Text)
+                    || string.Equals(
+                        GameNameTextBox.Text,
+                        previousSuggestedName,
+                        StringComparison.Ordinal)))
+            {
+                GameNameTextBox.Text = SuggestGameName(selectedPath);
+            }
+
+            ClearGameEditorError();
+        }
+
+        private async void SaveGameButton_Click(
+            object sender,
+            RoutedEventArgs e)
+        {
+            var name = GameNameTextBox.Text.Trim();
+            var path = GamePathTextBox.Text.Trim();
+
+            if (string.IsNullOrWhiteSpace(name))
+            {
+                ShowGameEditorError(
+                    "Enter the name you want to see in the game list.");
+                GameNameTextBox.Focus();
+                return;
+            }
+
+            if (string.IsNullOrWhiteSpace(path)
+                || (!File.Exists(path) && !Directory.Exists(path)))
+            {
+                ShowGameEditorError(
+                    "The selected game file or folder no longer exists. Choose it again.");
+                return;
+            }
+
+            if (gamesConfig.ContainsPath(path, _gameBeingEdited))
+            {
+                ShowGameEditorError(
+                    "This game file is already in your saved list.");
+                return;
+            }
+
+            GameInfo savedGame;
+            _isUpdatingGameList = true;
             try
             {
-                await edi.SelectGame(selectedGame);
+                savedGame = gamesConfig.UpsertGame(
+                    new GameInfo(name, path),
+                    _gameBeingEdited);
+            }
+            finally
+            {
+                _isUpdatingGameList = false;
+            }
+
+            SaveGameButton.IsEnabled = false;
+            try
+            {
+                await SelectGameAsync(savedGame);
+                HideGameEditor();
+            }
+            catch (Exception ex)
+            {
+                ShowGameEditorError(
+                    $"The game was saved, but EDI could not load it: {ex.Message}");
+            }
+            finally
+            {
+                SaveGameButton.IsEnabled = true;
+            }
+        }
+
+        private void CancelGameEditorButton_Click(
+            object sender,
+            RoutedEventArgs e)
+        {
+            HideGameEditor();
+        }
+
+        private async void DeleteGameButton_Click(
+            object sender,
+            RoutedEventArgs e)
+        {
+            if (_gameBeingEdited is null)
+            {
+                return;
+            }
+
+            var confirmation = MessageBox.Show(
+                $"Remove \"{_gameBeingEdited.Name}\" from your saved games?",
+                "Remove game",
+                MessageBoxButton.YesNo,
+                MessageBoxImage.Question);
+            if (confirmation != MessageBoxResult.Yes)
+            {
+                return;
+            }
+
+            var removedSelectedGame = GamesComboBox.SelectedItem is GameInfo selectedGame
+                                      && PathsEqual(
+                                          selectedGame.Path,
+                                          _gameBeingEdited.Path);
+            gamesConfig.RemoveGame(_gameBeingEdited);
+            HideGameEditor();
+
+            if (removedSelectedGame
+                && gamesConfig.GamesInfo.FirstOrDefault() is GameInfo nextGame)
+            {
+                await SelectGameAsync(nextGame);
+            }
+        }
+
+        public async void GamesComboBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            if (_isUpdatingGameList)
+            {
+                return;
+            }
+
+            if (!_isSelectingGame
+                && GameEditorPanel is not null
+                && GameEditorPanel.Visibility == Visibility.Visible)
+            {
+                HideGameEditor();
+            }
+
+            if (GamesComboBox.SelectedItem is not GameInfo selectedGame)
+            {
+                if (EditGameButton is not null)
+                {
+                    EditGameButton.IsEnabled = false;
+                }
+                return;
+            }
+
+            if (EditGameButton is not null)
+            {
+                EditGameButton.IsEnabled = true;
+            }
+            try
+            {
+                await SelectGameAsync(selectedGame);
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show(
+                    $"EDI could not load this game: {ex.Message}",
+                    "Game could not be loaded",
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Error);
+            }
+        }
+
+        private async Task SelectGameAsync(GameInfo selectedGame)
+        {
+            if (_isSelectingGame)
+            {
+                return;
+            }
+
+            _isSelectingGame = true;
+            GamesComboBox.IsEnabled = false;
+            if (EditGameButton is not null)
+            {
+                EditGameButton.IsEnabled = false;
+            }
+            try
+            {
+                var resolvedGame = await edi.SelectGame(selectedGame);
+                GamesComboBox.SelectedItem = resolvedGame;
                 viewModel.galleries = ReloadGalleries();
             }
             finally
             {
+                _isSelectingGame = false;
                 GamesComboBox.IsEnabled = true;
+                if (EditGameButton is not null)
+                {
+                    EditGameButton.IsEnabled =
+                        GamesComboBox.SelectedItem is GameInfo;
+                }
             }
+        }
+
+        private void ShowGameEditor(
+            GameInfo? game,
+            string path)
+        {
+            _gameBeingEdited = game;
+            GameEditorTitle.Text =
+                game is null ? "Add game" : "Edit game";
+            GameNameTextBox.Text =
+                game?.Name ?? SuggestGameName(path);
+            GamePathTextBox.Text = path;
+            DeleteGameButton.Visibility =
+                game is null ? Visibility.Collapsed : Visibility.Visible;
+            ClearGameEditorError();
+            GameEditorPanel.Visibility = Visibility.Visible;
+            GameNameTextBox.Focus();
+            GameNameTextBox.SelectAll();
+        }
+
+        private void HideGameEditor()
+        {
+            _gameBeingEdited = null;
+            GameEditorPanel.Visibility = Visibility.Collapsed;
+            ClearGameEditorError();
+        }
+
+        private void ShowGameEditorError(string message)
+        {
+            GameEditorError.Text = message;
+            GameEditorError.Visibility = Visibility.Visible;
+        }
+
+        private void ClearGameEditorError()
+        {
+            GameEditorError.Text = string.Empty;
+            GameEditorError.Visibility = Visibility.Collapsed;
+        }
+
+        private static bool TryChooseGameFile(
+            string? currentPath,
+            out string selectedPath)
+        {
+            using var dialog = new System.Windows.Forms.OpenFileDialog
+            {
+                Title = "Choose an EDI game file",
+                Filter = "EDI game files|EdiConfig.json;Definitions.csv;Definition.csv|EDI configuration|EdiConfig.json|Gallery definitions|Definitions.csv;Definition.csv",
+                FilterIndex = 1,
+                CheckFileExists = true,
+                Multiselect = false
+            };
+
+            if (!string.IsNullOrWhiteSpace(currentPath))
+            {
+                var initialDirectory = Directory.Exists(currentPath)
+                    ? currentPath
+                    : Path.GetDirectoryName(currentPath);
+                if (Directory.Exists(initialDirectory))
+                {
+                    dialog.InitialDirectory = initialDirectory;
+                }
+            }
+
+            if (dialog.ShowDialog()
+                == System.Windows.Forms.DialogResult.OK)
+            {
+                selectedPath = dialog.FileName;
+                return true;
+            }
+
+            selectedPath = string.Empty;
+            return false;
+        }
+
+        private static string SuggestGameName(string path)
+        {
+            return GamesConfig.SuggestNameFromPath(path);
+        }
+
+        private static bool PathsEqual(
+            string first,
+            string second)
+        {
+            return string.Equals(
+                first.Trim(),
+                second.Trim(),
+                StringComparison.OrdinalIgnoreCase);
         }
 
         private async void ReconnectButton_ClickAsync(object sender, RoutedEventArgs e)
@@ -350,6 +618,11 @@ namespace Edi.Forms
         private static SimulateGame _simulateGame; // Quitamos readonly y la inicialización inmediata
         private MainWindowViewModel viewModel;
         private GamesConfig gamesConfig;
+        private GameInfo? _gameBeingEdited;
+        private bool _isSelectingGame;
+        private bool _isUpdatingGameList;
+        private bool _isCloseCleanupRunning;
+        private bool _isClosingAfterCleanup;
         // ...
     
         private void btnSimulator_Click(object sender, RoutedEventArgs e)
@@ -431,11 +704,64 @@ namespace Edi.Forms
 
         private async void MainWindow_Closing(object? sender, System.ComponentModel.CancelEventArgs e)
         {
-            await Dispatcher.Invoke(async () =>
+            if (_isClosingAfterCleanup)
             {
-                await edi.Player.Pause();
-            });
-            await Task.Delay(1000);  
+                return;
+            }
+
+            e.Cancel = true;
+            if (_isCloseCleanupRunning)
+            {
+                return;
+            }
+
+            _isCloseCleanupRunning = true;
+            timer.Dispose();
+
+            try
+            {
+                try
+                {
+                    await edi.Player.Pause();
+                }
+                finally
+                {
+                    await CloseSimulatorAsync();
+                }
+            }
+            finally
+            {
+                _isClosingAfterCleanup = true;
+                _ = Dispatcher.BeginInvoke(new Action(Close));
+            }
+        }
+
+        private static async Task CloseSimulatorAsync()
+        {
+            var simulator = _simulateGame;
+            if (simulator is null || !simulator.IsLoaded)
+            {
+                return;
+            }
+
+            var closed = new TaskCompletionSource<object?>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+            void SimulatorClosed(object? sender, EventArgs e)
+            {
+                simulator.Closed -= SimulatorClosed;
+                closed.TrySetResult(null);
+            }
+
+            simulator.Closed += SimulatorClosed;
+            try
+            {
+                simulator.Close();
+                await closed.Task;
+            }
+            finally
+            {
+                simulator.Closed -= SimulatorClosed;
+            }
         }
     }
     public class BoolToReadyIconConverter : IValueConverter

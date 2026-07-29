@@ -36,15 +36,13 @@ namespace Edi.Forms
         
         }
 
-        protected override async void OnStartup(StartupEventArgs e)
+        protected override void OnStartup(StartupEventArgs e)
         {
-            
-            var mainWindow = new MainWindow();
-
-            mainWindow.Show();
             base.OnStartup(e);
-            // Ejecuta el servidor web en un hilo separado para no bloquear la interfaz de usuario
 
+            var mainWindow = new MainWindow();
+            MainWindow = mainWindow;
+            mainWindow.Show();
         }
     }
 }

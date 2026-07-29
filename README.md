@@ -7,6 +7,24 @@ EDI operates as an independent service that:
 - Exposes a REST API for complete control of device playback and settings
 - Handles all device communication, funscripts and synchronization
 - Can be integrated with any game engine or framework that supports HTTP requests
+
+### Download and requirements
+
+Download the latest self-contained Windows build from
+[GitHub Releases](https://github.com/NoGRo/Edi/releases/latest). Extract the ZIP and run
+`Edi.exe`.
+
+The published `Edi-win-x64.zip` requires:
+
+- Windows 10/11 x64 (build 19041 or newer).
+- A Bluetooth LE adapter enabled in Windows for local Handy Bluetooth connections.
+
+The ZIP is self-contained, so users do not need to install .NET separately. Developers who
+intentionally make a framework-dependent build can install the
+[.NET 8 Desktop Runtime (x64)](https://dotnet.microsoft.com/en-us/download/dotnet/8.0/runtime?cid=getdotnetcore&runtime=desktop&os=windows&arch=x64)
+and the
+[ASP.NET Core Runtime 8 (x64)](https://dotnet.microsoft.com/en-us/download/dotnet/8.0/runtime?cid=getdotnetcore&runtime=aspnetcore&os=windows&arch=x64).
+
 ---
 
 ### Why Use EDI?

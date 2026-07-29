@@ -1,0 +1,86 @@
+name: Windows release
+
+on:
+  workflow_dispatch:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: windows-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up .NET 8
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "8.0.x"
+
+      - name: Restore
+        run: dotnet restore .\Edi.sln --nologo
+
+      - name: Test
+        run: >-
+          dotnet test .\Edi.Core.Tests\Edi.Core.Tests.csproj
+          --configuration Release
+          --framework net8.0
+          --no-restore
+          --nologo
+
+      - name: Publish self-contained Windows build
+        shell: pwsh
+        run: >-
+          .\scripts\Publish-Windows.ps1
+          -Configuration Release
+          -OutputDirectory "${{ runner.temp }}\Edi-win-x64"
+
+      - name: Package release
+        shell: pwsh
+        run: |
+          $zipPath = Join-Path "${{ runner.temp }}" "Edi-win-x64.zip"
+          Compress-Archive `
+            -Path "${{ runner.temp }}\Edi-win-x64\*" `
+            -DestinationPath $zipPath `
+            -CompressionLevel Optimal
+          $hash = (Get-FileHash $zipPath -Algorithm SHA256).Hash.ToLowerInvariant()
+          "$hash  Edi-win-x64.zip" |
+            Set-Content `
+              -Path "${{ runner.temp }}\Edi-win-x64.sha256" `
+              -Encoding ascii
+
+      - name: Upload workflow artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: Edi-win-x64
+          path: |
+            ${{ runner.temp }}\Edi-win-x64.zip
+            ${{ runner.temp }}\Edi-win-x64.sha256
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Attach files to GitHub Release
+        if: startsWith(github.ref, 'refs/tags/')
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $tag = "${{ github.ref_name }}"
+          $zipPath = Join-Path "${{ runner.temp }}" "Edi-win-x64.zip"
+          $hashPath = Join-Path "${{ runner.temp }}" "Edi-win-x64.sha256"
+          gh release view $tag *> $null
+          if ($LASTEXITCODE -eq 0) {
+            gh release upload $tag $zipPath $hashPath --clobber
+          } else {
+            gh release create `
+              $tag `
+              $zipPath `
+              $hashPath `
+              --generate-notes `
+              --title "EDI $tag"
+          }

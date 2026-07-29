@@ -3,11 +3,13 @@
   <PropertyGroup>
 	<OutputType>WinExe</OutputType>
 	<TargetFramework>net8.0-windows10.0.19041</TargetFramework>
+    <RuntimeIdentifier>win-x64</RuntimeIdentifier>
 	<Nullable>enable</Nullable>
 	<UseWPF>true</UseWPF>
     <ImplicitUsings>enable</ImplicitUsings>
     <PublishSingleFile>true</PublishSingleFile>
     <SelfContained>true</SelfContained>
+    <PublishTrimmed>false</PublishTrimmed>
     <IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
     <AssemblyName>Edi</AssemblyName>
 	  <Version>1.0.2</Version>

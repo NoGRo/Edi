@@ -63,7 +63,7 @@ public partial class SimulateGame : Window, INotifyPropertyChanged
             notifier.PropertyChanged += Config_PropertyChanged;
         if (gamesConfig is INotifyPropertyChanged gamesNotifier)
             gamesNotifier.PropertyChanged += GamesConfig_PropertyChanged;
-        UpdateRecorderChannelVisibility();
+        UpdateChannelVisibility();
     }
 
     public event PropertyChangedEventHandler? PropertyChanged;
@@ -332,7 +332,7 @@ public partial class SimulateGame : Window, INotifyPropertyChanged
             return;
 
         _ = Dispatcher.BeginInvoke(
-            new Action(UpdateRecorderChannelVisibility));
+            new Action(UpdateChannelVisibility));
     }
 
     private void GamesConfig_PropertyChanged(
@@ -425,10 +425,14 @@ public partial class SimulateGame : Window, INotifyPropertyChanged
         return availableVariants.FirstOrDefault();
     }
 
-    private void UpdateRecorderChannelVisibility()
-        => RecorderChannelColumn.Visibility = config.UseChannels
+    private void UpdateChannelVisibility()
+    {
+        var visibility = config.UseChannels
             ? Visibility.Visible
             : Visibility.Collapsed;
+        PreviewChannelRow.Visibility = visibility;
+        RecorderChannelColumn.Visibility = visibility;
+    }
 
     private void Observe(Task task, string operation)
         => _ = ObserveCore(task, operation);

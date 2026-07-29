@@ -13,7 +13,7 @@
     <Grid Margin="10">
         <Grid.RowDefinitions>
             <RowDefinition Height="*"/>
-            <RowDefinition Height="190"/>
+            <RowDefinition Height="Auto"/>
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
@@ -41,7 +41,7 @@
                     <RowDefinition Height="22"/>
                     <RowDefinition Height="22"/>
                     <RowDefinition Height="22"/>
-                    <RowDefinition Height="22"/>
+                    <RowDefinition Height="Auto"/>
                     <RowDefinition Height="22"/>
                 </Grid.RowDefinitions>
 
@@ -64,9 +64,18 @@
                 <TextBlock Grid.Row="5" Text="Duration:" FontWeight="Bold"/>
                 <TextBlock Grid.Row="5" Grid.Column="1"
                            Text="{Binding SimulatorDevice.GalleryDuration}"/>
-                <TextBlock Grid.Row="6" Text="Channel:" FontWeight="Bold"/>
-                <TextBlock Grid.Row="6" Grid.Column="1"
-                           Text="{Binding SimulatorDevice.Channel, TargetNullValue=-}"/>
+                <Grid x:Name="PreviewChannelRow"
+                      Grid.Row="6"
+                      Grid.ColumnSpan="2"
+                      Height="22">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="90"/>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
+                    <TextBlock Text="Channel:" FontWeight="Bold"/>
+                    <TextBlock Grid.Column="1"
+                               Text="{Binding SimulatorDevice.Channel, TargetNullValue=-}"/>
+                </Grid>
                 <TextBlock Grid.Row="7" Text="Variant:" FontWeight="Bold"/>
                 <TextBlock Grid.Row="7" Grid.Column="1"
                            Text="{Binding SimulatorDevice.SelectedVariant, TargetNullValue=-}"/>

@@ -1,21 +1,22 @@
 using Edi.Core.Device;
 using Edi.Core.Gallery.Funscript;
 using Edi.Core.Services;
+using Edi.Core.Device.Interfaces;
 using Microsoft.Extensions.Logging;
 using PropertyChanged;
+using System.Diagnostics;
 
 namespace Edi.Core.Device.Handy
 {
     [AddINotifyPropertyChangedInterface]
     internal class HandyV3Device
-        : DeviceBase<FunscriptRepository, FunscriptGallery>
+        : DeviceBase<FunscriptRepository, FunscriptGallery>,
+          IDeviceWithOffsetConfiguration
     {
         private static readonly TimeSpan StreamingBufferGracePeriod =
             TimeSpan.FromSeconds(3);
         private static readonly TimeSpan StreamingPollInterval =
             TimeSpan.FromMilliseconds(250);
-        private static readonly TimeSpan WarmupSynchronizationDelay =
-            TimeSpan.FromMilliseconds(1500);
         private static readonly TimeSpan ClockSynchronizationLifetime =
             TimeSpan.FromMinutes(20);
 
@@ -32,6 +33,7 @@ namespace Edi.Core.Device.Handy
             DateTimeOffset.MinValue;
         private int _streamId = -1;
         private int _tailPointStreamIndex;
+        private long _playbackSequence;
         private bool _isStopCalled;
 
         public HandyV3Device(
@@ -39,7 +41,8 @@ namespace Edi.Core.Device.Handy
             FunscriptRepository repository,
             ILogger logger,
             Func<TimeSpan, CancellationToken, Task> delay = null,
-            Func<DateTimeOffset> getUtcNow = null)
+            Func<DateTimeOffset> getUtcNow = null,
+            int defaultOffset = -80)
             : base(repository, logger)
         {
             Client = client;
@@ -48,6 +51,7 @@ namespace Edi.Core.Device.Handy
             _logger = logger;
             _delay = delay ?? Task.Delay;
             _getUtcNow = getUtcNow ?? (() => DateTimeOffset.UtcNow);
+            EnableOffset(defaultOffset);
             IsReady = true;
 
             _logger.LogInformation("Handy V3 device initialized.");
@@ -56,6 +60,16 @@ namespace Edi.Core.Device.Handy
         public string Key { get; }
         public IHandyClient Client { get; }
         internal override bool SelfManagedLoop { get; set; } = true;
+
+        public void ApplyConfiguration(DeviceConfig configuration)
+            => ApplyOffsetConfiguration(configuration);
+
+        protected override Task ApplyOffset(
+            int offsetMilliseconds,
+            CancellationToken cancellationToken)
+            => Client.SetOffset(
+                offsetMilliseconds,
+                cancellationToken);
 
         internal override async Task applyRange()
         {
@@ -75,8 +89,15 @@ namespace Edi.Core.Device.Handy
             long seek,
             CancellationToken cancellationToken)
         {
+            var playbackId = Interlocked.Increment(
+                ref _playbackSequence);
+            var startup = Stopwatch.StartNew();
             _logger.LogInformation(
-                $"PlayGallery called for gallery: {gallery?.Name}, seek: {seek}");
+                "Handy playback {PlaybackId} requested. Gallery: {Gallery}, Seek: {Seek}, Loop: {Loop}",
+                playbackId,
+                gallery?.Name,
+                seek,
+                gallery?.Loop);
 
             SeekTime = seek;
             IsPause = false;
@@ -118,6 +139,15 @@ namespace Edi.Core.Device.Handy
                     plan.StartTime,
                     loop: canUseDeviceLoop,
                     cancellationToken);
+                _logger.LogInformation(
+                    "Handy playback {PlaybackId} started in {ElapsedMilliseconds} ms. Gallery: {Gallery}, Seek: {Seek}, InitialPoints: {InitialPoints}, RemainingPoints: {RemainingPoints}, DeviceLoop: {DeviceLoop}",
+                    playbackId,
+                    startup.ElapsedMilliseconds,
+                    gallery.Name,
+                    plan.StartTime,
+                    initialPoints.Count,
+                    remainingPoints.Count,
+                    canUseDeviceLoop);
 
                 if (remainingPoints.Count > 0)
                 {
@@ -134,6 +164,11 @@ namespace Edi.Core.Device.Handy
             catch (OperationCanceledException)
                 when (cancellationToken.IsCancellationRequested)
             {
+                _logger.LogInformation(
+                    "Handy playback {PlaybackId} for {Gallery} was superseded after {ElapsedMilliseconds} ms",
+                    playbackId,
+                    gallery?.Name,
+                    startup.ElapsedMilliseconds);
             }
             catch (Exception ex)
             {
@@ -426,18 +461,44 @@ namespace Edi.Core.Device.Handy
             }
 
             _hspState = state;
-            _logger.LogInformation(
-                $"Play command sent. PlayState: {_hspState.play_state}");
+            if (string.Equals(
+                    _hspState.play_state,
+                    "starving",
+                    StringComparison.OrdinalIgnoreCase))
+            {
+                _logger.LogWarning(
+                    "Handy HSP reported STARVING immediately after play. CurrentTime: {CurrentTime}, Points: {Points}, TailIndex: {TailIndex}",
+                    _hspState.current_time,
+                    _hspState.points,
+                    _hspState.tail_point_stream_index);
+            }
+            else
+            {
+                _logger.LogInformation(
+                    "Handy play command accepted. State: {PlayState}, CurrentTime: {CurrentTime}, Points: {Points}, TailIndex: {TailIndex}",
+                    _hspState.play_state,
+                    _hspState.current_time,
+                    _hspState.points,
+                    _hspState.tail_point_stream_index);
+            }
 
-            _ = ObserveWarmupSynchronization(
-                SynchronizePlaybackAfterWarmup(cancellationToken));
+            var synchronization =
+                SynchronizePlaybackAfterWarmup(cancellationToken);
+            if (Client.PlaybackSyncDelay == TimeSpan.Zero)
+            {
+                await synchronization;
+            }
+            else
+            {
+                _ = ObserveWarmupSynchronization(synchronization);
+            }
         }
 
         private async Task SynchronizePlaybackAfterWarmup(
             CancellationToken cancellationToken)
         {
             await _delay(
-                WarmupSynchronizationDelay,
+                Client.PlaybackSyncDelay,
                 cancellationToken);
             cancellationToken.ThrowIfCancellationRequested();
             if (currentGallery is null || _isStopCalled)
@@ -450,7 +511,10 @@ namespace Edi.Core.Device.Handy
                     filter: 1.0),
                 cancellationToken);
             _logger.LogInformation(
-                "Handy HSP playback time synchronized after connection warm-up.");
+                "Handy HSP playback time synchronized. Device state: {PlayState}, DeviceTime: {DeviceTime}, ExpectedTime: {ExpectedTime}",
+                _hspState.play_state,
+                _hspState.current_time,
+                CurrentTime);
         }
 
         private async Task ObserveWarmupSynchronization(Task task)

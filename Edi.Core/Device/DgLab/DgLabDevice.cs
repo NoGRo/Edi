@@ -1,15 +1,14 @@
-using Edi.Core.Device.Interfaces;
 using Edi.Core.Gallery.Funscript;
 using Microsoft.Extensions.Logging;
 using PropertyChanged;
+using System.ComponentModel;
 using System.Diagnostics;
 
 namespace Edi.Core.Device.DgLab;
 
 [AddINotifyPropertyChangedInterface]
 public sealed class DgLabDevice
-    : DeviceBase<FunscriptRepository, FunscriptGallery>,
-      IDeviceWithConfiguration
+    : DeviceBase<FunscriptRepository, FunscriptGallery>
 {
     private static readonly TimeSpan WaveformLifetime =
         TimeSpan.FromMilliseconds(100);
@@ -44,11 +43,34 @@ public sealed class DgLabDevice
         set { }
     }
 
-    public void ApplyConfiguration(DeviceConfig configuration)
+    internal void ApplyConfiguration(DgLabChannelConfig configuration)
     {
-        configuration.DgLab ??= new DgLabChannelConfig();
-        configuration.DgLab.Normalize();
-        channelConfiguration = configuration.DgLab;
+        ArgumentNullException.ThrowIfNull(configuration);
+        if (ReferenceEquals(channelConfiguration, configuration))
+            return;
+
+        RemoveConfiguration();
+        configuration.Normalize();
+        channelConfiguration = configuration;
+        ((INotifyPropertyChanged)channelConfiguration)
+            .PropertyChanged += DeviceConfigurationChanged;
+    }
+
+    public override void RemoveConfiguration()
+    {
+        if (channelConfiguration is INotifyPropertyChanged changed)
+        {
+            changed.PropertyChanged -= DeviceConfigurationChanged;
+        }
+
+        base.RemoveConfiguration();
+    }
+
+    private void DeviceConfigurationChanged(
+        object sender,
+        PropertyChangedEventArgs args)
+    {
+        channelConfiguration.Normalize();
     }
 
     public override Task PlayGallery(

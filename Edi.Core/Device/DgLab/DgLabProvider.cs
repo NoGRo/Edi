@@ -3,6 +3,7 @@ using Edi.Core.Gallery;
 using Edi.Core.Gallery.Funscript;
 using Edi.Core.Services;
 using Microsoft.Extensions.Logging;
+using System.ComponentModel;
 using Timer = System.Timers.Timer;
 
 namespace Edi.Core.Device.DgLab;
@@ -12,6 +13,7 @@ public sealed class DgLabProvider : IDeviceProvider
     private readonly RepositoryManager repositoryManager;
     private readonly DeviceCollector deviceCollector;
     private readonly IDgLabDiscovery discovery;
+    private readonly DgLabDevicesConfig deviceConfigurations;
     private readonly ILogger logger;
     private readonly SemaphoreSlim lifecycleLock = new(1, 1);
     private readonly object initLock = new();
@@ -20,6 +22,7 @@ public sealed class DgLabProvider : IDeviceProvider
     private readonly Dictionary<string, DgLabDevice[]> devices = new();
     private readonly Timer reconnectTimer;
     private Task initTask = Task.CompletedTask;
+    private int applyingDeviceConfigurations;
 
     public DgLabProvider(
         RepositoryManager repositoryManager,
@@ -33,6 +36,10 @@ public sealed class DgLabProvider : IDeviceProvider
         this.discovery = discovery;
         this.logger = logger;
         Config = configuration.Get<DgLabConfig>();
+        deviceConfigurations =
+            configuration.Get<DgLabDevicesConfig>();
+        deviceConfigurations.PropertyChanged +=
+            DeviceConfigurationsChanged;
         reconnectTimer = new Timer
         {
             AutoReset = false
@@ -150,7 +157,11 @@ public sealed class DgLabProvider : IDeviceProvider
             devices[controller.Id] = channelDevices;
 
         foreach (var device in channelDevices)
+        {
             deviceCollector.LoadDevice(device);
+            device.ApplyConfiguration(
+                deviceConfigurations.GetOrAdd(device.Name));
+        }
     }
 
     private void Controller_Disconnected(IDgLabController controller)
@@ -221,7 +232,40 @@ public sealed class DgLabProvider : IDeviceProvider
         }
 
         foreach (var device in removed)
+        {
+            device.RemoveConfiguration();
             deviceCollector.UnloadDevice(device);
+        }
+    }
+
+    private void DeviceConfigurationsChanged(
+        object sender,
+        PropertyChangedEventArgs args)
+    {
+        if (args.PropertyName != nameof(DgLabDevicesConfig.Devices)
+            || Interlocked.Exchange(
+                ref applyingDeviceConfigurations,
+                1) != 0)
+        {
+            return;
+        }
+
+        try
+        {
+            DgLabDevice[] loadedDevices;
+            lock (devices)
+                loadedDevices = devices.Values.SelectMany(x => x).ToArray();
+
+            foreach (var device in loadedDevices)
+            {
+                device.ApplyConfiguration(
+                    deviceConfigurations.GetOrAdd(device.Name));
+            }
+        }
+        finally
+        {
+            Volatile.Write(ref applyingDeviceConfigurations, 0);
+        }
     }
 
     private void ScheduleReconnect()

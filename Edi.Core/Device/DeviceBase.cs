@@ -2,6 +2,7 @@ using Edi.Core.Device.Interfaces;
 using Edi.Core.Gallery;
 using Microsoft.Extensions.Logging;
 using PropertyChanged;
+using System.ComponentModel;
 using System.Timers;
 
 namespace Edi.Core.Device
@@ -15,6 +16,7 @@ namespace Edi.Core.Device
         private readonly SemaphoreSlim stateLock = new(1, 1);
         private readonly System.Timers.Timer rangeTimer = new(100) { AutoReset = false };
         private Task activeDeviceTask = Task.CompletedTask;
+        private DeviceConfig offsetConfiguration;
         private long commandVersion;
         private long rangeVersion;
 
@@ -98,6 +100,9 @@ namespace Edi.Core.Device
             }
         }
 
+        public int OffsetMilliseconds { get; private set; }
+        public Task OffsetUpdate { get; private set; } = Task.CompletedTask;
+
         public void Resume()
         {
             var gallery = currentGallery;
@@ -119,6 +124,50 @@ namespace Edi.Core.Device
         internal virtual Task applyRange() => Task.CompletedTask;
         internal bool isStopRange(int min, int max) => min == max;
 
+        protected void EnableOffset(int initialOffset)
+            => OffsetMilliseconds = DeviceOffset.Normalize(initialOffset);
+
+        protected void ApplyOffsetConfiguration(
+            DeviceConfig configuration)
+        {
+            RemoveConfiguration();
+            configuration.OffsetMS ??= OffsetMilliseconds;
+            offsetConfiguration = configuration;
+            ((INotifyPropertyChanged)configuration).PropertyChanged +=
+                OffsetConfigurationChanged;
+            ApplyConfiguredOffset();
+        }
+
+        public virtual void RemoveConfiguration()
+        {
+            if (offsetConfiguration is INotifyPropertyChanged changed)
+                changed.PropertyChanged -= OffsetConfigurationChanged;
+            offsetConfiguration = null;
+        }
+
+        protected virtual Task ApplyOffset(
+            int offset,
+            CancellationToken cancellationToken)
+            => Task.CompletedTask;
+
+        private void OffsetConfigurationChanged(
+            object sender,
+            PropertyChangedEventArgs args)
+        {
+            if (args.PropertyName == nameof(DeviceConfig.OffsetMS))
+                ApplyConfiguredOffset();
+        }
+
+        private void ApplyConfiguredOffset()
+        {
+            OffsetMilliseconds = offsetConfiguration.OffsetMS
+                ?? OffsetMilliseconds;
+            OffsetUpdate = ApplyOffset(
+                OffsetMilliseconds,
+                CancellationToken.None);
+            Observe(OffsetUpdate, "applying playback offset");
+        }
+
         public virtual async Task PlayGallery(string name, long seek = 0)
         {
             var version = Interlocked.Increment(ref commandVersion);
@@ -127,9 +176,19 @@ namespace Edi.Core.Device
             CancellationToken token = default;
             Task deviceTask = Task.CompletedTask;
 
+            logger.LogDebug(
+                "{DeviceType} playback command {CommandVersion} is waiting for the state lock. Gallery: {Gallery}",
+                GetType().Name,
+                version,
+                name);
             await stateLock.WaitAsync();
             try
             {
+                logger.LogDebug(
+                    "{DeviceType} playback command {CommandVersion} acquired the state lock. Gallery: {Gallery}",
+                    GetType().Name,
+                    version,
+                    name);
                 if (version != Volatile.Read(ref commandVersion))
                     return;
 
@@ -312,7 +371,13 @@ namespace Edi.Core.Device
         {
             var previousSource = playCancelTokenSource;
             var previousTask = activeDeviceTask;
+            logger.LogDebug(
+                "{DeviceType} is cancelling the previous playback task",
+                GetType().Name);
             previousSource.Cancel();
+            logger.LogDebug(
+                "{DeviceType} cancelled the previous playback task",
+                GetType().Name);
             playCancelTokenSource = new CancellationTokenSource();
             activeDeviceTask = Task.CompletedTask;
             Observe(

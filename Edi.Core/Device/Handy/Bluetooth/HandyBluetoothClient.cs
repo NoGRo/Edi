@@ -1,6 +1,7 @@
 using Google.Protobuf;
 using Microsoft.Extensions.Logging;
 using System.Collections.Concurrent;
+using System.Diagnostics;
 using Proto = HdyRpc;
 
 namespace Edi.Core.Device.Handy;
@@ -35,6 +36,7 @@ internal sealed class HandyBluetoothClient : IHandyClient
     public string Id => $"bluetooth:{_transport.Id}";
     public string Key { get; private set; }
     public string DisplayName => GetDisplayName(_transport.Name);
+    public TimeSpan PlaybackSyncDelay => TimeSpan.Zero;
 
     // Fifty HSP points stay below a 512-byte ATT payload even when
     // timestamps require five-byte varints.
@@ -299,6 +301,8 @@ internal sealed class HandyBluetoothClient : IHandyClient
             id = unchecked((uint)Interlocked.Increment(
                 ref _nextRequestId));
         request.Id = id;
+        var operation = GetOperationName(request);
+        var stopwatch = Stopwatch.StartNew();
 
         var completion =
             new TaskCompletionSource<Proto.Response>(
@@ -311,6 +315,11 @@ internal sealed class HandyBluetoothClient : IHandyClient
 
         try
         {
+            _logger.LogDebug(
+                "Handy BLE request {RequestId} {Operation} started. Pending: {PendingCount}",
+                id,
+                operation,
+                _pending.Count);
             var message = new Proto.RpcMessage
             {
                 Type = Proto.MessageType.Request,
@@ -328,12 +337,76 @@ internal sealed class HandyBluetoothClient : IHandyClient
                     response.Error.Message);
             }
 
+            var elapsedMilliseconds = stopwatch.ElapsedMilliseconds;
+            if (elapsedMilliseconds >= 250)
+            {
+                _logger.LogWarning(
+                    "Handy BLE request {RequestId} {Operation} was slow: {ElapsedMilliseconds} ms. Pending: {PendingCount}",
+                    id,
+                    operation,
+                    elapsedMilliseconds,
+                    _pending.Count);
+            }
+            else
+            {
+                _logger.LogDebug(
+                    "Handy BLE request {RequestId} {Operation} completed in {ElapsedMilliseconds} ms",
+                    id,
+                    operation,
+                    elapsedMilliseconds);
+            }
+
             return response;
+        }
+        catch (OperationCanceledException)
+            when (cancellationToken.IsCancellationRequested)
+        {
+            _logger.LogInformation(
+                "Handy BLE request {RequestId} {Operation} was superseded after {ElapsedMilliseconds} ms",
+                id,
+                operation,
+                stopwatch.ElapsedMilliseconds);
+            throw;
+        }
+        catch (TimeoutException)
+        {
+            _logger.LogError(
+                "Handy BLE request {RequestId} {Operation} timed out after {ElapsedMilliseconds} ms",
+                id,
+                operation,
+                stopwatch.ElapsedMilliseconds);
+            throw;
         }
         finally
         {
             _pending.TryRemove(id, out _);
         }
+    }
+
+    private static string GetOperationName(Proto.Request request)
+    {
+        if (request.RequestHspAdd is not null)
+            return "HSP add/flush";
+        if (request.RequestHspPlay is not null)
+            return "HSP play";
+        if (request.RequestHspStop is not null)
+            return "HSP stop";
+        if (request.RequestHspCurrentTimeSet is not null)
+            return "HSP sync-time";
+        if (request.RequestHspSetup is not null)
+            return "HSP setup";
+        if (request.RequestModeSet is not null)
+            return "mode set";
+        if (request.RequestClockOffsetGet is not null)
+            return "clock get";
+        if (request.RequestClockOffsetSet is not null)
+            return "clock set";
+        if (request.RequestSliderStrokeSet is not null)
+            return "stroke set";
+        if (request.RequestConnectionKeyGet is not null)
+            return "connection initialization";
+
+        return "unknown";
     }
 
     private void Transport_FrameReceived(byte[] frame)
@@ -402,4 +475,5 @@ internal sealed class HandyBluetoothClient : IHandyClient
             state.TailPointStreamIndex,
             checked((int)state.TailPointStreamIndexThreshold));
     }
+
 }

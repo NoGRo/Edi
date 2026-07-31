@@ -5,7 +5,6 @@ using Edi.Core.Gallery.Index;
 using Edi.Core.Services;
 using Microsoft.Extensions.Logging;
 using Newtonsoft.Json;
-using System.ComponentModel;
 using System.Timers;
 
 namespace Edi.Core.Device.AutoBlow;
@@ -36,7 +35,6 @@ public class AutoBlowProvider : IDeviceProvider
         _logger = logger;
         Config = config.Get<HandyConfig>();
         _timer.Elapsed += TimerElapsed;
-        ((INotifyPropertyChanged)Config).PropertyChanged += ConfigChanged;
     }
 
     public async Task Init()
@@ -95,8 +93,16 @@ public class AutoBlowProvider : IDeviceProvider
         var repository =
             await _repositoryManager.GetRepositoryAsync<IndexRepository>();
         var device = discovery.IsVacuGlide
-            ? new VacuGlide2Device(discovery.Client, repository, _logger)
-            : new AutoBlowDevice(discovery.Client, repository, _logger);
+            ? new VacuGlide2Device(
+                discovery.Client,
+                repository,
+                _logger,
+                Config.OffsetMS)
+            : new AutoBlowDevice(
+                discovery.Client,
+                repository,
+                _logger,
+                Config.OffsetMS);
 
         lock (_devices)
         {
@@ -109,7 +115,6 @@ public class AutoBlowProvider : IDeviceProvider
             _devices.Add(key, device);
         }
 
-        await TryApplyOffset(device, Config.OffsetMS);
         _deviceCollector.LoadDevice(device);
     }
 
@@ -223,35 +228,6 @@ public class AutoBlowProvider : IDeviceProvider
             Query = string.Empty,
             Fragment = string.Empty
         }.Uri;
-    }
-
-    private async void ConfigChanged(
-        object sender,
-        PropertyChangedEventArgs e)
-    {
-        if (e.PropertyName != nameof(HandyConfig.OffsetMS))
-            return;
-
-        AutoBlowDevice[] devices;
-        lock (_devices)
-            devices = _devices.Values.ToArray();
-
-        await Task.WhenAll(devices.Select(
-            device => TryApplyOffset(device, Config.OffsetMS)));
-    }
-
-    private async Task TryApplyOffset(AutoBlowDevice device, int offset)
-    {
-        try
-        {
-            await device.ApplyOffset(offset);
-        }
-        catch (Exception ex)
-        {
-            _logger.LogWarning(
-                ex,
-                "The Autoblow offset could not be applied.");
-        }
     }
 
     private async void TimerElapsed(object sender, ElapsedEventArgs e)

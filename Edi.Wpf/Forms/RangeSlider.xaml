@@ -1,0 +1,52 @@
+<UserControl x:Class="Edi.Forms.RangeSlider"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             MinHeight="32">
+    <Grid x:Name="TrackArea"
+          Margin="8,0"
+          Background="Transparent"
+          SizeChanged="TrackArea_SizeChanged"
+          MouseLeftButtonDown="TrackArea_MouseLeftButtonDown">
+        <Border Height="6"
+                VerticalAlignment="Center"
+                CornerRadius="3"
+                Background="#FFD0D0D0"/>
+        <Canvas ClipToBounds="False">
+            <Border x:Name="SelectedTrack"
+                    Height="6"
+                    Canvas.Top="13"
+                    CornerRadius="3"
+                    Background="#FF2979FF"/>
+            <Thumb x:Name="LowerThumb"
+                   Width="16"
+                   Height="26"
+                   Canvas.Top="3"
+                   Cursor="SizeWE"
+                   DragDelta="LowerThumb_DragDelta">
+                <Thumb.Template>
+                    <ControlTemplate TargetType="Thumb">
+                        <Border CornerRadius="8"
+                                Background="#FFF7F7F7"
+                                BorderBrush="#FF2979FF"
+                                BorderThickness="2"/>
+                    </ControlTemplate>
+                </Thumb.Template>
+            </Thumb>
+            <Thumb x:Name="UpperThumb"
+                   Width="16"
+                   Height="26"
+                   Canvas.Top="3"
+                   Cursor="SizeWE"
+                   DragDelta="UpperThumb_DragDelta">
+                <Thumb.Template>
+                    <ControlTemplate TargetType="Thumb">
+                        <Border CornerRadius="8"
+                                Background="#FFF7F7F7"
+                                BorderBrush="#FF2979FF"
+                                BorderThickness="2"/>
+                    </ControlTemplate>
+                </Thumb.Template>
+            </Thumb>
+        </Canvas>
+    </Grid>
+</UserControl>

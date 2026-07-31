@@ -19,16 +19,13 @@ Thread thread = new Thread(() =>
     var host = Host.CreateDefaultBuilder()
         .UseSerilog((ctx, sp, loggerConfig) =>
         {
-            var ediConfig = sp.GetService<Edi.Core.Services.ConfigurationManager>().Get<EdiConfig>();
-
             loggerConfig
                 .MinimumLevel.Debug()
-                .WriteTo.Conditional(
-                    _ => ediConfig.UseLogs,
-                    wt => wt.File("./Edilog.txt",
-                                rollingInterval: RollingInterval.Day,
-                                retainedFileCountLimit: 1)
-                );
+                .WriteTo.File(
+                    "./Edilog.txt",
+                    rollingInterval: RollingInterval.Day,
+                    retainedFileCountLimit: 3,
+                    flushToDiskInterval: TimeSpan.FromSeconds(1));
         })
         .ConfigureServices((context, services) =>
         {

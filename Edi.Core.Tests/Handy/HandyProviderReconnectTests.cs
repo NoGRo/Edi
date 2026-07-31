@@ -446,6 +446,7 @@ public class HandyProviderReconnectTests
         public string Key => string.Empty;
         public string DisplayName => "The Handy 2 Pro (BLE)";
         public int MaxPointsPerRequest => 50;
+        public TimeSpan PlaybackSyncDelay => TimeSpan.Zero;
         public bool WasDisposed { get; private set; }
         public bool FailOffset { get; set; }
         public TaskCompletionSource DisposeStarted { get; } =

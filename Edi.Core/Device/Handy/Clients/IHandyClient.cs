@@ -8,6 +8,7 @@ public interface IHandyClient : IAsyncDisposable
     string Key { get; }
     string DisplayName { get; }
     int MaxPointsPerRequest { get; }
+    TimeSpan PlaybackSyncDelay { get; }
     event Action<IHandyClient> Disconnected;
 
     Task SynchronizeClock(CancellationToken cancellationToken);

@@ -120,12 +120,28 @@ Configuration writes, reflection-based discovery, and cached object identity are
 behavior. Tests that change this area should use a temporary directory and must never read or
 overwrite the developer's real `%LOCALAPPDATA%\Edi` files.
 
+`DeviceConfig` is the shared per-device schema and contains only shared capabilities such as
+variant, channel, range, and offset. Never add a concrete family configuration type to it.
+Per-device DG-Lab, OSR, or other family settings belong in a `[GameConfig]` container within
+that family's namespace. The family provider attaches the matching entry to its device; the
+device observes property changes and owns normalization and runtime application.
+
 ## REST surface
 
 Controllers in `Edi.Core/Controllers` expose playback, definitions/assets, device selection,
 ranges, variants, and channels. Both visible POST actions and hidden GET compatibility actions
 may exist. When changing a route, inspect Swagger filters and both controller surfaces so game
 clients do not silently break.
+
+`DevicesController` is a generic device boundary. Its routes and DTOs must not name or depend
+on a provider, protocol, device family, concrete device class, or family-specific configuration
+type. Adding a persisted device setting or a host UI control does not imply adding a REST
+endpoint for it. Keep family-specific settings inside the family configuration and
+device/provider boundary. If external control is genuinely required, first define a
+protocol-neutral capability contract and a generic route that does not expose the implementing
+family. A route such as `/Offset` is valid when it targets a generic advertised capability and
+only changes observable configuration; routes such as `/DgLab` or `/Osr` are invalid because
+they expose concrete device families.
 
 The repository README documents the intended public API, but controller attributes and tests
 must be treated as the executable contract.

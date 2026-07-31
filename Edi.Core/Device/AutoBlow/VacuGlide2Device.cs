@@ -8,12 +8,14 @@ namespace Edi.Core.Device.AutoBlow
         public VacuGlide2Device(
             HttpClient client,
             IndexRepository repository,
-            ILogger logger)
+            ILogger logger,
+            int defaultOffset = -80)
             : base(
                 client,
                 repository,
                 logger,
-                "Autoblow VacuGlide 2")
+                "Autoblow VacuGlide 2",
+                defaultOffset)
         {
         }
     }

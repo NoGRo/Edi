@@ -1,4 +1,4 @@
-using Edi.Core.Device.Handy;
+using Edi.Core.Device.Interfaces;
 using Edi.Core.Gallery.Index;
 using Microsoft.Extensions.Logging;
 using Newtonsoft.Json;
@@ -9,21 +9,27 @@ using System.Text;
 namespace Edi.Core.Device.AutoBlow;
 
 [AddINotifyPropertyChangedInterface]
-internal class AutoBlowDevice : DeviceBase<IndexRepository, IndexGallery>
+internal class AutoBlowDevice
+    : DeviceBase<IndexRepository, IndexGallery>,
+      IDeviceWithOffsetConfiguration
 {
     private const int UploadAttempts = 3;
     private readonly ILogger _logger;
     private readonly string _deviceType;
-    private readonly SemaphoreSlim _offsetLock = new(1, 1);
     private CancellationTokenSource _uploadCancellation;
     private string _currentBundle = "default";
-    private int _currentOffset;
 
     public AutoBlowDevice(
         HttpClient client,
         IndexRepository repository,
-        ILogger logger)
-        : this(client, repository, logger, "AutoBlow")
+        ILogger logger,
+        int defaultOffset = -80)
+        : this(
+            client,
+            repository,
+            logger,
+            "AutoBlow",
+            defaultOffset)
     {
     }
 
@@ -31,12 +37,14 @@ internal class AutoBlowDevice : DeviceBase<IndexRepository, IndexGallery>
         HttpClient client,
         IndexRepository repository,
         ILogger logger,
-        string displayName)
+        string displayName,
+        int defaultOffset = -80)
         : base(repository, logger)
     {
         Client = client;
         _logger = logger;
         _deviceType = displayName;
+        EnableOffset(defaultOffset);
         var key = client.DefaultRequestHeaders
             .GetValues("x-device-token")
             .First();
@@ -45,6 +53,9 @@ internal class AutoBlowDevice : DeviceBase<IndexRepository, IndexGallery>
     }
 
     public HttpClient Client { get; }
+
+    public void ApplyConfiguration(DeviceConfig configuration)
+        => ApplyOffsetConfiguration(configuration);
 
     internal override void SetVariant() => QueueUpload();
 
@@ -97,24 +108,13 @@ internal class AutoBlowDevice : DeviceBase<IndexRepository, IndexGallery>
         response.EnsureSuccessStatusCode();
     }
 
-    internal async Task ApplyOffset(
-        int offset,
-        CancellationToken cancellationToken = default)
-    {
-        _currentOffset = HandyConfig.NormalizeOffset(offset);
-        await _offsetLock.WaitAsync(cancellationToken);
-        try
-        {
-            await ApplyOffset(
-                Client,
-                _currentOffset,
-                cancellationToken);
-        }
-        finally
-        {
-            _offsetLock.Release();
-        }
-    }
+    protected override Task ApplyOffset(
+        int offsetMilliseconds,
+        CancellationToken cancellationToken)
+        => ApplyOffset(
+            Client,
+            offsetMilliseconds,
+            cancellationToken);
 
     internal static async Task ApplyOffset(
         HttpClient client,
@@ -126,7 +126,7 @@ internal class AutoBlowDevice : DeviceBase<IndexRepository, IndexGallery>
             new StringContent(
                 JsonConvert.SerializeObject(
                     new AutoBlowOffsetRequest(
-                        HandyConfig.NormalizeOffset(offset))),
+                        DeviceOffset.Normalize(offset))),
                 Encoding.UTF8,
                 "application/json"),
             cancellationToken);
@@ -176,7 +176,10 @@ internal class AutoBlowDevice : DeviceBase<IndexRepository, IndexGallery>
             _currentBundle = targetBundle;
             try
             {
-                await ApplyOffset(_currentOffset, source.Token);
+                await ApplyOffset(
+                    Client,
+                    OffsetMilliseconds,
+                    source.Token);
             }
             catch (HttpRequestException ex)
             {

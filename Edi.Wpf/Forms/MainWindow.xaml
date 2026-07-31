@@ -164,49 +164,13 @@
             <!-- Device Connection Group -->
             <GroupBox Header="Connection Settings" Margin="0,0,0,10" Padding="5">
                 <StackPanel>
-                    <Grid Margin="0,2">
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="40"/>
-                            <ColumnDefinition Width="*"/>
-                            <ColumnDefinition Width="43"/>
-                            <ColumnDefinition Width="58"/>
-                        </Grid.ColumnDefinitions>
-                        <Label Content="Device Keys:" VerticalAlignment="Center" Grid.ColumnSpan="2" Margin="0,0,112,0"/>
-                        <TextBox Grid.Column="1"
-                                 Text="{Binding handyConfig.Key}"
-                                 ToolTip="Your Handy, AutoBlow Ultra, or VacuGlide 2 connection key" Margin="45,0,1,0"/>
-                        <Label Grid.Column="2"
-                               Content="Offset:"
-                               Padding="4,5,0,5"
+                    <DockPanel Margin="0,2">
+                        <Label Content="Device Keys:"
+                               Width="85"
                                VerticalAlignment="Center"/>
-                        <Grid Grid.Column="3">
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="*"/>
-                                <ColumnDefinition Width="18"/>
-                            </Grid.ColumnDefinitions>
-                            <TextBox x:Name="HandyOffsetTextBox"
-                                     Text="{Binding handyConfig.OffsetMS, Mode=TwoWay, UpdateSourceTrigger=LostFocus}"
-                                     HorizontalContentAlignment="Right"
-                                     VerticalContentAlignment="Center"
-                                     PreviewMouseWheel="HandyOffsetTextBox_PreviewMouseWheel"
-                                     ToolTip="Handy, AutoBlow Ultra, and VacuGlide 2 offset in milliseconds (-7000 to +7000)"/>
-                            <Grid Grid.Column="1">
-                                <Grid.RowDefinitions>
-                                    <RowDefinition Height="*"/>
-                                    <RowDefinition Height="*"/>
-                                </Grid.RowDefinitions>
-                                <RepeatButton Content="▲"
-                                              FontSize="7"
-                                              Padding="0"
-                                              Click="HandyOffsetIncrease_Click"/>
-                                <RepeatButton Grid.Row="1"
-                                              Content="▼"
-                                              FontSize="7"
-                                              Padding="0"
-                                              Click="HandyOffsetDecrease_Click"/>
-                            </Grid>
-                        </Grid>
-                    </Grid>
+                        <TextBox Text="{Binding handyConfig.Key}"
+                                 ToolTip="Your Handy, AutoBlow Ultra, or VacuGlide 2 connection key"/>
+                    </DockPanel>
                     <DockPanel Margin="0,2">
                         <Label Content="Intiface URL:" Width="85" VerticalAlignment="Center"/>
                         <TextBox Text="{Binding buttplugConfig.Url}" ToolTip="Buttplug/Intiface Desktop server address"/>
@@ -230,6 +194,17 @@
                     <DockPanel Margin="0,2">
                         <Label Content="OSR UDP:" Width="85" VerticalAlignment="Center"/>
                         <TextBox Text="{Binding osrConfig.UdpAddress}" ToolTip="UDP Address for OSR (e.g., 127.0.0.1:1234)"/>
+                    </DockPanel>
+                    <DockPanel Margin="0,2">
+                        <Label Content="DG-LAB PW v2:"
+                               Width="100"
+                               VerticalAlignment="Center"/>
+                        <CheckBox Content="Detect BLE"
+                                  Height="23"
+                                  VerticalAlignment="Center"
+                                  VerticalContentAlignment="Center"
+                                  IsChecked="{Binding dgLabConfig.Enabled, Mode=TwoWay}"
+                                  ToolTip="Detect DG-LAB PowerBox 2.0 devices over Bluetooth. Reconnect devices after changing this option."/>
                     </DockPanel>
                     <Button Content="Reconnect Devices" Margin="0,10,0,0" Height="25" x:Name="ReconnectButton" Click="ReconnectButton_ClickAsync" ToolTip="Refresh connections for all enabled devices"/>
                 </StackPanel>
@@ -333,6 +308,19 @@
                                 <ComboBox ItemsSource="{Binding DataContext.channels, RelativeSource={RelativeSource AncestorType=Window}}"
                                           SelectionChanged="Channels_SelectionChanged"
                                           SelectedValue="{Binding Channel, Mode=TwoWay}" Width="80"/>
+                            </DataTemplate>
+                        </DataGridTemplateColumn.CellTemplate>
+                    </DataGridTemplateColumn>
+                    <DataGridTemplateColumn Header="Settings" Width="62">
+                        <DataGridTemplateColumn.CellTemplate>
+                            <DataTemplate>
+                                <Button Click="DeviceConfiguration_Click"
+                                        Margin="2,0"
+                                        ToolTip="Configure this device">
+                                    <TextBlock Text="⚙"
+                                               FontFamily="Segoe UI Symbol"
+                                               FontSize="16"/>
+                                </Button>
                             </DataTemplate>
                         </DataGridTemplateColumn.CellTemplate>
                     </DataGridTemplateColumn>

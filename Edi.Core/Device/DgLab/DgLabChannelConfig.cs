@@ -1,7 +1,15 @@
+using PropertyChanged;
+using System.ComponentModel;
+
 namespace Edi.Core.Device.DgLab;
 
-public sealed class DgLabChannelConfig
+[AddINotifyPropertyChangedInterface]
+public sealed class DgLabChannelConfig : INotifyPropertyChanged
 {
+#pragma warning disable CS0067
+    public event PropertyChangedEventHandler PropertyChanged;
+#pragma warning restore CS0067
+
     public const int MaximumPower = 2047;
     public const int MaximumSafePulseWidthMicroseconds = 100;
 
@@ -26,6 +34,18 @@ public sealed class DgLabChannelConfig
             SpeedForMaximumFrequency = SpeedForMaximumFrequency,
             DefaultVolumePercent = DefaultVolumePercent
         };
+
+    public void CopyFrom(DgLabChannelConfig source)
+    {
+        ArgumentNullException.ThrowIfNull(source);
+        PowerMin = source.PowerMin;
+        PowerMax = source.PowerMax;
+        FrequencyMinHz = source.FrequencyMinHz;
+        FrequencyMaxHz = source.FrequencyMaxHz;
+        PulseWidthMicroseconds = source.PulseWidthMicroseconds;
+        SpeedForMaximumFrequency = source.SpeedForMaximumFrequency;
+        DefaultVolumePercent = source.DefaultVolumePercent;
+    }
 
     public void Normalize()
     {

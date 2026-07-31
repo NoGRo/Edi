@@ -4,6 +4,7 @@ using Edi.Core.Gallery.Funscript;
 using Edi.Core.Tests.Support;
 using Microsoft.Extensions.Logging.Abstractions;
 using Newtonsoft.Json.Linq;
+using System.Collections.Concurrent;
 using System.Reflection;
 
 namespace Edi.Core.Tests.Handy;
@@ -417,6 +418,42 @@ public class HandyV3DeviceTests
     }
 
     [Fact]
+    public async Task ImmediateSynchronizationCompletesBeforeStreamingMorePoints()
+    {
+        await using var rig = await PlayerTestRig.CreateAsync();
+        AddGallery(rig.Funscripts, new FunscriptGallery
+        {
+            Name = "immediate-sync",
+            Variant = "default",
+            Duration = 10_000,
+            Loop = true,
+            Commands =
+            [
+                new CmdLinear { AbsoluteTime = 0, Value = 10 },
+                new CmdLinear { AbsoluteTime = 1, Value = 30 },
+                new CmdLinear { AbsoluteTime = 2, Value = 60 },
+                new CmdLinear { AbsoluteTime = 3, Value = 90 }
+            ]
+        });
+
+        await using var client = new ImmediateSyncClient();
+        var device = new HandyV3Device(
+            client,
+            rig.Funscripts,
+            NullLogger.Instance);
+        device.selectedVariant = "default";
+
+        await device.PlayGallery("immediate-sync");
+        await client.RemainingPointsAdded.Task.WaitAsync(
+            TestContext.Current.CancellationToken);
+
+        Assert.Equal(
+            ["setup", "play", "sync", "add"],
+            client.Operations);
+        await device.Stop();
+    }
+
+    [Fact]
     public async Task FirstPlaySynchronizesClocksThenCorrectsTimeAfterWarmup()
     {
         await using var rig = await PlayerTestRig.CreateAsync();
@@ -607,5 +644,90 @@ public class HandyV3DeviceTests
         }
 
         internal override DateTime GetUtcNow() => _getUtcNow();
+    }
+
+    private sealed class ImmediateSyncClient : IHandyClient
+    {
+        private static readonly HspState State = new(
+            stream_id: 1,
+            max_points: 2,
+            points: 2,
+            current_point: 0,
+            current_time: 0,
+            loop: true,
+            playback_rate: 1,
+            first_point_time: 0,
+            last_point_time: 3,
+            play_state: "playing",
+            tail_point_stream_index: 2,
+            tail_point_stream_index_threshold: 0);
+
+        private readonly ConcurrentQueue<string> operations = new();
+
+        public string Id => "test:immediate-sync";
+        public string Key => string.Empty;
+        public string DisplayName => "Immediate sync test client";
+        public int MaxPointsPerRequest => 2;
+        public TimeSpan PlaybackSyncDelay => TimeSpan.Zero;
+        public IReadOnlyList<string> Operations => operations.ToArray();
+        public TaskCompletionSource RemainingPointsAdded { get; } =
+            new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        public event Action<IHandyClient> Disconnected
+        {
+            add { }
+            remove { }
+        }
+
+        public Task SynchronizeClock(CancellationToken cancellationToken)
+            => Task.CompletedTask;
+
+        public Task<HspState> Setup(
+            HspSetupRequest request,
+            CancellationToken cancellationToken)
+        {
+            operations.Enqueue("setup");
+            return Task.FromResult(State);
+        }
+
+        public Task<HspState> AddPoints(
+            HspAddRequest request,
+            CancellationToken cancellationToken)
+        {
+            operations.Enqueue("add");
+            RemainingPointsAdded.TrySetResult();
+            return Task.FromResult(State);
+        }
+
+        public Task<HspState> Play(
+            HspPlayRequest request,
+            CancellationToken cancellationToken)
+        {
+            operations.Enqueue("play");
+            return Task.FromResult(State);
+        }
+
+        public Task<HspState> SyncTime(
+            HspSyncTimeRequest request,
+            CancellationToken cancellationToken)
+        {
+            operations.Enqueue("sync");
+            return Task.FromResult(State);
+        }
+
+        public Task Stop(CancellationToken cancellationToken)
+            => Task.CompletedTask;
+
+        public Task SetStroke(
+            SlideRequest request,
+            CancellationToken cancellationToken)
+            => Task.CompletedTask;
+
+        public Task SetOffset(
+            int offset,
+            CancellationToken cancellationToken)
+            => Task.CompletedTask;
+
+        public ValueTask DisposeAsync() => ValueTask.CompletedTask;
     }
 }

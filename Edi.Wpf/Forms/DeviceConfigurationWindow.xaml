@@ -1,0 +1,332 @@
+<Window x:Class="Edi.Forms.DeviceConfigurationWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:local="clr-namespace:Edi.Forms"
+        Title="Device configuration"
+        Width="520"
+        Height="650"
+        MinWidth="470"
+        MinHeight="380"
+        WindowStartupLocation="CenterOwner">
+    <Window.Resources>
+        <BooleanToVisibilityConverter x:Key="BooleanToVisibilityConverter"/>
+    </Window.Resources>
+
+    <Grid Margin="16">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <TextBlock Text="{Binding DeviceName}"
+                   FontSize="18"
+                   FontWeight="SemiBold"
+                   Margin="0,0,0,12"/>
+
+        <ScrollViewer Grid.Row="1"
+                      VerticalScrollBarVisibility="Auto">
+            <StackPanel>
+                <GroupBox Header="EDI intensity range"
+                          Padding="12">
+                    <StackPanel>
+                        <TextBlock Text="Limits the movement or output window used by this device."
+                                   TextWrapping="Wrap"
+                                   Foreground="#FF555555"
+                                   Margin="0,0,0,8"
+                                   ToolTip="FunScript values are mapped inside this minimum and maximum. EDI's global Intensity scales the output again within the selected window."/>
+                        <local:RangeSlider Minimum="0"
+                                           Maximum="100"
+                                           LowerValue="{Binding RangeMin, Mode=TwoWay}"
+                                           UpperValue="{Binding RangeMax, Mode=TwoWay}"
+                                           ToolTip="The lower and upper limits for this device. Global Intensity scales inside this selected range."/>
+                        <Grid Margin="0,8,0,0">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="70"/>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="70"/>
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Text="Minimum %"
+                                       VerticalAlignment="Center"/>
+                            <TextBox Grid.Column="1"
+                                     Margin="8,0,0,0"
+                                     Text="{Binding RangeMin, UpdateSourceTrigger=LostFocus}"
+                                     HorizontalContentAlignment="Right"/>
+                            <TextBlock Grid.Column="3"
+                                       Text="Maximum %"
+                                       VerticalAlignment="Center"/>
+                            <TextBox Grid.Column="4"
+                                     Margin="8,0,0,0"
+                                     Text="{Binding RangeMax, UpdateSourceTrigger=LostFocus}"
+                                     HorizontalContentAlignment="Right"/>
+                        </Grid>
+                    </StackPanel>
+                </GroupBox>
+
+                <GroupBox Header="Playback synchronization"
+                          Padding="12"
+                          Margin="0,12,0,0"
+                          Visibility="{Binding HasOffset, Converter={StaticResource BooleanToVisibilityConverter}}">
+                    <StackPanel>
+                        <TextBlock Text="Shift this device earlier or later to match the video."
+                                   Foreground="#FF555555"
+                                   ToolTip="Negative milliseconds make the device react earlier; positive milliseconds make it react later. This value is saved independently for this device."/>
+                        <Slider Minimum="-4000"
+                                Maximum="4000"
+                                TickFrequency="10"
+                                IsSnapToTickEnabled="True"
+                                Value="{Binding OffsetMilliseconds, Mode=TwoWay}"
+                                Margin="0,6,0,0"
+                                ToolTip="Playback offset from -4000 ms to +4000 ms, in 10 ms steps."/>
+                        <DockPanel Margin="0,4,0,0">
+                            <TextBlock Text="Offset (ms)"
+                                       VerticalAlignment="Center"
+                                       ToolTip="Negative = earlier; positive = later."/>
+                            <TextBox Width="80"
+                                     Margin="8,0,0,0"
+                                     HorizontalAlignment="Left"
+                                     HorizontalContentAlignment="Right"
+                                     Text="{Binding OffsetMilliseconds, UpdateSourceTrigger=LostFocus}"
+                                     ToolTip="Exact playback offset in milliseconds."/>
+                        </DockPanel>
+                    </StackPanel>
+                </GroupBox>
+
+                <GroupBox Header="DG-Lab channel calibration"
+                          Padding="12"
+                          Margin="0,12,0,0"
+                          Visibility="{Binding HasDgLab, Converter={StaticResource BooleanToVisibilityConverter}}">
+                    <StackPanel>
+                        <Border Background="#FFFFF4CE"
+                                BorderBrush="#FFE6B800"
+                                BorderThickness="1"
+                                CornerRadius="4"
+                                Padding="10"
+                                Margin="0,0,0,12">
+                            <TextBlock TextWrapping="Wrap"
+                                       Text="Calibrate this output for the current electrodes and placement, beginning at zero. Stop before moving or disconnecting electrodes."/>
+                        </Border>
+
+                        <TextBlock Text="Exact power range (0-2047)"
+                                   FontWeight="SemiBold"
+                                   ToolTip="Maps the Volume axis from 0-100% into the exact PowerBox output range calibrated for this electrode and placement."/>
+                        <TextBlock Text="Volume is mapped inside this calibrated channel range."
+                                   Foreground="#FF555555"
+                                   Margin="0,2,0,0"
+                                   ToolTip="EDI Intensity then scales Volume within this exact range. Frequency and pulse width are not changed by Intensity."/>
+                        <local:RangeSlider Minimum="0"
+                                           Maximum="2047"
+                                           LowerValue="{Binding PowerMin, Mode=TwoWay}"
+                                           UpperValue="{Binding PowerMax, Mode=TwoWay}"
+                                           Margin="0,4,0,0"/>
+                        <Grid Margin="0,6,0,12">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="80"/>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="80"/>
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Text="Minimum"
+                                       VerticalAlignment="Center"/>
+                            <TextBox Grid.Column="1"
+                                     Margin="8,0,0,0"
+                                     Text="{Binding PowerMin, UpdateSourceTrigger=LostFocus}"
+                                     HorizontalContentAlignment="Right"/>
+                            <TextBlock Grid.Column="3"
+                                       Text="Maximum"
+                                       VerticalAlignment="Center"/>
+                            <TextBox Grid.Column="4"
+                                     Margin="8,0,0,0"
+                                     Text="{Binding PowerMax, UpdateSourceTrigger=LostFocus}"
+                                     HorizontalContentAlignment="Right"/>
+                        </Grid>
+
+                        <TextBlock Text="Frequency range (device limit: 1-100 Hz)"
+                                   FontWeight="SemiBold"
+                                   ToolTip="A normal FunScript maps movement speed into this range. A .frequency.funscript axis selects a frequency directly within it."/>
+                        <local:RangeSlider Minimum="1"
+                                           Maximum="100"
+                                           LowerValue="{Binding FrequencyMinHz, Mode=TwoWay}"
+                                           UpperValue="{Binding FrequencyMaxHz, Mode=TwoWay}"
+                                           Margin="0,4,0,0"
+                                           ToolTip="Minimum and maximum pulse frequency used by this DG-Lab channel."/>
+                        <Grid Margin="0,6,0,12">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="70"/>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="70"/>
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Text="Minimum Hz"
+                                       VerticalAlignment="Center"/>
+                            <TextBox Grid.Column="1"
+                                     Margin="8,0,0,0"
+                                     Text="{Binding FrequencyMinHz, UpdateSourceTrigger=LostFocus}"
+                                     HorizontalContentAlignment="Right"/>
+                            <TextBlock Grid.Column="3"
+                                       Text="Maximum Hz"
+                                       VerticalAlignment="Center"/>
+                            <TextBox Grid.Column="4"
+                                     Margin="8,0,0,0"
+                                     Text="{Binding FrequencyMaxHz, UpdateSourceTrigger=LostFocus}"
+                                     HorizontalContentAlignment="Right"/>
+                        </Grid>
+
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="64"/>
+                            </Grid.ColumnDefinitions>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
+                            </Grid.RowDefinitions>
+
+                            <TextBlock Text="Pulse duration ceiling (0-100 us)"
+                                       VerticalAlignment="Center"
+                                       Margin="0,6,16,6"
+                                       ToolTip="Duration of each electrical pulse. Wider pulses can feel stronger or sharper. EDI caps this at the manufacturer's safer 100 microsecond limit."/>
+                            <Slider Grid.Column="1"
+                                    Minimum="0"
+                                    Maximum="100"
+                                    TickFrequency="5"
+                                    IsSnapToTickEnabled="True"
+                                    Margin="0,6,8,6"
+                                    VerticalAlignment="Center"
+                                    Value="{Binding PulseWidthMicroseconds, Mode=TwoWay}"
+                                    ToolTip="Maximum used by a .pulsewidth.funscript axis; without that axis this fixed value is used."/>
+                            <TextBox Grid.Column="2"
+                                     Margin="0,4,0,4"
+                                     VerticalAlignment="Center"
+                                     Text="{Binding PulseWidthMicroseconds, UpdateSourceTrigger=LostFocus}"
+                                     HorizontalContentAlignment="Right"
+                                     ToolTip="Pulse duration in microseconds."/>
+
+                            <TextBlock Grid.Row="1"
+                                       Text="FunScript speed for maximum Hz"
+                                       VerticalAlignment="Center"
+                                       Margin="0,6,16,6"
+                                       ToolTip="For a normal FunScript, this movement speed reaches the configured maximum frequency. Slower movement produces proportionally lower frequency."/>
+                            <TextBox Grid.Row="1"
+                                     Grid.Column="2"
+                                     Margin="0,4,0,4"
+                                     VerticalAlignment="Center"
+                                     Text="{Binding SpeedForMaximumFrequency, UpdateSourceTrigger=LostFocus}"
+                                     HorizontalContentAlignment="Right"
+                                     ToolTip="Only used when there is no explicit .frequency.funscript axis."/>
+
+                            <TextBlock Grid.Row="2"
+                                       Text="Default volume (0-100%)"
+                                       VerticalAlignment="Center"
+                                       Margin="0,6,16,6"
+                                       ToolTip="Base output level used when the gallery has no .volume.funscript axis. EDI Intensity scales this value inside the calibrated power range."/>
+                            <Slider Grid.Row="2"
+                                    Grid.Column="1"
+                                    Minimum="0"
+                                    Maximum="100"
+                                    TickFrequency="1"
+                                    Margin="0,6,8,6"
+                                    VerticalAlignment="Center"
+                                    Value="{Binding DefaultVolumePercent, Mode=TwoWay}"
+                                    ToolTip="Raise or lower the channel's normal volume. Explicit .volume.funscript files override it over time."/>
+                            <TextBox Grid.Row="2"
+                                     Grid.Column="2"
+                                     Margin="0,4,0,4"
+                                     VerticalAlignment="Center"
+                                     Text="{Binding DefaultVolumePercent, UpdateSourceTrigger=LostFocus}"
+                                     HorizontalContentAlignment="Right"
+                                     ToolTip="Default volume percentage."/>
+                        </Grid>
+                    </StackPanel>
+                </GroupBox>
+
+                <GroupBox Header="OSR / TCode motion"
+                          Padding="12"
+                          Margin="0,12,0,0"
+                          Visibility="{Binding HasOsr, Converter={StaticResource BooleanToVisibilityConverter}}">
+                    <StackPanel>
+                        <CheckBox Content="Use multi-axis FunScripts"
+                                  IsChecked="{Binding OsrEnableMultiAxis, Mode=TwoWay}"
+                                  ToolTip="When enabled, EDI reads .surge, .sway, .twist, .roll and .pitch FunScript axes. When disabled, only the normal linear stroke is animated."/>
+                        <Grid Margin="0,8,0,10">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="80"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Text="Command rate (Hz)"
+                                       VerticalAlignment="Center"
+                                       ToolTip="How often EDI calculates and sends TCode positions. Higher rates are smoother but use more serial or network traffic."/>
+                            <TextBox Grid.Column="1"
+                                     Margin="8,0,0,0"
+                                     Text="{Binding OsrUpdateRate, UpdateSourceTrigger=LostFocus}"
+                                     HorizontalContentAlignment="Right"
+                                     ToolTip="Allowed range: 1-1000 Hz."/>
+                        </Grid>
+
+                        <TextBlock Text="Motion limits by axis (0-100%)"
+                                   FontWeight="SemiBold"
+                                   ToolTip="Each FunScript axis is mapped inside its own physical movement window. The two handles cannot cross."/>
+                        <ItemsControl ItemsSource="{Binding OsrAxes}">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <StackPanel Margin="0,7,0,0"
+                                                ToolTip="{Binding ToolTip}">
+                                        <TextBlock Text="{Binding Label}"
+                                                   FontWeight="SemiBold"/>
+                                        <local:RangeSlider Minimum="0"
+                                                           Maximum="100"
+                                                           LowerValue="{Binding Lower, Mode=TwoWay}"
+                                                           UpperValue="{Binding Upper, Mode=TwoWay}"/>
+                                        <Grid Margin="0,2,0,0">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="Auto"/>
+                                                <ColumnDefinition Width="60"/>
+                                                <ColumnDefinition Width="*"/>
+                                                <ColumnDefinition Width="Auto"/>
+                                                <ColumnDefinition Width="60"/>
+                                            </Grid.ColumnDefinitions>
+                                            <TextBlock Text="Min %"
+                                                       VerticalAlignment="Center"/>
+                                            <TextBox Grid.Column="1"
+                                                     Margin="6,0,0,0"
+                                                     Text="{Binding Lower, UpdateSourceTrigger=LostFocus}"
+                                                     HorizontalContentAlignment="Right"/>
+                                            <TextBlock Grid.Column="3"
+                                                       Text="Max %"
+                                                       VerticalAlignment="Center"/>
+                                            <TextBox Grid.Column="4"
+                                                     Margin="6,0,0,0"
+                                                     Text="{Binding Upper, UpdateSourceTrigger=LostFocus}"
+                                                     HorizontalContentAlignment="Right"/>
+                                        </Grid>
+                                    </StackPanel>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </StackPanel>
+                </GroupBox>
+            </StackPanel>
+        </ScrollViewer>
+
+        <StackPanel Grid.Row="2"
+                    Orientation="Horizontal"
+                    HorizontalAlignment="Right"
+                    Margin="0,12,0,0">
+            <Button Content="Cancel"
+                    Width="76"
+                    IsCancel="True"/>
+            <Button Content="Save"
+                    Width="76"
+                    Margin="8,0,0,0"
+                    IsDefault="True"
+                    Click="Save_Click"/>
+        </StackPanel>
+    </Grid>
+</Window>

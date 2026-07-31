@@ -2,6 +2,7 @@
 using Edi.Core.Device.AutoBlow;
 using Edi.Core.Device.Buttplug;
 using Edi.Core.Device.EStim;
+using Edi.Core.Device.DgLab;
 using Edi.Core.Device.Handy;
 using Edi.Core.Device.Interfaces;
 using Edi.Core.Device.OSR;
@@ -59,6 +60,8 @@ namespace Edi.Core
             services.AddHandy();
             services.AddSingleton<IDeviceProvider, OSRProvider>();
             services.AddSingleton<IDeviceProvider, EStimProvider>();
+            services.AddSingleton<IDgLabDiscovery, DgLabDiscovery>();
+            services.AddSingleton<IDeviceProvider, DgLabProvider>();
             services.AddSingleton<IDeviceProvider, RecorderProvider>();
             // Integra Serilog con el sistema de logging de Microsoft.Extensions.Logging
 

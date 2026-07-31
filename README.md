@@ -112,6 +112,22 @@ EDI allows full use of multi-axis or multi-motor devices via naming conventions 
 - `ataque_fuerte.intense.linear.funscript` → variant `intense`, axis `linear`
 - `ataque_fuerte.intense.twist.funscript` → axis `twist`
 
+##### DG-Lab PowerBox 2.0 axes
+
+EDI exposes the PowerBox outputs as two independent devices, suffixed `A` and
+`B`. A normal funscript maps movement speed to pulse frequency. For explicit
+control, use the three reserved axes:
+
+- `scene.frequency.funscript`: pulse frequency within the configured Hz range.
+- `scene.volume.funscript`: exact output power within the channel's calibrated
+  0-2047 range.
+- `scene.pulsewidth.funscript`: pulse width from zero to the configured safe
+  maximum.
+
+Each output must be calibrated separately for the current electrodes and
+placement. New channels start with a zero power range and cannot energize until
+configured.
+
 ---
 ### Multi-Channel System (Beta)
 
@@ -221,6 +237,8 @@ Channels can be specified for any Playback endpoint in two ways:
 - `POST /Devices/{deviceName}/Variant/{variantName}`: assigns a variant to a device. Using `None` stops that device.
 - `POST /Devices/{deviceName}/Range/{min}-{max}`: sets device intensity range. If both values are 0, the device is stopped.
 - `POST /Devices/{deviceName}/Channel/{channelName}`: assigns a device to a specific channel.
+- `POST /Devices/{deviceName}/Offset/{offsetMilliseconds}`: sets the saved
+  playback offset for any device that advertises the generic offset capability.
 
 #### Content
 
@@ -238,6 +256,9 @@ EDI includes a user-friendly GUI to manage essential functions easily.
 
 - Select Game by EdiConfig.json or Definitions.csv.
 - Select connected devices and assign variants.
+- Open the settings button for any device to edit its non-crossing minimum and
+  maximum intensity handles. Devices with additional capabilities expose their
+  extra controls in the same window.
 - Toggle active gallery types: Gallery, Filler, Reaction.
 - Adjust intensity with slider.
 - Manual playback controls.

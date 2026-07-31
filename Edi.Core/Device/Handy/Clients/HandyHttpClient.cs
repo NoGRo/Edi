@@ -14,6 +14,8 @@ internal sealed class HandyHttpClient(HttpClient client) : IHandyClient
     public string DisplayName => $"The Handy [{Key}]";
 
     public int MaxPointsPerRequest => 100;
+    public TimeSpan PlaybackSyncDelay =>
+        TimeSpan.FromMilliseconds(1500);
 
     public event Action<IHandyClient> Disconnected
     {

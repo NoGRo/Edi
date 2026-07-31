@@ -12,9 +12,9 @@ namespace Edi.Core.Device.Handy
     [UserConfig]
     public class HandyConfig
     {
-        public const int MinimumOffsetMS = -7000;
-        public const int MaximumOffsetMS = 7000;
-        public const int OffsetStepMS = 10;
+        public const int MinimumOffsetMS = DeviceOffset.MinimumMilliseconds;
+        public const int MaximumOffsetMS = DeviceOffset.MaximumMilliseconds;
+        public const int OffsetStepMS = DeviceOffset.StepMilliseconds;
 
         private int _offsetMS = -80;
 
@@ -26,20 +26,7 @@ namespace Edi.Core.Device.Handy
             set => _offsetMS = NormalizeOffset(value);
         }
 
-        internal static int NormalizeOffset(int value)
-        {
-            var clamped = Math.Clamp(
-                value,
-                MinimumOffsetMS,
-                MaximumOffsetMS);
-            var rounded = clamped >= 0
-                ? ((clamped + OffsetStepMS / 2) / OffsetStepMS) * OffsetStepMS
-                : ((clamped - OffsetStepMS / 2) / OffsetStepMS) * OffsetStepMS;
-
-            return Math.Clamp(
-                rounded,
-                MinimumOffsetMS,
-                MaximumOffsetMS);
-        }
+        public static int NormalizeOffset(int value)
+            => DeviceOffset.Normalize(value);
     }
 }

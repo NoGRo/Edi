@@ -3,6 +3,7 @@ using Edi.Core.Device.OSR.Connection;
 using Edi.Core.Gallery.Funscript;
 using Microsoft.Extensions.Logging;
 using PropertyChanged;
+using System.ComponentModel;
 using System.IO.Ports;
 
 namespace Edi.Core.Device.OSR
@@ -13,7 +14,8 @@ namespace Edi.Core.Device.OSR
         private IOSRConnection Connection { get; set; }
         public string Name { get; set; }
         public string Channel { get; set; }
-        public OSRConfig Config { get; private set; }
+        private OsrDeviceConfig osrConfiguration;
+        public OsrDeviceConfig OsrConfiguration => osrConfiguration;
         public string SelectedVariant
         {
             get => selectedVariant;
@@ -82,13 +84,50 @@ namespace Edi.Core.Device.OSR
             Connection = connection;
             Name = Connection.GetDeviceName();
 
-            Config = config;
+            osrConfiguration = OsrDeviceConfig.FromDefaults(config);
+            osrConfiguration.Normalize();
             this.repository = repository;
 
             selectedVariant = repository.GetVariants().FirstOrDefault("");
 
-            updateMs = 1000 / config.UpdateRate;
+            updateMs = GetUpdateMilliseconds(
+                osrConfiguration.UpdateRate);
             positionUpdateTimer = new Timer(_ => PlayCommands(), null, 0, updateMs);
+        }
+
+        internal void ApplyConfiguration(OsrDeviceConfig configuration)
+        {
+            ArgumentNullException.ThrowIfNull(configuration);
+            if (ReferenceEquals(osrConfiguration, configuration))
+                return;
+
+            RemoveConfiguration();
+            configuration.Normalize();
+            osrConfiguration = configuration;
+            ((INotifyPropertyChanged)osrConfiguration)
+                .PropertyChanged += DeviceConfigurationChanged;
+            ApplyOsrConfiguration();
+        }
+
+        public void RemoveConfiguration()
+        {
+            ((INotifyPropertyChanged)osrConfiguration)
+                .PropertyChanged -= DeviceConfigurationChanged;
+        }
+
+        private void DeviceConfigurationChanged(
+            object sender,
+            PropertyChangedEventArgs args)
+        {
+            ApplyOsrConfiguration();
+        }
+
+        private void ApplyOsrConfiguration()
+        {
+            osrConfiguration.Normalize();
+            updateMs = GetUpdateMilliseconds(
+                osrConfiguration.UpdateRate);
+            positionUpdateTimer?.Change(0, updateMs);
         }
 
         public async Task PlayGallery(string name, long seek = 0)
@@ -247,7 +286,7 @@ namespace Edi.Core.Device.OSR
 
         private RangeConfiguration GetDeviceRangeConfig()
         {
-            var rangeLimits = Config.RangeLimits.Clone();
+            var rangeLimits = osrConfiguration.RangeLimits.Clone();
 
             if (min == 0 && max == 100)
                 return rangeLimits;
@@ -328,5 +367,10 @@ namespace Edi.Core.Device.OSR
 
         public string DefaultVariant()
         => Variants.FirstOrDefault("");
+
+        private static int GetUpdateMilliseconds(int updateRate)
+            => Math.Max(
+                1,
+                1000 / Math.Clamp(updateRate, 1, 1000));
     }
 }

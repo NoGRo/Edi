@@ -9,6 +9,7 @@ using System.Globalization;
 using System.IO.Ports;
 using System.IO;
 using System.Linq;
+using System.Runtime.InteropServices;
 using System.Security.Policy;
 using System.Text;
 using System.Threading.Tasks;
@@ -21,13 +22,18 @@ using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using System.Windows.Navigation;
 using System.Windows.Shapes;
+using System.Windows.Interop;
 using Edi.Core.Device.Buttplug;
 using Edi.Core.Device.EStim;
 using Edi.Core.Device.Handy;
 using Edi.Core.Device.Interfaces;
 using Edi.Core.Device.OSR;
+using Edi.Core.Device.DgLab;
 using Edi.Core.Gallery;
+using Edi.Core.Players;
 using Edi.Core.Services;
+using Microsoft.Extensions.DependencyInjection;
+using Serilog;
 using Path = System.IO.Path;
 
 namespace Edi.Forms
@@ -37,13 +43,20 @@ namespace Edi.Forms
     /// </summary>
     public partial class MainWindow : Window
     {
+        private const int GameplayMarkerHotKeyId = 0x454449;
+        private const uint NoRepeatHotKeyModifier = 0x4000;
+        private const uint VirtualKeyF8 = 0x77;
+
         private readonly IEdi edi = App.Edi;
+        private readonly PlayerLogService playerLogService =
+            App.ServiceProvider.GetRequiredService<PlayerLogService>();
         public EdiConfig config;
         public GalleryConfig galleryConfig;
         public HandyConfig handyConfig;
         public ButtplugConfig buttplugConfig;
         public EStimConfig estimConfig;
         public OSRConfig osrConfig;
+        public DgLabConfig dgLabConfig;
         private Timer timer;
         private bool launched;
         private record AudioDevice(int id, string name);
@@ -58,6 +71,7 @@ namespace Edi.Forms
             buttplugConfig = edi.ConfigurationManager.Get<ButtplugConfig>();
             estimConfig = edi.ConfigurationManager.Get<EStimConfig>();
             osrConfig = edi.ConfigurationManager.Get<OSRConfig>();
+            dgLabConfig = edi.ConfigurationManager.Get<DgLabConfig>();
             gamesConfig = edi.ConfigurationManager.Get<GamesConfig>();
             gamesConfig.UpgradeLegacyPathNames();
             List<Core.Gallery.Definition.DefinitionGallery> galleries = ReloadGalleries();
@@ -70,6 +84,7 @@ namespace Edi.Forms
                 galleryConfig = galleryConfig,
                 estimConfig = estimConfig,
                 osrConfig = osrConfig,
+                dgLabConfig = dgLabConfig,
                 gamesConfig = gamesConfig,
                 devices = GetVisibleDevices(),
                 channels = edi.Player.Channels,
@@ -100,10 +115,67 @@ namespace Edi.Forms
             timer.Change(3000, 3000);
 
             Closing += MainWindow_Closing;
+            SourceInitialized += MainWindow_SourceInitialized;
 
             edi.Player.ChannelsChanged += (channels) => viewModel.UpdateChannels(channels);
 
             LoadForm();
+        }
+
+        private void MainWindow_SourceInitialized(
+            object? sender,
+            EventArgs e)
+        {
+            var handle = new WindowInteropHelper(this).Handle;
+            HwndSource.FromHwnd(handle)?.AddHook(WindowMessageHook);
+
+            var registered = RegisterHotKey(
+                handle,
+                GameplayMarkerHotKeyId,
+                NoRepeatHotKeyModifier,
+                VirtualKeyF8);
+            if (registered)
+            {
+                Log.Information(
+                    "Global gameplay marker hotkey registered: F8");
+                playerLogService.AddLog(
+                    "Diagnostic logging active. Press F8 to mark a playback problem.");
+            }
+            else
+            {
+                var error = Marshal.GetLastWin32Error();
+                Log.Warning(
+                    "Could not register global gameplay marker hotkey F8. Win32 error: {Error}",
+                    error);
+                playerLogService.AddLog(
+                    $"Could not register global F8 marker (error {error}).");
+            }
+        }
+
+        private IntPtr WindowMessageHook(
+            IntPtr hwnd,
+            int message,
+            IntPtr wParam,
+            IntPtr lParam,
+            ref bool handled)
+        {
+            const int WmHotKey = 0x0312;
+            if (message != WmHotKey
+                || wParam.ToInt32() != GameplayMarkerHotKeyId)
+            {
+                return IntPtr.Zero;
+            }
+
+            var timestamp = DateTimeOffset.Now.ToString(
+                "yyyy-MM-dd HH:mm:ss.fff zzz",
+                CultureInfo.InvariantCulture);
+            const string marker =
+                "========== F8 GAMEPLAY PLAYBACK PROBLEM ==========";
+            Log.Warning("{Marker} at {Timestamp}", marker, timestamp);
+            playerLogService.AddLog($"{marker} at {timestamp}");
+            lblStatus.Content = "Playback problem marked in Edilog.txt";
+            handled = true;
+            return IntPtr.Zero;
         }
 
         private void UpdateChannelColumnVisibility()
@@ -309,6 +381,45 @@ namespace Edi.Forms
             var device = comboBox.DataContext as IDevice;
             
             _ = edi.DeviceConfiguration.SelectChannel(device, (string)comboBox.SelectedValue);
+        }
+
+        private async void DeviceConfiguration_Click(
+            object sender,
+            RoutedEventArgs e)
+        {
+            if (sender is not Button { DataContext: IDevice device })
+                return;
+
+            var dialog = new DeviceConfigurationWindow(device)
+            {
+                Owner = this
+            };
+            if (dialog.ShowDialog() == true)
+            {
+                if (device is DgLabDevice dgLabDevice)
+                {
+                    dgLabDevice.DgLabConfiguration.CopyFrom(
+                        dialog.ViewModel.CreateDgLabConfiguration());
+                }
+
+                if (device is OSRDevice osrDevice)
+                {
+                    osrDevice.OsrConfiguration.CopyFrom(
+                        dialog.ViewModel.CreateOsrConfiguration());
+                }
+
+                if (device is IDeviceWithOffsetConfiguration)
+                {
+                    await edi.DeviceConfiguration.SelectOffset(
+                        device,
+                        dialog.ViewModel.OffsetMilliseconds);
+                }
+
+                await edi.DeviceConfiguration.SelectRange(
+                    device,
+                    dialog.ViewModel.RangeMin,
+                    dialog.ViewModel.RangeMax);
+            }
         }
 
 
@@ -741,30 +852,6 @@ namespace Edi.Forms
             return [selectedChannel];
         }
 
-        private void HandyOffsetIncrease_Click(
-            object sender,
-            RoutedEventArgs e)
-        {
-            handyConfig.OffsetMS += HandyConfig.OffsetStepMS;
-        }
-
-        private void HandyOffsetDecrease_Click(
-            object sender,
-            RoutedEventArgs e)
-        {
-            handyConfig.OffsetMS -= HandyConfig.OffsetStepMS;
-        }
-
-        private void HandyOffsetTextBox_PreviewMouseWheel(
-            object sender,
-            MouseWheelEventArgs e)
-        {
-            handyConfig.OffsetMS += e.Delta > 0
-                ? HandyConfig.OffsetStepMS
-                : -HandyConfig.OffsetStepMS;
-            e.Handled = true;
-        }
-
         private void btnOpenOutput_Click(object sender, RoutedEventArgs e)
         {
             Process.Start(new ProcessStartInfo("explorer.exe",Edi.Core.Edi.OutputDir) { UseShellExecute = true });
@@ -792,6 +879,9 @@ namespace Edi.Forms
 
             _isCloseCleanupRunning = true;
             timer.Dispose();
+            UnregisterHotKey(
+                new WindowInteropHelper(this).Handle,
+                GameplayMarkerHotKeyId);
 
             try
             {
@@ -838,6 +928,20 @@ namespace Edi.Forms
                 simulator.Closed -= SimulatorClosed;
             }
         }
+
+        [DllImport("user32.dll", SetLastError = true)]
+        [return: MarshalAs(UnmanagedType.Bool)]
+        private static extern bool RegisterHotKey(
+            IntPtr windowHandle,
+            int id,
+            uint modifiers,
+            uint virtualKey);
+
+        [DllImport("user32.dll", SetLastError = true)]
+        [return: MarshalAs(UnmanagedType.Bool)]
+        private static extern bool UnregisterHotKey(
+            IntPtr windowHandle,
+            int id);
     }
     public class BoolToReadyIconConverter : IValueConverter
     {

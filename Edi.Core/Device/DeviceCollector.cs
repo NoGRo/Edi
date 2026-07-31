@@ -140,6 +140,9 @@ namespace Edi.Core.Device
             config.Devices.TryAdd(device.Name, new DeviceConfig());
 
             var deviceConfig = config.Devices[device.Name];
+            if (device is IDeviceWithConfiguration configurableDevice)
+                configurableDevice.ApplyConfiguration(deviceConfig);
+
             var nextVariant =
                 device.Variants.Contains(deviceConfig.Variant)
                 && deviceConfig.Variant != "None"
@@ -174,6 +177,9 @@ namespace Edi.Core.Device
 
         public void UnloadDevice(IDevice device)
         {
+            if (device is IDeviceWithConfiguration configurableDevice)
+                configurableDevice.RemoveConfiguration();
+
             lock (Devices)
             {
                 Devices.RemoveAll(x => x.Name == device.Name);

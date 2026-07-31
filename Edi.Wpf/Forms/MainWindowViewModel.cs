@@ -5,6 +5,7 @@ using Edi.Core.Device.Handy;
 using Edi.Core.Device.Buttplug;
 using Edi.Core.Device.EStim;
 using Edi.Core.Device.OSR;
+using Edi.Core.Device.DgLab;
 using Edi.Core;
 using System.Collections.Generic;
 using Edi.Core.Gallery;
@@ -73,6 +74,13 @@ namespace Edi.Forms
         {
             get => _osrConfig;
             set { _osrConfig = value; OnPropertyChanged(nameof(osrConfig)); }
+        }
+
+        private DgLabConfig _dgLabConfig;
+        public DgLabConfig dgLabConfig
+        {
+            get => _dgLabConfig;
+            set { _dgLabConfig = value; OnPropertyChanged(nameof(dgLabConfig)); }
         }
 
         public ObservableCollection<IDevice> devices { get; set; }

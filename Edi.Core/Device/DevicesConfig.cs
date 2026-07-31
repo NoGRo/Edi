@@ -16,6 +16,7 @@ namespace Edi.Core.Device
         public Dictionary<string, DeviceConfig> Devices { get; set; } = new Dictionary<string, DeviceConfig>();
     }
 
+    [AddINotifyPropertyChangedInterface]
     public class DeviceConfig : IRange
     {
         public string Variant { get; set; }
@@ -23,7 +24,13 @@ namespace Edi.Core.Device
         
         public int Min { get; set; } = 0;
         public int Max { get; set; } = 100;
-
-
+        private int? offsetMS;
+        public int? OffsetMS
+        {
+            get => offsetMS;
+            set => offsetMS = value is null
+                ? null
+                : DeviceOffset.Normalize(value.Value);
+        }
     }
 }

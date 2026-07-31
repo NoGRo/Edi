@@ -10,9 +10,9 @@ namespace Edi.Core.Players
 
         public void AddLog(string log)
         { 
-
             var _log = $"[{DateTime.Now:T}] {log}";
             _logQueue.Enqueue(_log);
+            Log.Information("Player event: {PlayerEvent}", log);
             OnLogReceived?.Invoke(_log);
         }
 

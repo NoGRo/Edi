@@ -23,11 +23,14 @@ using System.Xml.Linq;
 using System.Reflection;
 using Microsoft.Extensions.Logging;
 using Edi.Core.Device;
+using Edi.Core.Device.Interfaces;
 
 namespace Edi.Core.Device.Handy
 {
     [AddINotifyPropertyChangedInterface]
-    internal class HandyDevice : DeviceBase<IndexRepository, IndexGallery>
+    internal class HandyDevice
+        : DeviceBase<IndexRepository, IndexGallery>,
+          IDeviceWithOffsetConfiguration
     {
         private readonly ILogger _logger;
         private readonly Func<TimeSpan, CancellationToken, Task> _delay;
@@ -41,7 +44,9 @@ namespace Edi.Core.Device.Handy
             HttpClient client,
             IndexRepository repository,
             ILogger logger,
-            Func<TimeSpan, CancellationToken, Task> delay = null) : base(repository, logger)
+            Func<TimeSpan, CancellationToken, Task> delay = null,
+            int defaultOffset = -80)
+            : base(repository, logger)
         {
 
 
@@ -52,9 +57,21 @@ namespace Edi.Core.Device.Handy
             IsReady = false;
             Client = client;
             _delay = delay ?? Task.Delay;
-
+            EnableOffset(defaultOffset);
             _logger.LogInformation($"HandyDevice initialized with Key: {Key}.");
         }
+
+        public void ApplyConfiguration(DeviceConfig configuration)
+            => ApplyOffsetConfiguration(configuration);
+
+        protected override Task ApplyOffset(
+            int offsetMilliseconds,
+            CancellationToken cancellationToken)
+            => HandyProvider.ApplyOffset(
+                Client,
+                usesV3Api: false,
+                offsetMilliseconds,
+                cancellationToken);
 
         internal override void SetVariant()
         {

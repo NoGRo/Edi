@@ -8,12 +8,14 @@ using Microsoft.Extensions.Logging;
 using System.Timers;
 using Timer = System.Timers.Timer;
 using Edi.Core.Services;
+using System.ComponentModel;
 
 namespace Edi.Core.Device.OSR
 {
     public class OSRProvider : IDeviceProvider
     {
         public readonly OSRConfig Config;
+        private readonly OsrDevicesConfig DeviceConfigurations;
         public event EventHandler<string> StatusChange;
 
         private ILogger logger;
@@ -24,11 +26,15 @@ namespace Edi.Core.Device.OSR
         private int AliveCheckFails = 0;
         private int RetryCount = 0;
         private IOSRConnection Connection;
+        private int ApplyingDeviceConfigurations;
 
         public OSRProvider(RepositoryManager repositoryManager, ConfigurationManager config, DeviceCollector deviceCollector, ILogger<OSRProvider> logger)
         {
             this.logger = logger;
             Config = config.Get<OSRConfig>();
+            DeviceConfigurations = config.Get<OsrDevicesConfig>();
+            DeviceConfigurations.PropertyChanged +=
+                DeviceConfigurationsChanged;
 
             DeviceCollector = deviceCollector;
             RepositoryManager = repositoryManager;
@@ -116,6 +122,10 @@ namespace Edi.Core.Device.OSR
 
                 AliveCheckFails = 0;
                 DeviceCollector.LoadDevice(Device);
+                Device.ApplyConfiguration(
+                    DeviceConfigurations.GetOrAdd(
+                        Device.Name,
+                        () => OsrDeviceConfig.FromDefaults(Config)));
             }
             catch (Exception e)
             {
@@ -157,12 +167,39 @@ namespace Edi.Core.Device.OSR
             if (Device != null)
             {
                 await Device.Stop();
+                Device.RemoveConfiguration();
                 Connection.Disconnect();
                 DeviceCollector.UnloadDevice(Device);
                 logger.LogInformation("Unloaded TCode device");
             }
 
             Device = null;
+        }
+
+        private void DeviceConfigurationsChanged(
+            object sender,
+            PropertyChangedEventArgs args)
+        {
+            if (args.PropertyName != nameof(OsrDevicesConfig.Devices)
+                || Device is null
+                || Interlocked.Exchange(
+                    ref ApplyingDeviceConfigurations,
+                    1) != 0)
+            {
+                return;
+            }
+
+            try
+            {
+                Device.ApplyConfiguration(
+                    DeviceConfigurations.GetOrAdd(
+                        Device.Name,
+                        () => OsrDeviceConfig.FromDefaults(Config)));
+            }
+            finally
+            {
+                Volatile.Write(ref ApplyingDeviceConfigurations, 0);
+            }
         }
     }
 }

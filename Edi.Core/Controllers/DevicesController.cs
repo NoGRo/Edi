@@ -23,7 +23,10 @@ namespace Edi.Core.Controllers
                 Channel = x.Channel,
                 SelectedVariant = x.SelectedVariant,
                 Min = (x as IRange)?.Min ?? 0,
-                Max = (x as IRange)?.Max ?? 100
+                Max = (x as IRange)?.Max ?? 100,
+                OffsetMS =
+                    (x as IDeviceWithOffsetConfiguration)
+                    ?.OffsetMilliseconds
             });
         }
 
@@ -66,5 +69,28 @@ namespace Edi.Core.Controllers
             await edi.DeviceConfiguration.SelectChannel(device, channelName);
             return Ok();
         }
+
+        [HttpPost("{deviceName}/Offset/{offsetMilliseconds}")]
+        [SwaggerOperation(
+            Summary = "Sets the per-device playback synchronization offset.")]
+        public async Task<IActionResult> SelectOffset(
+            [FromRoute, Required] string deviceName,
+            [FromRoute, Range(
+                DeviceOffset.MinimumMilliseconds,
+                DeviceOffset.MaximumMilliseconds)] int offsetMilliseconds)
+        {
+            var device = edi.Devices.FirstOrDefault(
+                x => x.Name == deviceName);
+            if (device is null)
+                return NotFound("Device not found");
+            if (device is not IDeviceWithOffsetConfiguration)
+                return BadRequest("Device does not support playback offset");
+
+            await edi.DeviceConfiguration.SelectOffset(
+                device,
+                offsetMilliseconds);
+            return Ok();
+        }
+
     }
 }

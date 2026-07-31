@@ -75,7 +75,7 @@ public class HandyBluetoothClientTests
     }
 
     [Fact]
-    public async Task HspMethodsUseLocalBleClockInsteadOfHttpServerTime()
+    public async Task HspMethodsUseLocalBleClockAndShortSyncDelay()
     {
         var transport = new RecordingBluetoothTransport();
         await using var client = await HandyBluetoothClient.CreateAsync(
@@ -114,6 +114,9 @@ public class HandyBluetoothClientTests
         Assert.Equal(42, setup.stream_id);
         Assert.Equal("playing", play.play_state);
         Assert.Equal("playing", synchronized.play_state);
+        Assert.Equal(
+            TimeSpan.Zero,
+            client.PlaybackSyncDelay);
         Assert.Collection(
             transport.Requests,
             request => Assert.Equal(

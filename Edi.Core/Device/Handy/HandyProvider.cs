@@ -15,7 +15,6 @@ using Microsoft.Extensions.Logging;
 using Timer = System.Timers.Timer;
 using Microsoft.Extensions.DependencyInjection;
 using System.Collections.Concurrent;
-using System.ComponentModel;
 using Edi.Core.Device;
 using Edi.Core.Device.Interfaces;
 using Edi.Core.Services;
@@ -39,14 +38,9 @@ namespace Edi.Core.Device.Handy
         private readonly ConcurrentDictionary<string, HttpClient> _clients = new();
         private readonly ConcurrentDictionary<string, IHandyClient>
             _bluetoothClients = new();
-        private readonly ConcurrentDictionary<string, bool> _usesV3Api = new();
         private readonly SemaphoreSlim _connectLock = new(1, 1);
-        private readonly SemaphoreSlim _offsetApiLock = new(1, 1);
         private readonly object _initTaskLock = new();
         private Task _initTask = Task.CompletedTask;
-        private int _pendingOffset;
-        private int _lastAppliedOffset = int.MinValue;
-        private int _offsetUpdateWorkerActive;
         private int _expectedBluetoothDeviceCount;
 
         public HandyProvider(RepositoryManager repositoryManager,
@@ -64,9 +58,6 @@ namespace Edi.Core.Device.Handy
             _bluetoothDiscovery = bluetoothDiscovery;
             _deviceFactory = new HandyDeviceFactory(logger);
             timerReconnect.Elapsed += TimerReconnect_Elapsed;
-            _pendingOffset = Config.OffsetMS;
-            ((INotifyPropertyChanged)Config).PropertyChanged +=
-                Config_PropertyChanged;
         }
 
 
@@ -276,16 +267,14 @@ namespace Edi.Core.Device.Handy
                     return;
             }
 
-            await client.SetOffset(
-                Config.OffsetMS,
-                CancellationToken.None);
             var funscriptRepository =
                 await _repositoryManager
                     .GetRepositoryAsync<FunscriptRepository>();
             var handyDevice = new HandyV3Device(
                 client,
                 funscriptRepository,
-                _logger);
+                _logger,
+                defaultOffset: Config.OffsetMS);
 
             lock (devices)
             {
@@ -296,6 +285,7 @@ namespace Edi.Core.Device.Handy
             }
 
             _deviceCollector.LoadDevice(handyDevice);
+            await handyDevice.OffsetUpdate;
             RememberBluetoothDeviceCount();
             _logger.LogInformation(
                 "Loaded {DeviceName} from Bluetooth.",
@@ -347,12 +337,6 @@ namespace Edi.Core.Device.Handy
                 IDevice handyDevice;
                 var usesV3Api =
                     _deviceFactory.ShouldUseHspProtocol(firmwareVersion);
-                _usesV3Api[key] = usesV3Api;
-
-                await TryApplyOffset(
-                    client,
-                    usesV3Api,
-                    () => Config.OffsetMS);
 
                 if (usesV3Api)
                 {
@@ -364,7 +348,8 @@ namespace Edi.Core.Device.Handy
                     handyDevice = new HandyV3Device(
                         new HandyHttpClient(client),
                         funscriptRepository,
-                        _logger);
+                        _logger,
+                        defaultOffset: Config.OffsetMS);
                 }
                 else
                 {
@@ -379,7 +364,11 @@ namespace Edi.Core.Device.Handy
                             "application/json"));
                     _logger.LogInformation(
                         "Creating an internet Handy with the legacy HSSP protocol.");
-                    handyDevice = new HandyDevice(client, indexRepository, _logger);
+                    handyDevice = new HandyDevice(
+                        client,
+                        indexRepository,
+                        _logger,
+                        defaultOffset: Config.OffsetMS);
                 }
 
                 lock (devices)
@@ -402,7 +391,6 @@ namespace Edi.Core.Device.Handy
             await RemoveDeviceWrappers();
 
             _clients.Clear();
-            _usesV3Api.Clear();
             var bluetoothClients = _bluetoothClients.ToArray();
             _bluetoothClients.Clear();
             await Task.WhenAll(
@@ -465,7 +453,6 @@ namespace Edi.Core.Device.Handy
         private void Remove(string key)
         {
             _clients.TryRemove(key, out var client);
-            _usesV3Api.TryRemove(key, out _);
 
             lock (devices)
             {
@@ -578,120 +565,6 @@ namespace Edi.Core.Device.Handy
                 _logger.LogWarning(
                     ex,
                     "Handy reconnection failed.");
-            }
-        }
-
-        private void Config_PropertyChanged(
-            object sender,
-            PropertyChangedEventArgs e)
-        {
-            if (e.PropertyName != nameof(HandyConfig.OffsetMS))
-                return;
-
-            Volatile.Write(ref _pendingOffset, Config.OffsetMS);
-            StartOffsetUpdateWorker();
-        }
-
-        private void StartOffsetUpdateWorker()
-        {
-            if (Interlocked.CompareExchange(
-                    ref _offsetUpdateWorkerActive,
-                    1,
-                    0) != 0)
-            {
-                return;
-            }
-
-            _ = ObserveOffsetUpdateWorker();
-        }
-
-        private async Task ObserveOffsetUpdateWorker()
-        {
-            try
-            {
-                await ApplyPendingOffsetUpdates();
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(
-                    ex,
-                    "Unexpected error while applying the Handy user offset.");
-            }
-            finally
-            {
-                Interlocked.Exchange(ref _offsetUpdateWorkerActive, 0);
-
-                if (Volatile.Read(ref _pendingOffset)
-                    != Volatile.Read(ref _lastAppliedOffset))
-                {
-                    StartOffsetUpdateWorker();
-                }
-            }
-        }
-
-        private async Task ApplyPendingOffsetUpdates()
-        {
-            while (true)
-            {
-                var offset = Volatile.Read(ref _pendingOffset);
-
-                // Coalesce quick arrow presses into the latest requested value.
-                await Task.Delay(100);
-                if (offset != Volatile.Read(ref _pendingOffset))
-                    continue;
-
-                var clients = _clients.ToArray();
-                var internetUpdates = clients.Select(entry =>
-                    ApplyOffsetForClient(
-                        entry.Key,
-                        entry.Value,
-                        offset));
-                var bluetoothUpdates = _bluetoothClients.Values.Select(
-                    client => client.SetOffset(
-                        offset,
-                        CancellationToken.None));
-                await Task.WhenAll(
-                    internetUpdates.Concat(bluetoothUpdates));
-
-                Volatile.Write(ref _lastAppliedOffset, offset);
-                if (offset == Volatile.Read(ref _pendingOffset))
-                    return;
-            }
-        }
-
-        private async Task ApplyOffsetForClient(
-            string key,
-            HttpClient client,
-            int offset)
-        {
-            if (!_usesV3Api.TryGetValue(key, out var usesV3Api))
-                return;
-
-            await TryApplyOffset(client, usesV3Api, () => offset);
-        }
-
-        private async Task TryApplyOffset(
-            HttpClient client,
-            bool usesV3Api,
-            Func<int> getOffset)
-        {
-            await _offsetApiLock.WaitAsync();
-            try
-            {
-                await ApplyOffset(
-                    client,
-                    usesV3Api,
-                    getOffset());
-            }
-            catch (Exception ex)
-            {
-                _logger.LogWarning(
-                    ex,
-                    "The Handy user offset could not be applied.");
-            }
-            finally
-            {
-                _offsetApiLock.Release();
             }
         }
 

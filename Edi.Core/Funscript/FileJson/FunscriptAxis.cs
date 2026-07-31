@@ -11,6 +11,9 @@
         Vibrate,
         Valve,
         Suction,
-        Rotate
+        Rotate,
+        Frequency,
+        Volume,
+        PulseWidth
     }
 }

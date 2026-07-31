@@ -57,7 +57,8 @@ namespace Edi.Core.Device.OSR
                     commands = sb.Generate();
                 }
 
-                if (!device.Config.EnableMultiAxis && axis != Axis.Default)
+                if (!device.OsrConfiguration.EnableMultiAxis
+                    && axis != Axis.Default)
                 {
                     var value = axis == Axis.Vibrate ? 0 : 50;
                     var bufferTime = 500 + (int)seekTime;

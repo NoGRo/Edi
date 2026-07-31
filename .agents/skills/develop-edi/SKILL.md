@@ -36,7 +36,29 @@ use the bundled references as orientation, not as a substitute for reading affec
 7. Run every test project found in the solution. If none exists and the change is behavioral,
    create an `Edi.Core.Tests` project unless the requested task is explicitly limited.
 8. Review the final diff for accidental config, credentials, certificates, generated output,
-   or unrelated formatting changes.
+   unrelated formatting changes, and unnecessary growth in `Edi.Core`.
+
+## Keep the implementation small
+
+- Treat source-code volume as a design constraint. For a localized request, prefer changing or
+  deleting existing code over adding infrastructure. Reuse the current base classes, interfaces,
+  configuration objects, events, and extension points before creating anything new.
+- Do not create a new base class, interface, service, manager, configuration container, wrapper,
+  callback abstraction, or helper class for a behavior that has one consumer or can fit clearly in
+  its existing owner. A possible future reuse is not sufficient justification.
+- Property observation does not by itself justify another configuration graph. First check whether
+  the existing device, provider, `DeviceBase`, or existing configuration object can observe the
+  property directly. Add another object only when the persisted schema or an already-established
+  family boundary requires it.
+- Keep a localized fix localized. Do not turn it into a framework, migrate neighboring devices, or
+  generalize unrelated code unless the user explicitly requests that broader refactor.
+- Before finishing, inspect `git diff --stat` and the added/deleted line count for `Edi.Core`. A
+  localized change adding roughly 100 or more net lines to `Edi.Core` is presumed over-engineered:
+  stop, simplify, and reuse existing code. Exceed that size only for an explicitly requested new
+  subsystem or when a smaller correct implementation is impossible, and explain the reason to the
+  user before proceeding.
+- Tests should be proportional to the behavior and should reuse existing fixtures/fakes. Do not
+  compensate for an oversized production design with hundreds of lines of test scaffolding.
 
 ## Preserve project invariants
 
@@ -44,6 +66,35 @@ use the bundled references as orientation, not as a substitute for reading affec
 - Register new services and providers through the existing dependency-injection extensions.
 - Load and unload devices through `DeviceCollector` so naming, saved settings, events, ranges,
   variants, and channels stay consistent.
+- Keep `DeviceCollector` device-agnostic. It may restore shared capability properties or call
+  a device-owned configuration hook, but protocol-specific normalization, change observation,
+  command dispatch, retries, and error handling belong in the existing `DeviceBase` or the
+  concrete device/provider boundary. Extend `DeviceBase` for shared device behavior; do not
+  introduce parallel capability-specific base classes. Higher layers may assign an advertised
+  capability such as range or offset; they must not apply its device command themselves.
+- Enforce these device-configuration layer boundaries:
+  - `DeviceCollector` owns only generic lifecycle, naming, configuration attachment/removal,
+    and restoration of common capabilities. It must not import a device-family namespace,
+    test a concrete device type, normalize family data, or issue a family command.
+  - `DeviceConfiguration` owns selection and persistence of common capabilities. It must not
+    import a device-family namespace or expose methods named for DG-Lab, OSR, Handy, AutoBlow,
+    or any other implementation. Hiding a concrete type check or family mutation inside an
+    `Action<DeviceConfig>`, callback, reflection helper, or generic-looking wrapper does not
+    remove the coupling and is not allowed.
+  - Shared configuration types may contain only shared capabilities. In particular,
+    `DeviceConfig` may contain variant, channel, range, offset, or another capability defined
+    in the shared device layer; it must never reference `DgLabChannelConfig`,
+    `OsrDeviceConfig`, or any other family-owned type.
+  - Family settings live in configuration containers declared in that family's namespace.
+    The family provider selects the entry for a loaded device and attaches/removes it at the
+    family device boundary. The concrete configuration object raises `PropertyChanged`; the
+    owning device subscribes, normalizes, and applies it, and unsubscribes on replacement or
+    unload. A family-specific host editor may mutate that existing object, but shared
+    collectors, services, controllers, and DTOs must never transport or persist its fields.
+  - `DevicesController` and `DeviceDto` expose only common interfaces or explicitly designed
+    protocol-neutral capabilities. Do not add routes, request bodies, response fields, casts,
+    or Swagger contracts named for a device family. A generic `/Offset` route is valid because
+    offset is advertised by a common capability; `/DgLab` and `/Osr` are not.
 - Route playback through `IPlayer`/`IPlayerChannels`; do not bypass reaction/filler or channel
   semantics from controllers or UI code.
 - Keep `EdiConfig.json` game-specific and `UserConfig.json` user-specific according to the

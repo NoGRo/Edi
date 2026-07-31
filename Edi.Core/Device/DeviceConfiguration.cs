@@ -73,6 +73,34 @@ namespace Edi.Core.Device
 
             configuration.Save(config);
         }
+
+        private DeviceConfig GetConfiguration(IDevice device)
+        {
+            var deviceName =
+                deviceCollector.Devices.FirstOrDefault(x => x == device)?.Name;
+
+            if (deviceName is null)
+                return null;
+
+            config.Devices.TryAdd(deviceName, new DeviceConfig());
+            return config.Devices[deviceName];
+        }
+
+        public Task SelectOffset(IDevice device, int offsetMilliseconds)
+        {
+            if (device is not IDeviceWithOffsetConfiguration)
+            {
+                return Task.CompletedTask;
+            }
+
+            var deviceConfig = GetConfiguration(device);
+            if (deviceConfig is null)
+                return Task.CompletedTask;
+
+            deviceConfig.OffsetMS = offsetMilliseconds;
+            configuration.Save(config);
+            return Task.CompletedTask;
+        }
     }
 
 }

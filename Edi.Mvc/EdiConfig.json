@@ -1,10 +1,11 @@
 {
   "Gallery": {
-    "GalleryPath": "D:\\DownloadAx\\6_Rounds_Slutbeat_Compilation",
+    "GalleryPath": "D:\\Goon Infinite Doble",
     "GenerateDefinitionFromChapters": false,
     "GenerateChaptersFromDefinition": false
   },
   "GalleryBundler": {
+    "DisableBundler": true,
     "MinRepeatDuration": 6000,
     "RepeatDuration": 3000,
     "SpacerDuration": 3000
@@ -24,49 +25,92 @@
         "Variant": "detailed",
         "Channel": null,
         "Min": 0,
-        "Max": 100
+        "Max": 100,
+        "OffsetMS": null
       },
       "FUNOSR-SSR1-V2.0": {
         "Variant": "Stroke1",
         "Channel": "dffd2",
         "Min": 0,
-        "Max": 100
+        "Max": 100,
+        "OffsetMS": null
       },
       "Lovense Hush": {
         "Variant": "default",
         "Channel": null,
         "Min": 0,
-        "Max": 100
+        "Max": 100,
+        "OffsetMS": null
       },
       "Lovense Dolce Vibrate: 1": {
         "Variant": "vib",
         "Channel": null,
         "Min": 0,
-        "Max": 100
+        "Max": 100,
+        "OffsetMS": null
       },
       "Lovense Dolce Vibrate: 2": {
         "Variant": "None",
         "Channel": null,
         "Min": 0,
-        "Max": 100
+        "Max": 100,
+        "OffsetMS": null
       },
       "Lovense Hush (1)": {
         "Variant": "Stroke1",
         "Channel": null,
         "Min": 0,
-        "Max": 100
+        "Max": 100,
+        "OffsetMS": null
       },
       "AutoBlow [ibjckz1x0q91]": {
         "Variant": "default",
         "Channel": null,
         "Min": 0,
-        "Max": 100
+        "Max": 100,
+        "OffsetMS": -100
       },
       "The Handy [PiBnz]": {
         "Variant": "default",
         "Channel": null,
         "Min": 0,
-        "Max": 100
+        "Max": 100,
+        "OffsetMS": null
+      },
+      "Lovense Edge Vibrate: 1": {
+        "Variant": "vib",
+        "Channel": null,
+        "Min": 0,
+        "Max": 100,
+        "OffsetMS": null
+      },
+      "Lovense Edge Vibrate: 2": {
+        "Variant": "default",
+        "Channel": null,
+        "Min": 0,
+        "Max": 100,
+        "OffsetMS": null
+      },
+      "Lovense Gemini Vibrate: 1": {
+        "Variant": "default",
+        "Channel": null,
+        "Min": 0,
+        "Max": 100,
+        "OffsetMS": null
+      },
+      "Lovense Gemini Vibrate: 2": {
+        "Variant": "default",
+        "Channel": null,
+        "Min": 0,
+        "Max": 100,
+        "OffsetMS": null
+      },
+      "The Handy 2 Pro (BLE)": {
+        "Variant": "default",
+        "Channel": null,
+        "Min": 0,
+        "Max": 100,
+        "OffsetMS": -100
       }
     }
   },
@@ -111,5 +155,11 @@
   },
   "EStim": {
     "DeviceId": -1
+  },
+  "OsrDevices": {
+    "Devices": {}
+  },
+  "DgLabDevices": {
+    "Devices": {}
   }
 }

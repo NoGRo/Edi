@@ -61,7 +61,8 @@ internal sealed class HandyBluetoothDiscovery(
             {
                 if (IsHandyAdvertisement(
                     advertisement.Name,
-                    advertisement.Uuids.Select(uuid => uuid.Value)))
+                    advertisement.Uuids.Select(uuid => uuid.Value))
+                    && advertisement.Device != null)
                 {
                     if (discoveredDevices.TryAdd(
                             advertisement.Device.Id,

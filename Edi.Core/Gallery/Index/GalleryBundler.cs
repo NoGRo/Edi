@@ -46,10 +46,11 @@ namespace Edi.Core.Gallery.Index
                 Loop = gallery.Loop,
                 Variant = gallery.Variant,
                 StartTime = startTime,
-                Bundle = bundleName
+                Bundle = bundleName,
+                Duration = gallery.Commands.Duration()
             };
 
-            if (gallery.Commands.Duration() == 0)
+            if (indexGallery.Duration == 0)
             {
                 sbGallery.AddCommandMillis(gallery.Loop ? Config.MinRepeatDuration : Config.SpacerDuration, sb.lastValue);
                 indexGallery.Duration = Convert.ToInt32(sbGallery.TotalTime);

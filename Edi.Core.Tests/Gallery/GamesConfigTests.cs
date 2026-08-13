@@ -32,6 +32,82 @@ public class GamesConfigTests
     }
 
     [Fact]
+    public void UpsertingExistingPathKeepsItsSavedName()
+    {
+        var configPath = Path.Combine(
+            Environment.CurrentDirectory,
+            "edi-local-game",
+            "EdiConfig.json");
+        var savedGame = new GameInfo("My game", configPath);
+        var config = new GamesConfig
+        {
+            GamesInfo = new([savedGame])
+        };
+
+        var localGame = config.UpsertGame(
+            new GameInfo(
+                "edi-local-game",
+                Path.GetRelativePath(
+                    Environment.CurrentDirectory,
+                    configPath)));
+
+        Assert.Single(config.GamesInfo);
+        Assert.Same(savedGame, localGame);
+        Assert.Equal("My game", localGame.Name);
+    }
+
+    [Fact]
+    public void ConfigurationManagerReportsPreexistingGameConfig()
+    {
+        var temporaryDirectory = Path.Combine(
+            Path.GetTempPath(),
+            "edi-local-config-tests",
+            Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(temporaryDirectory);
+
+        try
+        {
+            var existingPath = Path.Combine(
+                temporaryDirectory,
+                "EdiConfig.json");
+            File.WriteAllText(existingPath, "{}");
+
+            var existingManager = new ConfigurationManager(
+                existingPath,
+                Path.Combine(temporaryDirectory, "ExistingUserConfig.json"));
+            var missingManager = new ConfigurationManager(
+                Path.Combine(temporaryDirectory, "MissingEdiConfig.json"),
+                Path.Combine(temporaryDirectory, "MissingUserConfig.json"));
+
+            Assert.True(existingManager.GameConfigFoundAtStartup);
+            Assert.False(missingManager.GameConfigFoundAtStartup);
+
+            missingManager.Get<EdiConfig>();
+
+            Assert.False(File.Exists(
+                missingManager.GamePathConfig));
+
+            var selectedGameDirectory = Path.Combine(
+                temporaryDirectory,
+                "SelectedGame");
+            Directory.CreateDirectory(selectedGameDirectory);
+            var definitionsPath = Path.Combine(
+                selectedGameDirectory,
+                "Definitions.csv");
+            File.WriteAllText(definitionsPath, string.Empty);
+            missingManager.SetGamePath(definitionsPath);
+
+            Assert.True(File.Exists(Path.Combine(
+                selectedGameDirectory,
+                "EdiConfig.json")));
+        }
+        finally
+        {
+            Directory.Delete(temporaryDirectory, recursive: true);
+        }
+    }
+
+    [Fact]
     public void RemovingSelectedGameClearsSelection()
     {
         var game = new GameInfo(

@@ -10,9 +10,8 @@ EDI operates as an independent service that:
 
 ### Download and requirements
 
-Download `Edi.exe` and `certificate.pfx` from
-[GitHub Releases](https://github.com/NoGRo/Edi/releases/latest), keep both files in the same
-folder, and run `Edi.exe`.
+Download `Edi.exe` from
+[GitHub Releases](https://github.com/NoGRo/Edi/releases/latest) and run it.
 
 The published build requires:
 

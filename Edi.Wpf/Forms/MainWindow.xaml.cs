@@ -74,6 +74,16 @@ namespace Edi.Forms
             dgLabConfig = edi.ConfigurationManager.Get<DgLabConfig>();
             gamesConfig = edi.ConfigurationManager.Get<GamesConfig>();
             gamesConfig.UpgradeLegacyPathNames();
+            if (edi.ConfigurationManager.GameConfigFoundAtStartup)
+            {
+                var localConfigPath = Path.GetFullPath(
+                    edi.ConfigurationManager.GamePathConfig);
+                var localGame = gamesConfig.UpsertGame(
+                    new GameInfo(
+                        SuggestGameName(localConfigPath),
+                        localConfigPath));
+                gamesConfig.SelectedGameinfo = localGame;
+            }
             List<Core.Gallery.Definition.DefinitionGallery> galleries = ReloadGalleries();
 
             viewModel = new MainWindowViewModel

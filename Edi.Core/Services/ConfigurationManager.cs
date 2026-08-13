@@ -28,10 +28,12 @@ namespace Edi.Core.Services
         
 
         public string GamePathConfig => _gameConfigPath;
+        public bool GameConfigFoundAtStartup { get; }
 
         public ConfigurationManager(string fileName, string userConfigPath = null)
         {
             _gameConfigPath = fileName;
+            GameConfigFoundAtStartup = File.Exists(fileName);
             _userConfigPath = userConfigPath ?? Path.Combine(Edi.OutputDir, "UserConfig.json");
             _configurations = LoadCombinedConfigurations();
         }
@@ -213,7 +215,10 @@ namespace Edi.Core.Services
         private void Save(string typeName, object config)
         {
             var configJson = JObject.FromObject(config);
-            string targetPath = Attribute.IsDefined(config.GetType(), typeof(UserConfigAttribute))
+            var isUserConfig = Attribute.IsDefined(
+                config.GetType(),
+                typeof(UserConfigAttribute));
+            string targetPath = isUserConfig
                 ? _userConfigPath // Ruta para UserConfig
                 : _gameConfigPath; // Ruta por defecto
 
@@ -227,6 +232,11 @@ namespace Edi.Core.Services
             {
                 _configObject.Add(typeName, config);
                 _configurations.Add(typeName, configJson);
+            }
+
+            if (!isUserConfig && !File.Exists(targetPath))
+            {
+                return;
             }
 
             // Cargar las configuraciones existentes del archivo objetivo

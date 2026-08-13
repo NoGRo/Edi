@@ -27,7 +27,14 @@ namespace Edi.Core
 
             if (existingIndex >= 0)
             {
-                games[existingIndex] = normalizedGame;
+                if (gameToReplace is null)
+                {
+                    normalizedGame = games[existingIndex];
+                }
+                else
+                {
+                    games[existingIndex] = normalizedGame;
+                }
             }
             else
             {
@@ -143,9 +150,30 @@ namespace Edi.Core
             string? first,
             string? second)
         {
+            if (string.IsNullOrWhiteSpace(first)
+                || string.IsNullOrWhiteSpace(second))
+            {
+                return string.Equals(
+                    first?.Trim(),
+                    second?.Trim(),
+                    StringComparison.OrdinalIgnoreCase);
+            }
+
+            try
+            {
+                first = Path.GetFullPath(first.Trim());
+                second = Path.GetFullPath(second.Trim());
+            }
+            catch (Exception exception) when (
+                exception is ArgumentException
+                    or NotSupportedException
+                    or PathTooLongException)
+            {
+            }
+
             return string.Equals(
-                first?.Trim(),
-                second?.Trim(),
+                first,
+                second,
                 StringComparison.OrdinalIgnoreCase);
         }
     }

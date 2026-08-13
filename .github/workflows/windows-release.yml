@@ -10,6 +10,7 @@ on:
       - "master"
     tags:
       - "v*"
+      - "[0-9]*"
 
 permissions:
   contents: write
@@ -49,13 +50,11 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: Edi-win-x64
-          path: |
-            ${{ runner.temp }}\Edi-win-x64\Edi.exe
-            ${{ runner.temp }}\Edi-win-x64\certificate.pfx
+          path: ${{ runner.temp }}\Edi-win-x64\Edi.exe
           if-no-files-found: error
           retention-days: 30
 
-      - name: Attach executable and certificate to GitHub Release
+      - name: Attach executable to GitHub Release
         if: startsWith(github.ref, 'refs/tags/')
         shell: pwsh
         env:
@@ -63,15 +62,13 @@ jobs:
         run: |
           $tag = "${{ github.ref_name }}"
           $executablePath = Join-Path "${{ runner.temp }}" "Edi-win-x64\Edi.exe"
-          $certificatePath = Join-Path "${{ runner.temp }}" "Edi-win-x64\certificate.pfx"
           gh release view $tag *> $null
           if ($LASTEXITCODE -eq 0) {
-            gh release upload $tag $executablePath $certificatePath --clobber
+            gh release upload $tag $executablePath --clobber
           } else {
             gh release create `
               $tag `
               $executablePath `
-              $certificatePath `
               --generate-notes `
               --title "EDI $tag"
           }

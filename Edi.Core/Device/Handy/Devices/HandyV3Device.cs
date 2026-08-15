@@ -203,10 +203,14 @@ namespace Edi.Core.Device.Handy
                 duration = orderedPoints.Last().t;
 
             var startTime = Math.Clamp(seek, 0, duration);
+            var playablePoints = orderedPoints
+                .Where(point => point.t <= duration)
+                .ToList();
             var points = gallery.Loop
-                ? orderedPoints
-                    .Where(point => point.t <= duration)
-                    .ToList()
+                ? SelectLoopPointsFromSeek(
+                    playablePoints,
+                    startTime,
+                    duration)
                 : SelectPointsFromSeek(orderedPoints, startTime);
             if (points.Count == 0)
             {
@@ -228,6 +232,30 @@ namespace Edi.Core.Device.Handy
 
             var startIndex = Math.Max(0, firstAtOrAfterSeek - 1);
             return points.Skip(startIndex).ToList();
+        }
+
+        private static List<Point> SelectLoopPointsFromSeek(
+            List<Point> points,
+            long seek,
+            long duration)
+        {
+            if (seek <= 0)
+                return points;
+
+            var firstAtOrAfterSeek =
+                points.FindIndex(point => point.t >= seek);
+            if (firstAtOrAfterSeek <= 0)
+                return points;
+
+            var startIndex = firstAtOrAfterSeek - 1;
+            return points
+                .Skip(startIndex)
+                .Concat(points
+                    .Take(startIndex)
+                    .Select(point => new Point(
+                        checked(point.t + Convert.ToInt32(duration)),
+                        point.x)))
+                .ToList();
         }
 
         private int GetBufferCapacity()

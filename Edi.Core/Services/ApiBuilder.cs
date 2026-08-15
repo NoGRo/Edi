@@ -57,9 +57,6 @@ namespace Edi.Core
             });
             var app = builder.Build();
 
-            var galleryPath = new DirectoryInfo(config.Get<GalleryConfig>().GalleryPath).FullName;
-
-
             app.UseSwagger();
             app.UseSwaggerUI(c =>
             {
@@ -80,26 +77,31 @@ namespace Edi.Core
 
 
         public static void UseFiles(this WebApplication app)
+            => app.UseFiles(Path.Combine(Edi.OutputDir, "Upload"));
+
+        internal static void UseFiles(
+            this WebApplication app,
+            string uploadPath)
         {
 
             var galleryPath = app.Services.GetService<ConfigurationManager>().Get<GalleryConfig>().GalleryPath;
+            var galleryDirectory = new DirectoryInfo(galleryPath);
 
-            if (!new DirectoryInfo(galleryPath).Exists)
+            if (galleryDirectory.Exists)
             {
-                throw new DirectoryNotFoundException($"Gallery path '{galleryPath}' does not exist.");
+                app.UseStaticFiles(new StaticFileOptions
+                {
+                    FileProvider = new PhysicalFileProvider(galleryDirectory.FullName),
+                    RequestPath = "/Edi/Assets",
+                    ServeUnknownFileTypes = true,
+                    ContentTypeProvider = new FileExtensionContentTypeProvider(new Dictionary<string, string>() { { ".funscript", "application/json" } })
+                });
             }
 
+            Directory.CreateDirectory(uploadPath);
             app.UseStaticFiles(new StaticFileOptions
             {
-                FileProvider = new PhysicalFileProvider(new DirectoryInfo(galleryPath).FullName),
-                RequestPath = "/Edi/Assets",
-                ServeUnknownFileTypes = true,
-                ContentTypeProvider = new FileExtensionContentTypeProvider(new Dictionary<string, string>() { { ".funscript", "application/json" } })
-            });
-
-            app.UseStaticFiles(new StaticFileOptions
-            {
-                FileProvider = new PhysicalFileProvider(Path.Combine(Edi.OutputDir, "Upload")),
+                FileProvider = new PhysicalFileProvider(uploadPath),
                 RequestPath = "/Edi/Upload",
                 ServeUnknownFileTypes = true,
                 ContentTypeProvider = new FileExtensionContentTypeProvider(new Dictionary<string, string>() { { ".funscript", "application/json" } })

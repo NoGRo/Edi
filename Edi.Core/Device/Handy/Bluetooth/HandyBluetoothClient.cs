@@ -38,9 +38,10 @@ internal sealed class HandyBluetoothClient : IHandyClient
     public string DisplayName => GetDisplayName(_transport.Name);
     public TimeSpan PlaybackSyncDelay => TimeSpan.Zero;
 
-    // Fifty HSP points stay below a 512-byte ATT payload even when
-    // timestamps require five-byte varints.
-    public int MaxPointsPerRequest => 50;
+    // With realistic three-byte funscript timestamps, sixty points use
+    // at most 503 bytes including the protobuf envelope. Sixty-one can
+    // exceed the 509-byte BLE payload negotiated by the device.
+    public int MaxPointsPerRequest => 60;
 
     public event Action<IHandyClient> Disconnected;
 

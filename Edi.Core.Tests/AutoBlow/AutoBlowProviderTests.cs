@@ -1,7 +1,10 @@
 using Edi.Core.Device.AutoBlow;
+using Edi.Core.Gallery.Index;
 using Edi.Core.Tests.Support;
+using Microsoft.Extensions.Logging.Abstractions;
 using Newtonsoft.Json.Linq;
 using System.Net;
+using System.Reflection;
 
 namespace Edi.Core.Tests.AutoBlow;
 
@@ -103,6 +106,68 @@ public class AutoBlowProviderTests
 
         Assert.True(uploaded);
         Assert.Equal(3, handler.Requests.Count);
+    }
+
+    [Fact]
+    public async Task DisabledBundlerIsReadyUntilAPlayStartsLoadingItsScript()
+    {
+        await using var rig = await PlayerTestRig.CreateAsync();
+        rig.Configuration.Get<GalleryBundlerConfig>().DisableBundler = true;
+        var repository = new IndexRepository(
+            rig.Configuration,
+            new GalleryBundler(rig.Configuration),
+            rig.Funscripts,
+            rig.Definitions);
+        using var client = AutoBlowProvider.NewClient(
+            Key,
+            "device.test",
+            false,
+            new RecordingHttpMessageHandler());
+        var device = new AutoBlowDevice(
+            client,
+            repository,
+            NullLogger.Instance);
+        var gallery = new IndexGallery
+        {
+            Name = "scene",
+            Variant = "default",
+            Bundle = "scene"
+        };
+        AddGallery(repository, gallery);
+
+        Assert.True(device.IsReady);
+
+        device.SelectedVariant = "default";
+
+        Assert.True(device.IsReady);
+
+#pragma warning disable xUnit1051 // The public device API does not accept a cancellation token.
+        await device.PlayGallery(gallery).WaitAsync(
+            TestContext.Current.CancellationToken);
+#pragma warning restore xUnit1051
+
+        Assert.False(device.IsReady);
+    }
+
+    private static void AddGallery(
+        IndexRepository repository,
+        IndexGallery gallery)
+    {
+        var galleries = new Dictionary<string, Dictionary<string, List<IndexGallery>>>(
+            StringComparer.OrdinalIgnoreCase)
+        {
+            [gallery.Variant] = new(StringComparer.OrdinalIgnoreCase)
+            {
+                [gallery.Name] = [gallery]
+            }
+        };
+
+        var property = typeof(IndexRepository).GetProperty(
+            "Galleries",
+            BindingFlags.Instance | BindingFlags.NonPublic)
+            ?? throw new InvalidOperationException(
+                "IndexRepository.Galleries was not found.");
+        property.SetValue(repository, galleries);
     }
 
     private static HttpResponseMessage Json(string content)

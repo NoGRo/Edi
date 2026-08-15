@@ -10,6 +10,45 @@ namespace Edi.Core.Tests.Handy;
 public class HandyDeviceConcurrencyTests
 {
     [Fact]
+    public async Task DisabledBundlerIsReadyUntilAPlayStartsLoadingItsScript()
+    {
+        await using var rig = await PlayerTestRig.CreateAsync();
+        rig.Configuration.Get<GalleryBundlerConfig>().DisableBundler = true;
+        var repository = CreateIndexRepository(rig);
+        var gallery = new IndexGallery
+        {
+            Name = "scene",
+            Variant = "default",
+            Bundle = "scene"
+        };
+        AddGallery(repository, gallery);
+
+        var handler = new RecordingHttpMessageHandler();
+        using var client = new HttpClient(handler)
+        {
+            BaseAddress = new Uri("https://handy.test/")
+        };
+        client.DefaultRequestHeaders.Add("X-Connection-Key", "TEST-KEY");
+        var device = new HandyDevice(
+            client,
+            repository,
+            NullLogger.Instance);
+
+        Assert.True(device.IsReady);
+
+        device.SelectedVariant = "default";
+
+        Assert.True(device.IsReady);
+
+#pragma warning disable xUnit1051 // The public device API does not accept a cancellation token.
+        await device.PlayGallery(gallery).WaitAsync(
+            TestContext.Current.CancellationToken);
+#pragma warning restore xUnit1051
+
+        Assert.False(device.IsReady);
+    }
+
+    [Fact]
     public async Task StopCancelsWarmupAndPreventsSecondPlayRequest()
     {
         await using var rig = await PlayerTestRig.CreateAsync();

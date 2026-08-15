@@ -12,7 +12,7 @@ namespace Edi.Core.Funscript.FileJson
         public List<FunScriptChapter> chapters { get; set; } = new List<FunScriptChapter>();
         public string creator { get; set; } = "";
         public string description { get; set; } = "";
-        public int duration { get; set; } = 0;
+        public double duration { get; set; } = 0;
         public string license { get; set; } = "";
         public string notes { get; set; } = "";
         public List<string> performers { get; set; } = new List<string>();

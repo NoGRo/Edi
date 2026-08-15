@@ -97,6 +97,16 @@ use the bundled references as orientation, not as a substitute for reading affec
     offset is advertised by a common capability; `/DgLab` and `/Osr` are not.
 - Route playback through `IPlayer`/`IPlayerChannels`; do not bypass reaction/filler or channel
   semantics from controllers or UI code.
+- Preserve the transient asset API contract in `EdiController`: `POST /Edi/Assets` accepts only
+  repository inputs (`.funscript`, `.mp3`, `Definitions.csv`, `Definitions_auto.csv`, and
+  `BundleDefinition*.txt`, case-insensitive), strips directory components from uploaded names,
+  stops playback, replaces the complete `OutputDir/Upload` set, and reloads that folder without
+  changing the configured game path. Unsupported files are ignored and a request with no
+  compatible assets returns `400 Bad Request`. `DELETE /Edi/Assets` stops playback, clears and
+  recreates the upload folder, reloads it without changing the game path, and returns
+  `204 No Content`. Keep configured-gallery files and uploaded files exposed under
+  `/Edi/Assets/...` and `/Edi/Upload/...` respectively. Update controller/API tests and the README
+  whenever this contract changes.
 - Keep `EdiConfig.json` game-specific and `UserConfig.json` user-specific according to the
   configuration attributes and `ConfigurationManager`.
 - Treat missing hardware and disconnected services as normal runtime states. Do not make EDI

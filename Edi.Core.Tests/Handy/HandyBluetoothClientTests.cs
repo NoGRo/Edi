@@ -189,6 +189,37 @@ public class HandyBluetoothClientTests
     }
 
     [Fact]
+    public async Task TunedHspAddLimitFitsNegotiatedBlePayload()
+    {
+        var transport = new RecordingBluetoothTransport(maxWriteSize: 509);
+        await using var client = await HandyBluetoothClient.CreateAsync(
+            transport,
+            NullLogger.Instance,
+            initialize: false,
+            CancellationToken.None);
+        Assert.Equal(60, client.MaxPointsPerRequest);
+        var points = Enumerable.Range(0, client.MaxPointsPerRequest)
+            .Select(index => new Point(190_000 + index, 100))
+            .ToList();
+
+        await client.AddPoints(
+            new HspAddRequest(
+                points,
+                flush: true,
+                tail_point_stream_index: points.Count),
+            TestContext.Current.CancellationToken);
+
+        var add = Assert.Single(transport.Requests).RequestHspAdd;
+        Assert.Equal(points.Count, add.Points.Count);
+        Assert.True(add.Flush);
+        Assert.Equal(points.Count, checked((int)add.TailPointStreamIndex));
+        Assert.InRange(
+            Assert.Single(transport.FrameLengths),
+            490,
+            transport.MaxWriteSize);
+    }
+
+    [Fact]
     public void RegistrationIncludesBluetoothDiscovery()
     {
         var services = new ServiceCollection();
@@ -303,10 +334,18 @@ public class HandyBluetoothClientTests
     private sealed class RecordingBluetoothTransport
         : IHandyBluetoothTransport
     {
+        private readonly int _maxWriteSize;
+
+        public RecordingBluetoothTransport(int maxWriteSize = 512)
+        {
+            _maxWriteSize = maxWriteSize;
+        }
+
         public string Id => "test-device";
         public string Name => "OHD_hw3_test";
-        public int MaxWriteSize => 512;
+        public int MaxWriteSize => _maxWriteSize;
         public List<Proto.Request> Requests { get; } = [];
+        public List<int> FrameLengths { get; } = [];
 
         public event Action<byte[]> FrameReceived = delegate { };
         public event Action Disconnected = delegate { };
@@ -319,6 +358,7 @@ public class HandyBluetoothClientTests
         {
             cancellationToken.ThrowIfCancellationRequested();
             Assert.True(frame.Length <= MaxWriteSize);
+            FrameLengths.Add(frame.Length);
             var message = Proto.RpcMessage.Parser.ParseFrom(frame);
             var request = message.Request;
             Requests.Add(request.Clone());

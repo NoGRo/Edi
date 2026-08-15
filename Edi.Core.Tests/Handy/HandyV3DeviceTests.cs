@@ -93,6 +93,86 @@ public class HandyV3DeviceTests
         await device.Stop();
     }
 
+    [Fact]
+    public async Task LoopSeekStartsWithOneRotatedPlayChunk()
+    {
+        await using var rig = await PlayerTestRig.CreateAsync();
+        var repository = rig.Funscripts;
+        var actions = Enumerable.Range(0, 160)
+            .Select(index => new CmdLinear
+            {
+                AbsoluteTime = index * 100,
+                Value = index % 2 == 0 ? 0 : 100
+            })
+            .ToList();
+        AddGallery(repository, new FunscriptGallery
+        {
+            Name = "seeked-loop",
+            Variant = "default",
+            Duration = Convert.ToInt32(actions[^1].AbsoluteTime),
+            Loop = true,
+            Commands = actions
+        });
+
+        var remainingUploadRelease = new TaskCompletionSource(
+            TaskCreationOptions.RunContinuationsAsynchronously);
+        var handler = new RecordingHttpMessageHandler(async (request, token) =>
+        {
+            var isRemainingAdd =
+                request.RequestUri?.AbsolutePath.EndsWith("/hsp/add") == true;
+            if (isRemainingAdd)
+                await remainingUploadRelease.Task.WaitAsync(token);
+
+            var isSetup =
+                request.RequestUri?.AbsolutePath.EndsWith("/hsp/setup") == true;
+            return RecordingHttpMessageHandler.JsonResponse(
+                isSetup
+                    ? HspStateJson(points: 0, maxPoints: 200, tail: 0)
+                    : HspStateJson(points: 100, maxPoints: 200, tail: 100));
+        });
+        using var client = new HttpClient(handler)
+        {
+            BaseAddress = new Uri("https://handy.test/")
+        };
+        client.DefaultRequestHeaders.Add("X-Connection-Key", "TEST-KEY");
+
+        var device = new HandyV3Device(
+            new HandyHttpClient(client),
+            repository,
+            NullLogger.Instance);
+        device.selectedVariant = "default";
+
+        await device.PlayGallery("seeked-loop", seek: 12_000);
+        await handler.WaitForPathAsync("v3/hsp/add");
+
+        var hspRequests = handler.Requests
+            .Where(request => request.Path.StartsWith("v3/hsp/"))
+            .ToList();
+        Assert.Equal(
+            ["v3/hsp/setup", "v3/hsp/play", "v3/hsp/add"],
+            hspRequests.Take(3).Select(request => request.Path));
+
+        var play = JObject.Parse(hspRequests[1].Content!);
+        Assert.Equal(12_000, play.Value<int>("start_time"));
+        Assert.True(play["add"]!.Value<bool>("flush"));
+        Assert.Equal(100, play["add"]!["points"]!.Count());
+        Assert.Equal(
+            11_900,
+            play["add"]!["points"]!.First()!.Value<int>("t"));
+        Assert.Equal(
+            21_700,
+            play["add"]!["points"]!.Last()!.Value<int>("t"));
+
+        var remaining = JObject.Parse(hspRequests[2].Content!);
+        Assert.False(remaining.Value<bool>("flush"));
+        Assert.Equal(
+            21_800,
+            remaining["points"]!.First()!.Value<int>("t"));
+
+        remainingUploadRelease.SetResult();
+        await device.Stop();
+    }
+
     [Theory]
     [InlineData(false)]
     [InlineData(true)]

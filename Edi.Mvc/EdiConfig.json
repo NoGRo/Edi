@@ -109,8 +109,15 @@
         "Variant": "default",
         "Channel": null,
         "Min": 0,
-        "Max": 100,
+        "Max": 18,
         "OffsetMS": -100
+      },
+      "The Handy [RFupA]": {
+        "Variant": "default",
+        "Channel": null,
+        "Min": 0,
+        "Max": 55,
+        "OffsetMS": 0
       }
     }
   },

@@ -11,14 +11,6 @@ var ediConfigPath = Path.IsPathRooted(configuredEdiPath)
     ? configuredEdiPath
     : Path.GetFullPath(configuredEdiPath, builder.Environment.ContentRootPath);
 
-if (!File.Exists(ediConfigPath))
-{
-    throw new FileNotFoundException(
-        $"No se encontró la configuración de EDI en '{ediConfigPath}'. " +
-        "Configure EdiMvc:ConfigPath o la variable EDI_CONFIG_PATH.",
-        ediConfigPath);
-}
-
 builder.Services.AddEdi(ediConfigPath);
 builder.Services
     .AddControllersWithViews()

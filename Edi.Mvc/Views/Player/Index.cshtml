@@ -3,36 +3,119 @@
 }
 
 <style>
-    .player-shell { max-width: 1100px; margin: 0 auto; }
-    .player-video { width: 100%; max-height: 68vh; background: #111; border-radius: .5rem; }
+    .player-shell { width: calc(100vw - 1.5rem); max-width: none; margin-left: 50%; transform: translateX(-50%); }
+    .player-card .card-body { padding: .5rem; }
+    .player-video { width: 100%; max-height: 75vh; background: #111; border-radius: .35rem; }
     .player-status { min-height: 1.5rem; }
     .device-card { border: 1px solid #dee2e6; border-radius: .5rem; padding: 1rem; }
+    .file-drop { border: 2px dashed #adb5bd; border-radius: .5rem; padding: .75rem; }
+    .file-drop.drag-over { border-color: #0d6efd; background: #eef5ff; }
+    .playlist { list-style: none; min-height: 3rem; padding: 0; margin: .75rem 0 0; border-top: 1px solid #dee2e6; }
+    .playlist.playlist-scroll { max-height: 30rem; overflow-y: auto; scrollbar-gutter: stable; }
+    .playlist-item { display: flex; align-items: center; gap: .5rem; padding: .5rem; border-bottom: 1px solid #dee2e6; cursor: pointer; }
+    .playlist-item:last-child { border-bottom: 0; }
+    .playlist-item.active { background: #e7f1ff; }
+    .playlist-item.dragging { opacity: .45; }
+    .playlist-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .playlist-duration { width: 7rem; flex: 0 0 7rem; text-align: right; font-variant-numeric: tabular-nums; }
+    .playlist-column-header { display: flex; gap: .5rem; padding: .5rem; color: #6c757d; font-size: .8rem; font-weight: 600; }
+    .playlist-column-header .playlist-name { padding-left: 1.5rem; }
+    .playlist-total { display: flex; justify-content: flex-end; gap: 1rem; padding: .6rem .5rem 0; border-top: 1px solid #dee2e6; font-weight: 600; }
+    .player-option { display: inline-flex; align-items: center; justify-content: center; min-width: 3rem; min-height: 2.5rem; }
+    .player-option-icon { width: 1.55rem; height: 1.55rem; fill: none; stroke: currentColor; stroke-width: 2.25; stroke-linecap: round; stroke-linejoin: round; }
+    .player-option-icon .icon-fill { fill: currentColor; stroke: none; }
+    .stroker-slash { opacity: 0; transition: opacity .15s ease; }
+    .stroker-paused .stroker-slash { opacity: 1; }
+    .device-range-values { display: flex; justify-content: space-between; margin-bottom: .25rem; font-variant-numeric: tabular-nums; }
+    .device-range { --range-low: 0%; --range-high: 100%; position: relative; height: 2rem; }
+    .device-range-track { position: absolute; inset: 50% 0 auto; height: .5rem; transform: translateY(-50%); border-radius: 999px; background: linear-gradient(to right, #dee2e6 0 var(--range-low), #0d6efd var(--range-low) var(--range-high), #dee2e6 var(--range-high) 100%); }
+    .device-range-input { position: absolute; inset: 0; width: 100%; height: 2rem; margin: 0; padding: 0; appearance: none; -webkit-appearance: none; background: transparent; pointer-events: none; }
+    .device-range-input::-webkit-slider-runnable-track { height: .5rem; background: transparent; }
+    .device-range-input::-webkit-slider-thumb { width: 1.25rem; height: 1.25rem; margin-top: -.375rem; border: 2px solid #0d6efd; border-radius: 50%; appearance: none; -webkit-appearance: none; background: #fff; box-shadow: 0 1px 3px rgba(0,0,0,.3); cursor: grab; pointer-events: auto; }
+    .device-range-input::-moz-range-track { height: .5rem; background: transparent; }
+    .device-range-input::-moz-range-thumb { width: 1rem; height: 1rem; border: 2px solid #0d6efd; border-radius: 50%; background: #fff; box-shadow: 0 1px 3px rgba(0,0,0,.3); cursor: grab; pointer-events: auto; }
+    .device-range-input:focus-visible::-webkit-slider-thumb { outline: 3px solid rgba(13,110,253,.3); outline-offset: 2px; }
+    .device-range-input:focus-visible::-moz-range-thumb { outline: 3px solid rgba(13,110,253,.3); outline-offset: 2px; }
 </style>
 
-<div class="player-shell">
+<div class="player-shell" tabindex="-1">
     <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
         <div>
             <h1 class="h3 mb-1">EDI Player</h1>
             <div id="playerStatus" class="player-status text-muted">Cargando galería...</div>
         </div>
-        <button id="refreshPlayer" class="btn btn-outline-secondary" type="button">Actualizar</button>
     </div>
 
-    <div class="card mb-4">
+    <div class="card player-card mb-4">
         <div class="card-body">
-            <label for="videoSelect" class="form-label">Video</label>
-            <select id="videoSelect" class="form-select mb-3" disabled>
-                <option>Cargando videos...</option>
-            </select>
-            <video id="videoPlayer" class="player-video" preload="metadata" controls></video>
-            <div class="d-flex flex-wrap align-items-center gap-2 mt-3">
-                <button id="playFullscreen" class="btn btn-success" type="button">Reproducir en pantalla completa</button>
-                <button id="stopPlayer" class="btn btn-danger" type="button">Detener</button>
-                <div class="form-check ms-sm-2">
-                    <input id="autoplayCheck" class="form-check-input" type="checkbox">
-                    <label class="form-check-label" for="autoplayCheck">Reproducir el siguiente automáticamente</label>
+            <input id="mediaFiles" class="visually-hidden" type="file" multiple
+                   accept="video/*,.mp4,.webm,.avi,.mkv,.mov,.funscript,.mp3,.csv,.txt">
+            <div id="fileDrop" class="file-drop mb-3">
+                <div class="d-flex flex-wrap justify-content-between align-items-center gap-2">
+                    <div>
+                        <div class="d-flex align-items-center gap-2">
+                            <strong>Playlist</strong>
+                            <span id="playlistCount" class="small text-muted">0 videos</span>
+                        </div>
+                        <div class="small text-muted">Arrastrá videos y assets sobre cualquier parte de esta lista.</div>
+                    </div>
+                    <div class="d-flex gap-2">
+                        <button id="addMediaFiles" class="btn btn-sm btn-primary" type="button"
+                                aria-label="Agregar videos y assets" title="Agregar videos y assets">＋</button>
+                        <button id="refreshPlayer" class="btn btn-sm btn-outline-secondary" type="button">Recargar assets</button>
+                        <button id="clearPlaylist" class="btn btn-sm btn-outline-danger" type="button">Borrar lista</button>
+                        <button id="togglePlaylist" class="btn btn-sm btn-outline-secondary" type="button"
+                                aria-controls="videoPlaylist" aria-expanded="true">Contraer</button>
+                    </div>
+                </div>
+                <div class="playlist-column-header" aria-hidden="true">
+                    <span class="playlist-name">Video</span>
+                    <span class="playlist-duration">Duración</span>
+                    <span style="width: 9.5rem">Acciones</span>
+                </div>
+                <ol id="videoPlaylist" class="playlist" aria-label="Playlist de videos">
+                    <li class="p-3 text-muted">Todavía no agregaste videos.</li>
+                </ol>
+                <div class="playlist-total">
+                    <span>Duración total</span>
+                    <span id="playlistDurationTotal" class="playlist-duration">00:00</span>
                 </div>
             </div>
+            <div class="d-flex flex-wrap align-items-center gap-2 mb-2">
+                <button id="playFullscreen" class="btn btn-success" type="button">Reproducir en pantalla completa</button>
+                <button id="stopPlayer" class="btn btn-danger" type="button">Detener</button>
+                <div class="btn-group ms-sm-2" role="group" aria-label="Opciones de reproducción">
+                    <button id="autoplayToggle" class="btn btn-outline-secondary player-option" type="button"
+                            aria-pressed="false" aria-label="Reproducción automática" title="Reproducción automática">
+                        <svg class="player-option-icon" viewBox="0 0 24 24" aria-hidden="true">
+                            <path class="icon-fill" d="M3.5 5.2a1 1 0 0 1 1.5-.85l10.2 6.8a1 1 0 0 1 0 1.7L5 19.65a1 1 0 0 1-1.5-.85z" />
+                            <path d="M19 5v14" />
+                        </svg>
+                    </button>
+                    <button id="loopToggle" class="btn btn-outline-secondary player-option" type="button"
+                            aria-pressed="false" aria-label="Repetir video" title="Repetir video">
+                        <svg class="player-option-icon" viewBox="0 0 24 24" aria-hidden="true">
+                            <path d="M3 7h18M17 3l4 4-4 4M21 17H3M7 13l-4 4 4 4" />
+                        </svg>
+                    </button>
+                    <button id="resumeToggle" class="btn btn-outline-secondary player-option" type="button"
+                            aria-pressed="false" aria-label="Continuar donde quedó" title="Continuar donde quedó">
+                        <svg class="player-option-icon" viewBox="0 0 24 24" aria-hidden="true">
+                            <path d="M6 3h12v18l-6-4-6 4z" />
+                            <path class="icon-fill" d="M10 8l5 3-5 3z" />
+                        </svg>
+                    </button>
+                    <button id="strokerToggle" class="btn btn-outline-secondary player-option" type="button"
+                            aria-pressed="false" aria-label="Espacio controla el stroker" title="Espacio controla el stroker">
+                        <svg class="player-option-icon" viewBox="0 0 24 24" aria-hidden="true">
+                            <rect x="7" y="2.5" width="10" height="19" rx="5" />
+                            <path d="M12 6v12M9.5 8.5L12 6l2.5 2.5M9.5 15.5L12 18l2.5-2.5" />
+                            <path class="stroker-slash" d="M3.5 3.5l17 17" style="stroke-width: 3.5" />
+                        </svg>
+                    </button>
+                </div>
+            </div>
+            <video id="videoPlayer" class="player-video" preload="auto" controls></video>
         </div>
     </div>
 

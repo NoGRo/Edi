@@ -44,38 +44,68 @@ document.addEventListener('DOMContentLoaded', () => {
             } finally { editing = false; }
         });
 
+        const values = [device.min, device.max]
+            .map(value => Math.min(100, Math.max(0, Number(value))))
+            .sort((left, right) => left - right);
+        let initialLow = Number.isFinite(values[0]) ? values[0] : 0;
+        let initialHigh = Number.isFinite(values[1]) ? values[1] : 100;
+        if (initialLow === initialHigh) {
+            if (initialHigh < 100) initialHigh += 1;
+            else initialLow -= 1;
+        }
+
         const min = document.createElement('input');
-        min.className = 'form-range';
-        min.type = 'range'; min.min = 0; min.max = 100; min.value = device.min;
+        min.className = 'device-range-input';
+        min.type = 'range'; min.min = 0; min.max = 100; min.step = 1; min.value = initialLow;
+        min.setAttribute('aria-label', `Límite inferior de ${device.name}`);
         const max = document.createElement('input');
-        max.className = 'form-range';
-        max.type = 'range'; max.min = 0; max.max = 100; max.value = device.max;
+        max.className = 'device-range-input';
+        max.type = 'range'; max.min = 0; max.max = 100; max.step = 1; max.value = initialHigh;
+        max.setAttribute('aria-label', `Límite superior de ${device.name}`);
         const minLabel = document.createElement('span');
         const maxLabel = document.createElement('span');
-        minLabel.textContent = `Mínimo: ${min.value}%`;
-        maxLabel.textContent = `Máximo: ${max.value}%`;
+        const range = document.createElement('div');
+        range.className = 'device-range';
+        const track = document.createElement('div');
+        track.className = 'device-range-track';
+        const rangeValues = document.createElement('div');
+        rangeValues.className = 'device-range-values';
 
-        const applyRange = async () => {
-            let low = Number(min.value), high = Number(max.value);
-            if (low > high) [low, high] = [high, low];
-            min.value = low; max.value = high;
+        const renderRange = changedInput => {
+            let low = Number(min.value);
+            let high = Number(max.value);
+            if (changedInput === min && low >= high) low = high - 1;
+            if (changedInput === max && high <= low) high = low + 1;
+            min.value = low;
+            max.value = high;
             minLabel.textContent = `Mínimo: ${low}%`;
             maxLabel.textContent = `Máximo: ${high}%`;
+            range.style.setProperty('--range-low', `${low}%`);
+            range.style.setProperty('--range-high', `${high}%`);
+            min.style.zIndex = changedInput === min ? 3 : 2;
+            max.style.zIndex = changedInput === max ? 3 : 2;
+        };
+
+        const applyRange = async () => {
+            const low = Number(min.value), high = Number(max.value);
             editing = true;
             try {
                 await post(`/Devices/${encodeURIComponent(device.name)}/Range/${low}-${high}`);
             } finally { editing = false; }
         };
-        min.addEventListener('input', () => minLabel.textContent = `Mínimo: ${min.value}%`);
-        max.addEventListener('input', () => maxLabel.textContent = `Máximo: ${max.value}%`);
+        min.addEventListener('input', () => renderRange(min));
+        max.addEventListener('input', () => renderRange(max));
         min.addEventListener('change', applyRange);
         max.addEventListener('change', applyRange);
 
-        const minBox = document.createElement('div');
-        minBox.append(minLabel, min);
-        const maxBox = document.createElement('div');
-        maxBox.append(maxLabel, max);
-        row.append(field('Variante', variant), field('Límite inferior', minBox), field('Límite superior', maxBox));
+        rangeValues.append(minLabel, maxLabel);
+        range.append(track, min, max);
+        const rangeBox = document.createElement('div');
+        rangeBox.append(rangeValues, range);
+        const rangeField = field('Rango', rangeBox);
+        rangeField.className = 'col-md-8';
+        renderRange();
+        row.append(field('Variante', variant), rangeField);
         card.append(heading, row);
         return card;
     }

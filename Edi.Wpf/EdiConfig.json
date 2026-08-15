@@ -23,43 +23,57 @@
         "Variant": "None",
         "Channel": null,
         "Min": 0,
-        "Max": 100
+        "Max": 100,
+        "OffsetMS": null
       },
       "Lovense Edge Vibrate: 1": {
         "Variant": "None",
         "Channel": null,
         "Min": 0,
-        "Max": 100
+        "Max": 100,
+        "OffsetMS": null
       },
       "Lovense Edge Vibrate: 2": {
         "Variant": "None",
         "Channel": null,
         "Min": 0,
-        "Max": 100
+        "Max": 100,
+        "OffsetMS": null
       },
       "Preview Device": {
         "Variant": "",
         "Channel": null,
         "Min": 0,
-        "Max": 100
+        "Max": 100,
+        "OffsetMS": null
       },
       "The Handy [RFupA]": {
         "Variant": "None",
         "Channel": null,
         "Min": 0,
-        "Max": 100
+        "Max": 100,
+        "OffsetMS": null
       },
       "The Handy [RFupA] (1)": {
         "Variant": "None",
         "Channel": null,
         "Min": 0,
-        "Max": 100
+        "Max": 100,
+        "OffsetMS": null
       },
       "The Handy [RFupA] (2)": {
         "Variant": "None",
         "Channel": null,
         "Min": 0,
-        "Max": 100
+        "Max": 100,
+        "OffsetMS": null
+      },
+      "The Handy 2 Pro (BLE)": {
+        "Variant": "default",
+        "Channel": null,
+        "Min": 0,
+        "Max": 100,
+        "OffsetMS": 0
       }
     }
   },
@@ -72,6 +86,12 @@
   "OBS": {
     "WSUrl": "ws://127.0.0.1:4455",
     "MinimumChaperLength": 200,
-    "ChapterEndBuffer":  0
+    "ChapterEndBuffer": 0
+  },
+  "OsrDevices": {
+    "Devices": {}
+  },
+  "DgLabDevices": {
+    "Devices": {}
   }
 }

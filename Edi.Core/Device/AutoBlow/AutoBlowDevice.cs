@@ -49,7 +49,7 @@ internal class AutoBlowDevice
             .GetValues("x-device-token")
             .First();
         Name = $"{displayName} [{key}]";
-        IsReady = false;
+        IsReady = repository.BundlerConfig.DisableBundler;
     }
 
     public HttpClient Client { get; }
@@ -57,7 +57,11 @@ internal class AutoBlowDevice
     public void ApplyConfiguration(DeviceConfig configuration)
         => ApplyOffsetConfiguration(configuration);
 
-    internal override void SetVariant() => QueueUpload();
+    internal override void SetVariant()
+    {
+        if (!repository.BundlerConfig.DisableBundler)
+            QueueUpload();
+    }
 
     public override Task PlayGallery(IndexGallery gallery, long seek = 0)
         => PlayGallery(gallery, seek, playCancelTokenSource.Token);

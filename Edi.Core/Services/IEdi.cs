@@ -15,7 +15,7 @@ namespace Edi.Core
     public interface IEdi 
     {
 
-        public Task Init(string path = null);
+        public Task Init(string path = null, bool setGamePath = true);
         public Task InitDevices();
         public Task<GameInfo> SelectGame(GameInfo game);
         public IPlayerChannels Player { get; }

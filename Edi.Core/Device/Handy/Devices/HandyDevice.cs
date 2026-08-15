@@ -54,7 +54,7 @@ namespace Edi.Core.Device.Handy
             Key = client.DefaultRequestHeaders.GetValues("X-Connection-Key").First();
             Name = $"The Handy [{Key}]";
 
-            IsReady = false;
+            IsReady = repository?.BundlerConfig.DisableBundler == true;
             Client = client;
             _delay = delay ?? Task.Delay;
             EnableOffset(defaultOffset);
@@ -76,7 +76,8 @@ namespace Edi.Core.Device.Handy
         internal override void SetVariant()
         {
             _logger.LogInformation($"Setting variant for Key: {Key} with SelectedVariant: {SelectedVariant}.");
-            upload();
+            if (repository?.BundlerConfig.DisableBundler != true)
+                upload();
         }
 
         internal override async Task applyRange()

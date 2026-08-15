@@ -120,9 +120,9 @@ namespace Edi.Core
             return resolvedGameInfo;
 
         }
-        public async Task Init(string path)
+        public async Task Init(string path, bool setGamePath = true)
         {
-            string galleryPath = ResolveGallery(path);
+            string galleryPath = setGamePath ? ResolveGallery(path) : path;
             await Player.Stop();
             await DeviceCollector.Reload(async () =>
             {

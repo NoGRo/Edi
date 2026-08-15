@@ -55,7 +55,7 @@ All types support the `loop` property as `true` or `false`.
 
 #### Gallery Definition
 
-- Galleries are defined using a `Definition.csv` file, chapters in OFS, or can be auto-generated as `definition_auto.csv` based on filenames.
+- Galleries are defined using a `Definitions.csv` file, chapters in OFS, or can be auto-generated as `Definitions_auto.csv` based on filenames.
 - Auto-generation can be enabled in the config file (`EdiConfig.json` ).
 - Supported types: `gallery`, `reaction`, `filler`.
 - If no type or loop is specified, EDI assumes `gallery` with `loop = true`.
@@ -144,7 +144,7 @@ EDI now supports multiple independent playback channels, allowing different devi
 EDI groups all galleries into bundles for efficient loading into devices like Handy and AutoBlow.
 
 - Bundles reduce latency by grouping related galleries.
-- Defined in `BundleDefinition.csv` under `C:\Users\{User}\AppData\Local\Edi`
+- Defined in `BundleDefinition.txt` (or `BundleDefinition.{variant}.txt`) alongside the gallery assets.
 - The `default` bundle contains all galleries not explicitly grouped.
 - When a gallery from another bundle is needed, EDI uploads that bundle dynamically.
 - A gallery can be in multiple bundles (useful for `filler` or `reaction`).
@@ -169,8 +169,8 @@ reaction_click
 #### `Gallery` Section
 
 - `GalleryPath`: folder path containing funscripts.
-- `GenerateDefinitionFromChapters`: `true` to generate `Definition.csv` from chapters.
-- `GenerateChaptersFromDefinition`: generates chapters from `Definition.csv`.
+- `GenerateDefinitionFromChapters`: `true` to generate `Definitions.csv` from chapters.
+- `GenerateChaptersFromDefinition`: generates chapters from `Definitions.csv`.
 
 #### `GalleryBundler` Section
 
@@ -242,7 +242,17 @@ Channels can be specified for any Playback endpoint in two ways:
 #### Content
 
 - `GET /Edi/Definitions`: returns all available galleries.
-- `GET/POST /Edi/Assets`: upload or list funscripts and audio files.
+- `GET /Edi/Assets`: lists files from the active gallery and the temporary upload set.
+  Gallery URLs use `/Edi/Assets/...`; uploaded-file URLs use `/Edi/Upload/...`.
+- `POST /Edi/Assets`: accepts a `multipart/form-data` request whose `files` field may contain
+  `.funscript`, `.mp3`, `Definitions.csv`, `Definitions_auto.csv`, and
+  `BundleDefinition*.txt` files (case-insensitive). Unsupported files are ignored; the request
+  returns `400 Bad Request` if it is empty or contains no compatible assets. A successful upload
+  stops playback, replaces the complete temporary upload set, rebuilds the gallery definitions
+  from it without changing the configured game path, and returns those definitions.
+- `DELETE /Edi/Assets`: stops playback, removes all temporary uploaded assets, reloads with an
+  empty upload set, and returns `204 No Content`. It does not delete assets from the configured
+  game gallery or change the configured game path.
 
 ---
 

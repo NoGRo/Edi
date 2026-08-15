@@ -101,35 +101,61 @@ namespace Edi.Core.Controllers
         }
 
         [HttpPost("Assets")]
-        [SwaggerOperation(Summary = "Uploads multimedia files and updates the gallery definitions.")]
+        [SwaggerOperation(Summary = "Uploads EDI assets and updates the gallery definitions.")]
         public async Task<ActionResult<IEnumerable<DefinitionResponseDto>>> CreateAssets([FromForm] List<IFormFile> files)
         {
             if (files == null || files.Count == 0)
             {
-                return NotFound();
+                return BadRequest("No files were selected.");
             }
-            var folderPath = Path.Combine(Core.Edi.OutputDir, "Upload");
-            var uploadedFiles = new List<string>();
-            foreach (var file in files)
+
+            var assets = files
+                .Where(file => IsRecognizedAssetFileName(file.FileName))
+                .ToList();
+            if (assets.Count == 0)
             {
-                var filePath = Path.Combine(folderPath, file.FileName);
-                if (Directory.Exists(filePath))
-                    Directory.Delete(filePath, true);
-                Directory.CreateDirectory(folderPath);
-                if (System.IO.File.Exists(filePath))
-                {
-                    System.IO.File.Delete(filePath);
-                }
-
-                using (var stream = new FileStream(filePath, FileMode.Create))
-                {
-                    await file.CopyToAsync(stream);
-                }
-                uploadedFiles.Add(file.FileName);
-
+                return BadRequest("No EDI-compatible assets were selected.");
             }
-            await edi.Init(folderPath);
+
+            var folderPath = Path.Combine(Core.Edi.OutputDir, "Upload");
+            await edi.Player.Stop();
+            if (Directory.Exists(folderPath))
+                Directory.Delete(folderPath, recursive: true);
+            Directory.CreateDirectory(folderPath);
+
+            foreach (var file in assets)
+            {
+                var safeFileName = Path.GetFileName(file.FileName);
+                var filePath = Path.Combine(folderPath, safeFileName);
+                await using var stream = new FileStream(filePath, FileMode.Create);
+                await file.CopyToAsync(stream);
+            }
+            await edi.Init(folderPath, setGamePath: false);
             return Ok(edi.Definitions.Select(x=> new DefinitionResponseDto(x)));
+        }
+
+        [HttpDelete("Assets")]
+        [SwaggerOperation(Summary = "Deletes uploaded EDI assets and clears gallery definitions.")]
+        public async Task<IActionResult> DeleteAssets()
+        {
+            var folderPath = Path.Combine(Core.Edi.OutputDir, "Upload");
+            await edi.Player.Stop();
+            if (Directory.Exists(folderPath))
+                Directory.Delete(folderPath, recursive: true);
+            Directory.CreateDirectory(folderPath);
+            await edi.Init(folderPath, setGamePath: false);
+            return NoContent();
+        }
+
+        internal static bool IsRecognizedAssetFileName(string fileName)
+        {
+            var name = Path.GetFileName(fileName);
+            return name.EndsWith(".funscript", StringComparison.OrdinalIgnoreCase)
+                || name.EndsWith(".mp3", StringComparison.OrdinalIgnoreCase)
+                || name.Equals("Definitions.csv", StringComparison.OrdinalIgnoreCase)
+                || name.Equals("Definitions_auto.csv", StringComparison.OrdinalIgnoreCase)
+                || (name.StartsWith("BundleDefinition", StringComparison.OrdinalIgnoreCase)
+                    && name.EndsWith(".txt", StringComparison.OrdinalIgnoreCase));
         }
 
         [HttpGet("Assets/{*filePath}")]
@@ -150,7 +176,7 @@ namespace Edi.Core.Controllers
             // Construir la ruta completa del archivo
             var fullPath = Path.Combine(galleryPath, filePath);
 
-            // Validar que el archivo esté dentro del gallery path (prevenir path traversal)
+            // Validar que el archivo estÃ© dentro del gallery path (prevenir path traversal)
             var fullGalleryPath = Path.GetFullPath(galleryPath);
             var fullFilePath = Path.GetFullPath(fullPath);
 

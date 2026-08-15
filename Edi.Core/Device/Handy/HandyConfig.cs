@@ -16,7 +16,7 @@ namespace Edi.Core.Device.Handy
         public const int MaximumOffsetMS = DeviceOffset.MaximumMilliseconds;
         public const int OffsetStepMS = DeviceOffset.StepMilliseconds;
 
-        private int _offsetMS = -80;
+        private int _offsetMS = 0;
 
         public string Key { get; set; }
         public string ApiKey { get; set; } = "B8v2-Qr2mjNO8J3wyfSeJDslofcBLWNz";

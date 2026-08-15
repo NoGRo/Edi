@@ -294,8 +294,7 @@ namespace Edi.Core.Device
             try
             {
                 var durationTask = PlaybackDelay(
-                    TimeSpan.FromMilliseconds(
-                        Math.Max(0, gallery.Duration - CurrentTime)),
+                    GetPlaybackCompletionDelay(gallery),
                     token);
                 if (await Task.WhenAny(deviceTask, durationTask) == deviceTask)
                     await deviceTask;
@@ -364,8 +363,12 @@ namespace Edi.Core.Device
                 ? 0
                 : (int)(elapsedTime % duration);
 
-        private long ElapsedPlaybackTime =>
+        protected long ElapsedPlaybackTime =>
             (long)(GetUtcNow() - SyncSend).TotalMilliseconds + SeekTime;
+
+        protected virtual TimeSpan GetPlaybackCompletionDelay(TGallery gallery)
+            => TimeSpan.FromMilliseconds(
+                Math.Max(0, gallery.Duration - CurrentTime));
 
         private void CancelActiveTask()
         {

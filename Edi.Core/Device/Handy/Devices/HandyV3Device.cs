@@ -14,9 +14,13 @@ namespace Edi.Core.Device.Handy
           IDeviceWithOffsetConfiguration
     {
         private static readonly TimeSpan StreamingBufferGracePeriod =
-            TimeSpan.FromSeconds(3);
+            TimeSpan.FromSeconds(4);
         private static readonly TimeSpan StreamingPollInterval =
             TimeSpan.FromMilliseconds(250);
+        private static readonly TimeSpan AwaitedPlaybackSyncThreshold =
+            TimeSpan.FromMilliseconds(100);
+        private static readonly TimeSpan FollowUpPlaybackSyncDelay =
+            TimeSpan.FromSeconds(3);
         private static readonly TimeSpan ClockSynchronizationLifetime =
             TimeSpan.FromMinutes(20);
 
@@ -127,18 +131,27 @@ namespace Edi.Core.Device.Handy
                     Math.Min(
                         Math.Min(
                             bufferCapacity,
-                            Client.MaxPointsPerRequest),
+                            Client.MaxPlayPointsPerRequest),
                         plan.Points.Count);
                 var initialPoints =
                     plan.Points.Take(initialPointCount).ToList();
                 var remainingPoints =
                     plan.Points.Skip(initialPointCount).ToList();
-
                 await StartPlayback(
                     initialPoints,
                     plan.StartTime,
                     loop: canUseDeviceLoop,
+                    gallery.Loop,
+                    plan.Duration,
                     cancellationToken);
+                _ = ObserveWarmupSynchronization(
+                    SynchronizePlaybackAfterDelay(
+                        FollowUpPlaybackSyncDelay,
+                        "follow-up",
+                        plan.StartTime,
+                        gallery.Loop,
+                        plan.Duration,
+                        cancellationToken));
                 _logger.LogInformation(
                     "Handy playback {PlaybackId} started in {ElapsedMilliseconds} ms. Gallery: {Gallery}, Seek: {Seek}, InitialPoints: {InitialPoints}, RemainingPoints: {RemainingPoints}, DeviceLoop: {DeviceLoop}",
                     playbackId,
@@ -264,20 +277,24 @@ namespace Edi.Core.Device.Handy
                 _hspState?.max_points
                 ?? Client.MaxPointsPerRequest);
 
-        private Task StartPlayback(
+        private async Task StartPlayback(
             List<Point> points,
             long startTime,
             bool loop,
+            bool galleryLoop,
+            int duration,
             CancellationToken cancellationToken)
         {
             var add = new HspAddRequest(
                 points,
                 flush: true,
                 ReserveTailPointStreamIndex(points.Count));
-            return SendPlayCommand(
+            await SendPlayCommand(
                 startTime,
                 loop,
                 add,
+                galleryLoop,
+                duration,
                 cancellationToken);
         }
 
@@ -328,10 +345,15 @@ namespace Edi.Core.Device.Handy
                 playbackTime
                     - Convert.ToInt32(
                         StreamingBufferGracePeriod.TotalMilliseconds));
-            while (CurrentTime < uploadTime)
+            while (true)
             {
+                var currentTime = ElapsedPlaybackTime;
+                if (currentTime >= uploadTime)
+                    return;
+
                 var remaining =
-                    TimeSpan.FromMilliseconds(uploadTime - CurrentTime);
+                    TimeSpan.FromMilliseconds(
+                        uploadTime - currentTime);
                 var delay = remaining < StreamingPollInterval
                     ? remaining
                     : StreamingPollInterval;
@@ -468,6 +490,8 @@ namespace Edi.Core.Device.Handy
             long startTime,
             bool loop,
             HspAddRequest add,
+            bool galleryLoop,
+            int duration,
             CancellationToken cancellationToken)
         {
             _isStopCalled = false;
@@ -489,30 +513,22 @@ namespace Edi.Core.Device.Handy
             }
 
             _hspState = state;
-            if (string.Equals(
-                    _hspState.play_state,
-                    "starving",
-                    StringComparison.OrdinalIgnoreCase))
-            {
-                _logger.LogWarning(
-                    "Handy HSP reported STARVING immediately after play. CurrentTime: {CurrentTime}, Points: {Points}, TailIndex: {TailIndex}",
-                    _hspState.current_time,
-                    _hspState.points,
-                    _hspState.tail_point_stream_index);
-            }
-            else
-            {
-                _logger.LogInformation(
-                    "Handy play command accepted. State: {PlayState}, CurrentTime: {CurrentTime}, Points: {Points}, TailIndex: {TailIndex}",
-                    _hspState.play_state,
-                    _hspState.current_time,
-                    _hspState.points,
-                    _hspState.tail_point_stream_index);
-            }
+            _logger.LogInformation(
+                "Handy play command accepted. State: {PlayState}, CurrentTime: {CurrentTime}, Points: {Points}, TailIndex: {TailIndex}",
+                _hspState.play_state,
+                _hspState.current_time,
+                _hspState.points,
+                _hspState.tail_point_stream_index);
 
-            var synchronization =
-                SynchronizePlaybackAfterWarmup(cancellationToken);
-            if (Client.PlaybackSyncDelay == TimeSpan.Zero)
+            var synchronization = SynchronizePlaybackAfterDelay(
+                Client.PlaybackSyncDelay,
+                "initial",
+                startTime,
+                galleryLoop,
+                duration,
+                cancellationToken);
+            if (Client.PlaybackSyncDelay
+                <= AwaitedPlaybackSyncThreshold)
             {
                 await synchronization;
             }
@@ -522,27 +538,37 @@ namespace Edi.Core.Device.Handy
             }
         }
 
-        private async Task SynchronizePlaybackAfterWarmup(
+        private async Task SynchronizePlaybackAfterDelay(
+            TimeSpan delay,
+            string phase,
+            long startTime,
+            bool loop,
+            int duration,
             CancellationToken cancellationToken)
         {
             await _delay(
-                Client.PlaybackSyncDelay,
+                delay,
                 cancellationToken);
             cancellationToken.ThrowIfCancellationRequested();
             if (currentGallery is null || _isStopCalled)
                 return;
 
+            var elapsed = ElapsedPlaybackTime - startTime;
+            var expectedTime = loop && duration > 0
+                ? startTime + elapsed % duration
+                : Math.Min(startTime + elapsed, duration);
             _hspState = await Client.SyncTime(
                 new HspSyncTimeRequest(
-                    CurrentTime,
+                    Convert.ToInt32(expectedTime),
                     ServerTime,
                     filter: 1.0),
                 cancellationToken);
             _logger.LogInformation(
-                "Handy HSP playback time synchronized. Device state: {PlayState}, DeviceTime: {DeviceTime}, ExpectedTime: {ExpectedTime}",
+                "Handy HSP {Phase} playback time synchronized. Device state: {PlayState}, DeviceTime: {DeviceTime}, ExpectedTime: {ExpectedTime}",
+                phase,
                 _hspState.play_state,
                 _hspState.current_time,
-                CurrentTime);
+                expectedTime);
         }
 
         private async Task ObserveWarmupSynchronization(Task task)
@@ -560,6 +586,17 @@ namespace Edi.Core.Device.Handy
                     ex,
                     "Could not synchronize Handy HSP playback time after warm-up.");
             }
+        }
+
+        protected override TimeSpan GetPlaybackCompletionDelay(
+            FunscriptGallery gallery)
+        {
+            if (!gallery.Loop)
+                return base.GetPlaybackCompletionDelay(gallery);
+
+            var elapsedSinceStart = ElapsedPlaybackTime - SeekTime;
+            return TimeSpan.FromMilliseconds(
+                Math.Max(0, gallery.Duration - elapsedSinceStart));
         }
 
         private int ReserveTailPointStreamIndex(int pointCount)
@@ -592,6 +629,9 @@ namespace Edi.Core.Device.Handy
         private long ServerTime =>
             DateTimeOffset.UtcNow.ToUnixTimeMilliseconds()
             + ServerTimeSync.timeSyncAvrageOffset;
+
+        internal override DateTime GetUtcNow()
+            => _getUtcNow().UtcDateTime;
     }
 
     internal record PlaybackPlan(

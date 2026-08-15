@@ -346,7 +346,7 @@ namespace Edi.Core.Device.Handy
                         await _repositoryManager
                             .GetRepositoryAsync<FunscriptRepository>();
                     handyDevice = new HandyV3Device(
-                        new HandyHttpClient(client),
+                        new HandyHttpClient(client, _logger),
                         funscriptRepository,
                         _logger,
                         defaultOffset: Config.OffsetMS);

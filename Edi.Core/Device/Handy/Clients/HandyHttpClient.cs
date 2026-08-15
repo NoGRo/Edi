@@ -1,10 +1,17 @@
 using Newtonsoft.Json;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
+using System.Diagnostics;
 using System.Text;
 
 namespace Edi.Core.Device.Handy;
 
-internal sealed class HandyHttpClient(HttpClient client) : IHandyClient
+internal sealed class HandyHttpClient(
+    HttpClient client,
+    ILogger logger = null) : IHandyClient
 {
+    private readonly ILogger _logger = logger ?? NullLogger.Instance;
+
     public string Id => $"internet:{Key}";
 
     public string Key { get; } = client.DefaultRequestHeaders
@@ -108,11 +115,19 @@ internal sealed class HandyHttpClient(HttpClient client) : IHandyClient
         string operation,
         CancellationToken cancellationToken)
     {
+        var stopwatch = Stopwatch.StartNew();
+        _logger.LogInformation(
+            "Handy HTTP request HSP {Operation} started.",
+            operation);
         using var response = await client.PutAsync(
             path,
             JsonContent(request),
             cancellationToken);
         response.EnsureSuccessStatusCode();
+        _logger.LogInformation(
+            "Handy HTTP request HSP {Operation} completed in {ElapsedMilliseconds} ms.",
+            operation,
+            stopwatch.ElapsedMilliseconds);
         var content = await response.Content.ReadAsStringAsync(
             cancellationToken);
         return JsonConvert

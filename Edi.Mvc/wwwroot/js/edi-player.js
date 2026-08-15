@@ -33,6 +33,7 @@
     let strokerPaused = false;
     let strokerNeedsResync = false;
     let strokerCommandPending = false;
+    let videoClickTimer = null;
     let commandQueue = Promise.resolve();
 
     function readStoredObject(key, fallback) {
@@ -196,7 +197,44 @@
 
         event.preventDefault();
         event.stopImmediatePropagation();
-        toggleStrokerPlayback();
+        window.clearTimeout(videoClickTimer);
+        videoClickTimer = null;
+        if (event.detail > 1) return;
+
+        videoClickTimer = window.setTimeout(() => {
+            videoClickTimer = null;
+            toggleStrokerPlayback();
+        }, 250);
+    }
+
+    function toggleVideoFullscreen(event) {
+        if (clickedNativeVideoControls(event)) return;
+
+        event.preventDefault();
+        event.stopImmediatePropagation();
+        window.clearTimeout(videoClickTimer);
+        videoClickTimer = null;
+
+        const fullscreenChange = document.fullscreenElement === video
+            ? document.exitFullscreen?.()
+            : video.requestFullscreen?.();
+        fullscreenChange?.catch(error => report(`No se pudo cambiar la pantalla completa: ${error.message}`, true));
+    }
+
+    function updateFullscreenControls(event) {
+        if (document.fullscreenElement !== video) {
+            video.controls = true;
+            return;
+        }
+
+        if (!event) {
+            video.controls = false;
+            return;
+        }
+
+        const bounds = video.getBoundingClientRect();
+        const revealHeight = Math.min(96, Math.max(56, bounds.height * 0.12));
+        video.controls = event.clientY >= bounds.bottom - revealHeight;
     }
 
     function currentItem() {
@@ -680,6 +718,9 @@
     video.addEventListener('pointerup', releaseVideoControlFocus, true);
     video.addEventListener('mouseup', releaseVideoControlFocus, true);
     video.addEventListener('click', handleVideoClick, true);
+    video.addEventListener('dblclick', toggleVideoFullscreen, true);
+    video.addEventListener('mousemove', updateFullscreenControls, true);
+    document.addEventListener('fullscreenchange', () => updateFullscreenControls());
     video.addEventListener('waiting', () => {
         if (strokerPaused) {
             strokerNeedsResync = true;

@@ -173,6 +173,83 @@ public class HandyV3DeviceTests
         await device.Stop();
     }
 
+    [Fact]
+    public async Task LoopSeekStreamsEveryPointThroughEndAndBeforeSeek()
+    {
+        await using var rig = await PlayerTestRig.CreateAsync();
+        var actions = Enumerable.Range(0, 160)
+            .Select(index => new CmdLinear
+            {
+                AbsoluteTime = index * 100,
+                Value = index
+            })
+            .ToList();
+        AddGallery(rig.Funscripts, new FunscriptGallery
+        {
+            Name = "complete-seeked-loop",
+            Variant = "default",
+            Duration = Convert.ToInt32(actions[^1].AbsoluteTime),
+            Loop = true,
+            Commands = actions
+        });
+
+        await using var client = new ImmediateSyncClient(
+            maxPointsPerRequest: 50,
+            bufferCapacity: 60,
+            expectedAddCount: 3);
+        var now = new DateTimeOffset(
+            2026, 8, 15, 12, 0, 0, TimeSpan.Zero);
+        var device = new HandyV3Device(
+            client,
+            rig.Funscripts,
+            NullLogger.Instance,
+            (delay, token) =>
+            {
+                now = now.Add(delay);
+                return Task.CompletedTask;
+            },
+            () => now);
+        device.selectedVariant = "default";
+
+        await device.PlayGallery("complete-seeked-loop", seek: 14_000);
+        await client.AddRequestsCompleted.Task.WaitAsync(
+            TestContext.Current.CancellationToken);
+        await client.FollowUpSyncSent.Task.WaitAsync(
+            TestContext.Current.CancellationToken);
+
+        var play = Assert.Single(client.PlayRequests);
+        Assert.NotNull(play.add);
+        var chunks = new[] { play.add }
+            .Concat(client.AddRequests)
+            .ToList();
+        Assert.Equal([50, 50, 50, 10], chunks
+            .Select(chunk => chunk.points.Count));
+        Assert.Equal([50, 100, 150, 160], chunks
+            .Select(chunk => chunk.tail_point_stream_index));
+
+        var sentPoints = chunks
+            .SelectMany(chunk => chunk.points)
+            .ToList();
+        var duration = Convert.ToInt32(actions[^1].AbsoluteTime);
+        var expectedPoints = actions
+            .Skip(139)
+            .Select(action => new Point(
+                Convert.ToInt32(action.AbsoluteTime),
+                Math.Clamp(Convert.ToInt32(action.Value), 0, 100)))
+            .Concat(actions
+                .Take(139)
+                .Select(action => new Point(
+                    Convert.ToInt32(action.AbsoluteTime) + duration,
+                    Math.Clamp(Convert.ToInt32(action.Value), 0, 100))))
+            .ToList();
+        Assert.Equal(expectedPoints, sentPoints);
+        Assert.Contains(sentPoints, point => point.t > duration);
+        Assert.True(client.SyncRequests.Last().current_time > duration);
+        Assert.False(device.SelfManagedLoop);
+
+        await device.Stop();
+    }
+
     [Theory]
     [InlineData(false)]
     [InlineData(true)]
@@ -279,7 +356,7 @@ public class HandyV3DeviceTests
     }
 
     [Fact]
-    public async Task RemainingPointsUploadThreeSecondsBeforeBufferSpaceIsNeeded()
+    public async Task RemainingPointsUploadFourSecondsBeforeBufferSpaceIsNeeded()
     {
         await using var rig = await PlayerTestRig.CreateAsync();
         var repository = rig.Funscripts;
@@ -287,12 +364,12 @@ public class HandyV3DeviceTests
         {
             Name = "streaming-grace",
             Variant = "default",
-            Duration = 10_000,
+            Duration = 12_500,
             Loop = false,
             Commands = Enumerable.Range(0, 6)
                 .Select(index => new CmdLinear
                 {
-                    AbsoluteTime = index * 2_000,
+                    AbsoluteTime = index * 2_500,
                     Value = index * 10
                 })
                 .ToList()
@@ -498,7 +575,7 @@ public class HandyV3DeviceTests
     }
 
     [Fact]
-    public async Task ImmediateSynchronizationCompletesBeforeStreamingMorePoints()
+    public async Task ShortDelayedSynchronizationCompletesBeforeStreamingMorePoints()
     {
         await using var rig = await PlayerTestRig.CreateAsync();
         AddGallery(rig.Funscripts, new FunscriptGallery
@@ -517,19 +594,44 @@ public class HandyV3DeviceTests
         });
 
         await using var client = new ImmediateSyncClient();
+        var observedDelays = new ConcurrentQueue<TimeSpan>();
+        var followUpDelayStarted = new TaskCompletionSource(
+            TaskCreationOptions.RunContinuationsAsynchronously);
+        var releaseFollowUpDelay = new TaskCompletionSource(
+            TaskCreationOptions.RunContinuationsAsynchronously);
         var device = new HandyV3Device(
             client,
             rig.Funscripts,
-            NullLogger.Instance);
+            NullLogger.Instance,
+            async (delay, token) =>
+            {
+                observedDelays.Enqueue(delay);
+                if (delay == TimeSpan.FromSeconds(3))
+                {
+                    followUpDelayStarted.TrySetResult();
+                    await releaseFollowUpDelay.Task.WaitAsync(token);
+                }
+            });
         device.selectedVariant = "default";
 
         await device.PlayGallery("immediate-sync");
         await client.RemainingPointsAdded.Task.WaitAsync(
             TestContext.Current.CancellationToken);
+        await followUpDelayStarted.Task.WaitAsync(
+            TestContext.Current.CancellationToken);
 
         Assert.Equal(
             ["setup", "play", "sync", "add"],
             client.Operations);
+        releaseFollowUpDelay.SetResult();
+        await client.FollowUpSyncSent.Task.WaitAsync(
+            TestContext.Current.CancellationToken);
+        Assert.Equal(
+            ["setup", "play", "sync", "add", "sync"],
+            client.Operations);
+        Assert.Equal(
+            [TimeSpan.FromMilliseconds(15), TimeSpan.FromSeconds(3)],
+            observedDelays);
         await device.Stop();
     }
 
@@ -584,6 +686,12 @@ public class HandyV3DeviceTests
             NullLogger.Instance,
             async (delay, token) =>
             {
+                if (delay == TimeSpan.FromSeconds(3))
+                {
+                    await Task.Delay(Timeout.InfiniteTimeSpan, token);
+                    return;
+                }
+
                 Assert.Equal(TimeSpan.FromMilliseconds(1500), delay);
                 delayStarted.SetResult();
                 await releaseDelay.Task.WaitAsync(token);
@@ -718,7 +826,12 @@ public class HandyV3DeviceTests
             FunscriptRepository repository,
             Func<TimeSpan, CancellationToken, Task> delay,
             Func<DateTime> getUtcNow)
-            : base(client, repository, NullLogger.Instance, delay)
+            : base(
+                client,
+                repository,
+                NullLogger.Instance,
+                delay,
+                () => new DateTimeOffset(getUtcNow()))
         {
             _getUtcNow = getUtcNow;
         }
@@ -743,15 +856,42 @@ public class HandyV3DeviceTests
             tail_point_stream_index_threshold: 0);
 
         private readonly ConcurrentQueue<string> operations = new();
+        private readonly HspState state;
+        private readonly int maxPointsPerRequest;
+        private readonly int expectedAddCount;
+        private int addCount;
+
+        public ImmediateSyncClient(
+            int maxPointsPerRequest = 2,
+            int bufferCapacity = 2,
+            int expectedAddCount = 1)
+        {
+            this.maxPointsPerRequest = maxPointsPerRequest;
+            this.expectedAddCount = expectedAddCount;
+            state = State with
+            {
+                max_points = bufferCapacity,
+                tail_point_stream_index = 0
+            };
+        }
 
         public string Id => "test:immediate-sync";
         public string Key => string.Empty;
         public string DisplayName => "Immediate sync test client";
-        public int MaxPointsPerRequest => 2;
-        public TimeSpan PlaybackSyncDelay => TimeSpan.Zero;
+        public int MaxPointsPerRequest => maxPointsPerRequest;
+        public TimeSpan PlaybackSyncDelay =>
+            TimeSpan.FromMilliseconds(15);
         public IReadOnlyList<string> Operations => operations.ToArray();
+        public ConcurrentQueue<HspPlayRequest> PlayRequests { get; } = [];
+        public ConcurrentQueue<HspAddRequest> AddRequests { get; } = [];
+        public ConcurrentQueue<HspSyncTimeRequest> SyncRequests { get; } = [];
         public TaskCompletionSource RemainingPointsAdded { get; } =
             new(TaskCreationOptions.RunContinuationsAsynchronously);
+        public TaskCompletionSource AddRequestsCompleted { get; } =
+            new(TaskCreationOptions.RunContinuationsAsynchronously);
+        public TaskCompletionSource FollowUpSyncSent { get; } =
+            new(TaskCreationOptions.RunContinuationsAsynchronously);
+        private int syncCount;
 
         public event Action<IHandyClient> Disconnected
         {
@@ -767,7 +907,7 @@ public class HandyV3DeviceTests
             CancellationToken cancellationToken)
         {
             operations.Enqueue("setup");
-            return Task.FromResult(State);
+            return Task.FromResult(state);
         }
 
         public Task<HspState> AddPoints(
@@ -775,8 +915,11 @@ public class HandyV3DeviceTests
             CancellationToken cancellationToken)
         {
             operations.Enqueue("add");
+            AddRequests.Enqueue(request);
             RemainingPointsAdded.TrySetResult();
-            return Task.FromResult(State);
+            if (Interlocked.Increment(ref addCount) == expectedAddCount)
+                AddRequestsCompleted.TrySetResult();
+            return Task.FromResult(state);
         }
 
         public Task<HspState> Play(
@@ -784,7 +927,8 @@ public class HandyV3DeviceTests
             CancellationToken cancellationToken)
         {
             operations.Enqueue("play");
-            return Task.FromResult(State);
+            PlayRequests.Enqueue(request);
+            return Task.FromResult(state);
         }
 
         public Task<HspState> SyncTime(
@@ -792,7 +936,10 @@ public class HandyV3DeviceTests
             CancellationToken cancellationToken)
         {
             operations.Enqueue("sync");
-            return Task.FromResult(State);
+            SyncRequests.Enqueue(request);
+            if (Interlocked.Increment(ref syncCount) == 2)
+                FollowUpSyncSent.TrySetResult();
+            return Task.FromResult(state);
         }
 
         public Task Stop(CancellationToken cancellationToken)

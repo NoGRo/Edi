@@ -36,12 +36,12 @@ internal sealed class HandyBluetoothClient : IHandyClient
     public string Id => $"bluetooth:{_transport.Id}";
     public string Key { get; private set; }
     public string DisplayName => GetDisplayName(_transport.Name);
-    public TimeSpan PlaybackSyncDelay => TimeSpan.Zero;
+    public TimeSpan PlaybackSyncDelay => TimeSpan.FromMilliseconds(15);
 
-    // With realistic three-byte funscript timestamps, sixty points use
-    // at most 503 bytes including the protobuf envelope. Sixty-one can
-    // exceed the 509-byte BLE payload negotiated by the device.
-    public int MaxPointsPerRequest => 60;
+    // Keep margin below the measured 509-byte BLE payload. The initial
+    // bundle and all subsequent adds use the same conservative batch.
+    public int MaxPointsPerRequest => 50;
+    public int MaxPlayPointsPerRequest => 50;
 
     public event Action<IHandyClient> Disconnected;
 
@@ -135,20 +135,8 @@ internal sealed class HandyBluetoothClient : IHandyClient
         HspAddRequest request,
         CancellationToken cancellationToken)
     {
-        var add = new Proto.RequestHspAdd
-        {
-            Flush = request.flush,
-            TailPointStreamIndex =
-                checked((uint)request.tail_point_stream_index)
-        };
-        add.Points.Add(request.points.Select(point => new Proto.Point
-        {
-            T = checked((uint)point.t),
-            X = checked((uint)point.x)
-        }));
-
         var response = await SendRequest(
-            new Proto.Request { RequestHspAdd = add },
+            CreateAddRequest(request),
             cancellationToken);
         return MapState(response.ResponseHspAdd?.State, "add");
     }
@@ -157,29 +145,28 @@ internal sealed class HandyBluetoothClient : IHandyClient
         HspPlayRequest request,
         CancellationToken cancellationToken)
     {
-        if (request.add is not null)
-            await AddPoints(request.add, cancellationToken);
-
         // The HTTP request model contains Handy's cloud time. BLE has
         // its own device-to-local clock synchronization, so using the
         // cloud offset here would mix two independent time domains.
         var serverTime = checked(
             _getUnixTimeMilliseconds()
             + Volatile.Read(ref _offset));
-        var response = await SendRequest(
-            new Proto.Request
+        var playRequest = new Proto.Request
+        {
+            RequestHspPlay = new Proto.RequestHspPlay
             {
-                RequestHspPlay = new Proto.RequestHspPlay
-                {
-                    StartTime = request.start_time,
-                    ServerTime = checked((ulong)serverTime),
-                    PlaybackRate =
-                        Convert.ToSingle(request.playback_rate),
-                    Loop = request.loop,
-                    PauseOnStarving = true
-                }
-            },
-            cancellationToken);
+                StartTime = request.start_time,
+                ServerTime = checked((ulong)serverTime),
+                PlaybackRate = Convert.ToSingle(request.playback_rate),
+                Loop = request.loop,
+                PauseOnStarving = true
+            }
+        };
+        var response = request.add is null
+            ? await SendRequest(playRequest, cancellationToken)
+            : (await SendBundledRequests(
+                [CreateAddRequest(request.add), playRequest],
+                cancellationToken))[1];
         return MapState(response.ResponseHspPlay?.State, "play");
     }
 
@@ -382,6 +369,75 @@ internal sealed class HandyBluetoothClient : IHandyClient
         {
             _pending.TryRemove(id, out _);
         }
+    }
+
+    private async Task<Proto.Response[]> SendBundledRequests(
+        IReadOnlyList<Proto.Request> requests,
+        CancellationToken cancellationToken)
+    {
+        var completions = requests.Select(request =>
+        {
+            request.Id = unchecked((uint)Interlocked.Increment(
+                ref _nextRequestId));
+            var completion = new TaskCompletionSource<Proto.Response>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+            if (!_pending.TryAdd(request.Id, completion))
+                throw new InvalidOperationException(
+                    $"Duplicate Handy request id {request.Id}.");
+            return completion;
+        }).ToArray();
+        var stopwatch = Stopwatch.StartNew();
+
+        try
+        {
+            _logger.LogDebug(
+                "Handy BLE request bundle play with initial points started. Pending: {PendingCount}",
+                _pending.Count);
+            var bundled = new Proto.Requests();
+            bundled.Requests_.Add(requests);
+            await _transport.WriteAsync(
+                new Proto.RpcMessage
+                {
+                    Type = Proto.MessageType.Requests,
+                    Requests = bundled
+                }.ToByteArray(),
+                cancellationToken);
+            var responses = await Task.WhenAll(completions.Select(
+                completion => completion.Task.WaitAsync(
+                    ResponseTimeout,
+                    cancellationToken)));
+            var error = responses.FirstOrDefault(response =>
+                response.Error is not null)?.Error;
+            if (error is not null)
+                throw new InvalidOperationException(
+                    $"Handy Bluetooth error {error.Code}: {error.Message}");
+
+            _logger.LogInformation(
+                "Handy BLE request bundle play with initial points completed in {ElapsedMilliseconds} ms.",
+                stopwatch.ElapsedMilliseconds);
+            return responses;
+        }
+        finally
+        {
+            foreach (var request in requests)
+                _pending.TryRemove(request.Id, out _);
+        }
+    }
+
+    private static Proto.Request CreateAddRequest(HspAddRequest request)
+    {
+        var add = new Proto.RequestHspAdd
+        {
+            Flush = request.flush,
+            TailPointStreamIndex =
+                checked((uint)request.tail_point_stream_index)
+        };
+        add.Points.Add(request.points.Select(point => new Proto.Point
+        {
+            T = checked((uint)point.t),
+            X = checked((uint)point.x)
+        }));
+        return new Proto.Request { RequestHspAdd = add };
     }
 
     private static string GetOperationName(Proto.Request request)

@@ -8,6 +8,7 @@ public interface IHandyClient : IAsyncDisposable
     string Key { get; }
     string DisplayName { get; }
     int MaxPointsPerRequest { get; }
+    int MaxPlayPointsPerRequest => MaxPointsPerRequest;
     TimeSpan PlaybackSyncDelay { get; }
     event Action<IHandyClient> Disconnected;
 

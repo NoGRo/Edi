@@ -115,7 +115,7 @@ public class HandyBluetoothClientTests
         Assert.Equal("playing", play.play_state);
         Assert.Equal("playing", synchronized.play_state);
         Assert.Equal(
-            TimeSpan.Zero,
+            TimeSpan.FromMilliseconds(15),
             client.PlaybackSyncDelay);
         Assert.Collection(
             transport.Requests,
@@ -197,7 +197,7 @@ public class HandyBluetoothClientTests
             NullLogger.Instance,
             initialize: false,
             CancellationToken.None);
-        Assert.Equal(60, client.MaxPointsPerRequest);
+        Assert.Equal(50, client.MaxPointsPerRequest);
         var points = Enumerable.Range(0, client.MaxPointsPerRequest)
             .Select(index => new Point(190_000 + index, 100))
             .ToList();
@@ -215,8 +215,44 @@ public class HandyBluetoothClientTests
         Assert.Equal(points.Count, checked((int)add.TailPointStreamIndex));
         Assert.InRange(
             Assert.Single(transport.FrameLengths),
-            490,
+            1,
             transport.MaxWriteSize);
+    }
+
+    [Fact]
+    public async Task ConfiguredBundledPlayBatchFitsNegotiatedBlePayload()
+    {
+        var transport = new RecordingBluetoothTransport(
+            maxWriteSize: 509);
+        await using var client = await HandyBluetoothClient.CreateAsync(
+            transport,
+            NullLogger.Instance,
+            initialize: false,
+            CancellationToken.None);
+
+        static HspPlayRequest PlayWithPoints(int count) => new(
+            start_time: 2_000_000,
+            server_time: 0,
+            playback_rate: 1,
+            loop: true,
+            add: new HspAddRequest(
+                Enumerable.Range(0, count)
+                    .Select(index => new Point(
+                        2_000_000 + index,
+                        100))
+                    .ToList(),
+                flush: true,
+                tail_point_stream_index: count));
+
+        await client.Play(
+            PlayWithPoints(client.MaxPlayPointsPerRequest),
+            CancellationToken.None);
+        Assert.Equal(50, client.MaxPlayPointsPerRequest);
+        Assert.Equal(2, transport.Requests.Count);
+        Assert.InRange(
+            Assert.Single(transport.FrameLengths),
+            1,
+            509);
     }
 
     [Fact]
@@ -360,12 +396,16 @@ public class HandyBluetoothClientTests
             Assert.True(frame.Length <= MaxWriteSize);
             FrameLengths.Add(frame.Length);
             var message = Proto.RpcMessage.Parser.ParseFrom(frame);
-            var request = message.Request;
-            Requests.Add(request.Clone());
-
-            var response = new Proto.Response { Id = request.Id };
-            switch (request.ParamsCase)
+            var frameRequests = message.Type == Proto.MessageType.Requests
+                ? message.Requests.Requests_
+                : [message.Request];
+            foreach (var request in frameRequests)
             {
+                Requests.Add(request.Clone());
+
+                var response = new Proto.Response { Id = request.Id };
+                switch (request.ParamsCase)
+                {
                 case Proto.Request.ParamsOneofCase.RequestConnectionKeyGet:
                     response.ResponseConnectionKeyGet =
                         new Proto.ResponseConnectionKeyGet
@@ -424,7 +464,7 @@ public class HandyBluetoothClientTests
                             State = State(
                                 42,
                                 Proto.HspPlayState.HspStateStopped)
-                        };
+                    };
                     break;
                 case Proto.Request.ParamsOneofCase.RequestHspPlay:
                     response.ResponseHspPlay =
@@ -457,13 +497,14 @@ public class HandyBluetoothClientTests
                 default:
                     throw new InvalidOperationException(
                         $"Unexpected request {request.ParamsCase}.");
-            }
+                }
 
-            FrameReceived?.Invoke(new Proto.RpcMessage
-            {
-                Type = Proto.MessageType.Response,
-                Response = response
-            }.ToByteArray());
+                FrameReceived?.Invoke(new Proto.RpcMessage
+                {
+                    Type = Proto.MessageType.Response,
+                    Response = response
+                }.ToByteArray());
+            }
             return Task.CompletedTask;
         }
 

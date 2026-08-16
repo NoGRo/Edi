@@ -303,6 +303,65 @@ public class HandyBluetoothClientTests
     }
 
     [Fact]
+    public async Task IsolatedMissingResponseKeepsClientAvailable()
+    {
+        var transport = new RecordingBluetoothTransport
+        {
+            SuppressResponses = true
+        };
+        await using var client = await HandyBluetoothClient.CreateAsync(
+            transport,
+            NullLogger.Instance,
+            initialize: false,
+            CancellationToken.None,
+            responseTimeout: TimeSpan.Zero);
+        var disconnected = new TaskCompletionSource(
+            TaskCreationOptions.RunContinuationsAsynchronously);
+        client.Disconnected += _ => disconnected.TrySetResult();
+
+        await Assert.ThrowsAsync<TimeoutException>(() =>
+            client.Stop(TestContext.Current.CancellationToken));
+
+        Assert.False(disconnected.Task.IsCompleted);
+        transport.SuppressResponses = false;
+        await client.Stop(TestContext.Current.CancellationToken);
+
+        Assert.False(disconnected.Task.IsCompleted);
+        Assert.Equal(2, transport.Requests.Count);
+    }
+
+    [Fact]
+    public async Task RepeatedMissingResponsesSignalDisconnectForRecovery()
+    {
+        var transport = new RecordingBluetoothTransport
+        {
+            SuppressResponses = true
+        };
+        await using var client = await HandyBluetoothClient.CreateAsync(
+            transport,
+            NullLogger.Instance,
+            initialize: false,
+            CancellationToken.None,
+            responseTimeout: TimeSpan.Zero);
+        var disconnected = new TaskCompletionSource(
+            TaskCreationOptions.RunContinuationsAsynchronously);
+        client.Disconnected += _ => disconnected.TrySetResult();
+
+        for (var attempt = 0; attempt < 4; attempt++)
+        {
+            await Assert.ThrowsAsync<TimeoutException>(() =>
+                client.Stop(TestContext.Current.CancellationToken));
+            Assert.Equal(
+                attempt == 3,
+                disconnected.Task.IsCompleted);
+        }
+
+        await disconnected.Task.WaitAsync(
+            TimeSpan.FromSeconds(1),
+            TestContext.Current.CancellationToken);
+    }
+
+    [Fact]
     public async Task DiscoveryStopsAfterNoNewHandyAppears()
     {
         var newDevices = Channel.CreateUnbounded<bool>();
@@ -382,6 +441,7 @@ public class HandyBluetoothClientTests
         public int MaxWriteSize => _maxWriteSize;
         public List<Proto.Request> Requests { get; } = [];
         public List<int> FrameLengths { get; } = [];
+        public bool SuppressResponses { get; set; }
 
         public event Action<byte[]> FrameReceived = delegate { };
         public event Action Disconnected = delegate { };
@@ -402,6 +462,9 @@ public class HandyBluetoothClientTests
             foreach (var request in frameRequests)
             {
                 Requests.Add(request.Clone());
+
+                if (SuppressResponses)
+                    continue;
 
                 var response = new Proto.Response { Id = request.Id };
                 switch (request.ParamsCase)

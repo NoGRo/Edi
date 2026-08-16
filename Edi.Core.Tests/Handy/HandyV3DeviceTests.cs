@@ -250,6 +250,57 @@ public class HandyV3DeviceTests
         await device.Stop();
     }
 
+    [Fact]
+    public async Task StreamingContinuesAfterOneUnconfirmedChunk()
+    {
+        await using var rig = await PlayerTestRig.CreateAsync();
+        var actions = Enumerable.Range(0, 8)
+            .Select(index => new CmdLinear
+            {
+                AbsoluteTime = index * 100,
+                Value = index * 10
+            })
+            .ToList();
+        AddGallery(rig.Funscripts, new FunscriptGallery
+        {
+            Name = "transient-stream-failure",
+            Variant = "default",
+            Duration = Convert.ToInt32(actions[^1].AbsoluteTime),
+            Loop = false,
+            Commands = actions
+        });
+
+        await using var client = new ImmediateSyncClient(
+            maxPointsPerRequest: 2,
+            bufferCapacity: 2,
+            expectedAddCount: 3,
+            failAddNumber: 1);
+        var now = DateTimeOffset.UtcNow;
+        var device = new HandyV3Device(
+            client,
+            rig.Funscripts,
+            NullLogger.Instance,
+            (delay, token) =>
+            {
+                now = now.Add(delay);
+                return Task.CompletedTask;
+            },
+            () => now);
+        device.selectedVariant = "default";
+
+        await device.PlayGallery("transient-stream-failure");
+        await client.AddRequestsCompleted.Task.WaitAsync(
+            TestContext.Current.CancellationToken);
+
+        Assert.Equal(3, client.AddRequests.Count);
+        Assert.Equal(
+            [4, 6, 8],
+            client.AddRequests.Select(
+                request => request.tail_point_stream_index));
+
+        await device.Stop();
+    }
+
     [Theory]
     [InlineData(false)]
     [InlineData(true)]
@@ -859,15 +910,18 @@ public class HandyV3DeviceTests
         private readonly HspState state;
         private readonly int maxPointsPerRequest;
         private readonly int expectedAddCount;
+        private readonly int? failAddNumber;
         private int addCount;
 
         public ImmediateSyncClient(
             int maxPointsPerRequest = 2,
             int bufferCapacity = 2,
-            int expectedAddCount = 1)
+            int expectedAddCount = 1,
+            int? failAddNumber = null)
         {
             this.maxPointsPerRequest = maxPointsPerRequest;
             this.expectedAddCount = expectedAddCount;
+            this.failAddNumber = failAddNumber;
             state = State with
             {
                 max_points = bufferCapacity,
@@ -917,8 +971,11 @@ public class HandyV3DeviceTests
             operations.Enqueue("add");
             AddRequests.Enqueue(request);
             RemainingPointsAdded.TrySetResult();
-            if (Interlocked.Increment(ref addCount) == expectedAddCount)
+            var currentAdd = Interlocked.Increment(ref addCount);
+            if (currentAdd == expectedAddCount)
                 AddRequestsCompleted.TrySetResult();
+            if (currentAdd == failAddNumber)
+                throw new IOException("Simulated transient failure.");
             return Task.FromResult(state);
         }
 

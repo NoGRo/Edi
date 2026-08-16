@@ -8,27 +8,33 @@ namespace Edi.Core.Device.Handy;
 
 internal sealed class HandyBluetoothClient : IHandyClient
 {
-    private static readonly TimeSpan ResponseTimeout =
+    private const int FailuresBeforeDisconnect = 4;
+    private static readonly TimeSpan DefaultResponseTimeout =
         TimeSpan.FromSeconds(5);
 
     private readonly IHandyBluetoothTransport _transport;
     private readonly ILogger _logger;
     private readonly Func<long> _getUnixTimeMilliseconds;
+    private readonly TimeSpan _responseTimeout;
     private readonly ConcurrentDictionary<
         uint,
         TaskCompletionSource<Proto.Response>> _pending = new();
     private int _nextRequestId;
     private int _offset;
     private int _disposed;
+    private int _consecutiveTransportFailures;
+    private int _disconnectSignaled;
 
     private HandyBluetoothClient(
         IHandyBluetoothTransport transport,
         ILogger logger,
-        Func<long> getUnixTimeMilliseconds)
+        Func<long> getUnixTimeMilliseconds,
+        TimeSpan responseTimeout)
     {
         _transport = transport;
         _logger = logger;
         _getUnixTimeMilliseconds = getUnixTimeMilliseconds;
+        _responseTimeout = responseTimeout;
         _transport.FrameReceived += Transport_FrameReceived;
         _transport.Disconnected += Transport_Disconnected;
     }
@@ -72,14 +78,16 @@ internal sealed class HandyBluetoothClient : IHandyClient
         ILogger logger,
         bool initialize,
         CancellationToken cancellationToken,
-        Func<long> getUnixTimeMilliseconds = null)
+        Func<long> getUnixTimeMilliseconds = null,
+        TimeSpan? responseTimeout = null)
     {
         var client = new HandyBluetoothClient(
             transport,
             logger,
             getUnixTimeMilliseconds
                 ?? (() => DateTimeOffset.UtcNow
-                    .ToUnixTimeMilliseconds()));
+                    .ToUnixTimeMilliseconds()),
+            responseTimeout ?? DefaultResponseTimeout);
         try
         {
             if (initialize)
@@ -316,7 +324,7 @@ internal sealed class HandyBluetoothClient : IHandyClient
             var frame = message.ToByteArray();
             await _transport.WriteAsync(frame, cancellationToken);
             var response = await completion.Task.WaitAsync(
-                ResponseTimeout,
+                _responseTimeout,
                 cancellationToken);
             if (response.Error is not null)
             {
@@ -356,13 +364,24 @@ internal sealed class HandyBluetoothClient : IHandyClient
                 stopwatch.ElapsedMilliseconds);
             throw;
         }
-        catch (TimeoutException)
+        catch (TimeoutException ex)
         {
             _logger.LogError(
                 "Handy BLE request {RequestId} {Operation} timed out after {ElapsedMilliseconds} ms",
                 id,
                 operation,
                 stopwatch.ElapsedMilliseconds);
+            ReportTransportFailure(ex);
+            throw;
+        }
+        catch (IOException ex)
+        {
+            _logger.LogError(
+                ex,
+                "Handy BLE request {RequestId} {Operation} failed because the transport is unavailable",
+                id,
+                operation);
+            ReportTransportFailure(ex);
             throw;
         }
         finally
@@ -404,7 +423,7 @@ internal sealed class HandyBluetoothClient : IHandyClient
                 cancellationToken);
             var responses = await Task.WhenAll(completions.Select(
                 completion => completion.Task.WaitAsync(
-                    ResponseTimeout,
+                    _responseTimeout,
                     cancellationToken)));
             var error = responses.FirstOrDefault(response =>
                 response.Error is not null)?.Error;
@@ -416,6 +435,22 @@ internal sealed class HandyBluetoothClient : IHandyClient
                 "Handy BLE request bundle play with initial points completed in {ElapsedMilliseconds} ms.",
                 stopwatch.ElapsedMilliseconds);
             return responses;
+        }
+        catch (TimeoutException ex)
+        {
+            _logger.LogError(
+                "Handy BLE play request bundle timed out after {ElapsedMilliseconds} ms",
+                stopwatch.ElapsedMilliseconds);
+            ReportTransportFailure(ex);
+            throw;
+        }
+        catch (IOException ex)
+        {
+            _logger.LogError(
+                ex,
+                "Handy BLE play request bundle failed because the transport is unavailable");
+            ReportTransportFailure(ex);
+            throw;
         }
         finally
         {
@@ -477,6 +512,9 @@ internal sealed class HandyBluetoothClient : IHandyClient
                     message.Response.Id,
                     out var completion))
             {
+                Interlocked.Exchange(
+                    ref _consecutiveTransportFailures,
+                    0);
                 completion.TrySetResult(message.Response);
             }
         }
@@ -489,9 +527,37 @@ internal sealed class HandyBluetoothClient : IHandyClient
     }
 
     private void Transport_Disconnected()
-    {
-        FailPending(new IOException(
+        => ReportConnectionLost(new IOException(
             "The Handy Bluetooth connection was lost."));
+
+    private void ReportTransportFailure(Exception exception)
+    {
+        if (Volatile.Read(ref _disposed) != 0
+            || Volatile.Read(ref _disconnectSignaled) != 0)
+        {
+            return;
+        }
+
+        var failures = Interlocked.Increment(
+            ref _consecutiveTransportFailures);
+        if (failures < FailuresBeforeDisconnect)
+        {
+            _logger.LogWarning(
+                "Handy BLE transport failure {FailureCount}/{FailureLimit}; keeping the connection available for subsequent commands",
+                failures,
+                FailuresBeforeDisconnect);
+            return;
+        }
+
+        ReportConnectionLost(exception);
+    }
+
+    private void ReportConnectionLost(Exception exception)
+    {
+        if (Interlocked.Exchange(ref _disconnectSignaled, 1) != 0)
+            return;
+
+        FailPending(exception);
         Disconnected?.Invoke(this);
     }
 

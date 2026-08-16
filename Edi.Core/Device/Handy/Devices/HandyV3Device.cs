@@ -328,10 +328,20 @@ namespace Edi.Core.Device.Handy
                         cancellationToken);
                 }
 
-                await SendPointChunk(
-                    pointChunk,
-                    flush: false,
-                    cancellationToken);
+                try
+                {
+                    await SendPointChunk(
+                        pointChunk,
+                        flush: false,
+                        cancellationToken);
+                }
+                catch (Exception ex)
+                    when (ex is TimeoutException or IOException)
+                {
+                    _logger.LogWarning(
+                        ex,
+                        "A Handy streaming chunk was not confirmed; continuing with later chunks without retrying the possibly accepted points.");
+                }
                 uploadedPointCount = uploadedAfterChunk;
             }
         }

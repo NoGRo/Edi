@@ -76,7 +76,7 @@ namespace Edi.Core.Device.Handy
         internal override void SetVariant()
         {
             _logger.LogInformation($"Setting variant for Key: {Key} with SelectedVariant: {SelectedVariant}.");
-            if (repository?.BundlerConfig.DisableBundler != true)
+            if (repository?.BundlerConfig.DisableBundler != true || currentGallery != null)
                 upload();
         }
 

@@ -10,7 +10,10 @@ internal interface IHandyBluetoothTransport : IAsyncDisposable
     event Action<byte[]> FrameReceived;
     event Action Disconnected;
 
-    Task WriteAsync(byte[] frame, CancellationToken cancellationToken);
+    Task WriteAsync(
+        byte[] frame,
+        CancellationToken cancellationToken,
+        bool withoutResponse = false);
 }
 
 #if !WINDOWS
@@ -104,7 +107,8 @@ internal sealed class HandyBluetoothTransport : IHandyBluetoothTransport
 
     public async Task WriteAsync(
         byte[] frame,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        bool withoutResponse = false)
     {
         ObjectDisposedException.ThrowIf(
             Volatile.Read(ref _disposed) != 0,
@@ -120,8 +124,10 @@ internal sealed class HandyBluetoothTransport : IHandyBluetoothTransport
         await _writeLock.WaitAsync(cancellationToken);
         try
         {
-            await _tx.WriteValueWithResponseAsync(frame)
-                .WaitAsync(cancellationToken);
+            var write = withoutResponse
+                ? _tx.WriteValueWithoutResponseAsync(frame)
+                : _tx.WriteValueWithResponseAsync(frame);
+            await write.WaitAsync(cancellationToken);
         }
         finally
         {

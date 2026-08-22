@@ -216,7 +216,7 @@ internal sealed class HandyBluetoothClient : IHandyClient
         SlideRequest request,
         CancellationToken cancellationToken)
     {
-        await SendRequest(
+        await SendUnconfirmedRequest(
             new Proto.Request
             {
                 RequestSliderStrokeSet =
@@ -388,6 +388,35 @@ internal sealed class HandyBluetoothClient : IHandyClient
         {
             _pending.TryRemove(id, out _);
         }
+    }
+
+    private async Task SendUnconfirmedRequest(
+        Proto.Request request,
+        CancellationToken cancellationToken)
+    {
+        ObjectDisposedException.ThrowIf(
+            Volatile.Read(ref _disposed) != 0,
+            this);
+
+        var id = unchecked((uint)Interlocked.Increment(
+            ref _nextRequestId));
+        if (id == 0)
+            id = unchecked((uint)Interlocked.Increment(
+                ref _nextRequestId));
+        request.Id = id;
+
+        _logger.LogDebug(
+            "Handy BLE request {RequestId} {Operation} is being sent without waiting for a response.",
+            id,
+            GetOperationName(request));
+        await _transport.WriteAsync(
+            new Proto.RpcMessage
+            {
+                Type = Proto.MessageType.Request,
+                Request = request
+            }.ToByteArray(),
+            cancellationToken,
+            withoutResponse: true);
     }
 
     private async Task<Proto.Response[]> SendBundledRequests(

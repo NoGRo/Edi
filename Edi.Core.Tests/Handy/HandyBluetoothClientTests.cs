@@ -189,6 +189,31 @@ public class HandyBluetoothClientTests
     }
 
     [Fact]
+    public async Task StrokeSetDoesNotWaitForBluetoothResponse()
+    {
+        var transport = new RecordingBluetoothTransport
+        {
+            SuppressResponses = true
+        };
+        await using var client = await HandyBluetoothClient.CreateAsync(
+            transport,
+            NullLogger.Instance,
+            initialize: false,
+            CancellationToken.None,
+            responseTimeout: TimeSpan.Zero);
+
+        await client.SetStroke(
+            new SlideRequest(20, 80),
+            TestContext.Current.CancellationToken);
+
+        var request = Assert.Single(transport.Requests);
+        Assert.Equal(
+            Proto.Request.ParamsOneofCase.RequestSliderStrokeSet,
+            request.ParamsCase);
+        Assert.Equal([true], transport.WritesWithoutResponse);
+    }
+
+    [Fact]
     public async Task TunedHspAddLimitFitsNegotiatedBlePayload()
     {
         var transport = new RecordingBluetoothTransport(maxWriteSize: 509);
@@ -441,6 +466,7 @@ public class HandyBluetoothClientTests
         public int MaxWriteSize => _maxWriteSize;
         public List<Proto.Request> Requests { get; } = [];
         public List<int> FrameLengths { get; } = [];
+        public List<bool> WritesWithoutResponse { get; } = [];
         public bool SuppressResponses { get; set; }
 
         public event Action<byte[]> FrameReceived = delegate { };
@@ -450,11 +476,13 @@ public class HandyBluetoothClientTests
 
         public Task WriteAsync(
             byte[] frame,
-            CancellationToken cancellationToken)
+            CancellationToken cancellationToken,
+            bool withoutResponse = false)
         {
             cancellationToken.ThrowIfCancellationRequested();
             Assert.True(frame.Length <= MaxWriteSize);
             FrameLengths.Add(frame.Length);
+            WritesWithoutResponse.Add(withoutResponse);
             var message = Proto.RpcMessage.Parser.ParseFrom(frame);
             var frameRequests = message.Type == Proto.MessageType.Requests
                 ? message.Requests.Requests_

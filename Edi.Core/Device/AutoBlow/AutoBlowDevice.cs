@@ -59,7 +59,7 @@ internal class AutoBlowDevice
 
     internal override void SetVariant()
     {
-        if (!repository.BundlerConfig.DisableBundler)
+        if (!repository.BundlerConfig.DisableBundler || currentGallery != null)
             QueueUpload();
     }
 

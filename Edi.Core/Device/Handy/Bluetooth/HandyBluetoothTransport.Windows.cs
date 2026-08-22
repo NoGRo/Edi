@@ -174,7 +174,8 @@ internal sealed class HandyBluetoothTransport : IHandyBluetoothTransport
 
     public async Task WriteAsync(
         byte[] frame,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        bool withoutResponse = false)
     {
         ObjectDisposedException.ThrowIf(
             Volatile.Read(ref _disposed) != 0,
@@ -194,7 +195,9 @@ internal sealed class HandyBluetoothTransport : IHandyBluetoothTransport
             writer.WriteBytes(frame);
             var result = await _tx.WriteValueWithResultAsync(
                     writer.DetachBuffer(),
-                    GattWriteOption.WriteWithResponse)
+                    withoutResponse
+                        ? GattWriteOption.WriteWithoutResponse
+                        : GattWriteOption.WriteWithResponse)
                 .AsTask(cancellationToken);
             EnsureSuccess(
                 result.Status,

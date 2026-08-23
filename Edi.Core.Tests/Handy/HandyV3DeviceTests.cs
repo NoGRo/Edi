@@ -153,20 +153,20 @@ public class HandyV3DeviceTests
             hspRequests.Take(3).Select(request => request.Path));
 
         var play = JObject.Parse(hspRequests[1].Content!);
-        Assert.Equal(12_000, play.Value<int>("start_time"));
+        Assert.Equal(100, play.Value<int>("start_time"));
         Assert.True(play["add"]!.Value<bool>("flush"));
         Assert.Equal(100, play["add"]!["points"]!.Count());
         Assert.Equal(
-            11_900,
+            0,
             play["add"]!["points"]!.First()!.Value<int>("t"));
         Assert.Equal(
-            21_700,
+            9_900,
             play["add"]!["points"]!.Last()!.Value<int>("t"));
 
         var remaining = JObject.Parse(hspRequests[2].Content!);
         Assert.False(remaining.Value<bool>("flush"));
         Assert.Equal(
-            21_800,
+            10_000,
             remaining["points"]!.First()!.Value<int>("t"));
 
         remainingUploadRelease.SetResult();
@@ -231,20 +231,35 @@ public class HandyV3DeviceTests
             .SelectMany(chunk => chunk.points)
             .ToList();
         var duration = Convert.ToInt32(actions[^1].AbsoluteTime);
+        var anchor = Convert.ToInt32(actions[139].AbsoluteTime);
+        var plannedStart = 14_000 - anchor;
         var expectedPoints = actions
             .Skip(139)
             .Select(action => new Point(
-                Convert.ToInt32(action.AbsoluteTime),
+                Convert.ToInt32(action.AbsoluteTime) - anchor,
                 Math.Clamp(Convert.ToInt32(action.Value), 0, 100)))
             .Concat(actions
-                .Take(139)
+                .Skip(1)
+                .Take(138)
                 .Select(action => new Point(
-                    Convert.ToInt32(action.AbsoluteTime) + duration,
+                    Convert.ToInt32(action.AbsoluteTime) + duration - anchor,
                     Math.Clamp(Convert.ToInt32(action.Value), 0, 100))))
+            .Append(new Point(
+                duration,
+                Math.Clamp(Convert.ToInt32(actions[139].Value), 0, 100)))
             .ToList();
         Assert.Equal(expectedPoints, sentPoints);
-        Assert.Contains(sentPoints, point => point.t > duration);
-        Assert.True(client.SyncRequests.Last().current_time > duration);
+        Assert.Equal(0, sentPoints[0].t);
+        Assert.Equal(duration, sentPoints[^1].t);
+        Assert.Equal(
+            sentPoints.Count,
+            sentPoints.Select(point => point.t).Distinct().Count());
+        Assert.Equal(
+            plannedStart + Convert.ToInt32(client.PlaybackSyncDelay.TotalMilliseconds),
+            client.SyncRequests.First().current_time);
+        Assert.All(
+            client.SyncRequests,
+            sync => Assert.InRange(sync.current_time, 0, duration));
         Assert.False(device.SelfManagedLoop);
 
         await device.Stop();
@@ -297,6 +312,110 @@ public class HandyV3DeviceTests
             [4, 6, 8],
             client.AddRequests.Select(
                 request => request.tail_point_stream_index));
+
+        await device.Stop();
+    }
+
+    [Fact]
+    public async Task LoopSeekBufferSpansAFullPeriod()
+    {
+        await using var rig = await PlayerTestRig.CreateAsync();
+        var repository = rig.Funscripts;
+        var actions = Enumerable.Range(0, 15)
+            .Select(index => new CmdLinear
+            {
+                AbsoluteTime = index * 125,
+                Value = index % 2 == 0 ? 0 : 100
+            })
+            .ToList();
+        AddGallery(repository, new FunscriptGallery
+        {
+            Name = "seeked-loop-span",
+            Variant = "default",
+            Duration = 1750,
+            Loop = true,
+            Commands = actions
+        });
+
+        var handler = new RecordingHttpMessageHandler((_, _) =>
+            Task.FromResult(RecordingHttpMessageHandler.JsonResponse(
+                HspStateJson(points: 16, maxPoints: 200, tail: 16))));
+        using var client = new HttpClient(handler)
+        {
+            BaseAddress = new Uri("https://handy.test/")
+        };
+        client.DefaultRequestHeaders.Add("X-Connection-Key", "TEST-KEY");
+
+        var device = new HandyV3Device(
+            new HandyHttpClient(client),
+            repository,
+            NullLogger.Instance);
+        device.selectedVariant = "default";
+
+        await device.PlayGallery("seeked-loop-span", seek: 428);
+        await handler.WaitForPathAsync("v3/hsp/play");
+
+        var play = JObject.Parse(handler.Requests
+            .First(request => request.Path == "v3/hsp/play").Content!);
+        var points = play["add"]!["points"]!;
+        var times = points.Select(point => point.Value<int>("t")).ToList();
+
+        Assert.Equal(0, times[0]);
+        Assert.Equal(1750, times[^1]);
+        Assert.Equal(53, play.Value<int>("start_time"));
+        Assert.Equal(
+            points.First()!.Value<int>("x"),
+            points.Last()!.Value<int>("x"));
+        Assert.Equal(times.Count, times.Distinct().Count());
+        Assert.Equal(times.OrderBy(time => time), times);
+
+        await device.Stop();
+    }
+
+    [Fact]
+    public async Task LoopSeekInsideTheFirstIntervalAddsNoRedundantPoint()
+    {
+        await using var rig = await PlayerTestRig.CreateAsync();
+        var actions = Enumerable.Range(0, 15)
+            .Select(index => new CmdLinear
+            {
+                AbsoluteTime = index * 125,
+                Value = index % 2 == 0 ? 0 : 100
+            })
+            .ToList();
+        AddGallery(repository: rig.Funscripts, gallery: new FunscriptGallery
+        {
+            Name = "seek-in-first-interval",
+            Variant = "default",
+            Duration = 1750,
+            Loop = true,
+            Commands = actions
+        });
+
+        var handler = new RecordingHttpMessageHandler((_, _) =>
+            Task.FromResult(RecordingHttpMessageHandler.JsonResponse(
+                HspStateJson(points: 15, maxPoints: 200, tail: 15))));
+        using var client = new HttpClient(handler)
+        {
+            BaseAddress = new Uri("https://handy.test/")
+        };
+        client.DefaultRequestHeaders.Add("X-Connection-Key", "TEST-KEY");
+
+        var device = new HandyV3Device(
+            new HandyHttpClient(client),
+            rig.Funscripts,
+            NullLogger.Instance);
+        device.selectedVariant = "default";
+
+        await device.PlayGallery("seek-in-first-interval", seek: 60);
+        await handler.WaitForPathAsync("v3/hsp/play");
+
+        var play = JObject.Parse(handler.Requests
+            .First(request => request.Path == "v3/hsp/play").Content!);
+        var points = play["add"]!["points"]!;
+        Assert.Equal(15, points.Count());
+        Assert.Equal(0, points.First()!.Value<int>("t"));
+        Assert.Equal(1750, points.Last()!.Value<int>("t"));
 
         await device.Stop();
     }

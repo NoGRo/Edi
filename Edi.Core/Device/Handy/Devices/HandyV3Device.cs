@@ -114,6 +114,10 @@ namespace Edi.Core.Device.Handy
                 var plan = CreatePlaybackPlan(gallery, seek);
                 CurrentDuration = plan.Duration;
 
+                // A rotated buffer is rebased, so ElapsedPlaybackTime - and the sync built on
+                // it - has to follow the plan into those coordinates.
+                SeekTime = plan.StartTime;
+
                 var bufferCapacity = GetBufferCapacity();
                 var canUseDeviceLoop =
                     gallery.Loop && plan.Points.Count <= bufferCapacity;
@@ -219,19 +223,19 @@ namespace Edi.Core.Device.Handy
             var playablePoints = orderedPoints
                 .Where(point => point.t <= duration)
                 .ToList();
-            var points = gallery.Loop
+            var (points, anchor) = gallery.Loop
                 ? SelectLoopPointsFromSeek(
                     playablePoints,
                     startTime,
                     duration)
-                : SelectPointsFromSeek(orderedPoints, startTime);
+                : (SelectPointsFromSeek(orderedPoints, startTime), 0);
             if (points.Count == 0)
             {
                 throw new InvalidOperationException(
                     $"Gallery '{gallery.Name}' has no points at seek {seek}.");
             }
 
-            return new PlaybackPlan(points, duration, startTime);
+            return new PlaybackPlan(points, duration, startTime - anchor);
         }
 
         private static List<Point> SelectPointsFromSeek(
@@ -247,28 +251,43 @@ namespace Edi.Core.Device.Handy
             return points.Skip(startIndex).ToList();
         }
 
-        private static List<Point> SelectLoopPointsFromSeek(
+        private static (List<Point> Points, int Anchor) SelectLoopPointsFromSeek(
             List<Point> points,
             long seek,
             long duration)
         {
             if (seek <= 0)
-                return points;
+                return (points, 0);
 
             var firstAtOrAfterSeek =
                 points.FindIndex(point => point.t >= seek);
             if (firstAtOrAfterSeek <= 0)
-                return points;
+                return (points, 0);
 
             var startIndex = firstAtOrAfterSeek - 1;
-            return points
+            var offset = Convert.ToInt32(duration);
+
+            // The device wraps to zero, not to first_point_time, so a buffer left on the
+            // gallery's timeline loops with a dead stretch at the front. The rest of the seek
+            // moves to start_time; the duplicate dropped is the closing point the rotation
+            // lands on the shifted opening one.
+            var anchor = points[startIndex].t;
+            var rotated = points
                 .Skip(startIndex)
                 .Concat(points
                     .Take(startIndex)
                     .Select(point => new Point(
-                        checked(point.t + Convert.ToInt32(duration)),
+                        checked(point.t + offset),
                         point.x)))
+                .Select(point => new Point(point.t - anchor, point.x))
+                .DistinctBy(point => point.t)
                 .ToList();
+
+            // The play carries no period, so the buffer itself has to cover one.
+            if (rotated[^1].t < offset)
+                rotated.Add(new Point(offset, points[startIndex].x));
+
+            return (rotated, anchor);
         }
 
         private int GetBufferCapacity()

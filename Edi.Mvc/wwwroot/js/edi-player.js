@@ -67,7 +67,6 @@
         stroker: document.getElementById('strokerToggle'),
         intensity: document.getElementById('intensityToggle')
     };
-    const status = document.getElementById('playerStatus');
     const playlist = [];
     const databaseName = 'edi-player';
     const playlistStore = 'playlist';
@@ -323,11 +322,30 @@
         intensityHideTimer = duration == null ? null : setTimeout(hidePlayerOverlay, duration);
     }
 
+    function createIconOverlayContent(button, text, danger = false) {
+        const content = document.createElement('span');
+        content.style.display = 'inline-flex';
+        content.style.alignItems = 'center';
+        content.style.gap = '0.55rem';
+        if (danger) content.style.color = 'var(--bs-danger, #dc3545)';
+
+        const icon = button?.querySelector('svg')?.cloneNode(true);
+        if (icon) {
+            icon.querySelectorAll('[id]').forEach(element => element.removeAttribute('id'));
+            icon.style.width = '1.7rem';
+            icon.style.height = '1.7rem';
+            icon.style.flex = '0 0 auto';
+            content.append(icon);
+        }
+
+        const label = document.createElement('span');
+        label.textContent = text;
+        content.append(label);
+        return content;
+    }
+
     function showIntensityOverlay(value) {
-        const intensity = document.createElement('span');
-        intensity.textContent = `${value}%`;
-        if (value === 0) intensity.style.color = 'var(--bs-danger, #dc3545)';
-        showPlayerOverlay(intensity);
+        showPlayerOverlay(createIconOverlayContent(optionButtons.intensity, `${value}%`, value === 0));
     }
 
     function shortenOverlayText(value, maximum = 28) {
@@ -403,7 +421,9 @@
     }
 
     function restoreDeviceControls() {
-        if (deviceControls && deviceControlsHome?.parentNode) deviceControlsHome.after(deviceControls);
+        if (fullscreenDeviceControlsVisible && deviceControls && deviceControlsHome?.parentNode) {
+            deviceControlsHome.after(deviceControls);
+        }
         deviceControls?.classList.remove('fullscreen-device-controls');
         fullscreenDeviceControlsVisible = false;
         intensityOverlay.style.pointerEvents = 'none';
@@ -505,7 +525,9 @@
         const variant = event.detail?.variant;
         if (!['P', 'S'].includes(side) || !variant) return;
         currentVariantSummary = { side, variant };
-        showPlayerOverlay(`${side}: ${shortenOverlayText(variant)}`);
+        showPlayerOverlay(createIconOverlayContent(
+            document.getElementById('variantToggle'),
+            `${side}: ${shortenOverlayText(variant)}`));
     });
 
     document.addEventListener('edi-variant-panel', event => {
@@ -594,12 +616,14 @@
         Object.entries(optionButtons).forEach(([name, button]) => {
             const enabled = name === 'loop' ? playbackOptions.loopMode !== 'none' : playbackOptions[name] === true;
             const paused = name === 'stroker' && strokerPaused;
-            const zeroIntensity = name === 'intensity' && currentIntensity === 0;
+            const intensityAtZero = name === 'intensity' && currentIntensity === 0;
+            const zeroIntensity = intensityAtZero && intensityEnabled;
             button.setAttribute('aria-pressed', String(enabled));
             button.classList.toggle('btn-primary', enabled && !paused && !zeroIntensity);
-            button.classList.remove('btn-danger');
-            button.classList.toggle('btn-outline-danger', paused || zeroIntensity);
+            button.classList.toggle('btn-danger', paused || zeroIntensity);
+            button.classList.remove('btn-outline-danger');
             button.classList.toggle('btn-outline-secondary', !enabled && !paused && !zeroIntensity);
+            button.classList.toggle('intensity-zero-disabled', intensityAtZero && !intensityEnabled);
             button.classList.toggle('stroker-paused', paused);
             if (name === 'loop') {
                 const mode = playbackOptions.loopMode;
@@ -614,15 +638,16 @@
                 const ie = intensityEnabled === true;
                 button.setAttribute('aria-pressed', String(ie));
                 button.classList.toggle('btn-primary', ie && !zeroIntensity);
-                button.classList.toggle('btn-outline-danger', zeroIntensity);
+                button.classList.toggle('btn-danger', zeroIntensity);
+                button.classList.remove('btn-outline-danger');
                 button.classList.toggle('btn-outline-secondary', !ie && !zeroIntensity);
             }
             if (name === 'stroker') {
                 const label = paused
-                    ? 'Stroker paused; Space to resume'
+                    ? 'Click or Space: resume devices'
                     : enabled
-                        ? 'Pause or resume the stroker with Space or the video'
-                        : 'Control video playback with Space';
+                        ? 'Click or Space: pause devices'
+                        : 'Click or Space: pause playback';
                 button.dataset.tooltip = label;
                 button.removeAttribute('title');
                 button.setAttribute('aria-label', label);
@@ -742,8 +767,7 @@
     }
 
     function report(message, isError = false) {
-        status.textContent = message;
-        status.className = `player-status ${isError ? 'text-danger' : 'text-muted'}`;
+        if (isError) console.error(message);
     }
 
     function enqueueCommand(command) {
@@ -1152,7 +1176,6 @@
             try {
                 if (pauseStroker) {
                     await confirmedPlaybackCommand('/Edi/Pause?untilResume=false');
-                    report('Video continues; stroker paused.');
                     return;
                 }
 
@@ -1674,7 +1697,7 @@
             report(`Could not start playback: ${error.message}`, true);
         }
     });
-    document.getElementById('refreshPlayer').addEventListener('click', reloadAssets);
+    // document.getElementById('refreshPlayer').addEventListener('click', reloadAssets);
     document.getElementById('clearPlaylist').addEventListener('click', () => {
         clearPlaylist().catch(error => report(`Could not clear the playlist: ${error.message}`, true));
     });
@@ -1683,8 +1706,8 @@
         playlistPanelContent.hidden = collapsed;
         dropZone.classList.toggle('collapsed', collapsed);
         workspacePanels.classList.toggle('playlist-collapsed', collapsed);
-        event.currentTarget.dataset.tooltip = collapsed ? 'Expand playlist' : 'Collapse playlist';
-        event.currentTarget.setAttribute('aria-label', collapsed ? 'Expand playlist' : 'Collapse playlist');
+        event.currentTarget.dataset.tooltip = collapsed ? 'Expand' : 'Collapse';
+        event.currentTarget.setAttribute('aria-label', collapsed ? 'Expand' : 'Collapse');
         event.currentTarget.setAttribute('aria-expanded', String(!collapsed));
         playlistToggleIcon?.setAttribute('d', collapsed
             ? 'M5.5 9.5L12 16l6.5-6.5'
@@ -1696,8 +1719,8 @@
         devicesPanelContent.hidden = collapsed;
         document.getElementById('devicesPanel')?.classList.toggle('collapsed', collapsed);
         workspacePanels.classList.toggle('devices-collapsed', collapsed);
-        event.currentTarget.dataset.tooltip = collapsed ? 'Expand devices' : 'Collapse devices';
-        event.currentTarget.setAttribute('aria-label', collapsed ? 'Expand devices' : 'Collapse devices');
+        event.currentTarget.dataset.tooltip = collapsed ? 'Expand' : 'Collapse';
+        event.currentTarget.setAttribute('aria-label', collapsed ? 'Expand' : 'Collapse');
         event.currentTarget.setAttribute('aria-expanded', String(!collapsed));
         devicesToggleIcon?.setAttribute('d', collapsed
             ? 'M5.5 9.5L12 16l6.5-6.5'

@@ -9,6 +9,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     const video = document.getElementById('videoPlayer');
     const toggle = document.getElementById('variantToggle');
     const panel = document.getElementById('variantTogglePanel');
+    const closePanel = document.getElementById('closeVariantPanel');
     const primarySelect = document.getElementById('primaryVariant');
     const secondarySelect = document.getElementById('secondaryVariant');
     const toggleStatus = document.getElementById('variantToggleStatus');
@@ -133,8 +134,9 @@ document.addEventListener('DOMContentLoaded', async () => {
         const selectedPhysical = devices.map(device => device.selectedVariant).filter(Boolean);
         const selectedOriginal = selectedPhysical.find(variant => originalVariants.includes(variant));
         const selectedAuto = selectedPhysical.map(parseAutoVariant).find(Boolean);
-        const defaultOriginal = selectedOriginal
-            || originalVariants.find(variant => variant.toLowerCase() === 'default')
+        const namedDefault = originalVariants.find(variant => variant.toLowerCase() === 'default');
+        const defaultOriginal = namedDefault
+            || selectedOriginal
             || originalVariants[0];
         if (!primary && defaultOriginal) primary = `real:${defaultOriginal}`;
         if (secondary === primary) secondary = '';
@@ -144,6 +146,10 @@ document.addEventListener('DOMContentLoaded', async () => {
             const primaryOriginal = realSelection(primary);
             const alternateOriginal = originalVariants.find(variant => variant !== primaryOriginal);
             if (alternateOriginal) secondary = `real:${alternateOriginal}`;
+        }
+        const defaultSelection = namedDefault ? `real:${namedDefault}` : null;
+        if (defaultSelection && secondary === defaultSelection && primary !== defaultSelection) {
+            [primary, secondary] = [secondary, primary];
         }
         return { primary, secondary, enabled: stored.enabled === true };
     }
@@ -508,21 +514,29 @@ document.addEventListener('DOMContentLoaded', async () => {
         void loadDevices(false);
     }
 
-    toggle.addEventListener('click', () => {
-        if (!featureRequested) {
-            setFeatureEnabled(true);
-            setPanelOpen(true);
-            void resolveSelections(true);
-        } else {
-            setFeatureEnabled(false);
-            setPanelOpen(false);
-        }
+        toggle.addEventListener('click', () => {
+            if (!featureRequested) {
+                setFeatureEnabled(true);
+                setPanelOpen(true);
+                void resolveSelections(true);
+            } else if (panel.hidden) {
+                setPanelOpen(true);
+            } else {
+                setFeatureEnabled(false);
+                setPanelOpen(false);
+                toggle.blur();
+            }
+        });
+    closePanel.addEventListener('click', event => {
+        event.stopPropagation();
+        closePanel.blur();
+        setPanelOpen(false);
     });
     panel.addEventListener('pointerdown', keepPanelOpen);
     panel.addEventListener('input', keepPanelOpen);
     panel.addEventListener('focusin', keepPanelOpen);
     document.addEventListener('pointerdown', event => {
-        if (!panel.hidden && !panel.contains(event.target) && event.target !== toggle) setPanelOpen(false);
+        if (!panel.hidden && !panel.contains(event.target) && !toggle.contains(event.target)) setPanelOpen(false);
     }, true);
     document.addEventListener('keydown', event => {
         if (event.key === 'Escape' && !panel.hidden) setPanelOpen(false);

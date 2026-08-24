@@ -13,7 +13,7 @@ var ediConfigPath = Path.IsPathRooted(configuredEdiPath)
 
 builder.Services.AddEdi(ediConfigPath);
 builder.Services
-    .AddControllersWithViews()
+    .AddControllers()
     .AddApplicationPart(typeof(EdiController).Assembly);
 
 var app = builder.Build();
@@ -24,12 +24,11 @@ await edi.Init(ediConfigPath);
 // Configure the HTTP request pipeline.
 if (!app.Environment.IsDevelopment())
 {
-    app.UseExceptionHandler("/Home/Error");
-    // The default HSTS value is 30 days. You may want to change this for production scenarios, see https://aka.ms/aspnetcore-hsts.
     app.UseHsts();
 }
 
 app.UseHttpsRedirection();
+app.UseDefaultFiles();
 app.UseStaticFiles();
 
 app.Use(async (context, next) =>
@@ -50,9 +49,6 @@ app.UseRouting();
 app.UseAuthorization();
 
 app.MapControllers();
-app.MapControllerRoute(
-    name: "default",
-    pattern: "{controller=Player}/{action=Index}/{id?}");
 app.UseFiles();
 
 

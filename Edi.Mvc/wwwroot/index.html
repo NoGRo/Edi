@@ -1,12 +1,40 @@
-@{
-    ViewData["Title"] = "Player";
-}
-
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>EDI Player</title>
+    <link rel="stylesheet" href="/lib/bootstrap/dist/css/bootstrap.min.css">
+    <link rel="stylesheet" href="/css/site.css">
 <style>
+    :root {
+        color-scheme: dark;
+        --edi-bg: #0d1117;
+        --edi-surface: #161b22;
+        --edi-surface-raised: #21262d;
+        --edi-border: #30363d;
+        --edi-border-strong: #57606a;
+        --edi-text: #e6edf3;
+        --edi-muted: #8b949e;
+        --edi-primary: #58a6ff;
+        --edi-primary-strong: #388bfd;
+    }
+    html, body { background: var(--edi-bg); color: var(--edi-text); }
+    body { min-height: 100vh; }
+    .card { background: var(--edi-surface); border-color: var(--edi-border); color: var(--edi-text); }
+    .text-muted { color: var(--edi-muted) !important; }
+    .form-select { border-color: var(--edi-border-strong); background-color: var(--edi-surface-raised); color: var(--edi-text); }
+    .form-select:focus { border-color: var(--edi-primary); box-shadow: 0 0 0 .2rem rgba(88,166,255,.2); }
+    .btn-outline-secondary { border-color: var(--edi-border-strong); color: #c9d1d9; }
+    .btn-outline-secondary:hover,
+    .btn-outline-secondary:focus-visible { border-color: #8b949e; background: var(--edi-surface-raised); color: #fff; }
+    .intensity-zero-disabled { color: var(--bs-danger, #dc3545) !important; }
+    .alert-secondary { border-color: var(--edi-border); background: var(--edi-surface-raised); color: var(--edi-text); }
+    .alert-danger { border-color: #842029; background: #2d1418; color: #ffb3b8; }
     .player-shell { width: calc(100vw - 1.5rem); max-width: none; margin-left: 50%; transform: translateX(-50%); }
     .player-card .card-body { padding: .5rem; }
-    .video-stage { position: relative; width: 100%; background: #111; border-radius: .35rem; overflow: hidden; }
-    .player-video { display: block; width: 100%; max-height: 75vh; background: #111; }
+    .video-stage { position: relative; width: 100%; background: #010409; border-radius: .35rem; overflow: hidden; }
+    .player-video { display: block; width: 100%; max-height: 75vh; background: #010409; }
     .video-stage:fullscreen { display: flex; width: 100vw; height: 100vh; align-items: center; justify-content: center; border-radius: 0; background: #000; }
     .video-stage:fullscreen .player-video { width: 100%; height: 100%; max-height: none; object-fit: contain; }
     .custom-video-controls { position: absolute; z-index: 40; right: .75rem; bottom: .75rem; left: .75rem; padding: .55rem .65rem .45rem; border: 1px solid rgba(255,255,255,.14); border-radius: .55rem; background: linear-gradient(180deg, rgba(23,28,34,.82), rgba(12,15,18,.92)); color: #f8f9fa; box-shadow: 0 .35rem 1rem rgba(0,0,0,.3); opacity: 0; visibility: hidden; pointer-events: none; transform: translateY(.35rem); transition: opacity .16s ease, transform .16s ease, visibility .16s ease; backdrop-filter: blur(7px); }
@@ -35,34 +63,38 @@
     .custom-video-controls input[type="range"]::-moz-range-thumb { width: .7rem; height: .7rem; border: 2px solid #d8e8ff; border-radius: 50%; background: #6ea8fe; box-shadow: 0 1px 4px rgba(0,0,0,.45); }
     .custom-video-controls input[type="range"]:focus-visible { outline: 2px solid rgba(110,168,254,.7); outline-offset: 2px; }
     .video-stage:fullscreen .custom-video-controls { right: 1rem; bottom: 1rem; left: 1rem; }
-    .player-status { min-height: 1.5rem; }
-    .device-card { border: 1px solid #dee2e6; border-radius: .5rem; padding: .65rem .75rem; }
-    .device-card .form-label { margin-bottom: .15rem; color: #6c757d; font-size: .75rem; line-height: 1.1; }
-    .file-drop { border: 2px dashed #adb5bd; border-radius: .5rem; padding: .75rem; }
-    .file-drop.drag-over { border-color: #0d6efd; background: #eef5ff; }
+    .device-card { border: 1px solid var(--edi-border); border-radius: .5rem; background: var(--edi-surface-raised); padding: .65rem .75rem; }
+    .device-card .form-label { margin-bottom: .15rem; color: var(--edi-muted); font-size: .75rem; line-height: 1.1; }
+    .file-drop { border: 2px dashed var(--edi-border-strong); border-radius: .5rem; background: var(--edi-surface); padding: .75rem; }
+    .file-drop.drag-over { border-color: var(--edi-primary); background: rgba(56,139,253,.12); }
     .workspace-panels { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .75rem; align-items: start; }
     .workspace-panels.playlist-collapsed,
     .workspace-panels.devices-collapsed { grid-template-columns: minmax(0, 1fr); }
+    .workspace-panels.playlist-collapsed .devices-panel,
+    .workspace-panels.devices-collapsed .devices-panel { order: -1; }
     .workspace-panel { min-width: 0; }
-    .devices-panel { border: 1px solid #dee2e6; border-radius: .5rem; padding: .75rem; }
+    .devices-panel { border: 1px solid var(--edi-border); border-radius: .5rem; background: var(--edi-surface); padding: .75rem; }
     .workspace-panel-header { display: flex; align-items: center; justify-content: space-between; gap: .75rem; min-height: 2.35rem; }
     .workspace-panel-title { min-width: 0; }
     .workspace-panel-content[hidden] { display: none; }
     .playlist-panel-actions { position: relative; display: flex; align-items: center; gap: .4rem; flex: 0 0 auto; }
     .playlist-secondary-actions { display: flex; gap: .4rem; }
     .workspace-panels:not(.devices-collapsed) .playlist-secondary-actions,
-    .workspace-panels.playlist-collapsed.devices-collapsed .playlist-secondary-actions { position: absolute; top: 50%; right: calc(100% + .4rem); padding: .3rem; border: 1px solid #dee2e6; border-radius: .45rem; background: rgba(255,255,255,.97); box-shadow: 0 .25rem .75rem rgba(0,0,0,.16); opacity: 0; visibility: hidden; pointer-events: none; transform: translate(.3rem, -50%); transition: opacity .14s ease, transform .14s ease, visibility .14s ease; z-index: 15; }
+    .workspace-panels.playlist-collapsed.devices-collapsed .playlist-secondary-actions { position: absolute; top: 50%; right: calc(100% + .4rem); padding: .3rem; border: 1px solid var(--edi-border); border-radius: .45rem; background: rgba(33,38,45,.97); box-shadow: 0 .25rem .75rem rgba(0,0,0,.35); opacity: 0; visibility: hidden; pointer-events: none; transform: translate(.3rem, -50%); transition: opacity .14s ease, transform .14s ease, visibility .14s ease; z-index: 15; }
     .workspace-panels:not(.devices-collapsed) .playlist-panel:hover .playlist-secondary-actions,
     .workspace-panels:not(.devices-collapsed) .playlist-panel:focus-within .playlist-secondary-actions,
     .workspace-panels.playlist-collapsed.devices-collapsed .playlist-panel:hover .playlist-secondary-actions,
     .workspace-panels.playlist-collapsed.devices-collapsed .playlist-panel:focus-within .playlist-secondary-actions { opacity: 1; visibility: visible; pointer-events: auto; transform: translate(0, -50%); }
     .devices-panel .workspace-panel-content { margin-top: .75rem; }
-    @@media (max-width: 900px) { .workspace-panels { grid-template-columns: minmax(0, 1fr); } }
-    .playlist { list-style: none; min-height: 3rem; padding: 0; margin: .75rem 0 0; border-top: 1px solid #dee2e6; }
+    @media (max-width: 900px) {
+        .workspace-panels { grid-template-columns: minmax(0, 1fr); }
+        .workspace-panels .devices-panel { order: -1; }
+    }
+    .playlist { list-style: none; min-height: 3rem; padding: 0; margin: .75rem 0 0; border-top: 1px solid var(--edi-border); }
     .playlist.playlist-scroll { max-height: 30rem; overflow-y: auto; scrollbar-gutter: stable; }
-    .playlist-item { position: relative; display: flex; align-items: center; gap: .5rem; min-height: 2.7rem; padding: .35rem .5rem; border-bottom: 1px solid #dee2e6; cursor: pointer; }
+    .playlist-item { position: relative; display: flex; align-items: center; gap: .5rem; min-height: 2.7rem; padding: .35rem .5rem; border-bottom: 1px solid var(--edi-border); cursor: pointer; }
     .playlist-item:last-child { border-bottom: 0; }
-    .playlist-item.active { background: #e7f1ff; }
+    .playlist-item.active { background: rgba(56,139,253,.18); }
     .playlist-item.dragging { opacity: .45; }
     .playlist-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     .playlist-duration { width: 7rem; flex: 0 0 7rem; text-align: right; font-variant-numeric: tabular-nums; }
@@ -70,16 +102,17 @@
     .playlist-item:hover .playlist-item-actions,
     .playlist-item:focus-within .playlist-item-actions { flex-basis: 2rem; opacity: 1; visibility: visible; pointer-events: auto; transform: translateX(0); }
     .playlist-item-actions .icon-button { width: 2rem; height: 2rem; }
-    .playlist-total { display: flex; flex-wrap: nowrap; justify-content: flex-end; gap: .75rem; padding: .45rem .5rem 0; overflow-x: auto; border-top: 1px solid #dee2e6; font-size: .85rem; font-weight: 600; }
-    .playlist-total-item { display: inline-flex; flex: 0 0 auto; align-items: center; gap: .2rem; white-space: nowrap; }
+    .playlist-total { display: flex; flex-wrap: nowrap; justify-content: flex-end; gap: .75rem; padding: .45rem .5rem 0; overflow-x: auto; border-top: 1px solid var(--edi-border); font-size: 1rem; font-weight: 600; }
+    .playlist-total-item { display: inline-flex; flex: 0 0 auto; align-items: baseline; gap: .2rem; white-space: nowrap; }
     .playlist-total .playlist-duration { width: auto; min-width: 3.25rem; flex: 0 0 auto; text-align: left; }
-    .collapsed-current-video { display: block; max-width: min(42rem, calc(100vw - 3rem)); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 600; color: #212529; }
+    .playlist-total-item:last-child .playlist-duration { width: 7rem; min-width: 7rem; flex-basis: 7rem; margin-right: .5rem; text-align: right; }
+    .collapsed-current-video { display: block; max-width: min(42rem, calc(100vw - 3rem)); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 600; color: var(--edi-text); }
     .collapsed-current-video[hidden] { display: none; }
     .icon-button { display: inline-flex; align-items: center; justify-content: center; width: 2.35rem; height: 2.35rem; padding: .35rem; }
     .player-controls { display: flex; flex-wrap: nowrap; justify-content: space-between; gap: .75rem; align-items: center; }
     .player-toolbar { display: flex; min-width: 0; flex: 0 0 auto; align-items: center; gap: .5rem; }
     .player-toolbar .player-option-group { display: flex; flex: 0 0 auto; }
-    .player-option { display: inline-flex; align-items: center; justify-content: center; min-width: 3rem; min-height: 2.5rem; }
+    .player-option { display: inline-flex; align-items: center; justify-content: center; min-width: 3rem; height: 2.5rem; }
     .player-option-group .player-option { width: 3rem; min-width: 3rem; flex: 0 0 3rem; }
     .player-option-icon { width: 1.55rem; height: 1.55rem; fill: none; stroke: currentColor; stroke-width: 2.25; stroke-linecap: round; stroke-linejoin: round; }
     .icon-button .utility-icon { width: 1.45rem; height: 1.45rem; stroke-width: 2; }
@@ -87,27 +120,29 @@
     .loop-mode-indicator { fill: currentColor; stroke: none; font: 700 7px sans-serif; text-anchor: middle; }
     .stroker-slash { opacity: 0; transition: opacity .15s ease; }
     .stroker-paused .stroker-slash { opacity: 1; }
-    .device-range-values { display: flex; justify-content: space-between; margin-bottom: .05rem; color: #6c757d; font-size: .72rem; line-height: 1.1; font-variant-numeric: tabular-nums; }
+    .device-range-values { display: flex; justify-content: space-between; margin-bottom: .05rem; color: var(--edi-muted); font-size: .72rem; line-height: 1.1; font-variant-numeric: tabular-nums; }
     .device-range { --range-low: 0%; --range-high: 100%; position: relative; height: 1.55rem; }
-    .device-range-track { position: absolute; inset: 50% 0 auto; height: .5rem; transform: translateY(-50%); border-radius: 999px; background: linear-gradient(to right, #dee2e6 0 var(--range-low), #0d6efd var(--range-low) var(--range-high), #dee2e6 var(--range-high) 100%); }
+    .device-range-track { position: absolute; inset: 50% 0 auto; height: .5rem; transform: translateY(-50%); border-radius: 999px; background: linear-gradient(to right, var(--edi-border) 0 var(--range-low), var(--edi-primary-strong) var(--range-low) var(--range-high), var(--edi-border) var(--range-high) 100%); }
     .device-range-input { position: absolute; inset: 0; width: 100%; height: 1.55rem; margin: 0; padding: 0; appearance: none; -webkit-appearance: none; background: transparent; pointer-events: none; }
     .device-range-input::-webkit-slider-runnable-track { height: .5rem; background: transparent; }
-    .device-range-input::-webkit-slider-thumb { width: 1.25rem; height: 1.25rem; margin-top: -.375rem; border: 2px solid #0d6efd; border-radius: 50%; appearance: none; -webkit-appearance: none; background: #fff; box-shadow: 0 1px 3px rgba(0,0,0,.3); cursor: grab; pointer-events: auto; }
+    .device-range-input::-webkit-slider-thumb { width: 1.25rem; height: 1.25rem; margin-top: -.375rem; border: 2px solid var(--edi-primary-strong); border-radius: 50%; appearance: none; -webkit-appearance: none; background: var(--edi-surface-raised); box-shadow: 0 1px 3px rgba(0,0,0,.45); cursor: grab; pointer-events: auto; }
     .device-range-input::-moz-range-track { height: .5rem; background: transparent; }
-    .device-range-input::-moz-range-thumb { width: 1rem; height: 1rem; border: 2px solid #0d6efd; border-radius: 50%; background: #fff; box-shadow: 0 1px 3px rgba(0,0,0,.3); cursor: grab; pointer-events: auto; }
+    .device-range-input::-moz-range-thumb { width: 1rem; height: 1rem; border: 2px solid var(--edi-primary-strong); border-radius: 50%; background: var(--edi-surface-raised); box-shadow: 0 1px 3px rgba(0,0,0,.45); cursor: grab; pointer-events: auto; }
     .device-range-input:focus-visible::-webkit-slider-thumb { outline: 3px solid rgba(13,110,253,.3); outline-offset: 2px; }
     .device-range-input:focus-visible::-moz-range-thumb { outline: 3px solid rgba(13,110,253,.3); outline-offset: 2px; }
     .variant-toggle-wrap { position: relative; z-index: 1090; display: flex; min-width: 0; flex: 0 0 auto; }
     .variant-toggle-button { line-height: 1; }
     .variant-toggle-button .variant-toggle-icon { width: 1.9rem; height: 1.9rem; stroke-width: 2.8; }
-    .variant-toggle-panel { position: absolute; z-index: 1091; top: calc(100% + .4rem); right: 0; width: min(32rem, calc(100vw - 2rem)); padding: .85rem; border: 1px solid #dee2e6; border-radius: .5rem; background: #fff; box-shadow: 0 .5rem 1rem rgba(0,0,0,.15); }
+    .variant-toggle-panel { position: absolute; z-index: 1091; top: calc(100% + .4rem); right: 0; width: min(32rem, calc(100vw - 2rem)); padding: .85rem; border: 1px solid var(--edi-border); border-radius: .5rem; background: var(--edi-surface-raised); box-shadow: 0 .5rem 1rem rgba(0,0,0,.4); }
     .variant-toggle-panel[hidden] { display: none; }
+    .variant-panel-close { position: absolute; top: .55rem; right: .55rem; width: 1.5rem; height: 1.5rem; padding: .15rem; }
+    .variant-panel-close .utility-icon { width: 1rem; height: 1rem; }
     .variant-toggle-status { min-height: 1.25rem; }
     button[data-tooltip] { position: relative; }
     button[data-tooltip]::before,
     button[data-tooltip]::after { position: absolute; left: 50%; z-index: 1080; pointer-events: none; opacity: 0; visibility: hidden; transition: opacity .12s ease, transform .12s ease, visibility .12s ease; }
-    button[data-tooltip]::before { content: ""; bottom: calc(100% + .25rem); width: .55rem; height: .55rem; background: #252a30; transform: translate(-50%, .2rem) rotate(45deg); }
-    button[data-tooltip]::after { content: attr(data-tooltip); bottom: calc(100% + .5rem); width: max-content; max-width: calc(100vw - 1rem); padding: .4rem .6rem; border-radius: .4rem; background: #252a30; color: #fff; box-shadow: 0 .2rem .65rem rgba(0,0,0,.25); font-size: .75rem; font-weight: 500; line-height: 1.25; text-align: center; white-space: normal; transform: translate(-50%, .2rem); }
+    button[data-tooltip]::before { content: ""; bottom: calc(100% + .25rem); width: .55rem; height: .55rem; background: #010409; transform: translate(-50%, .2rem) rotate(45deg); }
+    button[data-tooltip]::after { content: attr(data-tooltip); bottom: calc(100% + .5rem); width: max-content; max-width: calc(100vw - 1rem); padding: .4rem .6rem; border: 1px solid var(--edi-border); border-radius: .4rem; background: #010409; color: var(--edi-text); box-shadow: 0 .2rem .65rem rgba(0,0,0,.45); font-size: .75rem; font-weight: 500; line-height: 1.25; text-align: center; white-space: normal; transform: translate(-50%, .2rem); }
     button[data-tooltip]:hover::before,
     button[data-tooltip]:hover::after,
     button[data-tooltip]:focus-visible::before,
@@ -134,15 +169,12 @@
     .device-meta-variant { min-width: 0; }
     .device-range-field { margin-top: .55rem; }
 </style>
+</head>
+<body>
+<main class="container pb-3">
 
 <div class="player-shell" tabindex="-1">
-    <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
-        <div>
-            <h1 class="h3 mb-1">EDI Player</h1>
-            <div id="playerStatus" class="player-status text-muted">Loading gallery...</div>
-        </div>
-        <div class="small text-muted">Press "F" to toggle fullscreen when a video is selected.</div>
-    </div>
+    <h1 class="h3 mb-3">EDI Player</h1>
 
     <div class="card player-card mb-4">
         <div class="card-body">
@@ -161,20 +193,22 @@
                         <div class="playlist-panel-actions">
                             <div class="playlist-secondary-actions">
                                 <button id="addMediaFiles" class="btn btn-sm btn-primary icon-button" type="button"
-                                        aria-label="Add videos and assets" data-tooltip="Add videos and assets">
+                                        aria-label="Add videos and funscripts" data-tooltip="Add videos and funscripts">
                                     <svg class="player-option-icon utility-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4.5v15M4.5 12h15" /></svg>
                                 </button>
+                                <!--
                                 <button id="refreshPlayer" class="btn btn-sm btn-outline-secondary icon-button" type="button"
                                         aria-label="Reload playlist assets" data-tooltip="Reload assets for the current playlist">
                                     <svg class="player-option-icon utility-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 16V4M7.5 8.5L12 4l4.5 4.5M5 14v5h14v-5" /></svg>
                                 </button>
+                                -->
                                 <button id="clearPlaylist" class="btn btn-sm btn-outline-danger icon-button" type="button"
-                                        aria-label="Clear playlist" data-tooltip="Clear the playlist and its assets">
+                                        aria-label="Clear the playlist" data-tooltip="Clear the playlist">
                                     <svg class="player-option-icon utility-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M3.5 6.5h17M9 6.5V4h6v2.5M6.5 6.5l1 13h9l1-13M10 10v6M14 10v6" /></svg>
                                 </button>
                             </div>
                         <button id="togglePlaylist" class="btn btn-sm btn-outline-secondary icon-button" type="button"
-                                    aria-controls="playlistPanelContent" aria-expanded="true" aria-label="Collapse playlist" data-tooltip="Collapse playlist">
+                                    aria-controls="playlistPanelContent" aria-expanded="true" aria-label="Collapse" data-tooltip="Collapse">
                             <svg class="player-option-icon utility-icon" viewBox="0 0 24 24" aria-hidden="true"><path id="playlistToggleIcon" d="M5.5 14.5L12 8l6.5 6.5" /></svg>
                         </button>
                     </div>
@@ -200,12 +234,14 @@
                     <div class="workspace-panel-header">
                         <strong>Devices</strong>
                         <button id="toggleDevices" class="btn btn-sm btn-outline-secondary icon-button" type="button"
-                                aria-controls="devicesPanelContent" aria-expanded="true" aria-label="Collapse devices" data-tooltip="Collapse devices">
+                                aria-controls="devicesPanelContent" aria-expanded="true" aria-label="Collapse" data-tooltip="Collapse">
                             <svg class="player-option-icon utility-icon" viewBox="0 0 24 24" aria-hidden="true"><path id="devicesToggleIcon" d="M5.5 14.5L12 8l6.5 6.5" /></svg>
                         </button>
                     </div>
                     <div id="devicesPanelContent" class="workspace-panel-content">
-                        <partial name="DeviceGridPartial" />
+                        <div id="devicesGrid" class="d-grid gap-2">
+                            <div class="text-muted">Looking for devices...</div>
+                        </div>
                     </div>
                 </section>
             </div>
@@ -219,7 +255,7 @@
                 </button>
                 <div class="btn-group player-option-group" role="group" aria-label="Playback options">
                     <button id="autoplayToggle" class="btn btn-outline-secondary player-option" type="button"
-                            aria-pressed="false" aria-label="Autoplay first video" data-tooltip="Autoplay the first video added">
+                            aria-pressed="false" aria-label="Autoplay" data-tooltip="Autoplay">
                         <svg class="player-option-icon" viewBox="0 0 24 24" aria-hidden="true">
                             <path class="icon-fill" d="M3.5 5.2a1 1 0 0 1 1.5-.85l10.2 6.8a1 1 0 0 1 0 1.7L5 19.65a1 1 0 0 1-1.5-.85z" />
                             <path d="M19 5v14" />
@@ -245,7 +281,7 @@
                 <div class="variant-toggle-wrap">
                     <div class="btn-group player-option-group" role="group" aria-label="Device controls">
                     <button id="strokerToggle" class="btn btn-outline-secondary player-option" type="button"
-                            aria-pressed="false" aria-label="Space controls stroker" data-tooltip="Control the stroker with Space">
+                            aria-pressed="false" aria-label="Click or Space: pause playback" data-tooltip="Click or Space: pause playback">
                         <svg class="player-option-icon" viewBox="0 0 24 24" aria-hidden="true">
                             <rect x="7" y="2.5" width="10" height="19" rx="5" />
                             <path d="M12 6v12M9.5 8.5L12 6l2.5 2.5M9.5 15.5L12 18l2.5-2.5" />
@@ -253,7 +289,7 @@
                         </svg>
                     </button>
                     <button id="intensityToggle" class="btn btn-outline-secondary player-option" type="button"
-                            aria-pressed="false" aria-label="Intensity wheel" data-tooltip="Adjust intensity with the mouse wheel">
+                            aria-pressed="false" aria-label="Mouse wheel: adjust intensity" data-tooltip="Mouse wheel: adjust intensity">
                         <svg class="player-option-icon" viewBox="0 0 24 24" aria-hidden="true">
                             <!-- Four vertical bars of increasing height -->
                             <rect x="4" y="8" width="2" height="12" rx="0.5" />
@@ -264,13 +300,16 @@
                     </button>
                     <button id="variantToggle" class="btn btn-outline-secondary player-option variant-toggle-button" type="button"
                             aria-pressed="false" aria-expanded="false" aria-controls="variantTogglePanel"
-                            aria-label="Switch device variant" data-tooltip="Switch device variant">
+                            aria-label="Right click to switch device variant" data-tooltip="Right click to switch device variant">
                         <svg class="player-option-icon variant-toggle-icon" viewBox="0 0 28 24" aria-hidden="true">
                             <path d="M4 12h20M8 8l-4 4 4 4M20 8l4 4-4 4" />
                         </svg>
                     </button>
                     </div>
                     <div id="variantTogglePanel" class="variant-toggle-panel" hidden>
+                        <button id="closeVariantPanel" class="btn btn-sm btn-outline-secondary icon-button variant-panel-close" type="button" aria-label="Close variant selection">
+                            <svg class="player-option-icon utility-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" /></svg>
+                        </button>
                         <div class="row g-2">
                             <div class="col-6">
                                 <label class="form-label" for="primaryVariant">Primary</label>
@@ -319,8 +358,8 @@
     </div>
 
 </div>
-
-@section Scripts {
-    <script src="~/js/edi-player.js" asp-append-version="true"></script>
-    <script src="~/js/edi-devices.js" asp-append-version="true"></script>
-}
+</main>
+<script src="/js/edi-player.js"></script>
+<script src="/js/edi-devices.js"></script>
+</body>
+</html>

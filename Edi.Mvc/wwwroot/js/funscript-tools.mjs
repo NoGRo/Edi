@@ -196,6 +196,28 @@ export function conceptualSelectionForPhysical(variant) {
     return automatic ? `auto:${automatic.kind}` : variant ? `real:${variant}` : '';
 }
 
+export function planDeviceRange(paused, min, max) {
+    return {
+        deferred: paused,
+        min: paused ? 0 : min,
+        max: paused ? 0 : max
+    };
+}
+
+export function reorderValues(values, source, target, placeAfter = false) {
+    if (!source || source === target || !values.includes(source)) return [...values];
+    const reordered = values.filter(value => value !== source);
+    let targetIndex = reordered.indexOf(target);
+    if (targetIndex < 0) return [...values];
+    if (placeAfter) targetIndex++;
+    reordered.splice(targetIndex, 0, source);
+    return reordered;
+}
+
+export function swapPairValues(primary, secondary) {
+    return { primary: secondary, secondary: primary };
+}
+
 export function parseFunscriptName(fileName) {
     const stem = fileName.replace(/\.funscript$/i, '');
     const parts = stem.split('.');

@@ -179,6 +179,9 @@ This section controls auto-repeat and timing between galleries. All values are i
 - `MinRepeatDuration`: minimum time before a command is resent to the device (e.g., Handy) during loop (increases bundle size).
 - `RepeatDuration`: extra duration to offset lag between commands (increases bundle size).
 - `SpacerDuration`: pause between one gallery ending and the next starting (does NOT increase bundle size).
+- `DisableBundler`: creates one bundle per gallery instead of grouping galleries.
+- `BundleVariantsTogether`: when bundling is enabled, stores every variant at a different index
+  in the same bundle so compatible devices can switch variants without uploading again.
 
 #### `Edi` Section
 
@@ -250,6 +253,10 @@ Channels can be specified for any Playback endpoint in two ways:
   returns `400 Bad Request` if it is empty or contains no compatible assets. A successful upload
   stops playback, replaces the complete temporary upload set, rebuilds the gallery definitions
   from it without changing the configured game path, and returns those definitions.
+- `POST /Edi/Definitions/Active`: accepts one `Definitions.csv` file, replaces only that file in
+  the temporary upload set, keeps every uploaded script, and rebuilds bundles for the definitions
+  in that file. The MVC player uses it when changing videos so only the selected video's scripts
+  and variants are bundled.
 - `DELETE /Edi/Assets`: stops playback, removes all temporary uploaded assets, reloads with an
   empty upload set, and returns `204 No Content`. It does not delete assets from the configured
   game gallery or change the configured game path.

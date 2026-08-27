@@ -3,7 +3,8 @@ import assert from 'node:assert/strict';
 import {
     autoVariantName, buildRelevantDeviceCache, conceptualSelectionForPhysical,
     generatedFunscriptName, getDoubleSpeedScript, getHalfSpeedScript,
-    isAutoVariant, listOriginalVariants, parseFunscriptName, switchRelevantDeviceCache
+    isAutoVariant, listOriginalVariants, parseFunscriptName, planDeviceRange,
+    reorderValues, swapPairValues, switchRelevantDeviceCache
 } from '../wwwroot/js/funscript-tools.mjs';
 
 test('Auto Double preserves order, input, extrema, and has no synthetic +10ms point', () => {
@@ -43,7 +44,7 @@ test('relevant cache excludes other variants and equal selections', () => {
 
 test('automatic variants are stable and hidden from originals', () => {
     const physical = autoVariantName('double');
-    assert.deepEqual(listOriginalVariants(['Normal', physical, 'Fast']), ['Normal', 'Fast']);
+    assert.deepEqual(listOriginalVariants(['Normal', 'None', physical, 'Fast']), ['Normal', 'None', 'Fast']);
     assert.equal(conceptualSelectionForPhysical(physical), 'auto:double');
 });
 
@@ -59,4 +60,22 @@ test('repeated switches update and reuse cached device state', async () => {
     assert.deepEqual(calls, [
         ['A', 'Auto'], ['B', 'Normal'], ['A', 'Normal'], ['B', 'Auto']
     ]);
+});
+
+test('a paused device keeps range changes deferred at zero until resume', () => {
+    assert.deepEqual(planDeviceRange(true, 20, 80),
+        { deferred: true, min: 0, max: 0 });
+    assert.deepEqual(planDeviceRange(false, 20, 80),
+        { deferred: false, min: 20, max: 80 });
+});
+
+test('device order can move before or after another device', () => {
+    assert.deepEqual(reorderValues(['A', 'B', 'C'], 'C', 'A'), ['C', 'A', 'B']);
+    assert.deepEqual(reorderValues(['A', 'B', 'C'], 'A', 'B', true), ['B', 'A', 'C']);
+});
+
+test('primary and secondary selections can be swapped without changing their values', () => {
+    assert.deepEqual(swapPairValues('real:Default', 'real:Halved'), {
+        primary: 'real:Halved', secondary: 'real:Default'
+    });
 });

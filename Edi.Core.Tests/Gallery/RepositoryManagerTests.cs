@@ -210,6 +210,52 @@ public class RepositoryManagerTests
         }
     }
 
+    [Fact]
+    public async Task IndexRepositoryCanPlaceVariantsInTheSameBundle()
+    {
+        var temporaryDirectory = CreateGalleryDirectory();
+        try
+        {
+            File.Copy(
+                Path.Combine(temporaryDirectory, "scene.funscript"),
+                Path.Combine(temporaryDirectory, "scene.fast.funscript"));
+            var configuration = new ConfigurationManager(
+                Path.Combine(temporaryDirectory, "EdiConfig.json"),
+                Path.Combine(temporaryDirectory, "UserConfig.json"));
+            configuration.Get<GalleryBundlerConfig>()
+                .BundleVariantsTogether = true;
+            var definitions = new DefinitionRepository(configuration);
+            await definitions.Init(temporaryDirectory);
+            var funscripts = new FunscriptRepository(
+                definitions,
+                NullLogger<FunscriptRepository>.Instance);
+            await funscripts.Init(temporaryDirectory);
+            var repository = new IndexRepository(
+                configuration,
+                new GalleryBundler(configuration),
+                funscripts,
+                definitions);
+
+            await repository.Init(temporaryDirectory);
+
+            var normal = repository.Get("scene", "default");
+            var fast = repository.Get("scene", "fast");
+            Assert.NotNull(normal);
+            Assert.NotNull(fast);
+            Assert.NotEqual(normal.StartTime, fast.StartTime);
+            Assert.Equal(normal.Assets["default.variants.csv"].FullName,
+                fast.Assets["default.variants.csv"].FullName);
+            Assert.Equal(
+                normal.Assets["default.variants.csv"].FullName,
+                repository.GetBundle("default", "fast", "csv")
+                    .FullName);
+        }
+        finally
+        {
+            Directory.Delete(temporaryDirectory, recursive: true);
+        }
+    }
+
     private static string CreateGalleryDirectory()
     {
         var temporaryDirectory = Path.Combine(

@@ -48,13 +48,37 @@ namespace Edi.Core.Gallery.Index
         public FileInfo GetBundle(string variant, string format)
             => new FileInfo($"{Edi.OutputDir}/Bundles/bundle.{variant}.{format}");
 
+        public FileInfo GetBundle(
+            string bundle,
+            string variant,
+            string format)
+            => GetBundle(
+                BundlerConfig.BundleVariantsTogether
+                && !BundlerConfig.DisableBundler
+                    ? $"{bundle}.variants"
+                    : $"{bundle}.{variant}",
+                format);
+
         private void LoadGallery(string path)
         {
             ClearOutputDirectory();
 
             Bundler.Clear();
             Galleries.Clear();
-            foreach (var variant in GetVariants())
+            var variants = GetVariants()
+                .Where(variant => !variant.Equals(
+                    "None",
+                    StringComparison.OrdinalIgnoreCase))
+                .ToList();
+
+            if (BundlerConfig.BundleVariantsTogether
+                && !BundlerConfig.DisableBundler)
+            {
+                LoadVariantsTogether(variants, path);
+                return;
+            }
+
+            foreach (var variant in variants)
             {
 
                 var bundleConfigs = GetBundleDefinition(variant, path);
@@ -85,28 +109,13 @@ namespace Edi.Core.Gallery.Index
                 foreach (var bundle in bundleConfigs)
                 {
 
-                    var finalGallery = funRepo.GetAll().Where(x => x.Variant == "default"
-                                                                && bundle.Galleries.Contains(x.Name))
-                                                       .ToDictionary(x => x.Name, x => x);
-
-
-                    var variantbundleGalleries = variantGalleries.Where(x => bundle.Galleries.Contains(x.Name)).ToList();
-
-                    foreach (var funscriptGallery in variantbundleGalleries)
-                    {
-                        if (finalGallery.ContainsKey(funscriptGallery.Name))
-                            finalGallery[funscriptGallery.Name] = funscriptGallery;
-                        else
-                            finalGallery.Add(funscriptGallery.Name, funscriptGallery);
-                    }
-
                     Bundler.Clear();
                     if (!Galleries.ContainsKey(variant))
                         Galleries.Add(variant, new Dictionary<string, List<IndexGallery>>(StringComparer.OrdinalIgnoreCase));
 
-                    var sortedGalleries = finalGallery.Values;
-
-                    foreach (var gallery in sortedGalleries)
+                    foreach (var gallery in GetBundleGalleries(
+                                 variant,
+                                 bundle))
                     {
                         IndexGallery indexGallery = Bundler.Add(gallery, bundle.BundleName);
 
@@ -118,6 +127,90 @@ namespace Edi.Core.Gallery.Index
                     Bundler.GenerateBundle($"{bundle.BundleName}.{variant}");
                 }
             }
+        }
+
+        private void LoadVariantsTogether(
+            IEnumerable<string> variants,
+            string path)
+        {
+            var bundleEntries = new Dictionary<
+                string,
+                List<(string LookupVariant, FunscriptGallery Gallery)>>(
+                StringComparer.OrdinalIgnoreCase);
+
+            foreach (var variant in variants)
+            {
+                Galleries.TryAdd(
+                    variant,
+                    new Dictionary<string, List<IndexGallery>>(
+                        StringComparer.OrdinalIgnoreCase));
+
+                foreach (var bundle in GetBundleDefinition(variant, path))
+                {
+                    if (!bundleEntries.TryGetValue(
+                            bundle.BundleName,
+                            out var entries))
+                    {
+                        entries = [];
+                        bundleEntries.Add(bundle.BundleName, entries);
+                    }
+
+                    entries.AddRange(
+                        GetBundleGalleries(variant, bundle)
+                            .Select(gallery => (variant, gallery)));
+                }
+            }
+
+            foreach (var (bundleName, entries) in bundleEntries)
+            {
+                Bundler.Clear();
+                var sharedIndexes = new Dictionary<string, IndexGallery>(
+                    StringComparer.OrdinalIgnoreCase);
+
+                foreach (var (lookupVariant, gallery) in entries)
+                {
+                    var key = $"{gallery.Name}\u001f{gallery.Variant}";
+                    if (!sharedIndexes.TryGetValue(key, out var index))
+                    {
+                        index = Bundler.Add(gallery, bundleName);
+                        sharedIndexes.Add(key, index);
+                    }
+
+                    var galleriesByName = Galleries[lookupVariant];
+                    if (!galleriesByName.TryGetValue(
+                            gallery.Name,
+                            out var indexes))
+                    {
+                        indexes = [];
+                        galleriesByName.Add(gallery.Name, indexes);
+                    }
+
+                    if (!indexes.Contains(index))
+                        indexes.Add(index);
+                }
+
+                Bundler.GenerateBundle($"{bundleName}.variants");
+            }
+        }
+
+        private IEnumerable<FunscriptGallery> GetBundleGalleries(
+            string variant,
+            BundleDefinition bundle)
+        {
+            var galleries = funRepo.GetAll()
+                .Where(gallery => gallery.Variant == "default"
+                                  && bundle.Galleries.Contains(
+                                      gallery.Name))
+                .ToDictionary(gallery => gallery.Name, gallery => gallery);
+
+            foreach (var gallery in funRepo.GetAll().Where(gallery =>
+                         gallery.Variant == variant
+                         && bundle.Galleries.Contains(gallery.Name)))
+            {
+                galleries[gallery.Name] = gallery;
+            }
+
+            return galleries.Values;
         }
 
         private static void ClearOutputDirectory()

@@ -74,6 +74,43 @@ namespace Edi.Core.Controllers
         public IEnumerable<DefinitionResponseDto> GetDefinitions()
             => edi.Definitions.Select(x=> new DefinitionResponseDto(x)).ToArray();
 
+        [HttpPost("Definitions/Active")]
+        [SwaggerOperation(
+            Summary = "Replaces only the active Definitions.csv while keeping uploaded scripts.")]
+        public async Task<ActionResult<IEnumerable<DefinitionResponseDto>>>
+            SetActiveDefinitions([FromForm] IFormFile file)
+        {
+            if (file == null
+                || !IsActiveDefinitionsFileName(file.FileName))
+            {
+                return BadRequest("A Definitions.csv file is required.");
+            }
+
+            var folderPath = Path.Combine(Core.Edi.OutputDir, "Upload");
+            Directory.CreateDirectory(folderPath);
+            await edi.Player.Stop();
+
+            var definitionPath = Path.Combine(
+                folderPath,
+                "Definitions.csv");
+            await using (var stream = new FileStream(
+                             definitionPath,
+                             FileMode.Create))
+            {
+                await file.CopyToAsync(stream);
+            }
+
+            var generatedDefinitionPath = Path.Combine(
+                folderPath,
+                "Definitions_auto.csv");
+            if (System.IO.File.Exists(generatedDefinitionPath))
+                System.IO.File.Delete(generatedDefinitionPath);
+
+            await edi.Init(folderPath, setGamePath: false);
+            return Ok(edi.Definitions
+                .Select(x => new DefinitionResponseDto(x)));
+        }
+
 
         [HttpGet("Channels")]
         [SwaggerOperation(Summary = "Get Channels")]
@@ -157,6 +194,11 @@ namespace Edi.Core.Controllers
                 || (name.StartsWith("BundleDefinition", StringComparison.OrdinalIgnoreCase)
                     && name.EndsWith(".txt", StringComparison.OrdinalIgnoreCase));
         }
+
+        internal static bool IsActiveDefinitionsFileName(string fileName)
+            => Path.GetFileName(fileName).Equals(
+                "Definitions.csv",
+                StringComparison.OrdinalIgnoreCase);
 
         [HttpGet("Assets/{*filePath}")]
         [SwaggerOperation(Summary = "Serves multimedia files from the gallery path by relative path.")]

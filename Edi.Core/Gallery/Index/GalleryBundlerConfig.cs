@@ -9,5 +9,6 @@ namespace Edi.Core.Gallery.Index
         public int RepeatDuration { get; set; } = 2000;
         public int SpacerDuration { get; set; } = 5000;
         public bool DisableBundler { get; set; } = false;
+        public bool BundleVariantsTogether { get; set; } = false;
     }
 }

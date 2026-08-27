@@ -5,6 +5,25 @@ namespace Edi.Core.Tests.Controllers;
 public class EdiAssetUploadTests
 {
     [Theory]
+    [InlineData("Definitions.csv")]
+    [InlineData("definitions.CSV")]
+    public void ActiveDefinitionEndpointAcceptsDefinitionsCsv(
+        string fileName)
+    {
+        Assert.True(EdiController.IsActiveDefinitionsFileName(fileName));
+    }
+
+
+    [Theory]
+    [InlineData("Definitions_auto.csv")]
+    [InlineData("other.csv")]
+    [InlineData("Definitions.csv.exe")]
+    public void ActiveDefinitionEndpointRejectsOtherFiles(string fileName)
+    {
+        Assert.False(EdiController.IsActiveDefinitionsFileName(fileName));
+    }
+
+    [Theory]
     [InlineData("scene.funscript")]
     [InlineData("scene.Stroke.funscript")]
     [InlineData("Definitions.csv")]

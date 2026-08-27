@@ -63,7 +63,9 @@
     .custom-video-controls input[type="range"]::-moz-range-thumb { width: .7rem; height: .7rem; border: 2px solid #d8e8ff; border-radius: 50%; background: #6ea8fe; box-shadow: 0 1px 4px rgba(0,0,0,.45); }
     .custom-video-controls input[type="range"]:focus-visible { outline: 2px solid rgba(110,168,254,.7); outline-offset: 2px; }
     .video-stage:fullscreen .custom-video-controls { right: 1rem; bottom: 1rem; left: 1rem; }
-    .device-card { border: 1px solid var(--edi-border); border-radius: .5rem; background: var(--edi-surface-raised); padding: .65rem .75rem; }
+    .devices-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 29rem), 1fr)); gap: .45rem; }
+    .device-card { min-width: 0; border: 1px solid var(--edi-border); border-radius: .45rem; background: var(--edi-surface-raised); padding: .4rem .5rem; }
+    .device-card.dragging { opacity: .45; }
     .device-card .form-label { margin-bottom: .15rem; color: var(--edi-muted); font-size: .75rem; line-height: 1.1; }
     .file-drop { border: 2px dashed var(--edi-border-strong); border-radius: .5rem; background: var(--edi-surface); padding: .75rem; }
     .file-drop.drag-over { border-color: var(--edi-primary); background: rgba(56,139,253,.12); }
@@ -120,7 +122,7 @@
     .loop-mode-indicator { fill: currentColor; stroke: none; font: 700 7px sans-serif; text-anchor: middle; }
     .stroker-slash { opacity: 0; transition: opacity .15s ease; }
     .stroker-paused .stroker-slash { opacity: 1; }
-    .device-range-values { display: flex; justify-content: space-between; margin-bottom: .05rem; color: var(--edi-muted); font-size: .72rem; line-height: 1.1; font-variant-numeric: tabular-nums; }
+    .device-range-values { display: none; }
     .device-range { --range-low: 0%; --range-high: 100%; position: relative; height: 1.55rem; }
     .device-range-track { position: absolute; inset: 50% 0 auto; height: .5rem; transform: translateY(-50%); border-radius: 999px; background: linear-gradient(to right, var(--edi-border) 0 var(--range-low), var(--edi-primary-strong) var(--range-low) var(--range-high), var(--edi-border) var(--range-high) 100%); }
     .device-range-input { position: absolute; inset: 0; width: 100%; height: 1.55rem; margin: 0; padding: 0; appearance: none; -webkit-appearance: none; background: transparent; pointer-events: none; }
@@ -164,10 +166,46 @@
     .video-stage.fullscreen-cursor-visible { cursor: default; }
     .fullscreen-device-controls { width: max-content; }
     .fullscreen-device-controls .variant-toggle-panel { top: calc(100% + .55rem); }
-    .device-meta-line { display: grid; grid-template-columns: minmax(0, 1fr) minmax(8rem, 12rem) auto; gap: .65rem; align-items: center; }
+    .device-meta-line { display: flex; min-width: 0; gap: .4rem; align-items: center; }
+    .device-drag-handle { flex: 0 0 auto; color: var(--edi-muted); cursor: grab; font-size: .85rem; line-height: 1; user-select: none; }
+    .device-drag-handle:active { cursor: grabbing; }
     .device-meta-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-    .device-meta-variant { min-width: 0; }
-    .device-range-field { margin-top: .55rem; }
+    .device-status-dot { width: .55rem; height: .55rem; flex: 0 0 .55rem; border-radius: 50%; background: var(--bs-secondary); }
+    .device-status-dot.connected { background: var(--bs-success); box-shadow: 0 0 .45rem rgba(25,135,84,.55); }
+    .device-actions { display: flex; margin-left: auto; gap: .2rem; }
+    .device-action { width: 1.85rem; height: 1.85rem; padding: .2rem; font-size: .7rem; font-weight: 700; }
+    .device-action .utility-icon { width: 1rem; height: 1rem; }
+    .device-variants { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); align-items: stretch; gap: .25rem; margin-top: .35rem; }
+    .device-variant-field { position: relative; min-width: 0; }
+    .device-variant-field::after { content: attr(data-tooltip); position: absolute; z-index: 7; left: 50%; bottom: calc(100% + .3rem); padding: .2rem .42rem; border: 1px solid var(--edi-border); border-radius: .3rem; background: #010409; color: var(--edi-text); font-size: .68rem; font-weight: 600; opacity: 0; pointer-events: none; transform: translate(-50%, .2rem); transition: opacity .12s ease, transform .12s ease; white-space: nowrap; }
+    .device-variant-field:hover::after,
+    .device-variant-field:focus-within::after { opacity: 1; transform: translate(-50%, 0); }
+    .device-variants .form-select { min-width: 0; padding-top: .2rem; padding-bottom: .2rem; font-size: .75rem; }
+    .device-variant-swap { width: 1.65rem; height: auto; min-height: 1.75rem; padding: .15rem; align-self: stretch; }
+    .device-variant-swap .utility-icon { width: .9rem; height: .9rem; }
+    .device-variants .device-variant-active { border-color: var(--edi-primary); box-shadow: 0 0 0 .16rem rgba(88,166,255,.28); }
+    .device-range-field { position: relative; margin-top: .15rem; }
+    .device-range-tooltip { position: absolute; z-index: 6; left: 50%; bottom: calc(100% + .15rem); padding: .18rem .38rem; border: 1px solid var(--edi-border); border-radius: .3rem; background: #010409; color: var(--edi-text); font-size: .68rem; font-variant-numeric: tabular-nums; opacity: 0; pointer-events: none; transform: translate(-50%, .2rem); transition: opacity .12s ease, transform .12s ease; white-space: nowrap; }
+    .device-range-field:hover .device-range-tooltip,
+    .device-range-field:focus-within .device-range-tooltip { opacity: 1; transform: translate(-50%, 0); }
+    .fullscreen-toolbar-only { display: none; }
+    .fullscreen-playback-overlay { position: absolute; z-index: 70; top: .8rem; left: .8rem; display: none; align-items: flex-start; opacity: 0; visibility: hidden; transform: scale(.96); transition: opacity .18s ease, transform .18s ease, visibility .18s ease; }
+    .video-stage:fullscreen .fullscreen-playback-overlay { display: flex; }
+    .video-stage:fullscreen .fullscreen-playback-overlay.visible,
+    .video-stage:fullscreen .fullscreen-playback-overlay:hover,
+    .video-stage:fullscreen .fullscreen-playback-overlay:focus-within { opacity: 1; visibility: visible; transform: scale(1); }
+    .video-stage:fullscreen .fullscreen-toolbar-only { display: inline-flex; }
+    .fullscreen-playback-overlay .player-toolbar { padding: .35rem; border: 1px solid rgba(255,255,255,.18); border-radius: .55rem; background: rgba(12,15,18,.88); box-shadow: 0 .35rem 1rem rgba(0,0,0,.4); backdrop-filter: blur(7px); }
+    .fullscreen-panel { position: absolute; top: calc(100% + .45rem); right: 0; width: min(34rem, calc(100vw - 1.6rem)); max-height: min(70vh, 42rem); padding: .55rem; overflow-y: auto; border: 1px solid rgba(255,255,255,.18); border-radius: .55rem; background: rgba(12,15,18,.94); box-shadow: 0 .5rem 1.5rem rgba(0,0,0,.55); backdrop-filter: blur(9px); }
+    .fullscreen-playback-overlay .fullscreen-panel { right: auto; left: 0; }
+    .fullscreen-panel[hidden] { display: none; }
+    .fullscreen-panel-title { display: flex; align-items: center; justify-content: space-between; margin-bottom: .35rem; }
+    .fullscreen-playlist { margin-top: 0; border-top: 0; }
+    .fullscreen-playlist .playlist-item { min-height: 2.25rem; padding: .25rem .4rem; }
+    .fullscreen-playlist .playlist-duration { width: 5rem; flex-basis: 5rem; font-size: .78rem; }
+    .fullscreen-playlist .playlist-item-actions,
+    .fullscreen-playlist .text-muted:first-child { display: none; }
+    .fullscreen-devices-grid { grid-template-columns: 1fr; }
 </style>
 </head>
 <body>
@@ -239,14 +277,14 @@
                         </button>
                     </div>
                     <div id="devicesPanelContent" class="workspace-panel-content">
-                        <div id="devicesGrid" class="d-grid gap-2">
+                        <div id="devicesGrid" class="devices-grid">
                             <div class="text-muted">Looking for devices...</div>
                         </div>
                     </div>
                 </section>
             </div>
             <div class="player-controls mb-2">
-                <div class="player-toolbar player-toolbar-playback">
+                <div id="playbackToolbar" class="player-toolbar player-toolbar-playback">
                 <button id="playFullscreen" class="btn btn-success icon-button" type="button" aria-label="Play in fullscreen" data-tooltip="Play in fullscreen">
                     <svg class="player-option-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 3H3v5M16 3h5v5M8 21H3v-5M16 21h5v-5" /></svg>
                 </button>
@@ -273,6 +311,13 @@
                         <svg class="player-option-icon" viewBox="0 0 24 24" aria-hidden="true">
                             <path d="M6 3h12v18l-6-4-6 4z" />
                             <path class="icon-fill" d="M10 8l5 3-5 3z" />
+                        </svg>
+                    </button>
+                    <button id="fullscreenPlaylistToggle" class="btn btn-outline-secondary player-option fullscreen-toolbar-only" type="button"
+                            aria-expanded="false" aria-controls="fullscreenPlaylistPanel" aria-label="Open playlist" data-tooltip="Playlist">
+                        <svg class="player-option-icon utility-icon" viewBox="0 0 24 24" aria-hidden="true">
+                            <circle class="icon-fill" cx="4.5" cy="6" r="1.25" /><circle class="icon-fill" cx="4.5" cy="12" r="1.25" /><circle class="icon-fill" cx="4.5" cy="18" r="1.25" />
+                            <path d="M8 6h12M8 12h12M8 18h12" />
                         </svg>
                     </button>
                 </div>
@@ -305,6 +350,10 @@
                             <path d="M4 12h20M8 8l-4 4 4 4M20 8l4 4-4 4" />
                         </svg>
                     </button>
+                    <button id="fullscreenDevicesToggle" class="btn btn-outline-secondary player-option fullscreen-toolbar-only" type="button"
+                            aria-expanded="false" aria-controls="fullscreenDevicesPanel" aria-label="Open devices" data-tooltip="Devices">
+                        <svg class="player-option-icon utility-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h16" /></svg>
+                    </button>
                     </div>
                     <div id="variantTogglePanel" class="variant-toggle-panel" hidden>
                         <button id="closeVariantPanel" class="btn btn-sm btn-outline-secondary icon-button variant-panel-close" type="button" aria-label="Close variant selection">
@@ -322,11 +371,21 @@
                         </div>
                         <div id="variantToggleStatus" class="variant-toggle-status small text-muted mt-2"></div>
                     </div>
+                    <section id="fullscreenDevicesPanel" class="fullscreen-panel" hidden>
+                        <div class="fullscreen-panel-title"><strong>Devices</strong><span class="small text-muted">Quick controls</span></div>
+                        <div id="fullscreenDevicesGrid" class="devices-grid fullscreen-devices-grid"></div>
+                    </section>
                 </div>
                 </div>
             </div>
             <div id="videoStage" class="video-stage">
                 <video id="videoPlayer" class="player-video" preload="auto"></video>
+                <div id="fullscreenPlaybackOverlay" class="fullscreen-playback-overlay">
+                    <section id="fullscreenPlaylistPanel" class="fullscreen-panel" hidden>
+                        <div class="fullscreen-panel-title"><strong>Playlist</strong><span id="fullscreenPlaylistCount" class="small text-muted"></span></div>
+                        <ol id="fullscreenVideoPlaylist" class="playlist fullscreen-playlist" aria-label="Fullscreen video playlist"></ol>
+                    </section>
+                </div>
                 <div id="customVideoControls" class="custom-video-controls" role="group" aria-label="Video controls">
                     <div class="custom-controls-row">
                         <button id="customPlayPause" class="custom-control-button" type="button" aria-label="Play">

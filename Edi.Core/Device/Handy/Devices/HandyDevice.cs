@@ -76,8 +76,23 @@ namespace Edi.Core.Device.Handy
         internal override void SetVariant()
         {
             _logger.LogInformation($"Setting variant for Key: {Key} with SelectedVariant: {SelectedVariant}.");
+            if (repository?.BundlerConfig.BundleVariantsTogether == true
+                && repository.BundlerConfig.DisableBundler != true
+                && IsReady)
+                return;
+
             if (repository?.BundlerConfig.DisableBundler != true || currentGallery != null)
                 upload();
+        }
+
+        public override void RefreshRepository()
+        {
+            var reloadSharedBundle =
+                repository?.BundlerConfig.BundleVariantsTogether == true
+                && repository.BundlerConfig.DisableBundler != true;
+            base.RefreshRepository();
+            if (reloadSharedBundle)
+                upload(delay: false);
         }
 
         internal override async Task applyRange()
@@ -191,7 +206,10 @@ namespace Edi.Core.Device.Handy
                     IsReady = false;
 
                     CurrentBundle = bundle ?? CurrentBundle;
-                    var blob = await uploadBlob(repository.GetBundle($"{CurrentBundle}.{selectedVariant}", "csv"));
+                    var blob = await uploadBlob(repository.GetBundle(
+                        CurrentBundle,
+                        selectedVariant,
+                        "csv"));
 
                     await pause;
 

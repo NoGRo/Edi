@@ -59,8 +59,23 @@ internal class AutoBlowDevice
 
     internal override void SetVariant()
     {
+        if (repository.BundlerConfig.BundleVariantsTogether
+            && !repository.BundlerConfig.DisableBundler
+            && IsReady)
+            return;
+
         if (!repository.BundlerConfig.DisableBundler || currentGallery != null)
             QueueUpload();
+    }
+
+    public override void RefreshRepository()
+    {
+        var reloadSharedBundle =
+            repository.BundlerConfig.BundleVariantsTogether
+            && !repository.BundlerConfig.DisableBundler;
+        base.RefreshRepository();
+        if (reloadSharedBundle)
+            QueueUpload(delay: false);
     }
 
     public override Task PlayGallery(IndexGallery gallery, long seek = 0)
@@ -158,13 +173,16 @@ internal class AutoBlowDevice
             var targetBundle = bundle ?? _currentBundle;
             var targetVariant = selectedVariant;
             var file = repository.GetBundle(
-                $"{targetBundle}.{targetVariant}",
+                targetBundle,
+                targetVariant,
                 "csv");
 
             var uploaded = await UploadBundleWithRetry(
                 Client,
                 file.OpenRead,
-                ($"EdiCurrentBundle{targetVariant}" +
+                ($"EdiCurrentBundle" +
+                 $"{(repository.BundlerConfig.BundleVariantsTogether
+                     && !repository.BundlerConfig.DisableBundler ? "variants" : targetVariant)}" +
                  $"{DateTimeOffset.UtcNow.ToUnixTimeMilliseconds()}.csv")
                     .ToLowerInvariant(),
                 source.Token);

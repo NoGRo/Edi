@@ -250,6 +250,10 @@ Channels can be specified for any Playback endpoint in two ways:
   returns `400 Bad Request` if it is empty or contains no compatible assets. A successful upload
   stops playback, replaces the complete temporary upload set, rebuilds the gallery definitions
   from it without changing the configured game path, and returns those definitions.
+- `PUT /Edi/Assets`: accepts the same multipart asset set, adds it to the existing temporary
+  upload set (overwriting only files with the same sanitized name), reloads the repositories,
+  and returns the updated definitions without stopping the current playback or changing the
+  configured game path.
 - `DELETE /Edi/Assets`: stops playback, removes all temporary uploaded assets, reloads with an
   empty upload set, and returns `204 No Content`. It does not delete assets from the configured
   game gallery or change the configured game path.

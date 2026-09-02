@@ -13,10 +13,22 @@
     const customVolume = document.getElementById('customVolume');
     const customVolumeWaves = document.getElementById('customVolumeWaves');
     const customVolumeSlash = document.getElementById('customVolumeSlash');
+    const customTime = document.getElementById('customTime');
     const customElapsed = document.getElementById('customElapsed');
     const customDuration = document.getElementById('customDuration');
+    const customProgressMode = document.getElementById('customProgressMode');
     const customSeek = document.getElementById('customSeek');
     const customFullscreen = document.getElementById('customFullscreen');
+    const discreteVideoProgress = document.getElementById('discreteVideoProgress');
+    const discretePlaylistOverlap = document.getElementById('discretePlaylistOverlap');
+    const discretePlaylistTail = document.getElementById('discretePlaylistTail');
+    const fullscreenPlaybackOverlay = document.getElementById('fullscreenPlaybackOverlay');
+    const playbackToolbar = document.getElementById('playbackToolbar');
+    const playlistPanelToggle = document.getElementById('playlistPanelToggle');
+    const devicesPanelToggle = document.getElementById('devicesPanelToggle');
+    const devicesPanel = document.getElementById('devicesPanel');
+    const playbackToolbarHome = playbackToolbar ? document.createComment('playback toolbar home') : null;
+    if (playbackToolbarHome) playbackToolbar.before(playbackToolbarHome);
     let activeTooltipButton = null;
 
     function alignTooltip(button) {
@@ -49,14 +61,8 @@
     const fileInput = document.getElementById('mediaFiles');
     const addMediaFiles = document.getElementById('addMediaFiles');
     const dropZone = document.getElementById('fileDrop');
-    const workspacePanels = document.getElementById('workspacePanels');
-    const playlistPanelContent = document.getElementById('playlistPanelContent');
-    const devicesPanelContent = document.getElementById('devicesPanelContent');
     const playlistElement = document.getElementById('videoPlaylist');
     const playlistCount = document.getElementById('playlistCount');
-    const collapsedCurrentVideo = document.getElementById('collapsedCurrentVideo');
-    const playlistToggleIcon = document.getElementById('playlistToggleIcon');
-    const devicesToggleIcon = document.getElementById('devicesToggleIcon');
     const totalPlayback = document.getElementById('totalPlayback');
     const playlistDurationTotal = document.getElementById('playlistDurationTotal');
     const loopModeIndicator = document.getElementById('loopModeIndicator');
@@ -75,10 +81,14 @@
     const playbackOptionsKey = 'edi-player-options';
     const playbackPositionsKey = 'edi-player-positions';
     const videoAudioKey = 'edi-player-video-audio';
+    const discreteProgressKey = 'edi-player-discrete-progress';
     let playbackOptions = readStoredObject(playbackOptionsKey, { autoplay: false, loop: false, resume: false, stroker: false });
     if (!['none', 'video', 'playlist'].includes(playbackOptions.loopMode)) {
         playbackOptions.loopMode = playbackOptions.loop ? 'video' : 'none';
     }
+    let discreteProgressMode = localStorage.getItem(discreteProgressKey);
+    if (!['none', 'video', 'playlist'].includes(discreteProgressMode)) discreteProgressMode = 'none';
+    let showRemainingTime = false;
     let savedPositions = readStoredObject(playbackPositionsKey, {});
     // intensity (0-100) persisted locally
     let currentIntensity = Number(localStorage.getItem('edi-player-intensity'));
@@ -107,6 +117,7 @@
     const deviceControlsHome = deviceControls ? document.createComment('device controls home') : null;
     if (deviceControlsHome) deviceControls.before(deviceControlsHome);
     let fullscreenDeviceControlsVisible = false;
+    let pointerOverFullscreenPlayback = false;
 
     function readStoredObject(key, fallback) {
         try {
@@ -164,9 +175,48 @@
         customMute.setAttribute('aria-pressed', String(muted));
     }
 
+    function renderCustomTime(position, duration) {
+        const safePosition = Math.min(duration, Math.max(0, Number.isFinite(position) ? position : 0));
+        customElapsed.textContent = showRemainingTime
+            ? `-${formatMediaTime(Math.max(0, duration - safePosition))}`
+            : formatMediaTime(safePosition);
+        customDuration.textContent = formatMediaTime(duration);
+        customTime.setAttribute('aria-pressed', String(showRemainingTime));
+        customTime.setAttribute('aria-label', showRemainingTime ? 'Show elapsed time' : 'Show remaining time');
+    }
+
+    function renderDiscreteProgress() {
+        const duration = Number.isFinite(video.duration) ? Math.max(0, video.duration) : 0;
+        const videoProgress = duration ? Math.min(1, Math.max(0, video.currentTime / duration)) : 0;
+        const durations = playlist.map(item => ediDuration(item));
+        const currentIndex = playlist.findIndex(item => item.id === currentId);
+        const playlistProgress = window.EdiPlayerTools.calculatePlaylistProgress(
+            durations, currentIndex, video.currentTime);
+        const layers = window.EdiPlayerTools.calculateProgressLayers(videoProgress, playlistProgress);
+
+        discreteVideoProgress.style.width = `${videoProgress * 100}%`;
+        discretePlaylistOverlap.style.width = `${layers.overlap * 100}%`;
+        discretePlaylistTail.style.left = `${layers.overlap * 100}%`;
+        discretePlaylistTail.style.width = `${layers.tail * 100}%`;
+        discretePlaylistTail.style.background = layers.tailType === 'video'
+            ? 'rgba(110,168,254,.58)'
+            : 'rgba(254,196,110,.62)';
+        videoStage.classList.toggle('progress-video', discreteProgressMode === 'video');
+        videoStage.classList.toggle('progress-playlist', discreteProgressMode === 'playlist');
+        customProgressMode.dataset.mode = discreteProgressMode;
+        const label = discreteProgressMode === 'none'
+            ? 'Persistent progress hidden'
+            : discreteProgressMode === 'video'
+                ? 'Persistent video progress'
+                : 'Persistent video and playlist progress';
+        customProgressMode.setAttribute('aria-label', label);
+        customProgressMode.title = label;
+    }
+
     function renderCustomControls() {
         if (!video || !customSeek) return;
         const hasVideo = Boolean(video.currentSrc || video.getAttribute('src'));
+        videoStage.classList.toggle('video-empty', !hasVideo);
         const duration = Number.isFinite(video.duration) ? Math.max(0, video.duration) : 0;
         customPlayPause.disabled = !hasVideo;
         customFullscreen.disabled = !hasVideo;
@@ -177,16 +227,16 @@
         customPlayIcon.style.display = playing ? 'none' : '';
         customPauseIcon.style.display = playing ? '' : 'none';
         customPlayPause.setAttribute('aria-label', playing ? 'Pause' : 'Play');
-        customDuration.textContent = formatMediaTime(duration);
         customSeek.max = String(duration);
         if (!customSeekDragging) {
             customSeek.value = String(Math.min(duration, Math.max(0, video.currentTime || 0)));
-            customElapsed.textContent = formatMediaTime(video.currentTime);
         }
+        renderCustomTime(customSeekDragging ? Number(customSeek.value) : video.currentTime, duration);
         customSeek.style.setProperty('--range-progress', `${duration ? Number(customSeek.value) / duration * 100 : 0}%`);
         const fullscreen = document.fullscreenElement === fullscreenTarget;
         customFullscreen.setAttribute('aria-label', fullscreen ? 'Exit fullscreen' : 'Enter fullscreen');
         renderCustomAudio();
+        renderDiscreteProgress();
     }
 
     customPlayPause?.addEventListener('click', event => {
@@ -207,11 +257,22 @@
         video.volume = Math.max(0, Math.min(1, Number(customVolume.value)));
         video.muted = video.volume === 0;
     });
+    customTime?.addEventListener('click', event => {
+        event.currentTarget.blur();
+        showRemainingTime = !showRemainingTime;
+        renderCustomControls();
+    });
+    customProgressMode?.addEventListener('click', event => {
+        event.currentTarget.blur();
+        discreteProgressMode = window.EdiPlayerTools.nextProgressMode(discreteProgressMode);
+        localStorage.setItem(discreteProgressKey, discreteProgressMode);
+        renderDiscreteProgress();
+    });
     customSeek?.addEventListener('pointerdown', () => { customSeekDragging = true; });
     customSeek?.addEventListener('input', () => {
         customSeekDragging = true;
-        customElapsed.textContent = formatMediaTime(Number(customSeek.value));
         const duration = Number(customSeek.max);
+        renderCustomTime(Number(customSeek.value), duration);
         customSeek.style.setProperty('--range-progress', `${duration ? Number(customSeek.value) / duration * 100 : 0}%`);
     });
     customSeek?.addEventListener('change', () => {
@@ -231,6 +292,55 @@
             ? document.exitFullscreen?.()
             : fullscreenTarget.requestFullscreen?.();
         change?.catch(error => report(`Could not toggle fullscreen: ${error.message}`, true));
+    });
+
+    function setSidePanelOpen(panelElement, button, open) {
+        if (!panelElement) return;
+        panelElement.hidden = !open;
+        button?.setAttribute('aria-expanded', String(open));
+        button?.setAttribute('aria-label', `${open ? 'Hide' : 'Show'} ${panelElement === dropZone ? 'playlist' : 'devices'}`);
+        if (open && document.fullscreenElement === fullscreenTarget) showFullscreenToolbar();
+    }
+
+    function toggleSidePanel(panelElement, button) {
+        setSidePanelOpen(panelElement, button, panelElement?.hidden !== false);
+    }
+
+    function hideFullscreenToolbar(force = false) {
+        if (!force && playerUiActive()) return;
+        fullscreenPlaybackOverlay?.classList.remove('visible');
+    }
+
+    function showFullscreenToolbar() {
+        if (document.fullscreenElement !== fullscreenTarget) return;
+        if (intensityHideTimer) clearTimeout(intensityHideTimer);
+        intensityHideTimer = null;
+        fullscreenPlaybackOverlay?.classList.add('visible');
+    }
+
+    function playerUiActive() {
+        const activeElement = document.activeElement;
+        return pointerOverCustomControls || pointerOverFullscreenPlayback
+            || [fullscreenPlaybackOverlay, customVideoControls, dropZone, devicesPanel, intensityOverlay]
+                .some(element => element && (element.matches(':hover') || element.contains(activeElement)));
+    }
+
+    playlistPanelToggle?.addEventListener('click', event => {
+        event.stopPropagation();
+        toggleSidePanel(dropZone, playlistPanelToggle);
+    });
+    devicesPanelToggle?.addEventListener('click', event => {
+        event.stopPropagation();
+        toggleSidePanel(devicesPanel, devicesPanelToggle);
+    });
+    fullscreenPlaybackOverlay?.addEventListener('pointerenter', () => {
+        pointerOverFullscreenPlayback = true;
+        showFullscreenToolbar();
+    });
+    fullscreenPlaybackOverlay?.addEventListener('pointerleave', () => {
+        pointerOverFullscreenPlayback = false;
+        if (intensityHideTimer) clearTimeout(intensityHideTimer);
+        intensityHideTimer = setTimeout(hidePlayerOverlay, 650);
     });
     customVideoControls?.addEventListener('pointerenter', () => {
         pointerOverCustomControls = true;
@@ -252,17 +362,13 @@
     intensityOverlay.style.position = 'fixed';
     intensityOverlay.style.top = '0';
     intensityOverlay.style.left = '0';
-    intensityOverlay.style.padding = '0.7rem 1rem';
-    intensityOverlay.style.background = 'rgba(0,0,0,0.65)';
-    intensityOverlay.style.color = 'white';
-    intensityOverlay.style.borderRadius = '0.45rem';
+    intensityOverlay.classList.add('fullscreen-control-surface');
     intensityOverlay.style.fontSize = '1.5rem';
     intensityOverlay.style.opacity = '0';
     intensityOverlay.style.pointerEvents = 'none';
     intensityOverlay.style.transition = 'opacity 180ms ease-out, transform 180ms ease-out';
     intensityOverlay.style.transform = 'scale(0.96)';
     intensityOverlay.style.zIndex = '1080';
-    intensityOverlay.style.backdropFilter = 'blur(4px)';
     intensityOverlay.style.display = 'inline-block';
     intensityOverlay.style.whiteSpace = 'nowrap';
     intensityOverlay.style.maxWidth = 'calc(100vw - 24px)';
@@ -302,12 +408,14 @@
     }
 
     let intensityHideTimer = null;
-    function hidePlayerOverlay() {
-        if (fullscreenDeviceControlsVisible) return;
+    function hidePlayerOverlay(force = false) {
+        if (fullscreenDeviceControlsVisible
+            || !force && playerUiActive()) return;
         if (intensityHideTimer) clearTimeout(intensityHideTimer);
         intensityHideTimer = null;
         intensityOverlay.style.opacity = '0';
         intensityOverlay.style.transform = 'scale(0.96)';
+        hideFullscreenToolbar(force);
     }
 
     function showPlayerOverlay(content, duration = 1000) {
@@ -405,9 +513,12 @@
         if (currentIntensity === 0) intensity.style.color = 'var(--bs-danger, #dc3545)';
         summary.append(intensity);
 
-        if (currentVariantSummary) {
+        if (currentVariantSummary?.length) {
             const variant = document.createElement('span');
-            variant.textContent = `${currentVariantSummary.side}: ${shortenOverlayText(currentVariantSummary.variant)}`;
+            const values = currentVariantSummary.slice(0, 3).map(state =>
+                `${state.side ? `${state.side}: ` : ''}${shortenOverlayText(state.variant, 18)}`);
+            if (currentVariantSummary.length > 3) values.push('…');
+            variant.textContent = values.join(' · ');
             summary.append(variant);
         }
         return summary;
@@ -430,6 +541,22 @@
         intensityOverlay.style.overflow = 'hidden';
     }
 
+    function placeFullscreenPlaybackToolbar() {
+        if (playbackToolbar && fullscreenPlaybackOverlay
+            && playbackToolbar.parentElement !== fullscreenPlaybackOverlay) {
+            fullscreenPlaybackOverlay.prepend(playbackToolbar);
+        }
+        playbackToolbar?.classList.add('fullscreen-control-surface');
+    }
+
+    function restorePlaybackToolbar() {
+        if (playbackToolbar && playbackToolbarHome?.parentNode)
+            playbackToolbarHome.after(playbackToolbar);
+        playbackToolbar?.classList.remove('fullscreen-control-surface');
+        fullscreenPlaybackOverlay?.classList.remove('visible');
+        pointerOverFullscreenPlayback = false;
+    }
+
     function showFullscreenDeviceControls() {
         if (document.fullscreenElement !== fullscreenTarget || !deviceControls || fullscreenDeviceControlsVisible) return;
         fullscreenDeviceControlsVisible = true;
@@ -445,7 +572,8 @@
 
     intensityOverlay.addEventListener('pointerenter', showFullscreenDeviceControls);
     intensityOverlay.addEventListener('pointerleave', () => {
-        if (!fullscreenDeviceControlsVisible || !document.getElementById('variantTogglePanel')?.hidden) return;
+        if (!fullscreenDeviceControlsVisible
+            || !document.getElementById('variantTogglePanel')?.hidden) return;
         restoreDeviceControls();
         fullscreenSummaryVisible = true;
         showPlayerSummary(true);
@@ -515,19 +643,22 @@
     }
 
     document.addEventListener('edi-variant-state', event => {
-        const side = event.detail?.side;
-        const variant = event.detail?.variant;
-        currentVariantSummary = ['P', 'S'].includes(side) && variant ? { side, variant } : null;
+        currentVariantSummary = Array.isArray(event.detail?.devices)
+            ? event.detail.devices.filter(state => state?.variant)
+            : [];
     });
 
     document.addEventListener('edi-variant-switched', event => {
-        const side = event.detail?.side;
-        const variant = event.detail?.variant;
-        if (!['P', 'S'].includes(side) || !variant) return;
-        currentVariantSummary = { side, variant };
+        const states = Array.isArray(event.detail?.devices)
+            ? event.detail.devices.filter(state => state?.variant)
+            : [];
+        if (!states.length) return;
+        currentVariantSummary = states;
+        const text = states.slice(0, 3).map(state =>
+            `${state.side ? `${state.side}: ` : ''}${shortenOverlayText(state.variant, 18)}`).join(' · ');
         showPlayerOverlay(createIconOverlayContent(
             document.getElementById('variantToggle'),
-            `${side}: ${shortenOverlayText(variant)}`));
+            text));
     });
 
     document.addEventListener('edi-variant-panel', event => {
@@ -860,6 +991,15 @@
         __cursorHideTimer = null;
         fullscreenTarget.classList.remove('fullscreen-cursor-hidden', 'fullscreen-cursor-visible');
     }
+    function blurFullscreenToolbarFocus() {
+        if (document.fullscreenElement !== fullscreenTarget) return;
+        const focused = document.activeElement;
+        if (focused instanceof HTMLElement && [
+            playbackToolbar,
+            deviceControls,
+            customVideoControls
+        ].some(toolbar => toolbar?.contains(focused))) focused.blur();
+    }
     function updateFullscreenCursor(overControls = false) {
         if (document.fullscreenElement !== fullscreenTarget) {
             clearFullscreenCursor();
@@ -873,13 +1013,18 @@
             return;
         }
         __cursorHideTimer = setTimeout(() => {
+            blurFullscreenToolbarFocus();
+            if (fullscreenDeviceControlsVisible) restoreDeviceControls();
+            hideControlsNow(true);
+            hidePlayerOverlay(true);
             fullscreenTarget.classList.remove('fullscreen-cursor-visible');
             fullscreenTarget.classList.add('fullscreen-cursor-hidden');
             __cursorHideTimer = null;
         }, 650);
     }
-    function hideControlsNow() {
-        if (pointerOverCustomControls) return;
+    function hideControlsNow(force = false) {
+        if (!force && playerUiActive()) return;
+        blurFullscreenToolbarFocus();
         videoStage?.classList.remove('controls-visible');
         __controlsVisible = false;
     }
@@ -914,6 +1059,10 @@
             && event.clientY >= bounds.top && event.clientY <= bounds.bottom;
         const controlsBounds = customVideoControls?.getBoundingClientRect();
         const overControls = Boolean(customVideoControls?.contains(event.target)
+            || fullscreenPlaybackOverlay?.contains(event.target)
+            || dropZone?.contains(event.target)
+            || devicesPanel?.contains(event.target)
+            || intensityOverlay?.contains(event.target)
             || controlsBounds && event.clientX >= controlsBounds.left && event.clientX <= controlsBounds.right
                 && event.clientY >= controlsBounds.top && event.clientY <= controlsBounds.bottom);
         const revealHeight = Math.max(72, (customVideoControls?.offsetHeight || 0) + 24);
@@ -922,6 +1071,7 @@
         if (fullscreen) {
             updateFullscreenCursor(overControls || withinRevealZone);
             handlePlayerSummaryMovement(overControls);
+            if (overControls) showFullscreenToolbar();
         } else {
             clearFullscreenCursor();
             handlePlayerSummaryMovement(overControls, withinStage);
@@ -1301,20 +1451,14 @@
         button.append(svg);
     }
 
-    function renderCollapsedCurrentVideo() {
-        if (!collapsedCurrentVideo) return;
-        const item = currentItem();
-        collapsedCurrentVideo.textContent = item ? `Current: ${item.name}` : 'Current: No video selected';
-        collapsedCurrentVideo.hidden = !playlistPanelContent.hidden;
-    }
-
     function renderPlaylist() {
-        playlistElement.replaceChildren();
         playlistElement.classList.toggle('playlist-scroll', playlist.length > 10);
         playlistCount.textContent = `${playlist.length} ${playlist.length === 1 ? 'video' : 'videos'}`;
         const durations = playlist.map(ediDuration).filter(Number.isFinite);
         playlistDurationTotal.textContent = formatCompactDuration(durations.reduce((total, duration) => total + duration, 0));
-        renderCollapsedCurrentVideo();
+        renderDiscreteProgress();
+
+        playlistElement.replaceChildren();
         if (!playlist.length) {
             const empty = document.createElement('li');
             empty.className = 'p-3 text-muted';
@@ -1324,59 +1468,60 @@
         }
 
         playlist.forEach(item => {
-            const row = document.createElement('li');
-            row.className = `playlist-item${item.id === currentId ? ' active' : ''}`;
-            row.draggable = true;
+                const row = document.createElement('li');
+                row.className = `playlist-item${item.id === currentId ? ' active' : ''}`;
+                row.draggable = true;
 
-            const handle = document.createElement('span');
-            handle.textContent = '↕';
-            handle.className = 'text-muted';
-            handle.title = 'Drag to reorder';
+                const handle = document.createElement('span');
+                handle.textContent = '↕';
+                handle.className = 'text-muted';
+                handle.title = 'Drag to reorder';
+                row.append(handle);
 
-            const name = document.createElement('span');
-            name.className = 'playlist-name';
-            name.textContent = item.name;
+                const name = document.createElement('span');
+                name.className = 'playlist-name';
+                name.textContent = item.name;
+                const duration = document.createElement('span');
+                duration.className = 'playlist-duration';
+                duration.textContent = formatDuration(ediDuration(item));
+                row.append(name, duration);
 
-            const duration = document.createElement('span');
-            duration.className = 'playlist-duration';
-            duration.textContent = formatDuration(ediDuration(item));
+                const remove = document.createElement('button');
+                remove.type = 'button';
+                remove.className = 'btn btn-sm btn-outline-danger icon-button';
+                appendButtonIcon(remove, 'M3.5 6.5h17M9 6.5V4h6v2.5M6.5 6.5l1 13h9l1-13M10 10v6M14 10v6');
+                remove.dataset.tooltip = 'Delete video';
+                remove.setAttribute('aria-label', `Delete ${item.name}`);
+                remove.addEventListener('click', event => {
+                    event.stopPropagation();
+                    deleteVideo(item.id).catch(error => report(`Could not delete the video: ${error.message}`, true));
+                });
+                const actions = document.createElement('div');
+                actions.className = 'playlist-item-actions';
+                actions.append(remove);
+                row.append(actions);
 
-            const remove = document.createElement('button');
-            remove.type = 'button';
-            remove.className = 'btn btn-sm btn-outline-danger icon-button';
-            appendButtonIcon(remove, 'M3.5 6.5h17M9 6.5V4h6v2.5M6.5 6.5l1 13h9l1-13M10 10v6M14 10v6');
-            remove.dataset.tooltip = 'Delete video';
-            remove.setAttribute('aria-label', `Delete ${item.name}`);
-            remove.addEventListener('click', event => {
-                event.stopPropagation();
-                deleteVideo(item.id).catch(error => report(`Could not delete the video: ${error.message}`, true));
-            });
-
-            const actions = document.createElement('div');
-            actions.className = 'playlist-item-actions';
-            actions.append(remove);
-            row.append(handle, name, duration, actions);
-            row.addEventListener('click', () => selectVideo(item.id, playbackOptions.autoplay)
-                .catch(error => report(`Could not start playback: ${error.message}`, true)));
-            row.addEventListener('dragstart', () => {
-                draggedId = item.id;
-                row.classList.add('dragging');
-            });
-            row.addEventListener('dragend', () => {
-                draggedId = null;
-                row.classList.remove('dragging');
-            });
-            row.addEventListener('dragover', event => event.preventDefault());
-            row.addEventListener('drop', event => {
-                event.preventDefault();
-                const from = playlist.findIndex(entry => entry.id === draggedId);
-                const to = playlist.findIndex(entry => entry.id === item.id);
-                if (from < 0 || to < 0 || from === to) return;
-                const [moved] = playlist.splice(from, 1);
-                playlist.splice(to, 0, moved);
-                renderPlaylist();
-            });
-            playlistElement.append(row);
+                row.addEventListener('click', () => selectVideo(item.id, playbackOptions.autoplay)
+                    .catch(error => report(`Could not start playback: ${error.message}`, true)));
+                row.addEventListener('dragstart', () => {
+                    draggedId = item.id;
+                    row.classList.add('dragging');
+                });
+                row.addEventListener('dragend', () => {
+                    draggedId = null;
+                    row.classList.remove('dragging');
+                });
+                row.addEventListener('dragover', event => event.preventDefault());
+                row.addEventListener('drop', event => {
+                    event.preventDefault();
+                    const from = playlist.findIndex(entry => entry.id === draggedId);
+                    const to = playlist.findIndex(entry => entry.id === item.id);
+                    if (from < 0 || to < 0 || from === to) return;
+                    const [moved] = playlist.splice(from, 1);
+                    playlist.splice(to, 0, moved);
+                    renderPlaylist();
+                });
+                playlistElement.append(row);
         });
     }
 
@@ -1493,12 +1638,16 @@
     addMediaFiles.addEventListener('click', () => fileInput.click());
     const clearFileDragState = () => dropZone.classList.remove('drag-over');
     window.addEventListener('dragenter', event => {
-        if (isFileDrag(event)) dropZone.classList.add('drag-over');
+        if (isFileDrag(event)) {
+            setSidePanelOpen(dropZone, playlistPanelToggle, true);
+            dropZone.classList.add('drag-over');
+        }
     }, true);
     window.addEventListener('dragover', event => {
         if (!isFileDrag(event)) return;
         event.preventDefault();
         if (event.dataTransfer) event.dataTransfer.dropEffect = 'copy';
+        setSidePanelOpen(dropZone, playlistPanelToggle, true);
         dropZone.classList.add('drag-over');
     }, true);
     window.addEventListener('dragleave', event => {
@@ -1547,6 +1696,7 @@
             fullscreenTarget.classList.remove('fullscreen-cursor-visible');
             fullscreenTarget.classList.add('fullscreen-cursor-hidden');
             resetFullscreenSummary();
+            hideFullscreenToolbar();
         } else resetFullscreenSummary();
     }
     videoStage.addEventListener('pointerleave', handleStagePointerLeave, true);
@@ -1560,11 +1710,13 @@
         const fs = document.fullscreenElement;
         if (fs === fullscreenTarget) {
             pointerOverCustomControls = false;
+            placeFullscreenPlaybackToolbar();
             hideControlsNow();
             updateFullscreenCursor(false);
         }
         else {
             restoreDeviceControls();
+            restorePlaybackToolbar();
             clearFullscreenCursor();
             resetFullscreenSummary();
         }
@@ -1700,31 +1852,6 @@
     // document.getElementById('refreshPlayer').addEventListener('click', reloadAssets);
     document.getElementById('clearPlaylist').addEventListener('click', () => {
         clearPlaylist().catch(error => report(`Could not clear the playlist: ${error.message}`, true));
-    });
-    document.getElementById('togglePlaylist').addEventListener('click', event => {
-        const collapsed = !playlistPanelContent.hidden;
-        playlistPanelContent.hidden = collapsed;
-        dropZone.classList.toggle('collapsed', collapsed);
-        workspacePanels.classList.toggle('playlist-collapsed', collapsed);
-        event.currentTarget.dataset.tooltip = collapsed ? 'Expand' : 'Collapse';
-        event.currentTarget.setAttribute('aria-label', collapsed ? 'Expand' : 'Collapse');
-        event.currentTarget.setAttribute('aria-expanded', String(!collapsed));
-        playlistToggleIcon?.setAttribute('d', collapsed
-            ? 'M5.5 9.5L12 16l6.5-6.5'
-            : 'M5.5 14.5L12 8l6.5 6.5');
-        renderCollapsedCurrentVideo();
-    });
-    document.getElementById('toggleDevices').addEventListener('click', event => {
-        const collapsed = !devicesPanelContent.hidden;
-        devicesPanelContent.hidden = collapsed;
-        document.getElementById('devicesPanel')?.classList.toggle('collapsed', collapsed);
-        workspacePanels.classList.toggle('devices-collapsed', collapsed);
-        event.currentTarget.dataset.tooltip = collapsed ? 'Expand' : 'Collapse';
-        event.currentTarget.setAttribute('aria-label', collapsed ? 'Expand' : 'Collapse');
-        event.currentTarget.setAttribute('aria-expanded', String(!collapsed));
-        devicesToggleIcon?.setAttribute('d', collapsed
-            ? 'M5.5 9.5L12 16l6.5-6.5'
-            : 'M5.5 14.5L12 8l6.5 6.5');
     });
     Object.entries(optionButtons).forEach(([name, button]) => {
         button.addEventListener('click', () => togglePlaybackOption(name));

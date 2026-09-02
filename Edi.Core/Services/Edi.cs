@@ -132,6 +132,12 @@ namespace Edi.Core
             Player.ResetChannels(Config.Channels.ToList());
         }
 
+        public async Task ReloadAssets(string path)
+        {
+            GalleryPath = path;
+            await _repositoryManager.ChangePath(path);
+        }
+
         public async Task InitDevices()
         {
             await DeviceCollector.Refresh();

@@ -64,10 +64,10 @@
         "OffsetMS": null
       },
       "AutoBlow [ibjckz1x0q91]": {
-        "Variant": "default",
+        "Variant": "None",
         "Channel": null,
         "Min": 0,
-        "Max": 100,
+        "Max": 10,
         "OffsetMS": -100
       },
       "The Handy [PiBnz]": {
@@ -78,28 +78,28 @@
         "OffsetMS": null
       },
       "Lovense Edge Vibrate: 1": {
-        "Variant": "vib",
+        "Variant": "None",
         "Channel": null,
         "Min": 0,
         "Max": 100,
         "OffsetMS": null
       },
       "Lovense Edge Vibrate: 2": {
-        "Variant": "default",
+        "Variant": "L1",
         "Channel": null,
         "Min": 0,
         "Max": 100,
         "OffsetMS": null
       },
       "Lovense Gemini Vibrate: 1": {
-        "Variant": "default",
+        "Variant": "Edge",
         "Channel": null,
         "Min": 0,
         "Max": 100,
         "OffsetMS": null
       },
       "Lovense Gemini Vibrate: 2": {
-        "Variant": "default",
+        "Variant": "Edge",
         "Channel": null,
         "Min": 0,
         "Max": 100,

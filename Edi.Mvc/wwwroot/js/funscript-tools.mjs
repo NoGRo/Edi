@@ -196,6 +196,56 @@ export function conceptualSelectionForPhysical(variant) {
     return automatic ? `auto:${automatic.kind}` : variant ? `real:${variant}` : '';
 }
 
+const isConceptualSelection = value => typeof value === 'string'
+    && (/^real:.+/.test(value) || /^auto:(double|halve)$/.test(value));
+
+export function initializeDeviceVariantPair(existing, variants, selectedVariant, defaults = {}) {
+    const stored = existing && typeof existing === 'object' ? existing : {};
+    const available = [...new Set((variants || []).filter(Boolean))];
+    const availableSelection = value => {
+        if (!isConceptualSelection(value)) return false;
+        if (value.startsWith('auto:')) return true;
+        return available.includes(value.slice(5));
+    };
+    const namedDefault = available.find(value => value.toLowerCase() === 'default');
+    const first = namedDefault
+        || (selectedVariant !== 'None' && available.includes(selectedVariant) ? selectedVariant : '')
+        || available.find(value => value !== 'None')
+        || available[0]
+        || '';
+
+    // A stored choice is intentionally preserved even while the device stops advertising it.
+    // Refreshes describe availability; only an explicit user edit owns these preferences.
+    const primary = isConceptualSelection(stored.primary)
+        ? stored.primary
+        : availableSelection(defaults.primary) ? defaults.primary
+            : first ? `real:${first}` : '';
+    const alternate = available.find(value => `real:${value}` !== primary && value !== 'None');
+    const secondary = isConceptualSelection(stored.secondary)
+        ? stored.secondary
+        : availableSelection(defaults.secondary) && defaults.secondary !== primary
+            ? defaults.secondary
+            : alternate ? `real:${alternate}`
+                : primary !== 'auto:double' ? 'auto:double' : 'auto:halve';
+
+    return { ...stored, primary, secondary };
+}
+
+export function changeDeviceVariantPair(pair, side, value) {
+    if (!['primary', 'secondary'].includes(side)) throw new Error(`Unknown variant side: ${side}`);
+    if (!isConceptualSelection(value)) throw new Error('A variant must be selected.');
+    const otherSide = side === 'primary' ? 'secondary' : 'primary';
+    const next = { ...pair };
+    const previous = next[side];
+    next[side] = value;
+    if (next[otherSide] === value) {
+        if (!isConceptualSelection(previous) || previous === value)
+            throw new Error('Primary and Secondary must be different.');
+        next[otherSide] = previous;
+    }
+    return next;
+}
+
 export function parseFunscriptName(fileName) {
     const stem = fileName.replace(/\.funscript$/i, '');
     const parts = stem.split('.');

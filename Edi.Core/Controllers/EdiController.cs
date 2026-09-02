@@ -14,8 +14,22 @@ namespace Edi.Core.Controllers
 {
     [ApiController]
     [Route("[controller]")]
-    public class EdiController(IEdi edi, ConfigurationManager configurationManager) : ControllerBase
+    public class EdiController : ControllerBase
     {
+        private readonly IEdi edi;
+        private readonly string uploadPath;
+
+        public EdiController(IEdi edi, ConfigurationManager configurationManager)
+            : this(edi, Path.Combine(Core.Edi.OutputDir, "Upload"))
+        {
+        }
+
+        internal EdiController(IEdi edi, string uploadPath)
+        {
+            this.edi = edi;
+            this.uploadPath = uploadPath;
+        }
+
         private string[] GetChannels()
         {
             // Primero intenta obtener channels de la query string
@@ -85,7 +99,6 @@ namespace Edi.Core.Controllers
         public IActionResult Get()
         {
             var galleryPath = edi.GalleryPath;
-            var uploadPath = Path.Combine(Core.Edi.OutputDir, "Upload");
             var allFiles  =  new List<string>();
             if (Directory.Exists(galleryPath))
             {
@@ -117,7 +130,7 @@ namespace Edi.Core.Controllers
                 return BadRequest("No EDI-compatible assets were selected.");
             }
 
-            var folderPath = Path.Combine(Core.Edi.OutputDir, "Upload");
+            var folderPath = uploadPath;
             await edi.Player.Stop();
             if (Directory.Exists(folderPath))
                 Directory.Delete(folderPath, recursive: true);
@@ -134,11 +147,41 @@ namespace Edi.Core.Controllers
             return Ok(edi.Definitions.Select(x=> new DefinitionResponseDto(x)));
         }
 
+        [HttpPut("Assets")]
+        [SwaggerOperation(Summary = "Adds EDI assets to the existing upload set without stopping playback.")]
+        public async Task<ActionResult<IEnumerable<DefinitionResponseDto>>> UpdateAssets([FromForm] List<IFormFile> files)
+        {
+            if (files == null || files.Count == 0)
+            {
+                return BadRequest("No files were selected.");
+            }
+
+            var assets = files
+                .Where(file => IsRecognizedAssetFileName(file.FileName))
+                .ToList();
+            if (assets.Count == 0)
+            {
+                return BadRequest("No EDI-compatible assets were selected.");
+            }
+
+            Directory.CreateDirectory(uploadPath);
+            foreach (var file in assets)
+            {
+                var safeFileName = Path.GetFileName(file.FileName);
+                var filePath = Path.Combine(uploadPath, safeFileName);
+                await using var stream = new FileStream(filePath, FileMode.Create);
+                await file.CopyToAsync(stream);
+            }
+
+            await edi.ReloadAssets(uploadPath);
+            return Ok(edi.Definitions.Select(x => new DefinitionResponseDto(x)));
+        }
+
         [HttpDelete("Assets")]
         [SwaggerOperation(Summary = "Deletes uploaded EDI assets and clears gallery definitions.")]
         public async Task<IActionResult> DeleteAssets()
         {
-            var folderPath = Path.Combine(Core.Edi.OutputDir, "Upload");
+            var folderPath = uploadPath;
             await edi.Player.Stop();
             if (Directory.Exists(folderPath))
                 Directory.Delete(folderPath, recursive: true);

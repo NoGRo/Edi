@@ -1,9 +1,11 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
-    autoVariantName, buildRelevantDeviceCache, conceptualSelectionForPhysical,
+    autoVariantName, buildRelevantDeviceCache, changeDeviceVariantPair,
+    conceptualSelectionForPhysical,
     generatedFunscriptName, getDoubleSpeedScript, getHalfSpeedScript,
-    isAutoVariant, listOriginalVariants, parseFunscriptName, switchRelevantDeviceCache
+    initializeDeviceVariantPair, isAutoVariant, listOriginalVariants,
+    parseFunscriptName, switchRelevantDeviceCache
 } from '../wwwroot/js/funscript-tools.mjs';
 
 test('Auto Double preserves order, input, extrema, and has no synthetic +10ms point', () => {
@@ -59,4 +61,34 @@ test('repeated switches update and reuse cached device state', async () => {
     assert.deepEqual(calls, [
         ['A', 'Auto'], ['B', 'Normal'], ['A', 'Normal'], ['B', 'Auto']
     ]);
+});
+
+test('per-device variant choices survive temporary device refresh changes', () => {
+    const saved = { primary: 'real:Fast', secondary: 'real:Slow' };
+    assert.deepEqual(
+        initializeDeviceVariantPair(saved, ['Default'], 'Default', {
+            primary: 'real:Default', secondary: 'auto:double'
+        }),
+        saved);
+    assert.deepEqual(
+        initializeDeviceVariantPair(saved, ['Default', 'Fast', 'Slow'], 'Default'),
+        saved);
+});
+
+test('new devices get their own pair without sharing mutable state', () => {
+    const first = initializeDeviceVariantPair({}, ['Default', 'Fast'], 'Default');
+    const second = initializeDeviceVariantPair({}, ['Default', 'Slow'], 'Slow');
+    assert.deepEqual(first, { primary: 'real:Default', secondary: 'real:Fast' });
+    assert.deepEqual(second, { primary: 'real:Default', secondary: 'real:Slow' });
+    first.primary = 'real:Fast';
+    assert.equal(second.primary, 'real:Default');
+});
+
+test('choosing an occupied side swaps the previous value instead of clearing it', () => {
+    assert.deepEqual(changeDeviceVariantPair(
+        { primary: 'real:Default', secondary: 'real:Fast' },
+        'primary',
+        'real:Fast'), {
+        primary: 'real:Fast', secondary: 'real:Default'
+    });
 });

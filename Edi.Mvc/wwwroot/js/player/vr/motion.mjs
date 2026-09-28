@@ -42,10 +42,31 @@ export function stickAction(axes, target = 'intensity') {
         : Math.sign(value) * (Math.abs(value) - deadzone) / (1 - deadzone) };
 }
 
+// Quest thumbsticks reach their full reported range with little physical travel.
+// A power curve keeps the center precise while preserving deliberate full-range changes.
+export function intensityStickVelocity(value) {
+    return Math.sign(value) * Math.pow(Math.abs(value), 1.7) * 18;
+}
+
+export function gripStickAction(axes) {
+    const x = axes?.[2] || 0, y = -(axes?.[3] || 0), deadzone = .22;
+    const normalize = value => Math.abs(value) <= deadzone ? 0
+        : Math.sign(value) * (Math.abs(value) - deadzone) / (1 - deadzone);
+    return { curve: normalize(x), scale: normalize(y) };
+}
+
+export function horizontalStick(axes, mapping = '') {
+    if (!axes?.length) return 0;
+    const candidates = mapping === 'xr-standard' ? [axes[2] || 0] : [axes[0] || 0, axes[2] || 0];
+    const value = candidates.reduce((strongest, candidate) => Math.abs(candidate) > Math.abs(strongest) ? candidate : strongest, 0);
+    return Math.abs(value) >= .65 ? Math.sign(value) : 0;
+}
+
 export function controllerButtons(source, previous = []) {
     const gamepad = source?.gamepad;
     const known = gamepad?.mapping === 'xr-standard';
     const pressed = index => Boolean(known && gamepad.buttons[index]?.pressed);
-    const buttons = [pressed(4), pressed(5)]; // A/B (right), X/Y (left) on Touch.
-    return { buttons, primary: buttons[0] && !previous[0], variant: buttons[1] && !previous[1] };
+    const buttons = [pressed(4), pressed(5), pressed(3)]; // A/B + thumbstick on Touch.
+    return { buttons, primary: buttons[0] && !previous[0], variant: buttons[1] && !previous[1],
+        stick: buttons[2] && !previous[2] };
 }

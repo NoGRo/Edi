@@ -39,6 +39,10 @@ export function createFullscreen({ elements, presentation, hidePlayerOverlay, re
 
     function showFullscreenToolbar() {
         if (document.fullscreenElement !== fullscreenTarget) return;
+        // The top-right summary sits above the side panels. Desktop hover usually
+        // replaces it in time, but Quest ray clicks can keep targeting that old
+        // surface. Remove it before exposing any interactive fullscreen control.
+        resetFullscreenSummary();
         if (presentation.intensityHideTimer) clearTimeout(presentation.intensityHideTimer);
         presentation.intensityHideTimer = null;
         fullscreenPlaybackOverlay?.classList.add('visible');

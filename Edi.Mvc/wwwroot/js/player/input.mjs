@@ -1,5 +1,6 @@
 import { isFileDrag } from './media-files.mjs';
 import { report } from './edi-api.mjs';
+import { horizontalStick } from './vr/motion.mjs';
 
 export function createInput({ state, media, elements, setIntensity, handleStrokerInput, addFiles, setSidePanelOpen, stopEdi, currentItem, clearPlaylist, togglePlaybackOption, deleteVideo }) {
     const { optionButtons } = elements;
@@ -9,6 +10,20 @@ export function createInput({ state, media, elements, setIntensity, handleStroke
     let suppressNextPlaybackVideoClick = false;
 
     let activeTooltipButton = null;
+    const gamepadVariantLatch = new Map();
+
+    function pollGamepads() {
+        if (elements.enterVr?.getAttribute('aria-pressed') !== 'true') {
+            for (const gamepad of navigator.getGamepads?.() || []) {
+                if (!gamepad || gamepad.mapping === 'xr-standard') continue;
+                const sideways = horizontalStick(gamepad.axes, gamepad.mapping);
+                if (sideways && !gamepadVariantLatch.get(gamepad.index))
+                    video.dispatchEvent(new MouseEvent('mousedown', { button: 2, cancelable: true }));
+                gamepadVariantLatch.set(gamepad.index, sideways);
+            }
+        }
+        window.requestAnimationFrame(pollGamepads);
+    }
 
     function alignTooltip(button) {
         const bounds = button.getBoundingClientRect();
@@ -143,6 +158,7 @@ export function createInput({ state, media, elements, setIntensity, handleStroke
     const clearFileDragState = () => dropZone.classList.remove('drag-over');
 
     function mount() {
+        window.requestAnimationFrame(pollGamepads);
         document.addEventListener('pointerover', event => {
             const button = event.target instanceof Element ? event.target.closest('button[data-tooltip]') : null;
             if (!button || button === activeTooltipButton) return;

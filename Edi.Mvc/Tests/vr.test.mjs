@@ -1,7 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { detectVideoFormat, eyeUv, eyeAspect } from '../wwwroot/js/player/vr/format.mjs';
-import { constrainPlacement, controllerButtons, createStillnessGate, easingAlpha, stickAction } from '../wwwroot/js/player/vr/motion.mjs';
+import { constrainPlacement, controllerButtons, createStillnessGate, easingAlpha, gripStickAction,
+    horizontalStick, intensityStickVelocity, stickAction } from '../wwwroot/js/player/vr/motion.mjs';
 import { videoGeometry } from '../wwwroot/js/player/vr/video-surface.mjs';
 
 test('VR filename conventions detect only flat mono or side-by-side screens', () => {
@@ -39,6 +40,17 @@ test('video geometry stays a simple flat plane with separate SBS eye UVs', () =>
     });
 });
 
+test('video curvature bends only the horizontal plane and remains bounded', () => {
+    const flat = videoGeometry({ videoWidth: 1920, videoHeight: 1080 }, { stereo: 'mono', width: 2.4, curvature: 0 }, 0);
+    const curved = videoGeometry({ videoWidth: 1920, videoHeight: 1080 }, { stereo: 'mono', width: 2.4, curvature: 1.6 }, 0);
+    assert.equal(flat.attributes.position.count, 4);
+    assert.ok(curved.attributes.position.count > flat.attributes.position.count);
+    const position = curved.attributes.position;
+    assert.ok(position.getZ(0) < 0);
+    assert.equal(new Set(Array.from({ length: position.count }, (_, index) => position.getY(index))).size, 2);
+    flat.dispose(); curved.dispose();
+});
+
 test('head follow waits for stillness, tolerates micro motion and resets after cumulative turns', () => {
     const gate = createStillnessGate();
     const pose = yaw => ({ position: [0, 1.6, 0], rotation: [0, Math.sin(yaw / 2), 0, Math.cos(yaw / 2)] });
@@ -72,6 +84,21 @@ test('stick intensity is the default; horizontal seek requires the explicit vide
     assert.deepEqual(stickAction([0, 0, 0, 1]), { kind: 'intensity', value: -1 });
 });
 
+test('Quest intensity uses a fine center curve and a limited full-stick speed', () => {
+    assert.equal(intensityStickVelocity(0), 0);
+    assert.ok(intensityStickVelocity(.25) < 2);
+    assert.ok(intensityStickVelocity(-.25) > -2);
+    assert.equal(intensityStickVelocity(1), 18);
+    assert.equal(intensityStickVelocity(-1), -18);
+});
+
+test('grip stick separates size and curve while a lateral stick has a deliberate threshold', () => {
+    assert.deepEqual(gripStickAction([0, 0, .61, -.61]), { curve: .5, scale: .5 });
+    assert.equal(horizontalStick([.64, 0, 0, 0], 'standard'), 0);
+    assert.equal(horizontalStick([-.8, 0, .7, 0], 'standard'), -1);
+    assert.equal(horizontalStick([0, 0, .8, 0], 'xr-standard'), 1);
+});
+
 test('A/B are rising-edge actions and unsupported gamepad layouts are ignored', () => {
     const source = { gamepad: { mapping: 'xr-standard', buttons: Array.from({ length: 6 }, () => ({ pressed: false })) } };
     source.gamepad.buttons[4].pressed = true;
@@ -79,6 +106,8 @@ test('A/B are rising-edge actions and unsupported gamepad layouts are ignored', 
     assert.equal(controllerButtons(source, [true, false]).primary, false);
     source.gamepad.buttons[5].pressed = true;
     assert.equal(controllerButtons(source, [true, false]).variant, true);
+    source.gamepad.buttons[3].pressed = true;
+    assert.equal(controllerButtons(source, [true, true, false]).stick, true);
     source.gamepad.mapping = '';
     assert.equal(controllerButtons(source).primary, false);
     assert.equal(controllerButtons(source).variant, false);

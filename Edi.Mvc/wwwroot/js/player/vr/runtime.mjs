@@ -1,7 +1,8 @@
 import * as THREE from '../../../lib/vr/three.module.min.js';
 import { createVideoSurface } from './video-surface.mjs';
 import { createHtmlPanels } from './html-panels.mjs';
-import { clamp, constrainPlacement, controllerButtons, createStillnessGate, easingAlpha, stickAction } from './motion.mjs';
+import { clamp, constrainPlacement, controllerButtons, createStillnessGate, easingAlpha,
+    gripStickAction, horizontalStick, intensityStickVelocity, stickAction } from './motion.mjs';
 
 export async function createVrRuntime({ session, elements, preferences, state, setIntensity,
     exit, onPlacement, onFormat, onPrimary, onVariant, onError }) {
@@ -31,6 +32,7 @@ export async function createVrRuntime({ session, elements, preferences, state, s
     const controllers = [];
     let panels, disposed = false, placed = false, catchingUp = false, grab = null;
     let lastTime = null, lastStickTime = 0, stickAccumulator = 0, lastStickKind = null;
+    let lastSurfaceUpdate = 0;
     let snapshotErrorReported = false, frameErrorReported = false;
     let diagnosticStarted = performance.now(), diagnosticFrames = 0;
     const diagnostics = { active: true, frames: 0, fps: 0, lastFrameMs: 0, maxFrameMs: 0,
@@ -102,7 +104,7 @@ export async function createVrRuntime({ session, elements, preferences, state, s
     function finishGrab(controller, kind) {
         if (grab?.controller !== controller || grab.kind !== kind) return;
         scene.updateMatrixWorld(true); moveGrab();
-        const moved = grab.moved;
+        const moved = grab.moved || grab.adjusted;
         grab = null;
         captureRelative();
         if (moved) {
@@ -163,7 +165,7 @@ export async function createVrRuntime({ session, elements, preferences, state, s
                 stickAccumulator = 0; lastStickTime = now;
             }
         } else if (state.intensityEnabled) {
-            stickAccumulator += action.value * dt * 30;
+            stickAccumulator += intensityStickVelocity(action.value) * dt;
             if (now - lastStickTime >= .08 && Math.abs(stickAccumulator) >= 1) {
                 const step = Math.trunc(stickAccumulator);
                 const value = clamp(state.currentIntensity + step, 0, 100);
@@ -171,6 +173,19 @@ export async function createVrRuntime({ session, elements, preferences, state, s
                 if (value !== state.currentIntensity) void setIntensity(value);
             }
         }
+    }
+    function applyGripStick(controller, dt, now) {
+        if (grab?.controller !== controller) return;
+        const action = gripStickAction(controller.source.gamepad?.axes);
+        if ((!action.scale && !action.curve) || now - lastSurfaceUpdate < 1 / 20) return;
+        const elapsed = lastSurfaceUpdate ? Math.min(.1, now - lastSurfaceUpdate) : dt;
+        const width = clamp(preferences.width + action.scale * elapsed * 1.5, .4, 6);
+        const curvature = clamp(preferences.curvature + action.curve * elapsed * .9, 0, 1.6);
+        if (width === preferences.width && curvature === preferences.curvature) return;
+        preferences.width = width; preferences.curvature = curvature;
+        grab.adjusted = true;
+        lastSurfaceUpdate = now;
+        video.rebuild();
     }
     function follow(now, dt) {
         const ready = gate.ready(now, { position: head.position.toArray(), rotation: head.rotation.toArray() }, preferences.followDelay);
@@ -234,8 +249,21 @@ export async function createVrRuntime({ session, elements, preferences, state, s
             if (buttons.primary) onPrimary();
             if (buttons.variant) onVariant();
             if (controller.source.gamepad?.mapping === 'xr-standard') {
-                const action = stickAction(controller.source.gamepad.axes, targetKind(target));
-                if (action.value && (!activeStick || controller.source.handedness === 'right')) activeStick = action;
+                if (buttons.stick && grab?.controller === controller) {
+                    grab = null; recenterVideo(); onPlacement();
+                }
+                if (grab?.controller === controller) {
+                    applyGripStick(controller, dt, now);
+                    controller.variantStick = 0;
+                } else {
+                    const sideways = horizontalStick(controller.source.gamepad.axes, 'xr-standard');
+                    if (sideways && !controller.variantStick) onVariant();
+                    controller.variantStick = sideways;
+                    if (!sideways) {
+                        const action = stickAction(controller.source.gamepad.axes, targetKind(target));
+                        if (action.value && (!activeStick || controller.source.handedness === 'right')) activeStick = action;
+                    }
+                }
             }
         }
         panels.hover(hovered);
@@ -303,7 +331,7 @@ export async function createVrRuntime({ session, elements, preferences, state, s
             object.add(line, dot); scene.add(object);
             line.visible = dot.visible = false;
             const controller = { object, grip, line, dot, hitPoint: new THREE.Vector3(), source: null, press: null,
-                previousButtons: [], listeners: [], posePosition: new THREE.Vector3(), previousPosition: new THREE.Vector3(),
+                previousButtons: [], variantStick: 0, listeners: [], posePosition: new THREE.Vector3(), previousPosition: new THREE.Vector3(),
                 poseRotation: new THREE.Quaternion(), previousRotation: new THREE.Quaternion(), poseReady: false, lastActivity: 0 };
             const listen = (type, listener) => { object.addEventListener(type, listener); controller.listeners.push([type, listener]); };
             listen('connected', event => {
@@ -330,7 +358,7 @@ export async function createVrRuntime({ session, elements, preferences, state, s
         return { dispose, recenterVideo, rebuildVideo: video.rebuild, toggleMenus,
             settingsChanged(key) {
                 if (key === 'follow') captureRelative();
-                else if (['width', 'stereo', 'swapEyes', 'halfResolution'].includes(key)) video.rebuild();
+                else if (['width', 'curvature', 'stereo', 'swapEyes', 'halfResolution'].includes(key)) video.rebuild();
                 if (['distance', 'offsetX', 'offsetY'].includes(key)) recenterVideo();
                 gate.reset();
             }

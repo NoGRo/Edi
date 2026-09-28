@@ -49,6 +49,12 @@ test('fullscreen inactivity pauses while the pointer is over controls', () => {
     assert.doesNotMatch(markup, /fullscreen-playback-overlay:hover/);
 });
 
+test('showing fullscreen controls clears the high-layer summary before accepting input', () => {
+    const body = player.match(/function showFullscreenToolbar\(\) \{([\s\S]*?)\n    \}/)?.[1] || '';
+    assert.ok(body.indexOf('resetFullscreenSummary()') >= 0);
+    assert.ok(body.indexOf('resetFullscreenSummary()') < body.indexOf("classList.add('visible')"));
+});
+
 test('empty stage fills the available viewport and panels cannot scroll sideways', () => {
     assert.match(markup, /\.video-stage\.video-empty \{[^}]+height: calc\(100dvh - 8rem\)/);
     assert.match(markup, /\.video-side-panel \{[^}]+overflow-x: hidden/);

@@ -27,6 +27,10 @@
 .vr-fullscreen-surface > .player-toolbar { position: absolute; z-index: 8; top: 12px; left: 12px; width: max-content; padding: .7rem 1rem; border-radius: .45rem; background: rgba(0,0,0,.65); }
 .vr-fullscreen-surface > .variant-toggle-wrap { position: absolute; z-index: 9; top: 12px; right: 12px; display: flex; width: auto; padding: .7rem 1rem; border-radius: .45rem; background: rgba(0,0,0,.65); }
 .vr-fullscreen-surface .variant-toggle-panel { position: absolute; top: calc(100% + .55rem); right: 0; left: auto; width: 520px; margin: 0; }
+
+#vrFollowToggle .vr-lock-closed { display: none; }
+#vrFollowToggle[aria-pressed="true"] .vr-lock-closed { display: inline; }
+#vrFollowToggle[aria-pressed="true"] .vr-lock-open { display: none; }
 .vr-fullscreen-surface > .custom-video-controls { position: absolute; right: 12px; bottom: 12px; left: 12px; width: auto; margin: 0; }
 .vr-fullscreen-surface > .video-side-panel { position: absolute; top: 76px; width: calc(50% - 18px); max-height: calc(100% - 158px); margin: 0; }
 .vr-fullscreen-surface > .playlist-panel { left: 12px; }

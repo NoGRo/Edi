@@ -14,10 +14,11 @@ export function createVrMenu({ elements, preferences, onChange, onRecenter, onEx
             <label class="vr-check"><input type="checkbox" data-vr-setting="halfResolution"> Half size packing (HSBS)</label>
             <span class="small text-muted">Restores the screen aspect of compressed stereo frames.</span>
             <label>Width <output data-vr-value="width"></output><input type="range" min="0.4" max="6" step="0.05" data-vr-setting="width"></label>
+            <label>Horizontal curve <output data-vr-value="curvature"></output><input type="range" min="0" max="1.6" step="0.05" data-vr-setting="curvature"></label>
             <label>Distance <output data-vr-value="distance"></output><input type="range" min="0.45" max="8" step="0.05" data-vr-setting="distance"></label>
             <label>Horizontal offset <output data-vr-value="offsetX"></output><input type="range" min="-3" max="3" step="0.05" data-vr-setting="offsetX"></label>
             <label>Vertical offset <output data-vr-value="offsetY"></output><input type="range" min="-3" max="3" step="0.05" data-vr-setting="offsetY"></label>
-            <label class="vr-check"><input type="checkbox" data-vr-setting="follow"> Delayed head follow 🔒</label>
+            <label class="vr-check"><input type="checkbox" data-vr-setting="follow"> Delayed head follow</label>
             <span class="small text-muted">Keeps your chosen view position after you stop moving.</span>
             <label>Wait <output data-vr-value="followDelay"></output><input type="range" min="0.5" max="5" step="0.1" data-vr-setting="followDelay"></label>
             <label>Smoothing <output data-vr-value="followEase"></output><input type="range" min="0.15" max="2" step="0.05" data-vr-setting="followEase"></label>
@@ -25,14 +26,15 @@ export function createVrMenu({ elements, preferences, onChange, onRecenter, onEx
         <p class="small text-muted vr-help">Grip: point at the video and hold to move it; the screen stays facing you.<br>
             Trigger: click a control; hold the video to move it; tap the video or empty space to show/hide every panel.<br>
             The blue dot is the exact HTML click point.<br>
-            A/X: player mouse action · B/Y: variant · Stick: intensity; point at video controls to seek, or volume to change volume.</p>
+            A/X: player mouse action · B/Y or stick sideways: variant · Stick vertical: intensity.<br>
+            Grip + stick: vertical changes size, horizontal changes curve; click the stick to recenter.</p>
         <div class="d-flex gap-2"><button type="button" class="btn btn-primary" data-vr-recenter>Recenter video</button>
             <button type="button" class="btn btn-outline-secondary" data-vr-auto>Detect filename</button>
             <button type="button" class="btn btn-outline-danger" data-vr-exit>Exit VR</button></div>`;
     elements.videoStage.append(root);
     const fields = [...root.querySelectorAll('[data-vr-setting]')];
     const formatFields = new Set(['stereo', 'swapEyes', 'halfResolution']);
-    const units = { width: ' m', distance: ' m', offsetX: ' m', offsetY: ' m', followDelay: ' s', followEase: ' s' };
+    const units = { width: ' m', curvature: ' rad', distance: ' m', offsetX: ' m', offsetY: ' m', followDelay: ' s', followEase: ' s' };
     const status = root.querySelector('#vrStatus');
     function render() {
         for (const field of fields) {
@@ -45,6 +47,8 @@ export function createVrMenu({ elements, preferences, onChange, onRecenter, onEx
         elements.vrFollowToggle.setAttribute('aria-pressed', String(preferences.follow));
         elements.vrFollowToggle.classList.toggle('btn-primary', preferences.follow);
         elements.vrFollowToggle.classList.toggle('btn-outline-secondary', !preferences.follow);
+        elements.vrFollowToggle.setAttribute('aria-label', preferences.follow ? 'Unlock screen from gaze' : 'Lock screen to gaze');
+        elements.vrFollowToggle.setAttribute('title', preferences.follow ? 'Unlock screen from gaze' : 'Lock screen to gaze');
     }
     for (const field of fields) field.addEventListener('input', () => {
         const key = field.dataset.vrSetting;

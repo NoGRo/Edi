@@ -3,7 +3,19 @@ import { eyeAspect, eyeUv } from './format.mjs';
 
 export function videoGeometry(video, settings, eye) {
     const aspect = eyeAspect(video.videoWidth, video.videoHeight, settings);
-    const geometry = new THREE.PlaneGeometry(settings.width, settings.width / aspect);
+    const curvature = Math.max(0, Math.min(1.6, Number(settings.curvature) || 0));
+    const geometry = new THREE.PlaneGeometry(settings.width, settings.width / aspect, curvature ? 32 : 1, 1);
+    if (curvature) {
+        const position = geometry.attributes.position;
+        const radius = settings.width / curvature;
+        for (let index = 0; index < position.count; index++) {
+            const angle = position.getX(index) / radius;
+            position.setX(index, Math.sin(angle) * radius);
+            position.setZ(index, radius * (Math.cos(angle) - 1));
+        }
+        position.needsUpdate = true;
+        geometry.computeVertexNormals();
+    }
     const uv = geometry.attributes.uv;
     const side = settings.swapEyes ? 1 - eye : eye;
     const insetU = video.videoWidth > 0 ? .5 / video.videoWidth : 0;

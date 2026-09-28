@@ -4,7 +4,7 @@ import { report } from '../edi-api.mjs';
 
 const preferenceKey = 'edi-player-vr';
 const defaults = { width: 2.4, distance: 2, offsetX: 0, offsetY: 0,
-    follow: false, followDelay: 2, followEase: .6 };
+    curvature: 0, follow: false, followDelay: 2, followEase: .6 };
 
 export function createImmersive({ state, elements, currentItem, setIntensity }) {
     let stored;
@@ -13,6 +13,7 @@ export function createImmersive({ state, elements, currentItem, setIntensity }) 
     const formats = stored?.formats && typeof stored.formats === 'object' && !Array.isArray(stored.formats) ? { ...stored.formats } : {};
     // Validate saved numbers before they reach geometry or motion calculations.
     for (const [key, min, max] of [['width', .4, 6], ['distance', .45, 8], ['offsetX', -3, 3],
+        ['curvature', 0, 1.6],
         ['offsetY', -3, 3], ['followDelay', .5, 5], ['followEase', .15, 2]]) {
         preferences[key] = Number.isFinite(Number(preferences[key]))
             ? Math.max(min, Math.min(max, Number(preferences[key]))) : defaults[key];
@@ -90,7 +91,7 @@ export function createImmersive({ state, elements, currentItem, setIntensity }) 
             });
             if (!session) { runtime?.dispose(); runtime = null; return; }
             elements.enterVr.setAttribute('aria-pressed', 'true');
-            menu.setStatus('Grip moves the video while it stays facing you. A short trigger away from controls toggles every panel.');
+            menu.setStatus('Grip moves the video. While gripping, the stick changes size/curve and clicking it recenters.');
         } catch (error) {
             const failedSession = session;
             if (failedSession) { try { await failedSession.end(); } catch { cleanup(); } }

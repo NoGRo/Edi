@@ -230,12 +230,12 @@ test('immersive session renders, uses configured A/B actions and restores the de
     await page.evaluate(() => {
         window.fakeXr.source.gamepad.axes[3] = 0;
         document.querySelector('#videoPlayer').currentTime = 0;
+        window.mouseButtons = [];
         window.fakeXr.pointControl('#customTime');
         window.fakeXr.source.gamepad.axes[2] = 1;
     });
-    await page.waitForFunction(() => document.querySelector('#videoPlayer').currentTime > .1);
-    await page.evaluate(() => { window.fakeXr.source.gamepad.axes[2] = -1; });
-    await page.waitForFunction(() => document.querySelector('#videoPlayer').currentTime === 0);
+    await page.waitForFunction(() => window.mouseButtons.includes(2));
+    assert.equal(await page.locator('#videoPlayer').evaluate(video => video.currentTime), 0);
     assert.equal(await page.evaluate(() => Number(localStorage.getItem('edi-player-intensity'))), intensity);
     await page.evaluate(() => {
         window.fakeXr.source.gamepad.axes[2] = 0;

@@ -1,12 +1,12 @@
 document.addEventListener('DOMContentLoaded', async () => {
     const {
-        autoVariantName, changeDeviceVariantPair, generatedFunscriptName,
-        getDoubleSpeedScript, getHalfSpeedScript, initializeDeviceVariantPair,
-        listOriginalVariants, parseAutoVariant, parseFunscriptName
+        autoVariantName, changeDeviceVariantPair, initializeDeviceVariantPair,
+        listOriginalVariants, parseAutoVariant
     } = await import('/js/funscript-tools.mjs');
 
     const { deviceRouting } = await import('/js/player/device-routing.mjs');
-    const { assets: assetManager } = await import('/js/player/assets.mjs');
+    const { variantsForVideo, videoVariantPair } = await import('/js/player/video-variants.mjs');
+    const { assets: assetManager, assetVariantsForVideo, generationBasesForVideo } = await import('/js/player/assets.mjs');
     const grid = document.getElementById('devicesGrid');
     const video = document.getElementById('videoPlayer');
     const toggle = document.getElementById('variantToggle');
@@ -17,20 +17,34 @@ document.addEventListener('DOMContentLoaded', async () => {
     const toggleStatus = document.getElementById('variantToggleStatus');
     const globalSettingsKey = 'edi-player-variant-toggle';
     const devicePairsKey = 'edi-player-device-variant-pairs-v2';
-    const generationLocks = new Map();
-    const generatedBaseCache = new Map();
     let globalSettings = readObject(globalSettingsKey, {
         primary: '', secondary: '', activeSide: 'primary', enabled: false
     });
     let storedPairs = readObject(devicePairsKey);
+    const historyKey = 'edi-player-video-variant-pairs';
+    const deviceOrderKey = 'edi-player-device-order';
+    let videoPairs = readObject(historyKey);
+    let deviceOrder = [];
+    try { deviceOrder = JSON.parse(localStorage.getItem(deviceOrderKey) || '[]'); } catch {}
+    if (!Array.isArray(deviceOrder)) deviceOrder = [];
+    let videoContext = null, videoAssets = [], draggedDevice = null;
+    const videoKey = () => videoContext?.name.toLowerCase();
+    const videoKnown = () => videoContext && (assetVariantsForVideo(videoAssets, videoContext.name).length
+        || videoContext.definitions.some(definition => definition.fileName
+            && definition.fileName.replace(/\.[^.]+$/, '').toLowerCase()
+                === videoContext.name.replace(/\.[^.]+$/, '').toLowerCase()));
     let devices = [];
+    const rangePainters = new Map();
+    document.addEventListener('scroll', () => {
+        grid.querySelectorAll('.device-range-tooltip:popover-open').forEach(tooltip => tooltip.hidePopover());
+    }, true);
     let editingCount = 0;
     let mutationRevision = 0;
     let refreshRevision = 0;
-    let generationQueue = Promise.resolve();
     let switchQueue = Promise.resolve();
     let panelHideTimer = null;
     let assetsReloadPending = false;
+    let assetsNeedDeviceRefresh = false;
 
     function readObject(key, fallback = {}) {
         try {
@@ -46,9 +60,14 @@ document.addEventListener('DOMContentLoaded', async () => {
     const saveGlobalSettings = () => localStorage.setItem(
         globalSettingsKey,
         JSON.stringify(globalSettings));
-    const savePairs = () => localStorage.setItem(
-        devicePairsKey,
-        JSON.stringify(storedPairs));
+    const savePairs = () => {
+        localStorage.setItem(devicePairsKey, JSON.stringify(storedPairs));
+        if (videoKey() && videoKnown()) {
+            videoPairs[videoKey()] = { ...videoPairs[videoKey()],
+                ...Object.fromEntries(devices.map(device => [device.name, { ...storedPairs[device.name] }])) };
+            localStorage.setItem(historyKey, JSON.stringify(videoPairs));
+        }
+    };
     const post = async (path, options = {}) => {
         mutationRevision++;
         const response = await fetch(path, { method: 'POST', ...options });
@@ -56,20 +75,23 @@ document.addEventListener('DOMContentLoaded', async () => {
         return response;
     };
 
-    const deviceVariants = device => [...new Set(device?.variants || [])].filter(Boolean);
+    const deviceVariants = device => variantsForVideo(device, videoContext, videoAssets).filter(Boolean);
     const findDeviceVariant = (device, variant) => deviceVariants(device)
         .find(candidate => candidate.toLowerCase() === variant?.toLowerCase()) || null;
     const physicalVariants = () => [...new Set(devices.flatMap(deviceVariants))];
     const realSelection = value => value?.startsWith('real:') ? value.slice(5) : null;
     const autoSelection = value => value?.startsWith('auto:') ? value.slice(5) : null;
-    const physicalSelection = value => realSelection(value)
-        || (autoSelection(value) ? autoVariantName(autoSelection(value)) : null);
+    const physicalSelection = (value, base) => realSelection(value)
+        || (autoSelection(value) ? autoVariantName(autoSelection(value), base) : null);
     const activeSide = () => globalSettings.activeSide === 'secondary' ? 'secondary' : 'primary';
     const variantOptionLabel = variant => {
         if (variant === 'None') return 'Stopped';
         const automatic = parseAutoVariant(variant);
         if (!automatic) return variant;
-        return automatic.kind === 'double' ? 'Auto Double' : 'Auto Halve';
+        const label = automatic.kind === 'double' ? 'Auto Double' : 'Auto Halve';
+        let base = automatic.legacyBase;
+        try { base = base && decodeURIComponent(base); } catch {}
+        return base ? `${label} (${base})` : label;
     };
 
     function setStatus(message, error = false) {
@@ -80,9 +102,12 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     function pairFor(device) {
         const current = storedPairs[device.name];
+        if (videoContext && !videoKnown()) return { primary: 'real:None', secondary: 'real:None',
+            activeSide: current?.activeSide || activeSide() };
+        if (videoContext) return current || { primary: 'real:None', secondary: 'real:None', activeSide: activeSide() };
         const initialized = initializeDeviceVariantPair(
             current,
-            deviceVariants(device),
+            [...new Set(device.variants || [])],
             deviceRouting.visibleVariant(device),
             globalSettings);
         if (!current || current.primary !== initialized.primary
@@ -94,11 +119,11 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     function deviceSide(device) {
-        if (deviceRouting.participates(device, 'variant')) return activeSide();
+        if (deviceRouting.participates(device, 'variant')) return pairFor(device).activeSide || activeSide();
         const pair = pairFor(device);
         const variant = deviceRouting.visibleVariant(device);
-        return variant === physicalSelection(pair.primary) ? 'primary'
-            : variant === physicalSelection(pair.secondary) ? 'secondary' : null;
+        return variant === physicalSelection(pair.primary, pair.bases?.primary) ? 'primary'
+            : variant === physicalSelection(pair.secondary, pair.bases?.secondary) ? 'secondary' : null;
     }
 
     function appendVariantOptions(select, variants, selectedValue) {
@@ -109,20 +134,13 @@ document.addEventListener('DOMContentLoaded', async () => {
             new Option(variantOptionLabel(variant), `real:${variant}`)));
         select.append(available);
 
-        const selectedPhysical = realSelection(selectedValue);
-        if (selectedPhysical && !variants.includes(selectedPhysical)) {
-            const unavailable = document.createElement('optgroup');
-            unavailable.label = 'Unavailable (preference kept)';
-            unavailable.append(new Option(selectedPhysical, selectedValue));
-            select.append(unavailable);
-        }
-
         const generated = document.createElement('optgroup');
         generated.label = 'Generate variant';
         generated.append(
             new Option('Auto Double', 'auto:double'),
             new Option('Auto Halve', 'auto:halve'));
-        select.append(generated);
+        if (generationBasesForVideo(videoAssets, videoContext?.name).some(base =>
+            variants.some(variant => variant.toLowerCase() === base.toLowerCase()))) select.append(generated);
         select.value = [...select.options].some(option => option.value === selectedValue)
             ? selectedValue
             : '';
@@ -130,6 +148,17 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     function refreshGlobalOptions() {
         const variants = physicalVariants();
+        if (!videoContext) {
+            appendVariantOptions(primarySelect, variants, globalSettings.primary);
+            appendVariantOptions(secondarySelect, variants, globalSettings.secondary);
+            return;
+        }
+        if (videoContext) {
+            const defaults = videoVariantPair({ previous: globalSettings, variants,
+                defaults: { defaultVariant: 'default' } });
+            globalSettings.primary = defaults.primary;
+            globalSettings.secondary = defaults.secondary;
+        }
         if (!globalSettings.primary) {
             const first = variants.find(variant => variant !== 'None') || variants[0];
             globalSettings.primary = first ? `real:${first}` : '';
@@ -153,74 +182,77 @@ document.addEventListener('DOMContentLoaded', async () => {
         panelHideTimer = open ? setTimeout(() => setPanelOpen(false), 8000) : null;
     }
 
-    async function fetchAssets() {
-        return assetManager.fetchForVariants();
+    async function fetchAssets(videoName = videoContext?.name) {
+        return assetManager.fetchForVariants(videoName);
     }
 
-    async function generateVariant(kind, baseVariant) {
-        const physicalVariant = autoVariantName(kind);
-        if (generationLocks.has(physicalVariant)) return generationLocks.get(physicalVariant);
-        const generation = generationQueue.then(async () => {
-            setStatus(`Generating ${kind === 'double' ? 'Auto Double' : 'Auto Halve'}…`);
-            const assets = await fetchAssets();
-            const sourceScripts = assets.filter(file => file.name.toLowerCase().endsWith('.funscript')
-                && parseFunscriptName(file.name).variant.toLowerCase() === baseVariant.toLowerCase());
-            if (!sourceScripts.length) throw new Error(`No funscript assets were found for ${baseVariant}.`);
-            const transform = kind === 'double' ? getDoubleSpeedScript : getHalfSpeedScript;
-            const generated = await Promise.all(sourceScripts.map(async source => {
-                const script = JSON.parse(await source.text());
-                if (!Array.isArray(script.actions)) throw new Error(`${source.name} has no actions array.`);
-                const output = transform(script, {});
-                output.metadata = output.metadata || {};
-                output.metadata.ediAutoVariant = { kind, baseVariant };
-                return new File([JSON.stringify(output)], generatedFunscriptName(source.name, physicalVariant), {
-                    type: 'application/json'
-                });
-            }));
-            const retained = assets.filter(file => !file.name.toLowerCase().endsWith('.funscript')
-                || parseAutoVariant(parseFunscriptName(file.name).variant)?.kind !== kind);
-            const merged = new Map(retained.map(file => [file.name.toLowerCase(), file]));
-            generated.forEach(file => merged.set(file.name.toLowerCase(), file));
-            await assetManager.uploadGenerated(generated, [...merged.values()]);
-            generatedBaseCache.set(kind, baseVariant);
-            assetsReloadPending = true;
-            await refreshDeviceState({ render: false, force: true });
-            return physicalVariant;
-        }).finally(() => generationLocks.delete(physicalVariant));
-        generationLocks.set(physicalVariant, generation);
-        generationQueue = generation.catch(() => {});
-        return generation;
-    }
-
-    async function getGeneratedBase(kind) {
-        if (generatedBaseCache.has(kind)) return generatedBaseCache.get(kind);
-        const files = await fetchAssets();
-        const file = files.find(value => {
-            if (!value?.name?.toLowerCase().endsWith('.funscript')) return false;
-            return parseAutoVariant(parseFunscriptName(value.name).variant)?.kind === kind;
+    async function chooseAutoBase(device, side, kind, candidates) {
+        const pair = pairFor(device);
+        const saved = pair.bases?.[side];
+        let base = candidates.find(candidate => candidate.toLowerCase() === saved?.toLowerCase());
+        if (base) return base;
+        if (!base && candidates.length === 1) base = candidates[0];
+        if (!base && candidates.length > 1) base = await new Promise(resolve => {
+            const dialog = document.createElement('dialog');
+            dialog.className = 'auto-variant-dialog';
+            const form = document.createElement('form');
+            form.method = 'dialog';
+            const label = document.createElement('label');
+            label.textContent = `Choose the original variant for Auto ${kind === 'double' ? 'Double' : 'Halve'} (${device.name})`;
+            const select = document.createElement('select');
+            select.className = 'form-select mt-2 mb-3';
+            select.setAttribute('aria-label', 'Original base variant');
+            candidates.forEach(candidate => select.append(new Option(candidate, candidate)));
+            const confirm = document.createElement('button');
+            confirm.className = 'btn btn-primary';
+            confirm.textContent = 'Generate';
+            confirm.value = 'generate';
+            const cancel = document.createElement('button');
+            cancel.className = 'btn btn-outline-secondary ms-2';
+            cancel.textContent = 'Cancel';
+            cancel.value = 'cancel';
+            label.append(select);
+            form.append(label, confirm, cancel);
+            dialog.append(form);
+            (document.fullscreenElement || document.body).append(dialog);
+            dialog.addEventListener('close', () => {
+                resolve(dialog.returnValue === 'generate' ? select.value : null);
+                dialog.remove();
+            }, { once: true });
+            dialog.showModal();
         });
-        if (!file) return null;
-        const base = JSON.parse(await file.text()).metadata?.ediAutoVariant?.baseVariant || null;
-        generatedBaseCache.set(kind, base);
+        if (!base) throw new Error('Automatic variant generation cancelled.');
+        pair.bases = { ...pair.bases, [side]: base };
+        savePairs();
         return base;
     }
 
-    async function resolveSelection(selection, otherSelection, device, allowGeneration) {
+    async function resolveSelection(selection, device, side = deviceSide(device) || activeSide()) {
         const physical = realSelection(selection);
-        if (physical) return findDeviceVariant(device, physical);
+        if (physical) {
+            if (physical !== 'None') {
+                const result = await assetManager.prepareVariant({ videoName: videoContext?.name, selection });
+                if (result.changed) {
+                    assetsReloadPending = true;
+                    await refreshDeviceState({ render: false, force: true, syncVideo: false });
+                }
+            }
+            return findDeviceVariant(devices.find(candidate => candidate.name === device.name) || device, physical);
+        }
         const kind = autoSelection(selection);
         if (!kind) return null;
-        const otherPhysical = findDeviceVariant(device, realSelection(otherSelection));
-        const base = otherPhysical && otherPhysical !== 'None'
-            ? otherPhysical
-            : listOriginalVariants(deviceVariants(device)).find(variant => variant !== 'None');
-        if (!base) return null;
-        const generated = autoVariantName(kind);
-        if (!allowGeneration) return deviceVariants(device).includes(generated) ? generated : null;
-        const compatibleBase = physicalVariants().includes(generated) ? await getGeneratedBase(kind) : null;
-        if (compatibleBase !== base) await generateVariant(kind, base);
+        const originals = listOriginalVariants(deviceVariants(device)).filter(variant => variant !== 'None');
+        const bases = (await assetManager.generationBases(videoContext?.name)).filter(base =>
+            originals.some(original => original.toLowerCase() === base.toLowerCase()));
+        if (!bases.length) return null;
+        const base = await chooseAutoBase(device, side, kind, bases);
+        const result = await assetManager.prepareVariant({ videoName: videoContext?.name, selection, baseVariant: base });
+        if (result.changed) {
+            assetsReloadPending = true;
+            await refreshDeviceState({ render: false, force: true, syncVideo: false });
+        }
         const refreshed = devices.find(candidate => candidate.name === device.name) || device;
-        return deviceVariants(refreshed).includes(generated) ? generated : null;
+        return deviceVariants(refreshed).includes(result.variant) ? result.variant : null;
     }
 
     function iconButton(label, tooltip, path) {
@@ -248,6 +280,10 @@ document.addEventListener('DOMContentLoaded', async () => {
         let next;
         try {
             next = changeDeviceVariantPair(previous, side, value);
+            if (value !== previous[side]) {
+                next.bases = { ...previous.bases };
+                delete next.bases[side];
+            }
         } catch (error) {
             setStatus(error.message, true);
             renderDevices();
@@ -260,18 +296,19 @@ document.addEventListener('DOMContentLoaded', async () => {
         editingCount++;
         try {
             const current = devices.find(candidate => candidate.name === deviceName);
-            if (current && deviceRouting.participates(current, 'variant')) {
-                const otherSide = side === 'primary' ? 'secondary' : 'primary';
-                const selected = await resolveSelection(next[side], next[otherSide], current, true);
+            if (current) {
+                const selected = await resolveSelection(next[side], current, side);
                 if (!selected) throw new Error('The saved variant is not currently available on this device.');
-                if (deviceSide(current) === side) {
+                if (deviceRouting.participates(current, 'variant') && deviceSide(current) === side) {
                     mutationRevision++;
                     await deviceRouting.setVariants({ [deviceName]: selected });
                 }
             }
             setStatus(`${deviceName}: ${side === 'primary' ? 'Primary' : 'Secondary'} saved.`);
         } catch (error) {
-            setStatus(`${deviceName}: preference saved; activation failed: ${error.message}`, true);
+            storedPairs[deviceName] = previous;
+            savePairs();
+            setStatus(`${deviceName}: ${error.message}`, true);
         } finally {
             editingCount--;
             renderDevices();
@@ -284,9 +321,42 @@ document.addEventListener('DOMContentLoaded', async () => {
         const settings = pairFor(device);
         const card = document.createElement('div');
         card.className = 'device-card';
+        card.dataset.deviceName = device.name;
+        card.addEventListener('dragover', event => { if (draggedDevice) event.preventDefault(); });
+        card.addEventListener('drop', event => {
+            if (!draggedDevice) return;
+            event.preventDefault();
+            const ordered = orderedDevices().map(device => device.name);
+            const from = ordered.indexOf(draggedDevice), to = ordered.indexOf(device.name);
+            if (from < 0 || to < 0 || from === to) return;
+            ordered.splice(to, 0, ordered.splice(from, 1)[0]);
+            deviceOrder = [...ordered, ...deviceOrder.filter(name => !ordered.includes(name))];
+            localStorage.setItem(deviceOrderKey, JSON.stringify(deviceOrder));
+            draggedDevice = null;
+            editingCount--;
+            renderDevices();
+        });
 
         const heading = document.createElement('div');
         heading.className = 'device-meta-line';
+        const handle = document.createElement('span');
+        handle.textContent = '↕';
+        handle.className = 'text-muted device-drag-handle';
+        handle.title = 'Drag to reorder';
+        handle.draggable = true;
+        handle.addEventListener('dragstart', event => {
+            draggedDevice = device.name;
+            editingCount++;
+            event.dataTransfer.setData('text/plain', device.name);
+            event.dataTransfer.effectAllowed = 'move';
+            card.classList.add('dragging');
+        });
+        handle.addEventListener('dragend', () => {
+            if (draggedDevice) editingCount--;
+            draggedDevice = null;
+            card.classList.remove('dragging');
+        });
+        heading.append(handle);
         const dot = document.createElement('span');
         dot.className = `device-status-dot${device.isReady ? ' connected' : ''}`;
         dot.title = device.isReady ? 'Connected' : 'Unavailable';
@@ -323,8 +393,9 @@ document.addEventListener('DOMContentLoaded', async () => {
                         if (control === 'variant' && deviceRouting.participates(device, control)) {
                             const pair = pairFor(device);
                             const side = activeSide();
-                            const selected = await resolveSelection(pair[side],
-                                pair[side === 'primary' ? 'secondary' : 'primary'], device, true);
+                            pair.activeSide = side;
+                            savePairs();
+                            const selected = await resolveSelection(pair[side], device, side);
                             if (selected) await deviceRouting.setVariants({ [device.name]: selected });
                         }
                     }
@@ -355,12 +426,28 @@ document.addEventListener('DOMContentLoaded', async () => {
         primary.addEventListener('change', () => changeSelection(device.name, 'primary', primary.value));
         secondary.addEventListener('change', () => changeSelection(device.name, 'secondary', secondary.value));
         const switcher = iconButton(
-            `Switch all devices to ${activeSide() === 'primary' ? 'Secondary' : 'Primary'}`,
-            `Switch to ${activeSide() === 'primary' ? 'Secondary' : 'Primary'}`,
+            `Swap primary and secondary for ${device.name}`,
+            'Swap primary and secondary selections',
             'M7 7h10M14 4l3 3-3 3M17 17H7M10 14l-3 3 3 3');
         switcher.classList.add('device-variant-switch');
-        switcher.addEventListener('click', () => switchVariantSide(
-            activeSide() === 'primary' ? 'secondary' : 'primary'));
+        switcher.addEventListener('click', () => {
+            switchQueue = switchQueue.then(async () => {
+                editingCount++;
+                try {
+                    const pair = pairFor(device);
+                    if (pair.primary === pair.secondary && pair.bases?.primary === pair.bases?.secondary) return;
+                    const side = deviceSide(device) || activeSide();
+                    const next = { ...pair, primary: pair.secondary, secondary: pair.primary,
+                        bases: { primary: pair.bases?.secondary, secondary: pair.bases?.primary } };
+                    storedPairs[device.name] = next;
+                    savePairs();
+                    if (deviceRouting.participates(device, 'variant')) {
+                        const selected = await resolveSelection(next[side], device, side);
+                        if (selected) { mutationRevision++; await deviceRouting.setVariants({ [device.name]: selected }); }
+                    }
+                } finally { editingCount--; renderDevices(); publishAssetsReload(); }
+            }).catch(error => setStatus(error.message, true));
+        });
         variants.append(
             variantField(primary, 'Primary'),
             switcher,
@@ -370,15 +457,50 @@ document.addEventListener('DOMContentLoaded', async () => {
         let high = Math.max(low, Math.min(100, Number(device.baseMax ?? device.max ?? 100)));
         const rangeField = document.createElement('div');
         rangeField.className = 'device-range-field';
-        const tooltip = document.createElement('span');
-        tooltip.className = 'device-range-tooltip';
         const range = document.createElement('div');
         range.className = 'device-range';
         const track = document.createElement('div');
         track.className = 'device-range-track';
+        const effective = document.createElement('div');
+        effective.className = 'device-range-effective';
+        const tooltip = document.createElement('div');
+        tooltip.className = 'player-tooltip device-range-tooltip';
+        tooltip.popover = 'manual';
+        tooltip.setAttribute('role', 'tooltip');
+        let rangePoints = [], hoverPoint = null;
+        const hideTooltip = () => {
+            hoverPoint = null;
+            if (tooltip.matches(':popover-open')) tooltip.hidePopover();
+        };
+        tooltip.addEventListener('toggle', event => {
+            if (event.newState === 'closed') hoverPoint = null;
+        });
+        const showTooltip = event => {
+            hoverPoint = { clientX: event.clientX, clientY: event.clientY };
+            const bounds = range.getBoundingClientRect();
+            const inset = track.getBoundingClientRect().left - bounds.left;
+            const width = bounds.width - inset * 2;
+            const points = rangePoints.map(point => ({ ...point,
+                x: bounds.left + inset + width * point.value / 100,
+                y: point.center ? center.getBoundingClientRect().top + center.offsetHeight / 2 : bounds.top + bounds.height / 2
+            }));
+            const nearest = points.sort((a, b) => Math.hypot(a.x - event.clientX, a.y - event.clientY)
+                - Math.hypot(b.x - event.clientX, b.y - event.clientY))[0];
+            if (!nearest || Math.hypot(nearest.x - event.clientX, nearest.y - event.clientY) > 24) {
+                hideTooltip();
+                return;
+            }
+            tooltip.textContent = nearest.text;
+            if (!tooltip.matches(':popover-open')) tooltip.showPopover();
+            const left = Math.max(8, Math.min(window.innerWidth - tooltip.offsetWidth - 8, nearest.x - tooltip.offsetWidth / 2));
+            tooltip.style.left = `${left}px`;
+            tooltip.style.top = `${Math.min(window.innerHeight - tooltip.offsetHeight - 8, bounds.bottom + 8)}px`;
+            tooltip.style.setProperty('--tooltip-arrow', `${nearest.x - left}px`);
+        };
         const min = document.createElement('input');
         const max = document.createElement('input');
-        [min, max].forEach(input => {
+        const center = document.createElement('input');
+        [min, max, center].forEach(input => {
             input.className = 'device-range-input';
             input.type = 'range';
             input.min = 0;
@@ -387,6 +509,9 @@ document.addEventListener('DOMContentLoaded', async () => {
         });
         min.value = low;
         max.value = high;
+        center.value = deviceRouting.rangeCenter(device);
+        center.classList.add('device-range-center');
+        center.setAttribute('aria-label', `Intensity collapse point for ${device.name}`);
         min.setAttribute('aria-label', `Minimum range for ${device.name}`);
         max.setAttribute('aria-label', `Maximum range for ${device.name}`);
         const paintRange = changed => {
@@ -398,9 +523,22 @@ document.addEventListener('DOMContentLoaded', async () => {
             max.value = high;
             range.style.setProperty('--range-low', `${low}%`);
             range.style.setProperty('--range-high', `${high}%`);
+            const current = devices.find(candidate => candidate.name === device.name) || device;
+            const result = changed
+                ? deviceRouting.effectiveRange({ ...current, baseMin: low, baseMax: high }, undefined, Number(center.value))
+                : { min: current.min ?? low, max: current.max ?? high };
+            range.style.setProperty('--effective-low', `${result.min}%`);
+            range.style.setProperty('--effective-high', `${result.max}%`);
             min.style.zIndex = changed === min ? 3 : 2;
             max.style.zIndex = changed === max ? 3 : 2;
-            tooltip.textContent = `Range ${low}–${high}%`;
+            const boundsText = `Min ${low}% · Max ${high}%${low === result.min && high === result.max
+                ? '' : `\nEffective ${result.min === result.max ? result.min : `${result.min}–${result.max}`}%`}`;
+            rangePoints = [
+                { value: low, text: boundsText }, { value: high, text: boundsText },
+                { value: result.min, text: boundsText }, { value: result.max, text: boundsText },
+                { value: Number(center.value), text: `Center ${center.value}%`, center: true }
+            ];
+            if (hoverPoint) showTooltip(hoverPoint);
         };
         const applyRange = async () => {
             editingCount++;
@@ -408,6 +546,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 await post(`/Devices/${encodeURIComponent(device.name)}/Range/${low}-${high}`);
                 device.min = device.baseMin = low;
                 device.max = device.baseMax = high;
+                await deviceRouting.reapplyIntensity();
             } catch (error) {
                 setStatus(`Could not change ${device.name} range: ${error.message}`, true);
             } finally {
@@ -417,23 +556,46 @@ document.addEventListener('DOMContentLoaded', async () => {
         };
         min.addEventListener('input', () => paintRange(min));
         max.addEventListener('input', () => paintRange(max));
+        center.addEventListener('input', () => paintRange(center));
+        center.addEventListener('change', async () => {
+            editingCount++;
+            mutationRevision++;
+            try {
+                await deviceRouting.setRangeCenter(device, center.value);
+            } catch (error) {
+                setStatus(`Could not apply ${device.name} collapse point: ${error.message}`, true);
+            } finally {
+                editingCount--;
+                paintRange(center);
+            }
+        });
         min.addEventListener('change', applyRange);
         max.addEventListener('change', applyRange);
-        range.append(track, min, max);
-        rangeField.append(tooltip, range);
+        range.append(track, effective, min, max, center);
+        range.append(tooltip);
+        rangeField.append(range);
+        rangeField.addEventListener('pointermove', showTooltip);
+        rangeField.addEventListener('pointerleave', hideTooltip);
+        rangePainters.set(device.name, paintRange);
         paintRange();
         card.append(heading, variants, rangeField);
         return card;
     }
 
+    function orderedDevices() {
+        const rank = name => { const index = deviceOrder.indexOf(name); return index < 0 ? deviceOrder.length : index; };
+        return [...devices].sort((a, b) => rank(a.name) - rank(b.name));
+    }
+
     function renderDevices() {
+        rangePainters.clear();
         grid.replaceChildren();
         if (!devices.length) {
             const empty = document.createElement('div');
             empty.className = 'alert alert-secondary mb-0';
             empty.textContent = 'No devices detected.';
             grid.append(empty);
-        } else devices.forEach(device => grid.append(renderDevice(device)));
+        } else orderedDevices().forEach(device => grid.append(renderDevice(device)));
         renderFeatureState();
         publishVariantState();
     }
@@ -445,7 +607,45 @@ document.addEventListener('DOMContentLoaded', async () => {
                 && focused?.matches?.('.device-variants select, .device-range-input');
     }
 
-    async function refreshDeviceState({ render = true, force = false } = {}) {
+    async function reconcileVideoPairs(previous = storedPairs, selections = {}) {
+        if (!videoKnown()) return;
+        const changes = {};
+        for (const device of [...devices]) {
+            const pair = videoVariantPair({
+                history: videoPairs[videoKey()]?.[device.name], previous: previous[device.name],
+                variants: deviceVariants(device), selected: selections[device.name] ?? deviceRouting.visibleVariant(device),
+                defaults: { ...globalSettings, defaultVariant: 'default' },
+                side: previous[device.name]?.activeSide || activeSide()
+            });
+            storedPairs[device.name] = pair;
+            const side = pair.activeSide, otherSide = side === 'primary' ? 'secondary' : 'primary';
+            let selected;
+            for (const key of [side, otherSide]) {
+                if (key !== side && !autoSelection(pair[key])) continue;
+                try {
+                    const variant = await resolveSelection(pair[key], device, key);
+                    if (!variant) throw new Error('The selected variant could not be prepared.');
+                    if (key === side) selected = variant;
+                } catch (error) {
+                    const originals = listOriginalVariants(deviceVariants(device));
+                    const fallback = originals.find(variant => variant === deviceRouting.visibleVariant(device))
+                        || originals.find(variant => variant !== 'None')
+                        || deviceVariants(device).find(variant => variant !== 'None') || 'None';
+                    pair[key] = `real:${fallback}`;
+                    if (key === side) selected = fallback;
+                    setStatus(`${device.name}: ${error.message}`, true);
+                }
+            }
+            const current = selections[device.name] ?? deviceRouting.visibleVariant(device);
+            if (device.isReady !== false && (deviceRouting.participates(device, 'variant')
+                || !deviceVariants(device).includes(current)) && selected) changes[device.name] = selected;
+        }
+        savePairs();
+        mutationRevision++;
+        await deviceRouting.setVariants(changes);
+    }
+
+    async function refreshDeviceState({ render = true, force = false, syncVideo = true } = {}) {
         if (editingCount && !force) return;
         const requestRevision = ++refreshRevision;
         const mutationAtStart = mutationRevision;
@@ -454,19 +654,24 @@ document.addEventListener('DOMContentLoaded', async () => {
         const refreshed = await response.json();
         if (requestRevision !== refreshRevision || mutationAtStart !== mutationRevision) return;
         devices = refreshed;
+        assetsNeedDeviceRefresh = false;
         await deviceRouting.setDevices(devices);
+        if (syncVideo && videoContext) await reconcileVideoPairs();
         devices.forEach(pairFor);
         const preserveEditor = variantSelectFocused();
         if (!preserveEditor) refreshGlobalOptions();
         if (render && !preserveEditor) renderDevices();
-        else renderFeatureState();
+        else {
+            rangePainters.forEach(paint => paint());
+            renderFeatureState();
+        }
     }
 
     function currentVariantStates() {
         return devices.map(device => {
             const settings = pairFor(device);
-            const primary = physicalSelection(settings.primary);
-            const secondary = physicalSelection(settings.secondary);
+            const primary = physicalSelection(settings.primary, settings.bases?.primary);
+            const secondary = physicalSelection(settings.secondary, settings.bases?.secondary);
             return {
                 name: device.name,
                 side: deviceRouting.visibleVariant(device) === primary ? 'P'
@@ -564,10 +769,8 @@ document.addEventListener('DOMContentLoaded', async () => {
                     && deviceRouting.participates(device, 'variant'));
                 const prepared = await Promise.all(snapshots.map(async snapshot => {
                     const pair = pairFor(snapshot);
-                    const otherSide = targetSide === 'primary' ? 'secondary' : 'primary';
                     try {
-                        const selected = await resolveSelection(
-                            pair[targetSide], pair[otherSide], snapshot, true);
+                        const selected = await resolveSelection(pair[targetSide], snapshot, targetSide);
                         return { snapshot, selected };
                     } catch (error) {
                         failures.push(`${snapshot.name}: ${error.message}`);
@@ -588,6 +791,8 @@ document.addEventListener('DOMContentLoaded', async () => {
                 if (!changed && !failures.length)
                     failures.push('No connected device has an available variant for this mode.');
                 globalSettings.activeSide = targetSide;
+                snapshots.forEach(device => { pairFor(device).activeSide = targetSide; });
+                savePairs();
                 saveGlobalSettings();
                 renderDevices();
                 document.dispatchEvent(new CustomEvent('edi-variant-switched', {
@@ -606,6 +811,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     document.addEventListener('edi-device-controls-state', () => {
         mutationRevision++;
         if (!variantSelectFocused()) renderDevices();
+        else rangePainters.forEach(paint => paint());
     });
 
     video?.addEventListener('mousedown', event => {
@@ -614,13 +820,39 @@ document.addEventListener('DOMContentLoaded', async () => {
         switchVariantSide(activeSide() === 'primary' ? 'secondary' : 'primary');
     });
     video?.addEventListener('contextmenu', event => event.preventDefault());
-    document.addEventListener('edi-assets-cached', () => generatedBaseCache.clear());
+    document.addEventListener('edi-assets-cached', event => {
+        videoAssets = event.detail?.files || [];
+        assetsNeedDeviceRefresh = true;
+    });
     document.addEventListener('edi-devices-refresh-requested', () => {
         void refreshDeviceState().catch(error => setStatus(`Could not refresh devices: ${error.message}`, true));
     });
 
+    const initialRefresh = refreshDeviceState();
+    deviceRouting.setVideoHandler(async context => {
+        await initialRefresh;
+        switchQueue = switchQueue.catch(() => {}).then(async () => {
+            editingCount++;
+            try {
+                const previous = { ...storedPairs };
+                const selections = Object.fromEntries(devices.map(device => [device.name, deviceRouting.visibleVariant(device)]));
+                if (context) {
+                    const prepared = await assetManager.prepareVariant({ videoName: context.name });
+                    videoAssets = await fetchAssets(context.name);
+                    if (prepared.changed) assetsReloadPending = true;
+                }
+                if (assetsNeedDeviceRefresh) await refreshDeviceState({ render: false, force: true, syncVideo: false });
+                videoContext = context;
+                if (context) await reconcileVideoPairs(previous, selections);
+                refreshGlobalOptions();
+                renderDevices();
+                publishAssetsReload();
+            } finally { editingCount--; }
+        });
+        return switchQueue;
+    });
     try {
-        await refreshDeviceState();
+        await initialRefresh;
     } catch (error) {
         setStatus(`Could not load devices: ${error.message}`, true);
         const message = document.createElement('div');

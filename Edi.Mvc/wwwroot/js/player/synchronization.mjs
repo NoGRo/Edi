@@ -26,7 +26,7 @@ export function createSync({ state, media, currentItem, renderPlaybackOptions, s
             && position <= definition.endTime);
     }
 
-    async function syncEdi(force = false) {
+    async function syncEdi(force = false, resumePaused = false) {
         if (media.paused || !currentItem()) return false;
         const definition = currentDefinition();
         if (!definition) {
@@ -37,7 +37,7 @@ export function createSync({ state, media, currentItem, renderPlaybackOptions, s
         if (!force && state.lastGallery === definition.name) return true;
 
         const seek = Math.max(0, Math.round(media.currentTime * 1000) - definition.startTime);
-        await command(`/Edi/Play/${encodeURIComponent(definition.name)}?seek=${seek}`);
+        await command(`/Edi/Play/${encodeURIComponent(definition.name)}?seek=${seek}`, { resumePaused });
         state.lastGallery = definition.name;
         report(`EDI synced: ${definition.name}`);
         return true;
@@ -58,7 +58,8 @@ export function createSync({ state, media, currentItem, renderPlaybackOptions, s
                     state.ediStopped = true;
                     return;
                 }
-                const synced = await syncEdi(force);
+                const synced = await syncEdi(force, state.strokerNeedsResync);
+                if (synced) state.strokerNeedsResync = false;
                 state.ediStopped = !synced;
                 if (synced && state.intensityNeedsResync) {
                     await command(`/Edi/Intensity/${state.currentIntensity}`);
@@ -87,7 +88,6 @@ export function createSync({ state, media, currentItem, renderPlaybackOptions, s
     function resumeVideoAndStroker() {
         state.strokerPaused = false;
         state.strokerPauseMethod = null;
-        state.strokerNeedsResync = false;
         state.ediStopped = true;
         state.lastGallery = null;
         renderPlaybackOptions();
@@ -97,6 +97,10 @@ export function createSync({ state, media, currentItem, renderPlaybackOptions, s
 
     function handleStrokerInput(method, queueWhilePending = false) {
         if (media.paused) {
+            if (state.strokerPaused) return enqueueCommand(async () => {
+                if (!state.strokerNeedsResync) await command('/Edi/Resume?AtCurrentTime=true');
+                resumeVideoAndStroker();
+            });
             resumeVideoAndStroker();
             return commandQueue;
         }
@@ -132,7 +136,7 @@ export function createSync({ state, media, currentItem, renderPlaybackOptions, s
                 if (!allPause()) {
                     await command('/Edi/Resume?AtCurrentTime=true');
                 } else if (state.strokerNeedsResync || state.lastGallery !== currentDefinition()?.name) {
-                    state.ediStopped = !await syncEdi(true);
+                    state.ediStopped = !await syncEdi(true, true);
                 } else {
                     await command('/Edi/Resume?AtCurrentTime=true');
                     state.ediStopped = false;
@@ -156,9 +160,7 @@ export function createSync({ state, media, currentItem, renderPlaybackOptions, s
     }
 
     function stopEdi(reason = 'Playback stopped.') {
-        state.strokerPaused = false;
-        state.strokerPauseMethod = null;
-        state.strokerNeedsResync = false;
+        if (state.strokerPaused) state.strokerNeedsResync = true;
         renderPlaybackOptions();
         if (state.ediStopped) {
             report(reason);

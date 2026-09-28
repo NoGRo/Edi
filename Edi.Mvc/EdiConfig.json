@@ -81,28 +81,28 @@
         "Variant": "default",
         "Channel": null,
         "Min": 0,
-        "Max": 57,
+        "Max": 100,
         "OffsetMS": null
       },
       "Lovense Edge Vibrate: 2": {
         "Variant": "default",
         "Channel": null,
         "Min": 0,
-        "Max": 58,
+        "Max": 100,
         "OffsetMS": null
       },
       "Lovense Gemini Vibrate: 1": {
         "Variant": "default",
         "Channel": null,
         "Min": 0,
-        "Max": 67,
+        "Max": 100,
         "OffsetMS": null
       },
       "Lovense Gemini Vibrate: 2": {
         "Variant": "default",
         "Channel": null,
         "Min": 0,
-        "Max": 66,
+        "Max": 100,
         "OffsetMS": null
       },
       "The Handy 2 Pro (BLE)": {

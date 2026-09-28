@@ -111,6 +111,8 @@ test('concurrent variant fetches share downloads and an older download cannot re
     assert.deepEqual(await first, [uploaded]);
     assert.deepEqual(await second, [uploaded]);
     assert.equal(reads, 1);
+    await manager.prepareVariant({ videoName: 'new.mp4', selection: 'real:default' });
+    assert.equal(reads, 1);
 });
 
 function playbackRig() {
@@ -185,4 +187,37 @@ test('media events preserve buffering, seeking, loop and autoplay behavior witho
     media.dispatchEvent(new Event('ended'));
     await Promise.resolve();
     assert.equal(media.currentTime, 0);
+});
+
+test('video transition keeps device pause until the user resumes at the new video time', async () => {
+    const { state, media, sync, commands } = playbackRig();
+    await sync.startEdi();
+    await sync.handleStrokerInput('space');
+    await sync.stopEdi('Previous video stopped.');
+    assert.equal(state.strokerPaused, true);
+    assert.equal(state.strokerPauseMethod, 'space');
+    assert.equal(state.strokerNeedsResync, true);
+    state.definitions = [{ fileName: 'scene.funscript', name: 'next', startTime: 0, endTime: 20000 }];
+    media.currentTime = 1;
+    commands.length = 0;
+    await sync.startEdi();
+    assert.deepEqual(commands, []);
+    await sync.toggleStrokerPlayback();
+    assert.equal(state.strokerPaused, false);
+    assert.deepEqual(commands, ['/Edi/Play/next?seek=1000']);
+});
+
+test('explicit combined resume releases device pause when the video is also paused', async () => {
+    const { state, media, sync, commands } = playbackRig();
+    await sync.startEdi();
+    await sync.handleStrokerInput('space');
+    await sync.stopEdi();
+    media.paused = true;
+    commands.length = 0;
+    await sync.handleStrokerInput('space');
+    assert.equal(state.strokerPaused, false);
+    assert.equal(media.paused, false);
+    assert.deepEqual(commands, []);
+    await sync.startEdi();
+    assert.deepEqual(commands, ['/Edi/Play/gallery?seek=2000']);
 });

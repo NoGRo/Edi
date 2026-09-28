@@ -69,7 +69,7 @@ export function createPlaybackEvents({ state, media, renderCustomControls, start
                 renderPlaybackOptions();
                 return;
             }
-            if (state.suppressPause || media.ended) return;
+            if (state.suppressPause || media.ended || !media.paused) return;
             stopEdi('Video paused; EDI stopped.');
         });
         media.addEventListener('ended', async () => {
@@ -96,6 +96,7 @@ export function createPlaybackEvents({ state, media, renderCustomControls, start
             stopEdi('EDI stopped because of a video error.');
         });
         media.addEventListener('abort', () => {
+            if (state.suppressPause) return;
             stopPlaybackTimer();
             stopEdi('EDI stopped because video loading was canceled.');
         });

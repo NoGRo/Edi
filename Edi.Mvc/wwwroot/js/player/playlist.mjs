@@ -1,6 +1,7 @@
 import { currentVideoKey } from './preferences.mjs';
 import { fileStem, isVideo, isEdiAsset } from './media-files.mjs';
 import { report } from './edi-api.mjs';
+import { deviceRouting } from './device-routing.mjs';
 
 export function createPlaylist({ state, media, elements, assetManager, saveCurrentPosition, stopEdi, restorePosition, clearSavedPosition, resetPositions, renderDiscreteProgress, uploadAssets }) {
     const { totalPlayback, playlistElement, playlistCount, playlistDurationTotal } = elements;
@@ -20,7 +21,7 @@ export function createPlaylist({ state, media, elements, assetManager, saveCurre
             .filter(definition => fileStem(definition.fileName || '') === stem)
             .map(definition => Number(definition.endTime))
             .filter(Number.isFinite);
-        return endTimes.length ? Math.max(...endTimes) : null;
+        return endTimes.length ? Math.max(...endTimes) : item.duration ?? null;
     }
 
     function formatDuration(milliseconds) {
@@ -67,15 +68,28 @@ export function createPlaylist({ state, media, elements, assetManager, saveCurre
         }
         stopPlaybackTimer();
         saveCurrentPosition();
-        await stopEdi('Previous video stopped.');
-        state.currentId = id;
-        localStorage.setItem(currentVideoKey, id);
-        state.lastGallery = null;
-        media.setSource(item);
-        restorePosition(id);
-        renderPlaylist();
-        report(`Ready: ${item.name}`);
-        if (autoplay) await media.play();
+        state.suppressPause = true;
+        try {
+            media.pause();
+            if (!autoplay) await stopEdi('Previous video stopped.');
+            state.currentId = id;
+            localStorage.setItem(currentVideoKey, id);
+            if (state.strokerPaused) state.strokerNeedsResync = true;
+            state.lastGallery = null;
+            media.setSource(item);
+            restorePosition(id);
+            renderPlaylist();
+            await deviceRouting.setVideoContext({ name: item.name, definitions: state.definitions })
+                .catch(error => report(`Could not prepare device variants: ${error.message}`, true));
+            if (state.currentId !== id) return;
+            report(`Ready: ${item.name}`);
+            if (autoplay) await media.play();
+        } catch (error) {
+            await stopEdi('Could not start the next video; EDI stopped.');
+            throw error;
+        } finally {
+            state.suppressPause = false;
+        }
     }
 
     async function deleteVideo(id) {
@@ -88,6 +102,7 @@ export function createPlaylist({ state, media, elements, assetManager, saveCurre
         if (state.currentId === id) {
             await stopEdi('Video deleted; EDI stopped.');
             state.currentId = null;
+            await deviceRouting.setVideoContext(null);
             localStorage.removeItem(currentVideoKey);
             media.clearSource();
             if (state.playlist.length) {
@@ -111,6 +126,7 @@ export function createPlaylist({ state, media, elements, assetManager, saveCurre
         state.playlist.forEach(item => URL.revokeObjectURL(item.url));
         state.playlist.length = 0;
         state.currentId = null;
+        await deviceRouting.setVideoContext(null);
         localStorage.removeItem(currentVideoKey);
         resetPositions();
         media.clearSource();
@@ -216,10 +232,6 @@ export function createPlaylist({ state, media, elements, assetManager, saveCurre
         }
         renderPlaylist();
 
-        if (!currentItem() && state.playlist.length) {
-            await selectVideo(state.playlist[0].id, playlistWasEmpty && state.playbackOptions.autoplay);
-        }
-
         let uploadError = null;
         try {
             if (assets.length) {
@@ -232,6 +244,10 @@ export function createPlaylist({ state, media, elements, assetManager, saveCurre
             uploadError = error;
         }
 
+        if (!currentItem() && state.playlist.length) {
+            await selectVideo(state.playlist[0].id, playlistWasEmpty && state.playbackOptions.autoplay);
+        }
+
         const parts = [];
         if (videos.length) parts.push(`${videos.length} local video${videos.length === 1 ? '' : 's'} added`);
         if (assets.length && !uploadError) parts.push(`${assets.length} EDI asset${assets.length === 1 ? '' : 's'} uploaded`);
@@ -241,7 +257,14 @@ export function createPlaylist({ state, media, elements, assetManager, saveCurre
     }
 
     function mount() {
-
+        const rememberDuration = () => {
+            const item = currentItem();
+            if (!item || !Number.isFinite(media.duration)) return;
+            item.duration = Math.round(media.duration * 1000);
+            renderPlaylist();
+        };
+        media.addEventListener('loadedmetadata', rememberDuration);
+        media.addEventListener('durationchange', rememberDuration);
     }
     return { currentItem, ediDuration, renderTotalPlayback, startPlaybackTimer, stopPlaybackTimer, selectVideo, deleteVideo, clearPlaylist, renderPlaylist, addFiles, mount };
 }

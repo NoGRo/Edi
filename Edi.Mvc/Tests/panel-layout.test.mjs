@@ -55,12 +55,11 @@ test('variant stop feedback is calculated locally without a cache-sensitive modu
     assert.match(devices, /variant-toggle-partially-stopped/);
 });
 
-test('variant mode highlights a whole column and the middle button switches modes without swapping choices', () => {
+test('the middle button swaps only its device pair and retains column highlighting', () => {
     assert.match(devices, /const primaryActive = deviceSide\(device\) === 'primary'/);
     assert.match(devices, /const secondaryActive = deviceSide\(device\) === 'secondary'/);
-    assert.match(devices, /switcher\.addEventListener\('click', \(\) => switchVariantSide/);
-    assert.doesNotMatch(devices, /function swapSelections/);
-    assert.doesNotMatch(devices, /primary: settings\.secondary/);
+    assert.match(devices, /primary: pair\.secondary, secondary: pair\.primary/);
+    assert.match(devices, /deviceRouting\.setVariants\(\{ \[device\.name\]: selected \}\)/);
 });
 
 test('a variant mode switch updates devices as one batch while global switches stay queued', () => {
@@ -81,15 +80,15 @@ test('a variant mode switch prepares missing selections in parallel, then batche
 
 test('saved real variants resolve to the backend canonical casing', () => {
     assert.match(devices, /const findDeviceVariant = \(device, variant\) => deviceVariants\(device\)/);
-    assert.match(devices, /if \(physical\) return findDeviceVariant\(device, physical\)/);
+    assert.match(devices, /return findDeviceVariant\([\s\S]+?, physical\)/);
 });
 
-test('automatic variants upload only generated scripts incrementally', () => {
-    const generator = devices.match(/async function generateVariant\(kind, baseVariant\) \{([\s\S]+?)\n    \}\n\n    async function getGeneratedBase/)[1];
-    assert.match(generator, /assetManager\.uploadGenerated\(generated, \[\.\.\.merged\.values\(\)\]\)/);
+test('asset manager owns automatic generation and incremental uploads', () => {
+    assert.match(devices, /assetManager\.prepareVariant\(/);
+    assert.doesNotMatch(devices, /getDoubleSpeedScript|generatedFunscriptName/);
     assert.match(assets, /generated\.forEach\(file => form\.append\('files', file, file\.name\)\)/);
     assert.match(assets, /request\('\/Edi\/Assets', \{ method: 'PUT', body: form \}\)/);
-    assert.doesNotMatch(generator, /\[\.\.\.merged\.values\(\)\]\.forEach\(file => form\.append/);
+    assert.match(assets, /uploadGenerated\(additions, \[\.\.\.merged\.values\(\)\]\)/);
 });
 
 test('uploaded assets are shared with variant generation as an in-memory cache', () => {
@@ -97,6 +96,6 @@ test('uploaded assets are shared with variant generation as an in-memory cache',
     assert.match(assets, /window\.ediPlayerAssetCache = \[\.\.\.files\]/);
     assert.match(bootstrap, /await assets\.restore\(\)/);
     assert.match(assets, /document\.addEventListener\('edi-assets-persist-requested'/);
-    assert.match(devices, /assetManager\.fetchForVariants\(\)/);
+    assert.match(devices, /assetManager\.fetchForVariants\(videoName\)/);
     assert.match(assets, /new CustomEvent\('edi-assets-persist-requested'/);
 });

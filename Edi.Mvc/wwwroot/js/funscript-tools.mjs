@@ -175,9 +175,9 @@ export function getHalfSpeedScript(script, options = {}) {
     return output;
 }
 
-export function autoVariantName(kind) {
+export function autoVariantName(kind, baseVariant) {
     if (!AUTO_KINDS.has(kind)) throw new Error(`Unknown automatic variant: ${kind}`);
-    return `${AUTO_PREFIX}${kind}`;
+    return `${AUTO_PREFIX}${kind}${baseVariant ? `_${encodeURIComponent(baseVariant.toLowerCase()).replace(/\./g, '%2E')}` : ''}`;
 }
 
 export function parseAutoVariant(value) {

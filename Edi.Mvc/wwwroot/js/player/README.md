@@ -15,6 +15,7 @@ The UI and persisted preference keys are unchanged.
 | `asset-workflow.mjs` | Stop/reload/resync coordination around asset changes |
 | `preferences.mjs`, `positions.mjs` | Session initialization, persisted settings and resume positions |
 | `controls.mjs`, `options.mjs` | Video controls and playback option buttons |
+| `device-routing.mjs` | Per-device participation, transient pause variants and scaled ranges |
 | `fullscreen.mjs`, `overlays.mjs`, `input.mjs` | Desktop presentation, pointer/keyboard input and overlays |
 | `edi-api.mjs`, `media-files.mjs`, `elements.mjs` | HTTP boundary, filename rules and DOM lookup |
 
@@ -58,6 +59,25 @@ and old downloads cannot overwrite a newer cache. Existing `edi-assets-cached`,
 remain available to other UI components.
 
 ## Verification
+
+With multiple devices, the three buttons beside each device name select participation
+in pause/resume, intensity and variant switching. Choices persist in browser storage;
+a single device uses the original global controls. Blue indicates participation,
+gray exclusion and red a stopped state. A selective pause keeps the visible variant
+and pair intact while applying `None` to the server; resume restores the latest
+selected variant and lets EDI synchronize it to its running timeline.
+Both variant selectors remain editable when participation is disabled. Edits are
+saved without device commands; enabling participation applies the choice for the
+current global side.
+
+All participants use global pause/resume and intensity. Selective variants use one
+`POST /Devices/Variants?persist=false` batch; selective ranges use parallel
+`POST /Devices/{name}/Range/{min}-{max}?persist=false` requests, scaled from
+`baseMin`/`baseMax` in the devices response. These requests do not save configuration.
+Variant property notifications handle stop/resynchronization without an explicit
+stop before the assignment. Pending intensity values are replaced by the newest
+value, and unchanged selective variants/ranges are skipped. Generation/downloads
+remain confined to selections requiring a generated variant.
 
 From the repository root:
 

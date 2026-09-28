@@ -1,8 +1,9 @@
+import { deviceRouting, routedPlaybackCommand } from './device-routing.mjs';
 import { fileStem } from './media-files.mjs';
-import { report, confirmedPlaybackCommand } from './edi-api.mjs';
+import { report } from './edi-api.mjs';
 
 export function createSync({ state, media, currentItem, renderPlaybackOptions, showStrokerStateOverlay,
-    command = confirmedPlaybackCommand }) {
+    command = routedPlaybackCommand, allPause = () => deviceRouting.allPause() }) {
     let strokerCommandsPending = 0;
 
     let commandQueue = Promise.resolve();
@@ -44,7 +45,7 @@ export function createSync({ state, media, currentItem, renderPlaybackOptions, s
 
     function startEdi() {
         if (media.paused || media.ended || media.seeking) return commandQueue;
-        if (state.strokerPaused) {
+        if (state.strokerPaused && allPause()) {
             if (state.lastGallery !== currentDefinition()?.name) state.strokerNeedsResync = true;
             return commandQueue;
         }
@@ -74,7 +75,7 @@ export function createSync({ state, media, currentItem, renderPlaybackOptions, s
         state.ediStopped = true;
         state.lastGallery = null;
         state.intensityNeedsResync = true;
-        if (state.strokerPaused) {
+        if (state.strokerPaused && allPause()) {
             state.strokerNeedsResync = true;
             renderPlaybackOptions();
             return commandQueue;
@@ -128,7 +129,9 @@ export function createSync({ state, media, currentItem, renderPlaybackOptions, s
                     return;
                 }
 
-                if (state.strokerNeedsResync || state.lastGallery !== currentDefinition()?.name) {
+                if (!allPause()) {
+                    await command('/Edi/Resume?AtCurrentTime=true');
+                } else if (state.strokerNeedsResync || state.lastGallery !== currentDefinition()?.name) {
                     state.ediStopped = !await syncEdi(true);
                 } else {
                     await command('/Edi/Resume?AtCurrentTime=true');

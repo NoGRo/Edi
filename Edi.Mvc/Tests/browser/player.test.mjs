@@ -10,7 +10,83 @@ import { resolve, extname, sep } from 'node:path';
 const { chromium } = createRequire(import.meta.url)('playwright');
 const root = fileURLToPath(new URL('../../wwwroot/', import.meta.url));
 
-test('browser loads all modules, edits the playlist and restores the persistent asset library', async () => {
+test('device buttons route controls selectively and keep hidden pause out of variant selections', async () => {
+    const server = await staticServer();
+    let browser;
+    try {
+        browser = await chromium.launch({ channel: 'msedge', headless: true });
+        const page = await browser.newPage();
+        const errors = [], calls = [];
+        page.on('pageerror', error => errors.push(error.message));
+        const devices = ['First', 'Second'].map(name => ({ name, isReady: true,
+            variants: ['primary', 'secondary', 'None'], selectedVariant: 'primary',
+            min: 0, max: 100, baseMin: 0, baseMax: 100
+        }));
+        await page.route('**/Edi/**', route => route.fulfill({ json: [] }));
+        await page.route('**/Devices**', route => {
+            const request = route.request();
+            const url = new URL(request.url());
+            if (request.method() === 'GET') return route.fulfill({ json: devices });
+            const body = request.postDataJSON();
+            calls.push({ path: url.pathname + url.search, body });
+            if (url.pathname === '/Devices/Variants') {
+                devices.forEach(device => {
+                    if (body[device.name]) device.selectedVariant = body[device.name];
+                });
+            }
+            return route.fulfill({ status: 200, body: '' });
+        });
+        await page.goto(`http://127.0.0.1:${server.address().port}/`);
+        await page.waitForFunction(() => document.querySelectorAll('.device-control-buttons button').length === 6);
+        const first = page.locator('.device-card').nth(0), second = page.locator('.device-card').nth(1);
+        await second.locator('select').nth(1).selectOption('real:secondary');
+        const heading = await first.locator('.device-meta-line').boundingBox();
+        const buttons = await first.locator('.device-control-buttons').boundingBox();
+        assert.ok(Math.abs(buttons.x + buttons.width - heading.x - heading.width) < 2);
+        assert.ok(Math.abs(buttons.y + buttons.height / 2 - heading.y - heading.height / 2) < 2);
+
+        await first.locator('[data-control=variant]').click();
+        calls.length = 0;
+        await first.locator('select').first().selectOption('real:secondary');
+        await first.locator('select').nth(1).selectOption('real:primary');
+        assert.deepEqual(calls, []);
+        assert.equal(await first.locator('select').first().isEnabled(), true);
+        assert.equal(await first.locator('select').nth(1).isEnabled(), true);
+        await first.locator('select').first().selectOption('real:primary');
+        await first.locator('select').nth(1).selectOption('real:secondary');
+        await second.locator('[data-control=intensity]').click();
+        calls.length = 0;
+        await page.evaluate(async () => (await import('/js/player/device-routing.mjs')).deviceRouting.setIntensity(40));
+        assert.deepEqual(calls.map(call => call.path), ['/Devices/First/Range/0-40?persist=false']);
+
+        await second.locator('[data-control=pause]').click();
+        calls.length = 0;
+        await page.evaluate(async () => (await import('/js/player/device-routing.mjs')).deviceRouting.setPaused(true));
+        assert.deepEqual(calls, [{ path: '/Devices/Variants?persist=false', body: { First: 'None' } }]);
+        assert.equal(await first.locator('[data-control=pause]').evaluate(button => button.classList.contains('btn-danger')), true);
+        assert.equal(await first.locator('select').first().inputValue(), 'real:primary');
+        assert.equal(await first.locator('select').first().evaluate(select => select.classList.contains('device-variant-stopped')), false);
+
+        calls.length = 0;
+        await first.locator('.device-variant-switch').click();
+        await page.waitForFunction(() => document.querySelectorAll('.device-variant-active')[1]?.value === 'real:secondary');
+        assert.deepEqual(calls, [{ path: '/Devices/Variants?persist=false', body: { Second: 'secondary' } }]);
+        assert.equal(await first.locator('.device-variant-active').inputValue(), 'real:primary');
+        calls.length = 0;
+        await page.evaluate(async () => (await import('/js/player/device-routing.mjs')).deviceRouting.setPaused(false));
+        assert.deepEqual(calls, [{ path: '/Devices/Variants?persist=false', body: { First: 'primary' } }]);
+        calls.length = 0;
+        await first.locator('[data-control=variant]').click();
+        await page.waitForFunction(() => document.querySelectorAll('.device-variant-active')[0]?.value === 'real:secondary');
+        assert.deepEqual(calls, [{ path: '/Devices/Variants?persist=false', body: { First: 'secondary' } }]);
+        assert.deepEqual(errors, []);
+    } finally {
+        await browser?.close();
+        await new Promise(done => server.close(done));
+    }
+});
+
+async function staticServer() {
     const server = createServer(async (request, response) => {
         const pathname = new URL(request.url, 'http://localhost').pathname;
         const path = resolve(root, pathname === '/' ? 'index.html' : `.${pathname}`);
@@ -27,6 +103,11 @@ test('browser loads all modules, edits the playlist and restores the persistent 
         }
     });
     await new Promise(done => server.listen(0, '127.0.0.1', done));
+    return server;
+}
+
+test('browser loads all modules, edits the playlist and restores the persistent asset library', async () => {
+    const server = await staticServer();
     let browser;
     try {
         browser = await chromium.launch({ channel: 'msedge', headless: true });

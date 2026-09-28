@@ -5,6 +5,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         listOriginalVariants, parseAutoVariant, parseFunscriptName
     } = await import('/js/funscript-tools.mjs');
 
+    const { deviceRouting } = await import('/js/player/device-routing.mjs');
     const { assets: assetManager } = await import('/js/player/assets.mjs');
     const grid = document.getElementById('devicesGrid');
     const video = document.getElementById('videoPlayer');
@@ -82,7 +83,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         const initialized = initializeDeviceVariantPair(
             current,
             deviceVariants(device),
-            device.selectedVariant,
+            deviceRouting.visibleVariant(device),
             globalSettings);
         if (!current || current.primary !== initialized.primary
             || current.secondary !== initialized.secondary) {
@@ -90,6 +91,14 @@ document.addEventListener('DOMContentLoaded', async () => {
             savePairs();
         }
         return storedPairs[device.name];
+    }
+
+    function deviceSide(device) {
+        if (deviceRouting.participates(device, 'variant')) return activeSide();
+        const pair = pairFor(device);
+        const variant = deviceRouting.visibleVariant(device);
+        return variant === physicalSelection(pair.primary) ? 'primary'
+            : variant === physicalSelection(pair.secondary) ? 'secondary' : null;
     }
 
     function appendVariantOptions(select, variants, selectedValue) {
@@ -251,14 +260,13 @@ document.addEventListener('DOMContentLoaded', async () => {
         editingCount++;
         try {
             const current = devices.find(candidate => candidate.name === deviceName);
-            if (current) {
+            if (current && deviceRouting.participates(current, 'variant')) {
                 const otherSide = side === 'primary' ? 'secondary' : 'primary';
                 const selected = await resolveSelection(next[side], next[otherSide], current, true);
                 if (!selected) throw new Error('The saved variant is not currently available on this device.');
-                if (activeSide() === side) {
-                    await post(`/Devices/${encodeURIComponent(deviceName)}/Variant/${encodeURIComponent(selected)}`);
-                    const refreshed = devices.find(candidate => candidate.name === deviceName) || current;
-                    refreshed.selectedVariant = selected;
+                if (deviceSide(current) === side) {
+                    mutationRevision++;
+                    await deviceRouting.setVariants({ [deviceName]: selected });
                 }
             }
             setStatus(`${deviceName}: ${side === 'primary' ? 'Primary' : 'Secondary'} saved.`);
@@ -285,8 +293,48 @@ document.addEventListener('DOMContentLoaded', async () => {
         const name = document.createElement('strong');
         name.className = 'device-meta-name';
         name.textContent = device.name;
-        name.title = `${device.name} · Current: ${variantOptionLabel(device.selectedVariant || 'None')}`;
+        name.title = `${device.name} · Current: ${variantOptionLabel(deviceRouting.visibleVariant(device) || 'None')}`;
         heading.append(dot, name);
+        if (devices.length > 1) {
+            const controls = document.createElement('div');
+            controls.className = 'btn-group device-control-buttons';
+            controls.setAttribute('role', 'group');
+            controls.setAttribute('aria-label', `Controls for ${device.name}`);
+            [['pause', 'strokerToggle', 'Pause / resume'], ['intensity', 'intensityToggle', 'Intensity'],
+                ['variant', 'variantToggle', 'Variant']].forEach(([control, source, label]) => {
+                const button = document.createElement('button');
+                button.type = 'button';
+                const enabled = deviceRouting.participates(device, control);
+                const stopped = enabled && (control === 'pause' && deviceRouting.isPaused(device)
+                    || control === 'intensity' && device.min === device.max
+                    || control === 'variant' && deviceRouting.visibleVariant(device) === 'None');
+                button.className = `btn icon-button ${stopped ? 'btn-danger' : enabled ? 'btn-primary' : 'btn-outline-secondary'}`;
+                button.classList.toggle('stroker-paused', control === 'pause' && stopped);
+                button.innerHTML = document.getElementById(source).querySelector('svg').outerHTML;
+                button.setAttribute('aria-label', `${label} for ${device.name}`);
+                button.setAttribute('aria-pressed', String(enabled));
+                button.dataset.control = control;
+                button.dataset.tooltip = `${label}: ${enabled ? 'on' : 'off'}`;
+                button.addEventListener('click', async () => {
+                    editingCount++;
+                    mutationRevision++;
+                    try {
+                        await deviceRouting.toggle(device, control);
+                        if (control === 'variant' && deviceRouting.participates(device, control)) {
+                            const pair = pairFor(device);
+                            const side = activeSide();
+                            const selected = await resolveSelection(pair[side],
+                                pair[side === 'primary' ? 'secondary' : 'primary'], device, true);
+                            if (selected) await deviceRouting.setVariants({ [device.name]: selected });
+                        }
+                    }
+                    catch (error) { setStatus(error.message, true); }
+                    finally { editingCount--; renderDevices(); }
+                });
+                controls.append(button);
+            });
+            heading.append(controls);
+        }
 
         const variants = document.createElement('div');
         variants.className = 'device-variants';
@@ -298,12 +346,12 @@ document.addEventListener('DOMContentLoaded', async () => {
         secondary.className = 'form-select form-select-sm';
         secondary.setAttribute('aria-label', `Secondary variant for ${device.name}`);
         appendVariantOptions(secondary, deviceVariants(device), settings.secondary);
-        const primaryActive = activeSide() === 'primary';
-        const secondaryActive = activeSide() === 'secondary';
+        const primaryActive = deviceSide(device) === 'primary';
+        const secondaryActive = deviceSide(device) === 'secondary';
         primary.classList.toggle('device-variant-active', primaryActive);
         secondary.classList.toggle('device-variant-active', secondaryActive);
-        primary.classList.toggle('device-variant-stopped', primaryActive && realSelection(settings.primary) === 'None');
-        secondary.classList.toggle('device-variant-stopped', secondaryActive && realSelection(settings.secondary) === 'None');
+        primary.classList.toggle('device-variant-stopped', primaryActive && deviceRouting.visibleVariant(device) === 'None');
+        secondary.classList.toggle('device-variant-stopped', secondaryActive && deviceRouting.visibleVariant(device) === 'None');
         primary.addEventListener('change', () => changeSelection(device.name, 'primary', primary.value));
         secondary.addEventListener('change', () => changeSelection(device.name, 'secondary', secondary.value));
         const switcher = iconButton(
@@ -318,8 +366,8 @@ document.addEventListener('DOMContentLoaded', async () => {
             switcher,
             variantField(secondary, 'Secondary'));
 
-        let low = Math.max(0, Math.min(100, Number(device.min ?? 0)));
-        let high = Math.max(low, Math.min(100, Number(device.max ?? 100)));
+        let low = Math.max(0, Math.min(100, Number(device.baseMin ?? device.min ?? 0)));
+        let high = Math.max(low, Math.min(100, Number(device.baseMax ?? device.max ?? 100)));
         const rangeField = document.createElement('div');
         rangeField.className = 'device-range-field';
         const tooltip = document.createElement('span');
@@ -358,8 +406,8 @@ document.addEventListener('DOMContentLoaded', async () => {
             editingCount++;
             try {
                 await post(`/Devices/${encodeURIComponent(device.name)}/Range/${low}-${high}`);
-                device.min = low;
-                device.max = high;
+                device.min = device.baseMin = low;
+                device.max = device.baseMax = high;
             } catch (error) {
                 setStatus(`Could not change ${device.name} range: ${error.message}`, true);
             } finally {
@@ -406,6 +454,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         const refreshed = await response.json();
         if (requestRevision !== refreshRevision || mutationAtStart !== mutationRevision) return;
         devices = refreshed;
+        await deviceRouting.setDevices(devices);
         devices.forEach(pairFor);
         const preserveEditor = variantSelectFocused();
         if (!preserveEditor) refreshGlobalOptions();
@@ -420,9 +469,9 @@ document.addEventListener('DOMContentLoaded', async () => {
             const secondary = physicalSelection(settings.secondary);
             return {
                 name: device.name,
-                side: device.selectedVariant === primary ? 'P'
-                    : device.selectedVariant === secondary ? 'S' : null,
-                variant: variantOptionLabel(device.selectedVariant || 'None')
+                side: deviceRouting.visibleVariant(device) === primary ? 'P'
+                    : deviceRouting.visibleVariant(device) === secondary ? 'S' : null,
+                variant: variantOptionLabel(deviceRouting.visibleVariant(device) || 'None')
             };
         });
     }
@@ -436,7 +485,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     function renderFeatureState() {
         const active = globalSettings.enabled === true;
         const connected = devices.filter(device => device.isReady !== false);
-        const stoppedCount = connected.filter(device => device.selectedVariant === 'None').length;
+        const stoppedCount = connected.filter(device => deviceRouting.visibleVariant(device) === 'None').length;
         const allStopped = active && connected.length > 0 && stoppedCount === connected.length;
         const someStopped = active && stoppedCount > 0 && !allStopped;
         toggle.setAttribute('aria-pressed', String(active));
@@ -511,7 +560,8 @@ document.addEventListener('DOMContentLoaded', async () => {
             const failures = [];
             let changed = 0;
             try {
-                const snapshots = devices.filter(device => device.isReady !== false);
+                const snapshots = devices.filter(device => device.isReady !== false
+                    && deviceRouting.participates(device, 'variant'));
                 const prepared = await Promise.all(snapshots.map(async snapshot => {
                     const pair = pairFor(snapshot);
                     const otherSide = targetSide === 'primary' ? 'secondary' : 'primary';
@@ -531,15 +581,9 @@ document.addEventListener('DOMContentLoaded', async () => {
                         failures.push(`${snapshot.name}: selected variant could not be prepared.`);
                 });
                 if (Object.keys(selections).length) {
-                    await post('/Devices/Variants', {
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify(selections)
-                    });
-                    devices.forEach(device => {
-                        if (!(device.name in selections)) return;
-                        device.selectedVariant = selections[device.name];
-                        changed++;
-                    });
+                    mutationRevision++;
+                    await deviceRouting.setVariants(selections);
+                    changed = Object.keys(selections).length;
                 }
                 if (!changed && !failures.length)
                     failures.push('No connected device has an available variant for this mode.');
@@ -558,6 +602,11 @@ document.addEventListener('DOMContentLoaded', async () => {
             }
         }).catch(error => setStatus(`Could not switch variants: ${error.message}`, true));
     }
+
+    document.addEventListener('edi-device-controls-state', () => {
+        mutationRevision++;
+        if (!variantSelectFocused()) renderDevices();
+    });
 
     video?.addEventListener('mousedown', event => {
         if (event.button !== 2 || !globalSettings.enabled) return;

@@ -24,6 +24,8 @@ namespace Edi.Core.Controllers
                 SelectedVariant = x.SelectedVariant,
                 Min = (x as IRange)?.Min ?? 0,
                 Max = (x as IRange)?.Max ?? 100,
+                BaseMin = edi.DeviceConfiguration.ConfiguredRange(x)?.Min ?? 0,
+                BaseMax = edi.DeviceConfiguration.ConfiguredRange(x)?.Max ?? 100,
                 OffsetMS =
                     (x as IDeviceWithOffsetConfiguration)
                     ?.OffsetMilliseconds
@@ -47,7 +49,7 @@ namespace Edi.Core.Controllers
         [HttpPost("Variants")]
         [SwaggerOperation(Summary = "Selects variants for multiple devices in parallel.")]
         public async Task<IActionResult> SelectVariants(
-            [FromBody, Required] Dictionary<string, string> variants)
+            [FromBody, Required] Dictionary<string, string> variants, [FromQuery] bool persist = true)
         {
             if (variants is null || variants.Count == 0)
                 return BadRequest("At least one device variant is required");
@@ -63,7 +65,7 @@ namespace Edi.Core.Controllers
                 selections[device] = selection.Value;
             }
 
-            await edi.DeviceConfiguration.SelectVariants(selections);
+            await edi.DeviceConfiguration.SelectVariants(selections, persist);
             return Ok();
         }
 
@@ -71,14 +73,14 @@ namespace Edi.Core.Controllers
         [SwaggerOperation(Summary = "Sets the range (min and max) for the specified device.")]
         public async Task<IActionResult> SelectRange([FromRoute, Required] string deviceName,
                                                      [FromRoute, Range(0, 100)] int min,
-                                                     [FromRoute, Range(0, 100)] int max)
+                                                     [FromRoute, Range(0, 100)] int max, [FromQuery] bool persist = true)
         {
             var device = edi.Devices.FirstOrDefault(x => x.Name == deviceName);
             if (device == null)
                 return NotFound("Device not found");
             if (max < min)
                 return BadRequest("Max must be greater than Min");
-            await edi.DeviceConfiguration.SelectRange(device, min, max);
+            await edi.DeviceConfiguration.SelectRange(device, min, max, persist);
             return Ok();
         }
 

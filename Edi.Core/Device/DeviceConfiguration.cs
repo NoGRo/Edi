@@ -24,7 +24,7 @@ namespace Edi.Core.Device
             await SelectVariants(new Dictionary<IDevice, string> { [device] = variant });
         }
 
-        public async Task SelectVariants(IReadOnlyDictionary<IDevice, string> selections)
+        public async Task SelectVariants(IReadOnlyDictionary<IDevice, string> selections, bool persist = true)
         {
             var changes = selections
                 .Where(selection => selection.Key is not null
@@ -37,10 +37,13 @@ namespace Edi.Core.Device
 
             await Task.WhenAll(changes.Select(async selection =>
             {
-                if (selection.Key.IsReady)
+                if (persist && selection.Key.IsReady)
                     await selection.Key.Stop();
                 selection.Key.SelectedVariant = selection.Value;
             }));
+
+            if (!persist)
+                return;
 
             foreach (var selection in changes)
             {
@@ -66,15 +69,20 @@ namespace Edi.Core.Device
             device.Channel = channel;
         }
 
-        public async Task SelectRange(IDevice device, int min, int max)
+        public IRange ConfiguredRange(IDevice device) => GetConfiguration(device);
+
+        public async Task SelectRange(IDevice device, int min, int max, bool persist = true)
         {
             var deviceName = deviceCollector.Devices.FirstOrDefault(x => x == device)?.Name;
 
             if (device is null || deviceName is null || device is not IRange)
                 return;
 
-            config.Devices[deviceName].SetRange(min, max);
             (device as IRange).SetRange(min, max);
+
+            if (!persist)
+                return;
+            config.Devices[deviceName].SetRange(min, max);
 
             configuration.Save(config);
         }

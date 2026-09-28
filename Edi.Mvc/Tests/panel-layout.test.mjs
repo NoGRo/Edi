@@ -7,7 +7,8 @@ const player = ['input', 'fullscreen'].map(name =>
     readFileSync(new URL(`../wwwroot/js/player/${name}.mjs`, import.meta.url), 'utf8')).join('\n');
 const assets = readFileSync(new URL('../wwwroot/js/player/assets.mjs', import.meta.url), 'utf8');
 const bootstrap = readFileSync(new URL('../wwwroot/js/edi-player.js', import.meta.url), 'utf8');
-const devices = readFileSync(new URL('../wwwroot/js/edi-devices.js', import.meta.url), 'utf8');
+const devices = readFileSync(new URL('../wwwroot/js/edi-devices.js', import.meta.url), 'utf8').replace(/\r\n/g, '\n');
+const routing = readFileSync(new URL('../wwwroot/js/player/device-routing.mjs', import.meta.url), 'utf8');
 
 const occurrences = value => markup.split(value).length - 1;
 
@@ -47,7 +48,7 @@ test('fullscreen side panels share toolbar visibility and device focus uses the 
 });
 
 test('variant stop feedback is calculated locally without a cache-sensitive module export', () => {
-    assert.match(markup, /edi-devices\.js\?v=20260914-prepare-batched-variant-switch/);
+    assert.match(markup, /edi-devices\.js\?v=20260928-device-routing/);
     assert.doesNotMatch(devices, /getVariantStopState/);
     assert.match(devices, /const connected = devices\.filter\(device => device\.isReady !== false\)/);
     assert.match(devices, /const allStopped = active && connected\.length > 0 && stoppedCount === connected\.length/);
@@ -55,8 +56,8 @@ test('variant stop feedback is calculated locally without a cache-sensitive modu
 });
 
 test('variant mode highlights a whole column and the middle button switches modes without swapping choices', () => {
-    assert.match(devices, /const primaryActive = activeSide\(\) === 'primary'/);
-    assert.match(devices, /const secondaryActive = activeSide\(\) === 'secondary'/);
+    assert.match(devices, /const primaryActive = deviceSide\(device\) === 'primary'/);
+    assert.match(devices, /const secondaryActive = deviceSide\(device\) === 'secondary'/);
     assert.match(devices, /switcher\.addEventListener\('click', \(\) => switchVariantSide/);
     assert.doesNotMatch(devices, /function swapSelections/);
     assert.doesNotMatch(devices, /primary: settings\.secondary/);
@@ -64,13 +65,14 @@ test('variant mode highlights a whole column and the middle button switches mode
 
 test('a variant mode switch updates devices as one batch while global switches stay queued', () => {
     assert.match(devices, /switchQueue = switchQueue\.then\(async \(\) =>/);
-    assert.match(devices, /post\('\/Devices\/Variants'/);
-    assert.match(devices, /body: JSON\.stringify\(selections\)/);
+    assert.match(devices, /deviceRouting\.setVariants\(selections\)/);
+    assert.match(routing, /request\('\/Devices\/Variants\?persist=false'/);
+    assert.match(routing, /body: JSON\.stringify\(changes\)/);
     assert.doesNotMatch(devices, /for \(const snapshot of \[\.\.\.devices\]\)/);
 });
 
 test('a variant mode switch prepares missing selections in parallel, then batches activation', () => {
-    const switchBody = devices.match(/function switchVariantSide\(targetSide\) \{([\s\S]+?)\n    \}\n\n    video\?\.addEventListener/)[1];
+    const switchBody = devices.match(/function switchVariantSide\(targetSide\) \{([\s\S]+?)\n    \}\n\n    document\.addEventListener/)[1];
     assert.match(switchBody, /await Promise\.all\(snapshots\.map\(async snapshot =>/);
     assert.match(switchBody, /await resolveSelection\(/);
     assert.doesNotMatch(switchBody, /resolvePair|generateVariant|fetchAssets|\/Edi\/Assets/);

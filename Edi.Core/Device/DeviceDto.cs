@@ -16,6 +16,8 @@ namespace Edi.Core.Device
         public string Channel { get; set; }
         public int Min { get; set; }
         public int Max { get; set; }
+        public int BaseMin { get; set; }
+        public int BaseMax { get; set; }
         public int? OffsetMS { get; set; }
     }
 }

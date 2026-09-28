@@ -169,6 +169,8 @@
     .fullscreen-device-controls { width: max-content; }
     .fullscreen-device-controls .variant-toggle-panel { top: calc(100% + .55rem); }
     .device-meta-line { display: flex; min-width: 0; gap: .4rem; align-items: center; }
+    .device-control-buttons { margin-left: auto; flex-shrink: 0; }
+    .device-control-buttons .icon-button { width: 2rem; height: 2rem; padding: .3rem; }
     .device-meta-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     .device-status-dot { width: .55rem; height: .55rem; flex: 0 0 .55rem; border-radius: 50%; background: var(--bs-secondary); }
     .device-status-dot.connected { background: var(--bs-success); box-shadow: 0 0 .45rem rgba(25,135,84,.55); }
@@ -388,6 +390,6 @@
 </main>
 <script src="/js/player-tools.js"></script>
 <script type="module" src="/js/edi-player.js?v=20260928-modular-player"></script>
-<script src="/js/edi-devices.js?v=20260914-prepare-batched-variant-switch"></script>
+<script src="/js/edi-devices.js?v=20260928-device-routing"></script>
 </body>
 </html>

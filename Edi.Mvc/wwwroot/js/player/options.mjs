@@ -1,5 +1,6 @@
+import { routedPlaybackCommand } from './device-routing.mjs';
 import { playbackOptionsKey } from './preferences.mjs';
-import { confirmedPlaybackCommand, report } from './edi-api.mjs';
+import { report } from './edi-api.mjs';
 
 export function createOptions({ state, elements, showIntensityOverlay, saveCurrentPosition, resetPositions, toggleStrokerPlayback }) {
     const loopModeIndicator = elements.loopModeIndicator;
@@ -13,7 +14,7 @@ export function createOptions({ state, elements, showIntensityOverlay, saveCurre
         renderPlaybackOptions();
         showIntensityOverlay(clamped);
         try {
-            await confirmedPlaybackCommand(`/Edi/Intensity/${clamped}`);
+            await routedPlaybackCommand(`/Edi/Intensity/${clamped}`);
             state.intensityNeedsResync = false;
         } catch (error) {
             state.intensityNeedsResync = true;

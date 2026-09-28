@@ -21,28 +21,33 @@ namespace Edi.Core.Device
 
         public async Task SelectVariant(IDevice device, string variant)
         {
-            if (device.SelectedVariant == variant)
+            await SelectVariants(new Dictionary<IDevice, string> { [device] = variant });
+        }
+
+        public async Task SelectVariants(IReadOnlyDictionary<IDevice, string> selections)
+        {
+            var changes = selections
+                .Where(selection => selection.Key is not null
+                    && deviceCollector.Devices.Contains(selection.Key)
+                    && selection.Key.Variants.Contains(selection.Value)
+                    && selection.Key.SelectedVariant != selection.Value)
+                .ToArray();
+            if (changes.Length == 0)
                 return;
 
-            var deviceName = deviceCollector.Devices.FirstOrDefault(x => x == device)?.Name;
-
-            if (device is null || deviceName is null)  
-                return;
-            if (!config.Devices.ContainsKey(deviceName))
-                config.Devices.Add(deviceName, new() { Variant = variant });
-            else
+            await Task.WhenAll(changes.Select(async selection =>
             {
-                if (device.IsReady)
-                    await device.Stop();
+                if (selection.Key.IsReady)
+                    await selection.Key.Stop();
+                selection.Key.SelectedVariant = selection.Value;
+            }));
 
-                config.Devices[deviceName].Variant = variant;
+            foreach (var selection in changes)
+            {
+                config.Devices.TryAdd(selection.Key.Name, new DeviceConfig());
+                config.Devices[selection.Key.Name].Variant = selection.Value;
             }
-
-            if (!device.Variants.Contains(variant))
-                return;
-
             configuration.Save(config);
-            device.SelectedVariant = variant;
         }
 
         public async Task SelectChannel(IDevice device, string channel)

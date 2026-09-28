@@ -67,7 +67,7 @@
         "Variant": "None",
         "Channel": null,
         "Min": 0,
-        "Max": 10,
+        "Max": 0,
         "OffsetMS": -100
       },
       "The Handy [PiBnz]": {
@@ -81,32 +81,32 @@
         "Variant": "None",
         "Channel": null,
         "Min": 0,
-        "Max": 100,
+        "Max": 67,
         "OffsetMS": null
       },
       "Lovense Edge Vibrate: 2": {
-        "Variant": "L1",
+        "Variant": "None",
         "Channel": null,
         "Min": 0,
-        "Max": 100,
+        "Max": 67,
         "OffsetMS": null
       },
       "Lovense Gemini Vibrate: 1": {
-        "Variant": "Edge",
+        "Variant": "action",
         "Channel": null,
         "Min": 0,
         "Max": 100,
         "OffsetMS": null
       },
       "Lovense Gemini Vibrate: 2": {
-        "Variant": "Edge",
+        "Variant": "(Hardcore)",
         "Channel": null,
         "Min": 0,
         "Max": 100,
         "OffsetMS": null
       },
       "The Handy 2 Pro (BLE)": {
-        "Variant": "default",
+        "Variant": "R0",
         "Channel": null,
         "Min": 0,
         "Max": 100,
@@ -116,7 +116,7 @@
         "Variant": "default",
         "Channel": null,
         "Min": 0,
-        "Max": 43,
+        "Max": 100,
         "OffsetMS": 0
       },
       "The Handy (BLE)": {

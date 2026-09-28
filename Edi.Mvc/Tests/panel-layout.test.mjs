@@ -44,9 +44,54 @@ test('fullscreen side panels share toolbar visibility and device focus uses the 
 });
 
 test('variant stop feedback is calculated locally without a cache-sensitive module export', () => {
-    assert.match(markup, /edi-devices\.js\?v=20260901-variant-stop/);
+    assert.match(markup, /edi-devices\.js\?v=20260914-prepare-batched-variant-switch/);
     assert.doesNotMatch(devices, /getVariantStopState/);
     assert.match(devices, /const connected = devices\.filter\(device => device\.isReady !== false\)/);
     assert.match(devices, /const allStopped = active && connected\.length > 0 && stoppedCount === connected\.length/);
     assert.match(devices, /variant-toggle-partially-stopped/);
+});
+
+test('variant mode highlights a whole column and the middle button switches modes without swapping choices', () => {
+    assert.match(devices, /const primaryActive = activeSide\(\) === 'primary'/);
+    assert.match(devices, /const secondaryActive = activeSide\(\) === 'secondary'/);
+    assert.match(devices, /switcher\.addEventListener\('click', \(\) => switchVariantSide/);
+    assert.doesNotMatch(devices, /function swapSelections/);
+    assert.doesNotMatch(devices, /primary: settings\.secondary/);
+});
+
+test('a variant mode switch updates devices as one batch while global switches stay queued', () => {
+    assert.match(devices, /switchQueue = switchQueue\.then\(async \(\) =>/);
+    assert.match(devices, /post\('\/Devices\/Variants'/);
+    assert.match(devices, /body: JSON\.stringify\(selections\)/);
+    assert.doesNotMatch(devices, /for \(const snapshot of \[\.\.\.devices\]\)/);
+});
+
+test('a variant mode switch prepares missing selections in parallel, then batches activation', () => {
+    const switchBody = devices.match(/function switchVariantSide\(targetSide\) \{([\s\S]+?)\n    \}\n\n    video\?\.addEventListener/)[1];
+    assert.match(switchBody, /await Promise\.all\(snapshots\.map\(async snapshot =>/);
+    assert.match(switchBody, /await resolveSelection\(/);
+    assert.doesNotMatch(switchBody, /resolvePair|generateVariant|fetchAssets|\/Edi\/Assets/);
+    assert.doesNotMatch(switchBody, /publishAssetsReload|edi-assets-reloaded|Intensity/);
+});
+
+test('saved real variants resolve to the backend canonical casing', () => {
+    assert.match(devices, /const findDeviceVariant = \(device, variant\) => deviceVariants\(device\)/);
+    assert.match(devices, /if \(physical\) return findDeviceVariant\(device, physical\)/);
+});
+
+test('automatic variants upload only generated scripts incrementally', () => {
+    const generator = devices.match(/async function generateVariant\(kind, baseVariant\) \{([\s\S]+?)\n    \}\n\n    async function getGeneratedBase/)[1];
+    assert.match(generator, /generated\.forEach\(file => form\.append\('files', file, file\.name\)\)/);
+    assert.match(generator, /post\('\/Edi\/Assets', \{ method: 'PUT', body: form \}\)/);
+    assert.doesNotMatch(generator, /\[\.\.\.merged\.values\(\)\]\.forEach\(file => form\.append/);
+});
+
+test('uploaded assets are shared with variant generation as an in-memory cache', () => {
+    assert.match(markup, /edi-player\.js\?v=20260914-persistent-asset-cache/);
+    assert.match(player, /window\.ediPlayerAssetCache = \[\.\.\.files\]/);
+    assert.match(player, /await restoreAssetCache\(\)/);
+    assert.match(player, /document\.addEventListener\('edi-assets-persist-requested'/);
+    assert.match(devices, /if \(assetFilesCache\) return assetFilesCache/);
+    assert.match(devices, /document\.addEventListener\('edi-assets-cached'/);
+    assert.match(devices, /new CustomEvent\('edi-assets-persist-requested'/);
 });

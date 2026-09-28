@@ -1424,6 +1424,10 @@
         suppressPause = false;
         await withStore(assetStore, 'readwrite', store => store.clear());
         await api('/Edi/Assets', { method: 'DELETE' });
+        window.ediPlayerAssetCache = [];
+        document.dispatchEvent(new CustomEvent('edi-assets-cached', {
+            detail: { files: window.ediPlayerAssetCache }
+        }));
         definitions = [];
         ediStopped = true;
         lastGallery = null;
@@ -1525,12 +1529,26 @@
         });
     }
 
+    async function restoreAssetCache() {
+        const records = await getStoredItems(assetStore);
+        const files = records.map(record => record.file).filter(Boolean);
+        if (!files.length) return;
+        window.ediPlayerAssetCache = files;
+        document.dispatchEvent(new CustomEvent('edi-assets-cached', {
+            detail: { files }
+        }));
+    }
+
     async function uploadAssets(files) {
         const form = new FormData();
         files.forEach(file => form.append('files', file, file.name));
         const preserveStrokerPause = strokerPaused;
         await stopEdi('Updating EDI assets...');
         const response = await api('/Edi/Assets', { method: 'POST', body: form });
+        window.ediPlayerAssetCache = [...files];
+        document.dispatchEvent(new CustomEvent('edi-assets-cached', {
+            detail: { files: window.ediPlayerAssetCache }
+        }));
         definitions = await response.json();
         renderPlaylist();
         document.dispatchEvent(new CustomEvent('edi-devices-refresh-requested'));
@@ -1552,6 +1570,11 @@
                 report(`Could not resynchronize EDI after reloading assets: ${error.message}`, true);
             }
         })();
+    });
+    document.addEventListener('edi-assets-persist-requested', event => {
+        const files = Array.isArray(event.detail?.files) ? event.detail.files : [];
+        if (!files.length) return;
+        void saveAssets(files).catch(error => report(`Could not persist the asset cache: ${error.message}`, true));
     });
 
     async function recoverUploadedAssets() {
@@ -1921,6 +1944,11 @@
     setInterval(renderTotalPlayback, 1000);
     async function initialize() {
         renderPlaybackOptions();
+        try {
+            await restoreAssetCache();
+        } catch (error) {
+            report(`Could not restore the asset cache: ${error.message}`, true);
+        }
         await loadDefinitions();
         try {
             await clearStoredVideos();

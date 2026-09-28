@@ -44,6 +44,29 @@ namespace Edi.Core.Controllers
             return Ok();
         }
 
+        [HttpPost("Variants")]
+        [SwaggerOperation(Summary = "Selects variants for multiple devices in parallel.")]
+        public async Task<IActionResult> SelectVariants(
+            [FromBody, Required] Dictionary<string, string> variants)
+        {
+            if (variants is null || variants.Count == 0)
+                return BadRequest("At least one device variant is required");
+
+            var selections = new Dictionary<IDevice, string>();
+            foreach (var selection in variants)
+            {
+                var device = edi.Devices.FirstOrDefault(x => x.Name == selection.Key);
+                if (device is null)
+                    return NotFound($"Device not found: {selection.Key}");
+                if (!device.Variants.Contains(selection.Value))
+                    return NotFound($"Variant not found for {selection.Key}: {selection.Value}");
+                selections[device] = selection.Value;
+            }
+
+            await edi.DeviceConfiguration.SelectVariants(selections);
+            return Ok();
+        }
+
         [HttpPost("{deviceName}/Range/{min}-{max}")]
         [SwaggerOperation(Summary = "Sets the range (min and max) for the specified device.")]
         public async Task<IActionResult> SelectRange([FromRoute, Required] string deviceName,

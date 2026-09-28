@@ -234,6 +234,7 @@ Channels can be specified for any Playback endpoint in two ways:
 
 - `GET /Devices`: lists connected devices.
 - `POST /Devices/{deviceName}/Variant/{variantName}`: assigns a variant to a device. Using `None` stops that device.
+- `POST /Devices/Variants`: assigns variants to multiple devices in one request. The JSON body maps device names to variant names; device stops run in parallel and configuration is saved once.
 - `POST /Devices/{deviceName}/Range/{min}-{max}`: sets device intensity range. If both values are 0, the device is stopped.
 - `POST /Devices/{deviceName}/Channel/{channelName}`: assigns a device to a specific channel.
 - `POST /Devices/{deviceName}/Offset/{offsetMilliseconds}`: sets the saved

@@ -78,17 +78,23 @@ test('per-device variant choices survive temporary device refresh changes', () =
 test('new devices get their own pair without sharing mutable state', () => {
     const first = initializeDeviceVariantPair({}, ['Default', 'Fast'], 'Default');
     const second = initializeDeviceVariantPair({}, ['Default', 'Slow'], 'Slow');
-    assert.deepEqual(first, { primary: 'real:Default', secondary: 'real:Fast' });
-    assert.deepEqual(second, { primary: 'real:Default', secondary: 'real:Slow' });
+    assert.deepEqual(first, { primary: 'real:Default', secondary: 'real:Default' });
+    assert.deepEqual(second, { primary: 'real:Slow', secondary: 'real:Slow' });
     first.primary = 'real:Fast';
-    assert.equal(second.primary, 'real:Default');
+    assert.equal(second.primary, 'real:Slow');
 });
 
-test('choosing an occupied side swaps the previous value instead of clearing it', () => {
+test('each side can be changed independently, including to the same variant', () => {
     assert.deepEqual(changeDeviceVariantPair(
         { primary: 'real:Default', secondary: 'real:Fast' },
         'primary',
         'real:Fast'), {
-        primary: 'real:Fast', secondary: 'real:Default'
+        primary: 'real:Fast', secondary: 'real:Fast'
+    });
+    assert.deepEqual(changeDeviceVariantPair(
+        { primary: 'real:None', secondary: 'real:Default' },
+        'secondary',
+        'real:None'), {
+        primary: 'real:None', secondary: 'real:None'
     });
 });

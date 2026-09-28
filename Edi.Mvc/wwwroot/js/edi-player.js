@@ -11,6 +11,7 @@ import { createPlaybackEvents } from './player/playback-events.mjs';
 import { createPlayerState } from './player/preferences.mjs';
 import { getPlayerElements } from './player/elements.mjs';
 import { createHtmlMediaAdapter } from './player/html-media-adapter.mjs';
+import { createImmersive } from './player/vr/immersive.mjs';
 import { assets } from './player/assets.mjs';
 import { report } from './player/edi-api.mjs';
 
@@ -109,6 +110,12 @@ controllers.playbackEvents = createPlaybackEvents({
     renderPlaybackOptions: (...args) => controllers.options.renderPlaybackOptions(...args),
     clearSavedPosition: (...args) => controllers.positions.clearSavedPosition(...args),
     selectVideo: (...args) => controllers.playlist.selectVideo(...args),
+});
+
+controllers.immersive = createImmersive({
+    state, elements,
+    currentItem: (...args) => controllers.playlist.currentItem(...args),
+    setIntensity: (...args) => controllers.options.setIntensity(...args),
 });
 
 assets.bindPersistence(report);

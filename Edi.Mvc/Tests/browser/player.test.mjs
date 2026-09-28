@@ -236,6 +236,10 @@ test('video variants prepare before activation, remember base choices, retain st
             await page.locator('.playlist-name').filter({ hasText: `${name}.mp4` }).click();
             await page.waitForFunction(expected => document.querySelector('.playlist-item.active .playlist-name')?.textContent === expected,
                 `${name}.mp4`);
+            // The active row changes before asynchronous variant preparation.
+            // Wait for this video's originals before asserting its fallback.
+            await page.waitForFunction(expected => document.querySelector(`[data-device-name=First] optgroup option[value="${expected}"]`),
+                name === 'three' ? 'real:default' : 'real:fast');
         };
         await page.waitForFunction(() => document.querySelector('.playlist-item.active .playlist-name')?.textContent === 'one.mp4');
         await context('one');

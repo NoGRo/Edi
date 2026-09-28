@@ -6,6 +6,7 @@
     <title>EDI Player</title>
     <link rel="stylesheet" href="/lib/bootstrap/dist/css/bootstrap.min.css">
     <link rel="stylesheet" href="/css/site.css">
+    <link rel="stylesheet" href="/css/player-vr.css">
 <style>
     :root {
         color-scheme: dark;
@@ -222,10 +223,15 @@
         <div class="card-body">
             <input id="mediaFiles" class="visually-hidden" type="file" multiple
                    accept="video/*,.mp4,.webm,.avi,.mkv,.mov,.funscript,.mp3,.csv,.txt">
+            <input id="mediaFolder" class="visually-hidden" type="file" multiple webkitdirectory directory
+                   accept="video/*,.mp4,.webm,.avi,.mkv,.mov,.funscript,.mp3,.csv,.txt">
             <div class="player-controls mb-2">
                 <div id="playbackToolbar" class="player-toolbar player-toolbar-playback">
                 <button id="playFullscreen" class="btn btn-success icon-button" type="button" aria-label="Play in fullscreen" data-tooltip="Play in fullscreen">
                     <svg class="player-option-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 3H3v5M16 3h5v5M8 21H3v-5M16 21h5v-5" /></svg>
+                </button>
+                <button id="enterVr" class="btn btn-outline-secondary icon-button" type="button" hidden aria-pressed="false" aria-label="Enter VR" data-tooltip="Enter VR">
+                    <svg class="player-option-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16l2 12h-6l-4-4-4 4H2z" /><circle cx="7" cy="11" r="2" /><circle cx="17" cy="11" r="2" /></svg>
                 </button>
                 <button id="stopPlayer" class="btn btn-danger icon-button" type="button" aria-label="Stop playback" data-tooltip="Stop playback">
                     <svg class="player-option-icon" viewBox="0 0 24 24" aria-hidden="true"><rect class="icon-fill" x="6" y="6" width="12" height="12" rx="1" /></svg>
@@ -258,6 +264,12 @@
                             <circle class="icon-fill" cx="4.5" cy="6" r="1.25" /><circle class="icon-fill" cx="4.5" cy="12" r="1.25" /><circle class="icon-fill" cx="4.5" cy="18" r="1.25" />
                             <path d="M8 6h12M8 12h12M8 18h12" />
                         </svg>
+                    </button>
+                    <button id="vrSettingsToggle" class="btn btn-outline-secondary player-option" type="button" aria-expanded="false" aria-controls="vrSettings" aria-label="Immersive video settings" data-tooltip="Immersive video settings">
+                        <svg class="player-option-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M4 17h16M8 4v6M16 14v6" /></svg>
+                    </button>
+                    <button id="vrMenusToggle" class="btn btn-outline-secondary player-option" type="button" aria-pressed="false" aria-label="Show or hide all VR panels" data-tooltip="Show/hide VR panels">
+                        <svg class="player-option-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 5h18v14H3zM3 10h18M9 10v9" /></svg>
                     </button>
                 </div>
                 </div>
@@ -324,8 +336,12 @@
                         </div>
                         <div class="playlist-panel-actions">
                             <button id="addMediaFiles" class="btn btn-sm btn-primary icon-button" type="button"
-                                    aria-label="Add videos and funscripts" data-tooltip="Add videos and funscripts">
+                                    aria-label="Add multiple videos and assets" data-tooltip="Choose multiple files">
                                 <svg class="player-option-icon utility-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4.5v15M4.5 12h15" /></svg>
+                            </button>
+                            <button id="addMediaFolder" class="btn btn-sm btn-outline-secondary icon-button" type="button"
+                                    aria-label="Add a media folder" data-tooltip="Choose a folder">
+                                <svg class="player-option-icon utility-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6h7l2 2h9v10H3z" /></svg>
                             </button>
                             <button id="clearPlaylist" class="btn btn-sm btn-outline-danger icon-button" type="button"
                                     aria-label="Clear the playlist" data-tooltip="Clear the playlist">
@@ -333,7 +349,7 @@
                             </button>
                         </div>
                     </div>
-                    <div class="small text-muted mt-1">Drop videos and assets anywhere in the player.</div>
+                    <div class="small text-muted mt-1">Choose multiple files, a complete folder, or drop videos and assets here.</div>
                     <ol id="videoPlaylist" class="playlist" aria-label="Video playlist">
                         <li class="p-3 text-muted">You have not added videos yet.</li>
                     </ol>
@@ -386,6 +402,9 @@
                                 <path class="progress-mode-indicator progress-mode-playlist" d="M8.5 9.5h7M8.5 12h7M8.5 14.5h7" />
                             </svg>
                         </button>
+                        <button id="vrFollowToggle" class="custom-control-button" type="button" aria-pressed="false" aria-label="Lock screen to gaze" title="Lock screen to gaze">
+                            <svg class="custom-control-icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="10" width="14" height="11" rx="2" /><path d="M8 10V6a4 4 0 0 1 8 0v4M12 14v3" /></svg>
+                        </button>
                         <span class="custom-controls-spacer"></span>
                         <button id="customFullscreen" class="custom-control-button" type="button" aria-label="Enter fullscreen">
                             <svg class="custom-control-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 3H3v5M16 3h5v5M8 21H3v-5M16 21h5v-5" /></svg>
@@ -400,7 +419,7 @@
 </div>
 </main>
 <script src="/js/player-tools.js"></script>
-<script type="module" src="/js/edi-player.js?v=20260928-modular-player"></script>
+<script type="module" src="/js/edi-player.js?v=20260928-immersive-player"></script>
 <script src="/js/edi-devices.js?v=20260928-device-routing"></script>
 </body>
 </html>

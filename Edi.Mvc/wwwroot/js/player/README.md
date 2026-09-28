@@ -18,6 +18,7 @@ Existing preference keys are retained; video pairs and device order have additio
 | `device-routing.mjs` | Per-device participation, transient pause variants and scaled ranges |
 | `video-variants.mjs` | Active-video asset filtering and history/continuity/default selection |
 | `fullscreen.mjs`, `overlays.mjs`, `input.mjs` | Desktop presentation, pointer/keyboard input and overlays |
+| `vr/` | Immersive WebXR video, controller input, delayed head follow and original HTML panels as 3D surfaces |
 | `edi-api.mjs`, `media-files.mjs`, `elements.mjs` | HTTP boundary, filename rules and DOM lookup |
 
 ## Playback integrations
@@ -35,10 +36,10 @@ buffering and pause continue to stop or resynchronize EDI correctly. The desktop
 controls currently operate on the native video and require their own presentation
 adapter when used with an external player.
 
-A future Quest interface can render a video texture in WebXR, interpreting SBS eye
-regions in its own renderer. It can reuse the media port, session, asset manager and
-synchronization while replacing the desktop controls, fullscreen and input modules.
-This refactor introduces the boundary; it does not implement WebXR or external players.
+The [VR module](vr/README.md) renders the same video as a movable flat WebXR
+screen, with separate eye regions for SBS video. It reuses the session, asset
+manager and synchronization. The original fullscreen controls are painted as one
+interactive overlay on that screen, so their future changes also reach the headset.
 
 ## Asset ownership
 

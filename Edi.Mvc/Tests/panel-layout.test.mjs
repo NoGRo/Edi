@@ -28,6 +28,12 @@ test('file drag reveals and paints the shared playlist panel', () => {
     assert.match(player, /dragenter[\s\S]+setSidePanelOpen\(dropZone, playlistPanelToggle, true\)[\s\S]+dropZone\.classList\.add\('drag-over'\)/);
 });
 
+test('file selection supports multiple files and complete folders through the same loader', () => {
+    assert.match(markup, /id="mediaFiles"[^>]+multiple/s);
+    assert.match(markup, /id="mediaFolder"[^>]+multiple[^>]+webkitdirectory/s);
+    assert.match(player, /folderInput\.addEventListener\('change'[\s\S]+addFiles\(folderInput\.files\)/);
+});
+
 test('fullscreen inactivity pauses while the pointer is over controls', () => {
     assert.match(player, /if \(overControls\) \{\s*__cursorHideTimer = null;\s*return;/);
     assert.match(player, /__cursorHideTimer = setTimeout\(\(\) => \{\s*blurFullscreenToolbarFocus\(\)/);
@@ -92,7 +98,7 @@ test('asset manager owns automatic generation and incremental uploads', () => {
 });
 
 test('uploaded assets are shared with variant generation as an in-memory cache', () => {
-    assert.match(markup, /type="module" src="\/js\/edi-player\.js\?v=20260928-modular-player/);
+    assert.match(markup, /type="module" src="\/js\/edi-player\.js\?v=20260928-immersive-player/);
     assert.match(assets, /window\.ediPlayerAssetCache = \[\.\.\.files\]/);
     assert.match(bootstrap, /await assets\.restore\(\)/);
     assert.match(assets, /document\.addEventListener\('edi-assets-persist-requested'/);

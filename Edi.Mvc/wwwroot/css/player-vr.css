@@ -1,0 +1,38 @@
+.vr-settings { position: absolute; z-index: 90; top: 1rem; left: 50%; width: min(42rem, calc(100% - 2rem)); max-height: calc(100% - 2rem); overflow: auto; transform: translateX(-50%); padding: 1rem; border: 1px solid var(--edi-border-strong); border-radius: .55rem; background: var(--edi-surface); color: var(--edi-text); }
+.vr-settings[hidden] { display: none; }
+.vr-settings-grid { display: grid; grid-template-columns: 1fr 1fr; gap: .65rem 1rem; }
+.vr-settings-grid label { display: flex; flex-direction: column; gap: .2rem; font-size: .85rem; }
+.vr-settings-grid label.vr-check { flex-direction: row; align-items: center; }
+.vr-settings-grid input[type="range"] { width: 100%; accent-color: var(--edi-primary); }
+.vr-settings-grid output { float: right; color: var(--edi-primary); }
+.vr-help { margin: .9rem 0; }
+.vr-dom-panels { position: fixed; inset: 0 auto auto 0; z-index: 10000; width: 760px; pointer-events: none; }
+.vr-dom-panel { position: absolute; top: 0; left: 0; width: 760px; padding: 12px; background: #161b22; color: #e6edf3; border: 1px solid #57606a; border-radius: 10px; }
+.vr-dom-panel .player-toolbar { width: 100%; opacity: 1; visibility: visible; transform: none; padding: 0; }
+.vr-dom-panel .variant-toggle-wrap { display: block; width: 100%; }
+.vr-dom-panel .variant-toggle-panel { position: relative; top: auto; left: auto; right: auto; width: 100%; margin-top: .6rem; }
+.vr-dom-panel .video-side-panel, .vr-dom-panel .custom-video-controls, .vr-dom-panel .vr-settings { position: relative; inset: auto; transform: none; width: 100%; max-height: 460px; margin: 0; opacity: 1; visibility: visible; pointer-events: auto; transition: none; }
+.vr-dom-panel .vr-settings { max-height: 750px; }
+.vr-dom-panel .devices-grid { grid-template-columns: 1fr; }
+.vr-dom-panel .playlist-item-actions { flex-basis: 2rem; opacity: 1; visibility: visible; pointer-events: auto; transform: none; }
+.vr-dom-panel .custom-volume-control { width: 9rem; }
+.vr-dom-panel .custom-volume-slider { width: 6.15rem; opacity: 1; }
+.vr-dom-panel #playFullscreen { display: none; }
+.vr-dom-panel .device-range-input { pointer-events: auto; }
+.vr-panel-scroll { display: flex; gap: .5rem; justify-content: center; padding-top: 8px; }
+.vr-popup-options { display: flex; max-height: 380px; flex-direction: column; gap: .35rem; overflow: auto; }
+.vr-popup-options button { text-align: left; white-space: normal; }
+.vr-dom-panel .vr-popup h3 { font-size: 1.1rem; }
+.vr-fullscreen-surface { position: absolute; width: 960px; padding: 0; overflow: hidden; border: 0; border-radius: 0; background: transparent; }
+.vr-fullscreen-surface > .player-toolbar { position: absolute; z-index: 8; top: 12px; left: 12px; width: max-content; padding: .7rem 1rem; border-radius: .45rem; background: rgba(0,0,0,.65); }
+.vr-fullscreen-surface > .variant-toggle-wrap { position: absolute; z-index: 9; top: 12px; right: 12px; display: flex; width: auto; padding: .7rem 1rem; border-radius: .45rem; background: rgba(0,0,0,.65); }
+.vr-fullscreen-surface .variant-toggle-panel { position: absolute; top: calc(100% + .55rem); right: 0; left: auto; width: 520px; margin: 0; }
+.vr-fullscreen-surface > .custom-video-controls { position: absolute; right: 12px; bottom: 12px; left: 12px; width: auto; margin: 0; }
+.vr-fullscreen-surface > .video-side-panel { position: absolute; top: 76px; width: calc(50% - 18px); max-height: calc(100% - 158px); margin: 0; }
+.vr-fullscreen-surface > .playlist-panel { left: 12px; }
+.vr-fullscreen-surface > .devices-panel { right: 12px; left: auto; }
+.vr-fullscreen-surface > .vr-settings { position: absolute; z-index: 15; top: 50%; left: 50%; width: min(720px, calc(100% - 48px)); max-height: calc(100% - 48px); margin: 0; transform: translate(-50%, -50%); }
+.vr-fullscreen-surface > .vr-popup { position: absolute; z-index: 20; top: 50%; left: 50%; width: min(560px, calc(100% - 48px)); padding: 1rem; border: 1px solid #57606a; border-radius: .55rem; background: #161b22; transform: translate(-50%, -50%); }
+.vr-fullscreen-surface #playFullscreen, .vr-fullscreen-surface #stopPlayer, .vr-fullscreen-surface #enterVr { display: none; }
+.vr-canvas { position: fixed; inset: 0; width: 100vw; height: 100vh; z-index: 10001; pointer-events: none; background: #05080d; }
+@media (max-width: 600px) { .vr-settings-grid { grid-template-columns: 1fr; } }

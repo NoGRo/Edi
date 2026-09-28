@@ -92,14 +92,14 @@
         "OffsetMS": null
       },
       "Lovense Gemini Vibrate: 1": {
-        "Variant": "action",
+        "Variant": "default",
         "Channel": null,
         "Min": 0,
         "Max": 100,
         "OffsetMS": null
       },
       "Lovense Gemini Vibrate: 2": {
-        "Variant": "(Hardcore)",
+        "Variant": "default",
         "Channel": null,
         "Min": 0,
         "Max": 100,
@@ -161,8 +161,8 @@
   },
   "Buttplug": {
     "Url": "ws://localhost:12345",
-    "MinCommandDelay": 60,
-    "VibratorInercialDelay": 60
+    "MinCommandDelay": 100,
+    "VibratorInercialDelay": 80
   },
   "Handy": {
     "Key": "ibjckz1x0q91"

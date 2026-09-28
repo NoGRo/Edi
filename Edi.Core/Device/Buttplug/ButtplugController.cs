@@ -113,7 +113,7 @@ namespace Edi.Core.Device.Buttplug
                         await SendCommandAsync(clientDevice, actuator, values.Select((v, i) => ((uint)i, v)));
                         lastCommands[clientDevice] = (actuator, values.Select((v, i) => ((uint)i, v)).ToArray());
 
-                        _logger.LogInformation($"Sending command to {clientDevice.Name} - Actuator: {actuator}, Values: {string.Join(", ", values)}.");
+                        //_logger.LogInformation($"Sending command to {clientDevice.Name} - Actuator: {actuator}, Values: {string.Join(", ", values)}.");
                     }
                 }
                 try

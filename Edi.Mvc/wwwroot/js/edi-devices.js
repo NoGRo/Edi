@@ -5,6 +5,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         listOriginalVariants, parseAutoVariant, parseFunscriptName
     } = await import('/js/funscript-tools.mjs');
 
+    const { assets: assetManager } = await import('/js/player/assets.mjs');
     const grid = document.getElementById('devicesGrid');
     const video = document.getElementById('videoPlayer');
     const toggle = document.getElementById('variantToggle');
@@ -17,9 +18,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     const devicePairsKey = 'edi-player-device-variant-pairs-v2';
     const generationLocks = new Map();
     const generatedBaseCache = new Map();
-    let assetFilesCache = Array.isArray(window.ediPlayerAssetCache)
-        ? [...window.ediPlayerAssetCache]
-        : null;
     let globalSettings = readObject(globalSettingsKey, {
         primary: '', secondary: '', activeSide: 'primary', enabled: false
     });
@@ -147,22 +145,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     async function fetchAssets() {
-        if (!assetFilesCache && Array.isArray(window.ediPlayerAssetCache))
-            assetFilesCache = [...window.ediPlayerAssetCache];
-        if (assetFilesCache) return assetFilesCache;
-        const response = await fetch('/Edi/Assets');
-        if (!response.ok) throw new Error(await response.text() || response.statusText);
-        const paths = await response.json();
-        const recognized = /(?:\.funscript|\.mp3|\.csv|\.txt)$/i;
-        assetFilesCache = await Promise.all(paths.filter(path => typeof path === 'string'
-            && recognized.test(path) && !/definitions_auto\.csv$/i.test(path)).map(async path => {
-            const assetResponse = await fetch(path);
-            if (!assetResponse.ok) throw new Error(`Could not download ${path}`);
-            return new File([await assetResponse.blob()], decodeURIComponent(path.split('/').pop()), {
-                type: assetResponse.headers.get('content-type') || ''
-            });
-        }));
-        return assetFilesCache;
+        return assetManager.fetchForVariants();
     }
 
     async function generateVariant(kind, baseVariant) {
@@ -189,14 +172,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 || parseAutoVariant(parseFunscriptName(file.name).variant)?.kind !== kind);
             const merged = new Map(retained.map(file => [file.name.toLowerCase(), file]));
             generated.forEach(file => merged.set(file.name.toLowerCase(), file));
-            const form = new FormData();
-            generated.forEach(file => form.append('files', file, file.name));
-            await post('/Edi/Assets', { method: 'PUT', body: form });
-            assetFilesCache = [...merged.values()];
-            window.ediPlayerAssetCache = assetFilesCache;
-            document.dispatchEvent(new CustomEvent('edi-assets-persist-requested', {
-                detail: { files: assetFilesCache }
-            }));
+            await assetManager.uploadGenerated(generated, [...merged.values()]);
             generatedBaseCache.set(kind, baseVariant);
             assetsReloadPending = true;
             await refreshDeviceState({ render: false, force: true });
@@ -589,10 +565,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         switchVariantSide(activeSide() === 'primary' ? 'secondary' : 'primary');
     });
     video?.addEventListener('contextmenu', event => event.preventDefault());
-    document.addEventListener('edi-assets-cached', event => {
-        assetFilesCache = Array.isArray(event.detail?.files) ? [...event.detail.files] : null;
-        generatedBaseCache.clear();
-    });
+    document.addEventListener('edi-assets-cached', () => generatedBaseCache.clear());
     document.addEventListener('edi-devices-refresh-requested', () => {
         void refreshDeviceState().catch(error => setStatus(`Could not refresh devices: ${error.message}`, true));
     });

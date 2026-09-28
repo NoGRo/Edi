@@ -3,7 +3,10 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 
 const markup = readFileSync(new URL('../wwwroot/index.html', import.meta.url), 'utf8');
-const player = readFileSync(new URL('../wwwroot/js/edi-player.js', import.meta.url), 'utf8');
+const player = ['input', 'fullscreen'].map(name =>
+    readFileSync(new URL(`../wwwroot/js/player/${name}.mjs`, import.meta.url), 'utf8')).join('\n');
+const assets = readFileSync(new URL('../wwwroot/js/player/assets.mjs', import.meta.url), 'utf8');
+const bootstrap = readFileSync(new URL('../wwwroot/js/edi-player.js', import.meta.url), 'utf8');
 const devices = readFileSync(new URL('../wwwroot/js/edi-devices.js', import.meta.url), 'utf8');
 
 const occurrences = value => markup.split(value).length - 1;
@@ -81,17 +84,17 @@ test('saved real variants resolve to the backend canonical casing', () => {
 
 test('automatic variants upload only generated scripts incrementally', () => {
     const generator = devices.match(/async function generateVariant\(kind, baseVariant\) \{([\s\S]+?)\n    \}\n\n    async function getGeneratedBase/)[1];
-    assert.match(generator, /generated\.forEach\(file => form\.append\('files', file, file\.name\)\)/);
-    assert.match(generator, /post\('\/Edi\/Assets', \{ method: 'PUT', body: form \}\)/);
+    assert.match(generator, /assetManager\.uploadGenerated\(generated, \[\.\.\.merged\.values\(\)\]\)/);
+    assert.match(assets, /generated\.forEach\(file => form\.append\('files', file, file\.name\)\)/);
+    assert.match(assets, /request\('\/Edi\/Assets', \{ method: 'PUT', body: form \}\)/);
     assert.doesNotMatch(generator, /\[\.\.\.merged\.values\(\)\]\.forEach\(file => form\.append/);
 });
 
 test('uploaded assets are shared with variant generation as an in-memory cache', () => {
-    assert.match(markup, /edi-player\.js\?v=20260914-persistent-asset-cache/);
-    assert.match(player, /window\.ediPlayerAssetCache = \[\.\.\.files\]/);
-    assert.match(player, /await restoreAssetCache\(\)/);
-    assert.match(player, /document\.addEventListener\('edi-assets-persist-requested'/);
-    assert.match(devices, /if \(assetFilesCache\) return assetFilesCache/);
-    assert.match(devices, /document\.addEventListener\('edi-assets-cached'/);
-    assert.match(devices, /new CustomEvent\('edi-assets-persist-requested'/);
+    assert.match(markup, /type="module" src="\/js\/edi-player\.js\?v=20260928-modular-player/);
+    assert.match(assets, /window\.ediPlayerAssetCache = \[\.\.\.files\]/);
+    assert.match(bootstrap, /await assets\.restore\(\)/);
+    assert.match(assets, /document\.addEventListener\('edi-assets-persist-requested'/);
+    assert.match(devices, /assetManager\.fetchForVariants\(\)/);
+    assert.match(assets, /new CustomEvent\('edi-assets-persist-requested'/);
 });

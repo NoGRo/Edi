@@ -50,7 +50,6 @@ export function createImmersive({ state, elements, currentItem, setIntensity }) 
     function cleanup() {
         runtime?.dispose(); runtime = null; session = null;
         elements.enterVr.setAttribute('aria-pressed', 'false');
-        elements.vrMenusToggle?.setAttribute('aria-pressed', 'false');
         elements.enterVr.disabled = false;
         menu.setStatus('VR ended. Your video and player settings are retained.');
     }
@@ -91,7 +90,7 @@ export function createImmersive({ state, elements, currentItem, setIntensity }) 
             });
             if (!session) { runtime?.dispose(); runtime = null; return; }
             elements.enterVr.setAttribute('aria-pressed', 'true');
-            menu.setStatus('Grip moves and rotates the video. Stick click or a short trigger away from controls toggles every panel.');
+            menu.setStatus('Grip moves the video while it stays facing you. A short trigger away from controls toggles every panel.');
         } catch (error) {
             const failedSession = session;
             if (failedSession) { try { await failedSession.end(); } catch { cleanup(); } }
@@ -118,7 +117,6 @@ export function createImmersive({ state, elements, currentItem, setIntensity }) 
             }, onRecenter: () => runtime?.recenterVideo(), onExit: exit
         });
         elements.enterVr.addEventListener('click', enter);
-        elements.vrMenusToggle?.addEventListener('click', () => runtime?.toggleMenus());
         elements.video.addEventListener('loadedmetadata', () => loadFormat(true));
         elements.video.addEventListener('emptied', () => loadFormat());
         window.addEventListener('pagehide', () => { void exit(); runtime?.dispose(); });
@@ -127,9 +125,18 @@ export function createImmersive({ state, elements, currentItem, setIntensity }) 
         });
         if (window.isSecureContext && navigator.xr?.isSessionSupported) {
             void navigator.xr.isSessionSupported('immersive-vr')
-                .then(supported => { elements.enterVr.hidden = !supported; })
-                .catch(() => { elements.enterVr.hidden = true; });
-        } else elements.enterVr.hidden = true;
+                .then(supported => {
+                    elements.enterVr.hidden = !supported;
+                    elements.vrFollowToggle.hidden = !supported;
+                })
+                .catch(() => {
+                    elements.enterVr.hidden = true;
+                    elements.vrFollowToggle.hidden = true;
+                });
+        } else {
+            elements.enterVr.hidden = true;
+            elements.vrFollowToggle.hidden = true;
+        }
         loadFormat(true);
     }
     return { mount };

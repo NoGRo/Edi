@@ -22,9 +22,9 @@ export function createVrMenu({ elements, preferences, onChange, onRecenter, onEx
             <label>Wait <output data-vr-value="followDelay"></output><input type="range" min="0.5" max="5" step="0.1" data-vr-setting="followDelay"></label>
             <label>Smoothing <output data-vr-value="followEase"></output><input type="range" min="0.15" max="2" step="0.05" data-vr-setting="followEase"></label>
         </div>
-        <p class="small text-muted vr-help">Grip: point at the video and hold to move and rotate it.<br>
+        <p class="small text-muted vr-help">Grip: point at the video and hold to move it; the screen stays facing you.<br>
             Trigger: click a control; hold the video to move it; tap the video or empty space to show/hide every panel.<br>
-            Stick click: show/hide every panel from anywhere. The blue dot is the exact HTML click point.<br>
+            The blue dot is the exact HTML click point.<br>
             A/X: player mouse action · B/Y: variant · Stick: intensity; point at video controls to seek, or volume to change volume.</p>
         <div class="d-flex gap-2"><button type="button" class="btn btn-primary" data-vr-recenter>Recenter video</button>
             <button type="button" class="btn btn-outline-secondary" data-vr-auto>Detect filename</button>

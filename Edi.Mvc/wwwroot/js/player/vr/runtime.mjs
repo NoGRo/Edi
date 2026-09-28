@@ -1,7 +1,7 @@
 import * as THREE from '../../../lib/vr/three.module.min.js';
 import { createVideoSurface } from './video-surface.mjs';
 import { createHtmlPanels } from './html-panels.mjs';
-import { clamp, controllerButtons, createStillnessGate, easingAlpha, stickAction } from './motion.mjs';
+import { clamp, constrainPlacement, controllerButtons, createStillnessGate, easingAlpha, stickAction } from './motion.mjs';
 
 export async function createVrRuntime({ session, elements, preferences, state, setIntensity,
     exit, onPlacement, onFormat, onPrimary, onVariant, onError }) {
@@ -23,33 +23,41 @@ export async function createVrRuntime({ session, elements, preferences, state, s
     const menuRig = new THREE.Group(); video.group.add(menuRig);
     const raycaster = new THREE.Raycaster();
     const head = { position: new THREE.Vector3(), rotation: new THREE.Quaternion(), valid: false };
-    const relativePosition = new THREE.Vector3(), relativeRotation = new THREE.Quaternion();
-    const desiredPosition = new THREE.Vector3(), desiredRotation = new THREE.Quaternion();
+    const relativePosition = new THREE.Vector3(), desiredPosition = new THREE.Vector3();
     const dragMatrix = new THREE.Matrix4(), dragPosition = new THREE.Vector3();
     const dragRotation = new THREE.Quaternion(), dragScale = new THREE.Vector3();
+    const placementRotation = new THREE.Quaternion(), faceMatrix = new THREE.Matrix4();
     const gate = createStillnessGate();
     const controllers = [];
     let panels, disposed = false, placed = false, catchingUp = false, grab = null;
     let lastTime = null, lastStickTime = 0, stickAccumulator = 0, lastStickKind = null;
-    let snapshotErrorReported = false;
+    let snapshotErrorReported = false, frameErrorReported = false;
+    let diagnosticStarted = performance.now(), diagnosticFrames = 0;
+    const diagnostics = { active: true, frames: 0, fps: 0, lastFrameMs: 0, maxFrameMs: 0,
+        videoReadyState: elements.video.readyState, panels: null, follow: null, lastError: null };
+    window.ediVrDiagnostics = diagnostics;
 
     function captureRelative() {
         if (!head.valid) return;
         const inverse = head.rotation.clone().invert();
         relativePosition.copy(video.group.position).sub(head.position).applyQuaternion(inverse);
-        relativeRotation.copy(inverse).multiply(video.group.quaternion);
         gate.reset(); catchingUp = false;
     }
     function recenterVideo() {
         relativePosition.set(preferences.offsetX, preferences.offsetY, -preferences.distance);
-        relativeRotation.identity();
         video.group.position.copy(relativePosition).applyQuaternion(head.rotation).add(head.position);
         video.group.quaternion.copy(head.rotation);
         gate.reset(); catchingUp = false;
     }
+    function faceViewer() {
+        if (!head.valid || video.group.position.distanceToSquared(head.position) < .0001) return;
+        // A flat screen has no useful free rotation in VR: keep its local +Z
+        // normal aimed at the viewer and its vertical axis upright.
+        faceMatrix.lookAt(head.position, video.group.position, camera.up);
+        video.group.quaternion.setFromRotationMatrix(faceMatrix);
+    }
     function toggleMenus() {
-        const visible = panels.toggle();
-        elements.vrMenusToggle?.setAttribute('aria-pressed', String(visible));
+        panels.toggle();
     }
     function intersection(controller) {
         scene.updateMatrixWorld(true);
@@ -83,7 +91,13 @@ export async function createVrRuntime({ session, elements, preferences, state, s
         dragMatrix.multiplyMatrices(grab.space.matrixWorld, grab.offset);
         dragMatrix.decompose(dragPosition, dragRotation, dragScale);
         if (dragPosition.distanceTo(grab.position) > .025 || dragRotation.angleTo(grab.rotation) > .03) grab.moved = true;
-        if (grab.moved) { video.group.position.copy(dragPosition); video.group.quaternion.copy(dragRotation); }
+        if (grab.moved) {
+            const local = dragPosition.clone().sub(head.position).applyQuaternion(placementRotation.copy(head.rotation).invert());
+            const constrained = constrainPlacement(local);
+            video.group.position.set(constrained.x, constrained.y, constrained.z)
+                .applyQuaternion(head.rotation).add(head.position);
+            faceViewer();
+        }
     }
     function finishGrab(controller, kind) {
         if (grab?.controller !== controller || grab.kind !== kind) return;
@@ -160,17 +174,16 @@ export async function createVrRuntime({ session, elements, preferences, state, s
     }
     function follow(now, dt) {
         const ready = gate.ready(now, { position: head.position.toArray(), rotation: head.rotation.toArray() }, preferences.followDelay);
+        diagnostics.follow = { enabled: preferences.follow, ready, catchingUp, now, delay: preferences.followDelay };
         if (!preferences.follow || grab || !ready) { catchingUp = false; return; }
         desiredPosition.copy(relativePosition).applyQuaternion(head.rotation).add(head.position);
-        desiredRotation.copy(head.rotation).multiply(relativeRotation);
         const distance = video.group.position.distanceTo(desiredPosition);
-        const angle = video.group.quaternion.angleTo(desiredRotation);
-        if (!catchingUp && (distance > .1 || angle > Math.PI / 22.5)) catchingUp = true;
+        diagnostics.follow.distance = distance;
+        if (!catchingUp && distance > .1) catchingUp = true;
         if (!catchingUp) return;
         const alpha = easingAlpha(dt, preferences.followEase);
         video.group.position.lerp(desiredPosition, alpha);
-        video.group.quaternion.slerp(desiredRotation, alpha);
-        if (distance < .005 && angle < .005) catchingUp = false;
+        if (distance < .005) catchingUp = false;
     }
     function animate(milliseconds, frame) {
         if (disposed || !panels || !frame) return;
@@ -184,10 +197,20 @@ export async function createVrRuntime({ session, elements, preferences, state, s
         onFormat();
         video.group.visible = elements.video.readyState >= 2;
         follow(now, dt);
+        faceViewer();
         panels.update(now);
         let hovered = null, activeStick = null;
         for (const controller of controllers) {
             if (!controller.source || !controller.object.visible) continue;
+            controller.object.getWorldPosition(controller.posePosition);
+            controller.object.getWorldQuaternion(controller.poseRotation);
+            if (!controller.poseReady || controller.posePosition.distanceTo(controller.previousPosition) > .004
+                || controller.poseRotation.angleTo(controller.previousRotation) > .01) {
+                controller.poseReady = true;
+                controller.previousPosition.copy(controller.posePosition);
+                controller.previousRotation.copy(controller.poseRotation);
+                controller.lastActivity = now;
+            }
             const target = intersection(controller);
             controller.line.scale.z = target ? Math.min(20, target.distance) : 4;
             if (target) {
@@ -198,14 +221,18 @@ export async function createVrRuntime({ session, elements, preferences, state, s
                 controller.dot.position.copy(controller.hitPoint);
                 controller.dot.material.color.set(target.type === 'panel' ? 0x2f81f7 : 0xffffff);
             }
-            controller.dot.visible = Boolean(target);
+            const active = Boolean(controller.source.gamepad && target);
+            const opacity = controller.press || grab?.controller === controller ? 1
+                : active ? 1 - clamp((now - controller.lastActivity - .65) / .45, 0, 1) : 0;
+            controller.line.material.opacity = controller.dot.material.opacity = opacity;
+            controller.line.visible = opacity > .01;
+            controller.dot.visible = Boolean(target) && opacity > .01;
             if (target?.hit) hovered = target.hit;
             if (controller.press?.type === 'panel') panels.move(controller.press.action, target?.hit);
             const buttons = controllerButtons(controller.source, controller.previousButtons);
             controller.previousButtons = buttons.buttons;
             if (buttons.primary) onPrimary();
             if (buttons.variant) onVariant();
-            if (buttons.menu) toggleMenus();
             if (controller.source.gamepad?.mapping === 'xr-standard') {
                 const action = stickAction(controller.source.gamepad.axes, targetKind(target));
                 if (action.value && (!activeStick || controller.source.handedness === 'right')) activeStick = action;
@@ -217,6 +244,28 @@ export async function createVrRuntime({ session, elements, preferences, state, s
         moveGrab();
         renderer.render(scene, camera);
     }
+    function animationLoop(milliseconds, frame) {
+        const started = performance.now();
+        try {
+            animate(milliseconds, frame);
+            const elapsed = performance.now() - started;
+            diagnostics.frames++;
+            diagnostics.lastFrameMs = elapsed;
+            diagnostics.maxFrameMs = Math.max(diagnostics.maxFrameMs, elapsed);
+            diagnostics.videoReadyState = elements.video.readyState;
+            diagnosticFrames++;
+            const diagnosticElapsed = performance.now() - diagnosticStarted;
+            if (diagnosticElapsed >= 1000) {
+                diagnostics.fps = diagnosticFrames * 1000 / diagnosticElapsed;
+                diagnostics.panels = panels?.diagnostics?.() || null;
+                diagnosticFrames = 0; diagnosticStarted = performance.now();
+            }
+        } catch (error) {
+            diagnostics.lastError = { message: error.message, stack: error.stack, at: new Date().toISOString() };
+            console.error('VR frame failed.', error);
+            if (!frameErrorReported) { frameErrorReported = true; onError(error); }
+        }
+    }
     function visibilityChanged() {
         if (session.visibilityState !== 'visible') {
             elements.video.pause();
@@ -227,6 +276,7 @@ export async function createVrRuntime({ session, elements, preferences, state, s
     function dispose() {
         if (disposed) return;
         disposed = true;
+        diagnostics.active = false;
         renderer.setAnimationLoop(null);
         session.removeEventListener('end', dispose);
         session.removeEventListener('visibilitychange', visibilityChanged);
@@ -246,15 +296,23 @@ export async function createVrRuntime({ session, elements, preferences, state, s
             const object = renderer.xr.getController(index);
             const grip = renderer.xr.getControllerGrip(index); scene.add(grip);
             const line = new THREE.Line(new THREE.BufferGeometry().setFromPoints([
-                new THREE.Vector3(), new THREE.Vector3(0, 0, -1)]), new THREE.LineBasicMaterial({ color: '#58a6ff', depthTest: false }));
+                new THREE.Vector3(), new THREE.Vector3(0, 0, -1)]), new THREE.LineBasicMaterial({ color: '#58a6ff', depthTest: false, transparent: true }));
             const dot = new THREE.Mesh(new THREE.SphereGeometry(.012, 10, 8),
-                new THREE.MeshBasicMaterial({ color: '#ffffff', depthTest: false }));
+                new THREE.MeshBasicMaterial({ color: '#ffffff', depthTest: false, transparent: true }));
             line.renderOrder = dot.renderOrder = 30;
             object.add(line, dot); scene.add(object);
-            const controller = { object, grip, line, dot, hitPoint: new THREE.Vector3(), source: null, press: null, previousButtons: [], listeners: [] };
+            line.visible = dot.visible = false;
+            const controller = { object, grip, line, dot, hitPoint: new THREE.Vector3(), source: null, press: null,
+                previousButtons: [], listeners: [], posePosition: new THREE.Vector3(), previousPosition: new THREE.Vector3(),
+                poseRotation: new THREE.Quaternion(), previousRotation: new THREE.Quaternion(), poseReady: false, lastActivity: 0 };
             const listen = (type, listener) => { object.addEventListener(type, listener); controller.listeners.push([type, listener]); };
-            listen('connected', event => { controller.source = event.data; controller.previousButtons = []; });
-            listen('disconnected', () => { cancel(controller); controller.source = null; });
+            listen('connected', event => {
+                controller.source = event.data; controller.previousButtons = []; controller.poseReady = false;
+            });
+            listen('disconnected', () => {
+                cancel(controller); controller.source = null; controller.poseReady = false;
+                controller.line.visible = controller.dot.visible = false;
+            });
             listen('selectstart', () => start(controller));
             listen('selectend', () => finish(controller));
             listen('squeezestart', () => gripStart(controller));
@@ -268,8 +326,7 @@ export async function createVrRuntime({ session, elements, preferences, state, s
             if (!snapshotErrorReported) { snapshotErrorReported = true; onError(error); }
         } });
         if (disposed) { panels.dispose(); return { dispose }; }
-        renderer.setAnimationLoop(animate);
-        elements.vrMenusToggle?.setAttribute('aria-pressed', 'true');
+        renderer.setAnimationLoop(animationLoop);
         return { dispose, recenterVideo, rebuildVideo: video.rebuild, toggleMenus,
             settingsChanged(key) {
                 if (key === 'follow') captureRelative();

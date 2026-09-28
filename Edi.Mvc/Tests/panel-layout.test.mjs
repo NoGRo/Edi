@@ -28,10 +28,17 @@ test('file drag reveals and paints the shared playlist panel', () => {
     assert.match(player, /dragenter[\s\S]+setSidePanelOpen\(dropZone, playlistPanelToggle, true\)[\s\S]+dropZone\.classList\.add\('drag-over'\)/);
 });
 
-test('file selection supports multiple files and complete folders through the same loader', () => {
+test('file selection allows multiple unrestricted files', () => {
     assert.match(markup, /id="mediaFiles"[^>]+multiple/s);
-    assert.match(markup, /id="mediaFolder"[^>]+multiple[^>]+webkitdirectory/s);
-    assert.match(player, /folderInput\.addEventListener\('change'[\s\S]+addFiles\(folderInput\.files\)/);
+    assert.doesNotMatch(markup, /id="mediaFiles"[^>]+accept=/s);
+    assert.doesNotMatch(markup, /id="mediaFolder"|id="addMediaFolder"/);
+});
+
+test('VR controls sit beside their fullscreen equivalents and stay capability-gated', () => {
+    assert.match(markup, /id="customProgressMode"[\s\S]+id="vrFollowToggle"[\s\S]+class="custom-controls-spacer"/);
+    assert.match(markup, /id="enterVr"[\s\S]+id="customFullscreen"/);
+    assert.match(markup, /id="enterVr"[^>]+hidden/);
+    assert.equal(occurrences('id="enterVr"'), 1);
 });
 
 test('fullscreen inactivity pauses while the pointer is over controls', () => {

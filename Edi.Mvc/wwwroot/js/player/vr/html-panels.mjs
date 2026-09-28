@@ -3,6 +3,8 @@ import { clamp } from './motion.mjs';
 import { eyeAspect } from './format.mjs';
 
 let snapshotLoader;
+const layoutWidth = 1920;
+const textureScale = .5;
 export function loadSnapshotRenderer() {
     if (window.html2canvas) return Promise.resolve(window.html2canvas);
     if (!snapshotLoader) snapshotLoader = new Promise((resolve, reject) => {
@@ -25,6 +27,7 @@ export async function createHtmlPanels({ rig, elements, preferences, exit, onErr
     let disposed = false, capturing = false, popup = null, hovered = null, surfacePanel;
     let menuVisible = true;
     let lastCapture = -Infinity;
+    const diagnostics = { captures: 0, lastCaptureMs: 0, maxCaptureMs: 0, visiblePanels: 0, dirtyPanels: 0 };
 
     function add(source, position, { move = true, scroll = false, modal = false, top = false, worldWidth = null } = {}) {
         const home = move ? document.createComment('VR panel home') : null;
@@ -48,9 +51,20 @@ export async function createHtmlPanels({ rig, elements, preferences, exit, onErr
             width: 1, height: 1, hits: [], removed: false, captured: false, available: false,
             topEdge: top ? position[1] : null, worldWidth };
         mesh.userData.panel = panel;
-        const invalidate = () => { panel.dirty = true; };
+        const playbackTick = mutation => {
+            if (mutation.type === 'attributes' && mutation.oldValue === mutation.target.getAttribute(mutation.attributeName)) return true;
+            const element = mutation.target.nodeType === Node.ELEMENT_NODE ? mutation.target : mutation.target.parentElement;
+            return Boolean(element?.closest('#customElapsed,#customDuration,#customSeek'));
+        };
+        const invalidate = mutations => {
+            // timeupdate changes text and seek styling several times per second.
+            // Re-running html2canvas for those passive ticks monopolizes the
+            // headset's main thread; direct input/change events below still
+            // invalidate immediately while the user operates a control.
+            if (!Array.isArray(mutations) || mutations.some(mutation => !playbackTick(mutation))) panel.dirty = true;
+        };
         const observer = new MutationObserver(invalidate);
-        observer.observe(root, { subtree: true, childList: true, attributes: true, characterData: true });
+        observer.observe(root, { subtree: true, childList: true, attributes: true, attributeOldValue: true, characterData: true });
         root.addEventListener('input', invalidate);
         root.addEventListener('change', invalidate);
         root.addEventListener('scroll', invalidate, true);
@@ -106,11 +120,13 @@ export async function createHtmlPanels({ rig, elements, preferences, exit, onErr
 
     async function capture(panel) {
         capturing = true; panel.dirty = false;
+        const started = performance.now();
         try {
             measure(panel);
-            // A CSS-pixel texture stays readable at the panels' normal distance
-            // and avoids the 2.25x pixel/upload cost of the previous 1.5 scale.
-            const canvas = await snapshot(panel.root, { backgroundColor: null, scale: 1, logging: false,
+            // Layout at desktop 1080p proportions, but upload a half-resolution
+            // texture. This keeps controls correctly sized without quadrupling
+            // the texture and rasterization cost.
+            const canvas = await snapshot(panel.root, { backgroundColor: null, scale: textureScale, logging: false,
                 onclone(clone) {
                     // Browser-native range widgets are not painted consistently
                     // by DOM snapshotters. Paint their current value in the clone;
@@ -146,14 +162,19 @@ export async function createHtmlPanels({ rig, elements, preferences, exit, onErr
             panel.captured = true;
             measure(panel);
         } catch (error) { onError(error); }
-        finally { capturing = false; }
+        finally {
+            diagnostics.lastCaptureMs = performance.now() - started;
+            diagnostics.maxCaptureMs = Math.max(diagnostics.maxCaptureMs, diagnostics.lastCaptureMs);
+            diagnostics.captures++;
+            capturing = false;
+        }
     }
 
     function update(now) {
         const aspect = eyeAspect(elements.video.videoWidth, elements.video.videoHeight, preferences);
         if (Number(surface.dataset.aspect) !== aspect) {
             surface.dataset.aspect = String(aspect);
-            surface.style.height = `${960 / aspect}px`;
+            surface.style.height = `${layoutWidth / aspect}px`;
             surfacePanel.dirty = true;
         }
         const dialogs = [...document.querySelectorAll('dialog[open]')];
@@ -172,6 +193,8 @@ export async function createHtmlPanels({ rig, elements, preferences, exit, onErr
         // capture budget instead of allowing every panel to refresh at 5 Hz.
         // Unpainted panels go first so entering VR still becomes usable quickly.
         const dirty = panels.filter(panel => !panel.removed && panel.available && panel.dirty);
+        diagnostics.visiblePanels = panels.filter(panel => !panel.removed && panel.available).length;
+        diagnostics.dirtyPanels = dirty.length;
         const next = dirty.find(panel => !panel.captured)
             || dirty.find(panel => panel === hovered?.panel)
             || dirty.sort((a, b) => a.lastCapture - b.lastCapture)[0];
@@ -313,8 +336,7 @@ export async function createHtmlPanels({ rig, elements, preferences, exit, onErr
         } else if (!cancelled && hit?.element === element && element.isConnected) {
             if (element.tagName === 'SELECT' || element.matches('input[type="number"]')) openEditor(element);
             else if (element === elements.customFullscreen || element === elements.enterVr) void exit();
-            else if (element === elements.addMediaFiles || element === elements.addMediaFolder)
-                void exit().then(() => element.click());
+            else if (element === elements.addMediaFiles) void exit().then(() => element.click());
             else element.click();
         }
     }
@@ -328,7 +350,7 @@ export async function createHtmlPanels({ rig, elements, preferences, exit, onErr
     const surface = document.createElement('div');
     surface.id = 'vrFullscreenSurface';
     surface.className = 'vr-dom-panel vr-fullscreen-surface';
-    surface.style.height = `${960 / eyeAspect(elements.video.videoWidth, elements.video.videoHeight, preferences)}px`;
+    surface.style.height = `${layoutWidth / eyeAspect(elements.video.videoWidth, elements.video.videoHeight, preferences)}px`;
     const sources = [elements.playbackToolbar, elements.deviceControls, elements.customVideoControls,
         elements.dropZone, elements.devicesPanel, document.getElementById('vrSettings')].filter(Boolean);
     const homes = sources.map(source => {
@@ -344,6 +366,7 @@ export async function createHtmlPanels({ rig, elements, preferences, exit, onErr
         disposeSurface(); surface.remove();
     };
     return { update, hitAt, hover, press, move, release, meshes,
+        diagnostics() { return { ...diagnostics, capturing }; },
         toggle() { menuVisible = !menuVisible; return menuVisible; },
         show() { menuVisible = true; return menuVisible; },
         visible() { return menuVisible; },

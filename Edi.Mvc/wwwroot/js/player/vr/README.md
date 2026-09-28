@@ -11,11 +11,10 @@ Supported codecs/resolutions depend on that browser and headset.
 
 | Input | Action |
 | --- | --- |
-| Grip / squeeze, pointing at the video | Hold to move and rotate the flat video screen with the hand pose |
+| Grip / squeeze, pointing at the video | Hold to move the flat video screen inside its forward viewing cone; it stays facing the viewer |
 | Trigger on a control | Activate the original HTML control; drag sliders, choose select options and edit numeric fields |
 | Trigger held on the video | Also moves/rotates it using the pointer pose |
 | Short trigger on video or empty space | Show/hide the complete fullscreen-style control overlay |
-| Stick click | Show/hide the control overlay from anywhere |
 | A (X on left Touch controller) | Original video left-mouse sequence: video play/pause, or devices pause/resume when the player stroker option is enabled |
 | B (Y on left Touch controller) | Original right-mousedown variant action, respecting whether that feature is enabled |
 | Stick up/down | Intensity, respecting the existing intensity toggle and per-device participation |
@@ -23,11 +22,11 @@ Supported codecs/resolutions depend on that browser and headset.
 | Stick while pointing at volume | Volume up/down |
 
 The lock button enables delayed head following. It captures the video's chosen
-position and orientation relative to the current head pose. After two seconds
+position relative to the current head pose. After two seconds
 of stillness by default, a movement over 8 degrees or 10 cm eases back into that
 view position. Small motion is ignored. Dragging suspends following and records
 the new position on release. The menu adjusts the delay (0.5–5 s), smoothing,
-screen width/distance and horizontal/vertical offsets. Recenter resets orientation
+screen width/distance and horizontal/vertical offsets. Recenter restores the screen
 in the current view. Native session visibility loss pauses playback through the
 same media event/synchronization path as desktop pause.
 
@@ -75,6 +74,24 @@ code is changed by this mode.
 Quest rendering uses Three.js' WebXR framebuffer scaling and compositor foveation,
 with MSAA disabled. HTML snapshots use one shared, throttled capture budget and
 CSS-pixel textures so DOM changes cannot continuously stall the XR frame loop.
+
+## Quest diagnostics
+
+While a session is running, `window.ediVrDiagnostics` contains the current FPS,
+last and worst JavaScript frame time, video readiness, HTML snapshot duration and
+the last runtime error. The last sample remains available after leaving VR. A
+frame-loop exception is also printed as `VR frame failed` and ends the session
+with the error shown in the VR settings status instead of leaving a silent black
+screen.
+
+For a physical headset, enable Developer Mode and USB debugging, connect it with
+ADB, open the player in Meta Quest Browser, then inspect that tab from desktop
+Chrome at `chrome://inspect/#devices`. In DevTools, inspect
+`window.ediVrDiagnostics` in Console and record the Performance panel while
+showing and hiding the menus. Compare `fps`/`maxFrameMs` with the panel
+`lastCaptureMs` and `maxCaptureMs`: a frame spike matching a capture identifies
+main-thread HTML rasterization; low FPS without capture spikes points instead to
+video decode, GPU fill rate or texture upload.
 
 ## Verification
 

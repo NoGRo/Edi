@@ -66,6 +66,11 @@ export async function installFakeXr(page) {
             async isSessionSupported() { return true; },
             async requestSession() { return window.fakeXr.session = new Session(); }
         } });
+        // Let the page's real capability probe settle before overriding its
+        // result, otherwise a late `isSessionSupported` resolution can hide the
+        // controls again after the fake XR implementation is installed.
+        await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
         document.querySelector('#enterVr').hidden = false;
+        document.querySelector('#vrFollowToggle').hidden = false;
     });
 }

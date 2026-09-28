@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { detectVideoFormat, eyeUv, eyeAspect } from '../wwwroot/js/player/vr/format.mjs';
-import { controllerButtons, createStillnessGate, easingAlpha, stickAction } from '../wwwroot/js/player/vr/motion.mjs';
+import { constrainPlacement, controllerButtons, createStillnessGate, easingAlpha, stickAction } from '../wwwroot/js/player/vr/motion.mjs';
 import { videoGeometry } from '../wwwroot/js/player/vr/video-surface.mjs';
 
 test('VR filename conventions detect only flat mono or side-by-side screens', () => {
@@ -58,6 +58,12 @@ test('smoothing is frame-rate independent and cannot overshoot after a suspended
     assert.ok(easingAlpha(10, .6) <= 1);
 });
 
+test('VR screen placement stays in front of the viewer and inside a useful viewing cone', () => {
+    assert.deepEqual(constrainPlacement({ x: 20, y: -20, z: 2 }), { x: .3825, y: -.29250000000000004, z: -.45 });
+    assert.deepEqual(constrainPlacement({ x: 5, y: 5, z: -2 }), { x: 1.7, y: 1.3, z: -2 });
+    assert.deepEqual(constrainPlacement({ x: .5, y: -.5, z: -20 }), { x: .5, y: -.5, z: -8 });
+});
+
 test('stick intensity is the default; horizontal seek requires the explicit video target', () => {
     assert.deepEqual(stickAction([0, 0, 1, 0]), { kind: 'intensity', value: 0 });
     assert.deepEqual(stickAction([0, 0, 1, 0], 'seek'), { kind: 'seek', value: 1 });
@@ -73,9 +79,6 @@ test('A/B are rising-edge actions and unsupported gamepad layouts are ignored', 
     assert.equal(controllerButtons(source, [true, false]).primary, false);
     source.gamepad.buttons[5].pressed = true;
     assert.equal(controllerButtons(source, [true, false]).variant, true);
-    source.gamepad.buttons[3].pressed = true;
-    assert.equal(controllerButtons(source, [true, true, false]).menu, true);
-    assert.equal(controllerButtons(source, [true, true, true]).menu, false);
     source.gamepad.mapping = '';
     assert.equal(controllerButtons(source).primary, false);
     assert.equal(controllerButtons(source).variant, false);

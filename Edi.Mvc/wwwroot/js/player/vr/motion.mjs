@@ -3,6 +3,18 @@ export const easingAlpha = (seconds, ease) => 1 - Math.exp(-Math.max(0, seconds)
 const distance = (a, b) => Math.hypot(...a.map((value, index) => value - b[index]));
 export const rotationDistance = (a, b) => 2 * Math.acos(clamp(Math.abs(a.reduce((sum, value, index) => sum + value * b[index], 0)), 0, 1));
 
+// Keep the screen in the useful forward viewing cone. The limits are relative
+// to distance, so a nearby screen cannot be dragged out beside the viewer while
+// a distant screen still has enough room for comfortable placement.
+export function constrainPlacement(position) {
+    const distance = clamp(-position.z, .45, 8);
+    return {
+        x: clamp(position.x, -distance * .85, distance * .85),
+        y: clamp(position.y, -distance * .65, distance * .65),
+        z: -distance
+    };
+}
+
 // Compare with a stable sample so small movements accumulate instead of silently
 // resetting the stillness timer on every frame. Time is supplied by the XR loop.
 export function createStillnessGate() {
@@ -34,8 +46,6 @@ export function controllerButtons(source, previous = []) {
     const gamepad = source?.gamepad;
     const known = gamepad?.mapping === 'xr-standard';
     const pressed = index => Boolean(known && gamepad.buttons[index]?.pressed);
-    // A/B (right), X/Y (left), then the stick button on Touch controllers.
-    const buttons = [pressed(4), pressed(5), pressed(3)];
-    return { buttons, primary: buttons[0] && !previous[0], variant: buttons[1] && !previous[1],
-        menu: buttons[2] && !previous[2] };
+    const buttons = [pressed(4), pressed(5)]; // A/B (right), X/Y (left) on Touch.
+    return { buttons, primary: buttons[0] && !previous[0], variant: buttons[1] && !previous[1] };
 }

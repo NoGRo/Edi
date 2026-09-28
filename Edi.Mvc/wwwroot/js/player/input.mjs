@@ -3,7 +3,7 @@ import { report } from './edi-api.mjs';
 
 export function createInput({ state, media, elements, setIntensity, handleStrokerInput, addFiles, setSidePanelOpen, stopEdi, currentItem, clearPlaylist, togglePlaybackOption, deleteVideo }) {
     const { optionButtons } = elements;
-    const { video, fullscreenTarget, playerShell, fileInput, folderInput, addMediaFiles, addMediaFolder, dropZone, playlistPanelToggle } = elements;
+    const { video, fullscreenTarget, playerShell, fileInput, addMediaFiles, dropZone, playlistPanelToggle } = elements;
     let suppressNextStrokerVideoClick = false;
 
     let suppressNextPlaybackVideoClick = false;
@@ -169,12 +169,7 @@ export function createInput({ state, media, elements, setIntensity, handleStroke
             await addFiles(fileInput.files);
             fileInput.value = '';
         });
-        folderInput.addEventListener('change', async () => {
-            await addFiles(folderInput.files);
-            folderInput.value = '';
-        });
         addMediaFiles.addEventListener('click', () => fileInput.click());
-        addMediaFolder.addEventListener('click', () => folderInput.click());
         window.addEventListener('dragenter', event => {
             if (isFileDrag(event)) {
                 setSidePanelOpen(dropZone, playlistPanelToggle, true);

@@ -39,6 +39,55 @@ and the
 
 ---
 
+
+
+### HTTP API Control
+This API lets your game control playback, intensity, and device settings using simple HTTP commands. All endpoints accept both POST and GET requests.
+
+#### Playback
+
+- `POST /Edi/Play/{name}?seek=0`: plays a gallery by name, optionally from a specific point (milliseconds)
+- `POST /Edi/Pause?untilResume=true`: pauses device output. With `untilResume=true`, ignores all play commands until Resume in Sync with last received play event
+- `POST /Edi/Resume?AtCurrentTime=false`: resumes from pause. With `AtCurrentTime=true`, syncs to current video time.
+
+- `POST /Edi/Intensity/{max}` (0–100%): sets global intensity across devices.
+
+#### Channel Selection
+Channels can be specified for any Playback endpoint in two ways:
+- Query string parameter: `?Channels=player1` or `?Channels=player1,player2`
+- HTTP header: `Channels: player1` or `Channels: player1,player2`
+- (no channel specified) affects all channels
+
+#### Devices
+
+- `GET /Devices`: lists connected devices.
+- `POST /Devices/{deviceName}/Variant/{variantName}`: assigns a variant to a device. Using `None` stops that device.
+- `POST /Devices/{deviceName}/Range/{min}-{max}`: sets device intensity range. If both values are 0, the device is stopped.
+- `POST /Devices/{deviceName}/Channel/{channelName}`: assigns a device to a specific channel.
+- `POST /Devices/{deviceName}/Offset/{offsetMilliseconds}`: sets the saved
+  playback offset for any device that advertises the generic offset capability.
+
+#### Content
+
+- `GET /Edi/Definitions`: returns all available galleries.
+- `GET /Edi/Assets`: lists files from the active gallery and the temporary upload set.
+  Gallery URLs use `/Edi/Assets/...`; uploaded-file URLs use `/Edi/Upload/...`.
+- `POST /Edi/Assets`: accepts a `multipart/form-data` request whose `files` field may contain
+  `.funscript`, `.mp3`, `Definitions.csv`, `Definitions_auto.csv`, and
+  `BundleDefinition*.txt` files (case-insensitive). Unsupported files are ignored; the request
+  returns `400 Bad Request` if it is empty or contains no compatible assets. A successful upload
+  stops playback, replaces the complete temporary upload set, rebuilds the gallery definitions
+  from it without changing the configured game path, and returns those definitions.
+- `PUT /Edi/Assets`: accepts the same multipart asset set, adds it to the existing temporary
+  upload set (overwriting only files with the same sanitized name), reloads the repositories,
+  and returns the updated definitions without stopping the current playback or changing the
+  configured game path.
+- `DELETE /Edi/Assets`: stops playback, removes all temporary uploaded assets, reloads with an
+  empty upload set, and returns `204 No Content`. It does not delete assets from the configured
+  game gallery or change the configured game path.
+
+---
+
 ### Gallery Types in EDI
 
 This section describes how EDI handles different types of galleries, which represent key game moments that trigger device actions.
@@ -208,56 +257,6 @@ EDI uses a layered configuration system to manage settings at different levels:
 - `UserConfig.json`: User-specific preferences (located in AppData)
   - Personal device settings (keys, ports, ranges, Selected Games)
   - Interface preferences (e.g., "Always on top" window setting)
-
----
-
-
-
-### HTTP API Control
-This API lets your game control playback, intensity, and device settings using simple HTTP commands. All endpoints accept both POST and GET requests.
-
-#### Playback
-
-- `POST /Edi/Play/{name}?seek=0`: plays a gallery by name, optionally from a specific point (milliseconds)
-- `POST /Edi/Pause?untilResume=true`: pauses device output. With `untilResume=true`, ignores all play commands until Resume in Sync with last received play event
-- `POST /Edi/Resume?AtCurrentTime=false`: resumes from pause. With `AtCurrentTime=true`, syncs to current video time.
-
-- `POST /Edi/Intensity/{max}` (0–100%): sets global intensity across devices.
-
-#### Channel Selection
-Channels can be specified for any Playback endpoint in two ways:
-- Query string parameter: `?Channels=player1` or `?Channels=player1,player2`
-- HTTP header: `Channels: player1` or `Channels: player1,player2`
-- (no channel specified) affects all channels
-
-#### Devices
-
-- `GET /Devices`: lists connected devices.
-- `POST /Devices/{deviceName}/Variant/{variantName}`: assigns a variant to a device. Using `None` stops that device.
-- `POST /Devices/Variants`: assigns variants to multiple devices in one request. The JSON body maps device names to variant names; device stops run in parallel and configuration is saved once.
-- `POST /Devices/{deviceName}/Range/{min}-{max}`: sets device intensity range. If both values are 0, the device is stopped.
-- `POST /Devices/{deviceName}/Channel/{channelName}`: assigns a device to a specific channel.
-- `POST /Devices/{deviceName}/Offset/{offsetMilliseconds}`: sets the saved
-  playback offset for any device that advertises the generic offset capability.
-
-#### Content
-
-- `GET /Edi/Definitions`: returns all available galleries.
-- `GET /Edi/Assets`: lists files from the active gallery and the temporary upload set.
-  Gallery URLs use `/Edi/Assets/...`; uploaded-file URLs use `/Edi/Upload/...`.
-- `POST /Edi/Assets`: accepts a `multipart/form-data` request whose `files` field may contain
-  `.funscript`, `.mp3`, `Definitions.csv`, `Definitions_auto.csv`, and
-  `BundleDefinition*.txt` files (case-insensitive). Unsupported files are ignored; the request
-  returns `400 Bad Request` if it is empty or contains no compatible assets. A successful upload
-  stops playback, replaces the complete temporary upload set, rebuilds the gallery definitions
-  from it without changing the configured game path, and returns those definitions.
-- `PUT /Edi/Assets`: accepts the same multipart asset set, adds it to the existing temporary
-  upload set (overwriting only files with the same sanitized name), reloads the repositories,
-  and returns the updated definitions without stopping the current playback or changing the
-  configured game path.
-- `DELETE /Edi/Assets`: stops playback, removes all temporary uploaded assets, reloads with an
-  empty upload set, and returns `204 No Content`. It does not delete assets from the configured
-  game gallery or change the configured game path.
 
 ---
 

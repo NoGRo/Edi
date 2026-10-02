@@ -65,10 +65,10 @@ namespace Edi.Core
             });
 
             app.UseCors("AllowSpecificOrigin");
+            app.UseFiles();
             app.UseRouting();
 
             app.MapControllers();
-            app.UseFiles();
             return app;
         }
 
@@ -84,28 +84,42 @@ namespace Edi.Core
             string uploadPath)
         {
 
-            var galleryPath = app.Services.GetService<ConfigurationManager>().Get<GalleryConfig>().GalleryPath;
-            var galleryDirectory = new DirectoryInfo(galleryPath);
-
-            if (galleryDirectory.Exists)
-            {
-                app.UseStaticFiles(new StaticFileOptions
-                {
-                    FileProvider = new PhysicalFileProvider(galleryDirectory.FullName),
-                    RequestPath = "/Edi/Assets",
-                    ServeUnknownFileTypes = true,
-                    ContentTypeProvider = new FileExtensionContentTypeProvider(new Dictionary<string, string>() { { ".funscript", "application/json" } })
-                });
-            }
-
+            var config = app.Services.GetRequiredService<ConfigurationManager>();
             Directory.CreateDirectory(uploadPath);
-            app.UseStaticFiles(new StaticFileOptions
+            // Resolve the selected game on every request: uploads change repository state,
+            // and WPF can select a different game without restarting the API.
+            app.Use(async (context, next) =>
             {
-                FileProvider = new PhysicalFileProvider(uploadPath),
-                RequestPath = "/Edi/Upload",
-                ServeUnknownFileTypes = true,
-                ContentTypeProvider = new FileExtensionContentTypeProvider(new Dictionary<string, string>() { { ".funscript", "application/json" } })
+                var galleryPath = ConfiguredGalleryPath(config);
+                using var gallery = Directory.Exists(galleryPath)
+                    ? new PhysicalFileProvider(galleryPath) : null;
+                using var uploads = new PhysicalFileProvider(uploadPath);
+                var files = ((IApplicationBuilder)app).New();
+                var types = new FileExtensionContentTypeProvider();
+                types.Mappings[".funscript"] = "application/json";
+                types.Mappings[".mjs"] = "text/javascript";
+                files.UseStaticFiles(new StaticFileOptions {
+                    FileProvider = uploads, RequestPath = "/Edi/Upload",
+                    ServeUnknownFileTypes = true, ContentTypeProvider = types });
+                if (gallery != null)
+                {
+                    files.UseStaticFiles(new StaticFileOptions {
+                        FileProvider = gallery, RequestPath = "/Edi/Assets",
+                        ServeUnknownFileTypes = true, ContentTypeProvider = types });
+                    files.UseDefaultFiles(new DefaultFilesOptions { FileProvider = gallery });
+                    files.UseStaticFiles(new StaticFileOptions {
+                        FileProvider = gallery, ContentTypeProvider = types });
+                }
+                files.Run(next);
+                await files.Build()(context);
             });
+        }
+
+        internal static string ConfiguredGalleryPath(ConfigurationManager config)
+        {
+            var path = config.Get<GalleryConfig>().GalleryPath;
+            return Path.GetFullPath(Path.IsPathRooted(path) ? path : Path.Combine(
+                Path.GetDirectoryName(Path.GetFullPath(config.GamePathConfig))!, path));
         }
     }
 }

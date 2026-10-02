@@ -295,3 +295,15 @@ Limitation: EDI cannot play dynamic content. Everything must be pre-scripted. Ho
 * Lori_Attack-level-1
 * Lori_Attack-level-2
 * Lori_Attack-level-3
+
+### Static EDI Player
+
+The browser player is an [independent repository](https://github.com/NoGRo/Edi.Player),
+including the VR player from
+`VrFirstTest`. Check out `Edi.Player` beside this EDI repository (`../Edi.Player`).
+Select that folder as a game in WPF and open `http://127.0.0.1:5000/`.
+The embedded API serves the selected folder as a static website; `Edi.Mvc` is no
+longer required. Game assets under `/Edi/Assets/` and temporary files under
+`/Edi/Upload/` remain accessible together after uploads. Upload operations still
+replace/reload the active playback repositories without changing the selected
+site folder. See `../Edi.Player/README.md` for testing and VR requirements.

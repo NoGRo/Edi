@@ -18,16 +18,18 @@ namespace Edi.Core.Controllers
     {
         private readonly IEdi edi;
         private readonly string uploadPath;
+        private readonly ConfigurationManager configuration;
 
         public EdiController(IEdi edi, ConfigurationManager configurationManager)
-            : this(edi, Path.Combine(Core.Edi.OutputDir, "Upload"))
+            : this(edi, Path.Combine(Core.Edi.OutputDir, "Upload"), configurationManager)
         {
         }
 
-        internal EdiController(IEdi edi, string uploadPath)
+        internal EdiController(IEdi edi, string uploadPath, ConfigurationManager configuration = null)
         {
             this.edi = edi;
             this.uploadPath = uploadPath;
+            this.configuration = configuration;
         }
 
         private string[] GetChannels()
@@ -98,17 +100,17 @@ namespace Edi.Core.Controllers
         [SwaggerOperation(Summary = "Gets the list of available multimedia files in the gallery and uploads.")]
         public IActionResult Get()
         {
-            var galleryPath = edi.GalleryPath;
+            var galleryPath = configuration == null ? edi.GalleryPath : ApiBuilder.ConfiguredGalleryPath(configuration);
             var allFiles  =  new List<string>();
             if (Directory.Exists(galleryPath))
             {
                 allFiles.AddRange(Directory.EnumerateFiles(galleryPath, "*.*", SearchOption.AllDirectories)
-                                        .Select(x => x.Replace(galleryPath, "/Edi/Assets/").Replace("\\", "/")));
+                                        .Select(x => "/Edi/Assets/" + Path.GetRelativePath(galleryPath, x).Replace("\\", "/")));
             }
             if (Directory.Exists(uploadPath))
             {
                 allFiles.AddRange(Directory.EnumerateFiles(uploadPath, "*.*", SearchOption.AllDirectories)
-                                        .Select(x => x.Replace(uploadPath, "/Edi/Upload/").Replace("\\", "/")));
+                                        .Select(x => "/Edi/Upload/" + Path.GetRelativePath(uploadPath, x).Replace("\\", "/")));
             }
             return Ok(allFiles);
         }
@@ -210,7 +212,7 @@ namespace Edi.Core.Controllers
                 return BadRequest("File path cannot be empty");
             }
 
-            var galleryPath = edi.GalleryPath;
+            var galleryPath = configuration == null ? edi.GalleryPath : ApiBuilder.ConfiguredGalleryPath(configuration);
             if (string.IsNullOrWhiteSpace(galleryPath))
             {
                 return NotFound("Gallery path not configured");
@@ -223,7 +225,7 @@ namespace Edi.Core.Controllers
             var fullGalleryPath = Path.GetFullPath(galleryPath);
             var fullFilePath = Path.GetFullPath(fullPath);
 
-            if (!fullFilePath.StartsWith(fullGalleryPath, StringComparison.OrdinalIgnoreCase))
+            if (!fullFilePath.StartsWith(Path.TrimEndingDirectorySeparator(fullGalleryPath) + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase))
             {
                 return BadRequest("Invalid file path");
             }

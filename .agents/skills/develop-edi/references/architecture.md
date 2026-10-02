@@ -21,11 +21,12 @@ REST/UI/console -> IEdi -> IPlayerChannels -> IPlayer -> IDevice
 
 - `Edi.Core`: reusable domain, service, API, configuration, gallery, player, and device code.
 - `Edi.Wpf`: Windows launcher and interactive UI; builds as `Edi`.
-- `Edi.Mvc`: ASP.NET Core MVC host and browser player.
+- `../Edi.Player`: independent static browser/VR player repository; the embedded API
+  serves it when its folder is selected as a game in WPF.
 - `Edi.Console`: command-line host.
 - `Edi.Core.Tests`: xUnit tests with hardware-free gallery, player, concurrency, and Handy
   fixtures.
-- `Edi.sln`: the four application/library projects plus the .NET 8 test project.
+- `Edi.sln`: the core, WPF/console hosts, and the .NET 8 test project.
 
 ## Composition and startup
 

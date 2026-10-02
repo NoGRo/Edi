@@ -14,6 +14,39 @@ namespace Edi.Core.Tests.Controllers;
 public class EdiAssetUploadTests
 {
     [Fact]
+    public async Task UploadGalleryDoesNotHideSelectedGameAssets()
+    {
+        var root = Path.Combine(Path.GetTempPath(), "edi-listing-tests", Guid.NewGuid().ToString("N"));
+        var game = Path.Combine(root, "Game");
+        var upload = Path.Combine(root, "Upload");
+        Directory.CreateDirectory(game);
+        Directory.CreateDirectory(upload);
+        try
+        {
+            await File.WriteAllTextAsync(Path.Combine(game, "index.html"), "site");
+            await File.WriteAllTextAsync(Path.Combine(upload, "scene.funscript"), "script");
+            var config = new ConfigurationManager(Path.Combine(root, "EdiConfig.json"), Path.Combine(root, "UserConfig.json"));
+            config.Get<GalleryConfig>().GalleryPath = "Game";
+            var edi = new RecordingEdi();
+            var controller = new EdiController(edi, upload, config);
+            await using var contents = new MemoryStream("uploaded"u8.ToArray());
+            await controller.CreateAssets([new FormFile(contents, 0, contents.Length, "files", "scene.funscript")]);
+            Assert.Equal(upload, edi.GalleryPath);
+            var files = Assert.IsType<List<string>>(Assert.IsType<OkObjectResult>(controller.Get()).Value);
+            Assert.Contains("/Edi/Assets/index.html", files);
+            Assert.Contains("/Edi/Upload/scene.funscript", files);
+            var asset = Assert.IsType<PhysicalFileResult>(controller.GetAsset("index.html"));
+            Assert.Equal(Path.Combine(game, "index.html"), asset.FileName);
+            Assert.IsType<BadRequestObjectResult>(controller.GetAsset("../Game-other/index.html"));
+            await controller.DeleteAssets();
+            Assert.Empty(Directory.GetFiles(upload));
+            Assert.Contains("/Edi/Assets/index.html", Assert.IsType<List<string>>(
+                Assert.IsType<OkObjectResult>(controller.Get()).Value));
+        }
+        finally { Directory.Delete(root, recursive: true); }
+    }
+
+    [Fact]
     public async Task PutAddsAssetsWithoutRemovingExistingFilesOrStoppingPlayback()
     {
         var temporaryDirectory = Path.Combine(
@@ -90,7 +123,10 @@ public class EdiAssetUploadTests
         public string? ReloadedPath { get; private set; }
 
         public Task Init(string? path = null, bool setGamePath = true)
-            => Task.CompletedTask;
+        {
+            ReloadedPath = path;
+            return Task.CompletedTask;
+        }
 
         public Task ReloadAssets(string path)
         {

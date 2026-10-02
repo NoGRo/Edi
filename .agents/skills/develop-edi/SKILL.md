@@ -8,6 +8,13 @@ description: Develop, debug, refactor, build, and test the Easy Device Integrati
 Work from the repository containing `Edi.sln`. Treat the current source as authoritative and
 use the bundled references as orientation, not as a substitute for reading affected code.
 
+## EDI Player repository
+
+EDI Player lives in the separate sibling repository `../Edi.Player` (relative to
+this EDI repository), currently `D:\Programacion\EasyDeviceIntegratior\Edi.Player`:
+https://github.com/NoGRo/Edi.Player. It is not inside EDI or an MVC project.
+For player requests, work in that repository and consult its repository instructions.
+
 ## Load only the needed context
 
 - Read [references/architecture.md](references/architecture.md) before changing cross-cutting

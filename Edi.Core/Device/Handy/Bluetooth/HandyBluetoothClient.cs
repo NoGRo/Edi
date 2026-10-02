@@ -42,6 +42,10 @@ internal sealed class HandyBluetoothClient : IHandyClient
     public string Id => $"bluetooth:{_transport.Id}";
     public string Key { get; private set; }
     public string DisplayName => GetDisplayName(_transport.Name);
+    public bool IsConnected =>
+        Volatile.Read(ref _disposed) == 0
+        && Volatile.Read(ref _disconnectSignaled) == 0
+        && _transport.IsConnected;
     public TimeSpan PlaybackSyncDelay => TimeSpan.FromMilliseconds(15);
 
     // Keep margin below the measured 509-byte BLE payload. The initial

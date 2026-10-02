@@ -196,6 +196,14 @@ namespace Edi.Core.Device.Handy
         private async Task ConnectBluetooth(
             bool scanForNewDevices = false)
         {
+            // A status event can be missed when an idle radio link drops.
+            // Check the retained transports before deciding discovery is unnecessary.
+            foreach (var client in _bluetoothClients.Values.ToArray())
+            {
+                if (!client.IsConnected)
+                    await RemoveBluetoothClient(client);
+            }
+
             var missingDeviceCount = GetMissingBluetoothDeviceCount();
             if (missingDeviceCount == 0
                 && !_bluetoothClients.IsEmpty
@@ -474,29 +482,8 @@ namespace Edi.Core.Device.Handy
             await _connectLock.WaitAsync();
             try
             {
-                if (!_bluetoothClients.TryGetValue(
-                        client.Id,
-                        out var currentClient)
-                    || !ReferenceEquals(currentClient, client))
-                {
+                if (!await RemoveBluetoothClient(client))
                     return;
-                }
-
-                client.Disconnected -= BluetoothClient_Disconnected;
-                if (!_bluetoothClients.TryRemove(client.Id, out _))
-                    return;
-
-                IDevice device = null;
-                lock (devices)
-                {
-                    if (devices.TryGetValue(client.Id, out device))
-                        devices.Remove(client.Id);
-                }
-
-                if (device is not null)
-                    _deviceCollector.UnloadDevice(device);
-
-                await client.DisposeAsync();
                 _logger.LogInformation(
                     "A Bluetooth Handy disconnected; starting discovery again.");
                 await ConnectAllCore();
@@ -518,6 +505,28 @@ namespace Edi.Core.Device.Handy
                 0,
                 Volatile.Read(ref _expectedBluetoothDeviceCount)
                     - _bluetoothClients.Count);
+
+        // The caller holds _connectLock, including periodic status checks.
+        private async Task<bool> RemoveBluetoothClient(IHandyClient client)
+        {
+            if (!_bluetoothClients.TryGetValue(client.Id, out var currentClient)
+                || !ReferenceEquals(currentClient, client))
+                return false;
+
+            client.Disconnected -= BluetoothClient_Disconnected;
+            _bluetoothClients.TryRemove(client.Id, out _);
+            IDevice device;
+            lock (devices)
+            {
+                devices.Remove(client.Id, out device);
+            }
+
+            if (device is not null)
+                _deviceCollector.UnloadDevice(device);
+
+            await DisposeBluetoothClient(client);
+            return true;
+        }
 
         private void RememberBluetoothDeviceCount()
         {

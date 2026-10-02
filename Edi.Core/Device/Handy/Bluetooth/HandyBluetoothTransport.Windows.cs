@@ -46,6 +46,9 @@ internal sealed class HandyBluetoothTransport : IHandyBluetoothTransport
 
     public string Id => _device.BluetoothAddress.ToString("X12");
     public string Name => _device.Name;
+    public bool IsConnected =>
+        Volatile.Read(ref _disposed) == 0
+        && _device.ConnectionStatus == BluetoothConnectionStatus.Connected;
 
     public int MaxWriteSize =>
         _session.MaxPduSize > 3

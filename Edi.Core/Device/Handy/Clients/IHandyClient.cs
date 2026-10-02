@@ -7,6 +7,7 @@ public interface IHandyClient : IAsyncDisposable
     string Id { get; }
     string Key { get; }
     string DisplayName { get; }
+    bool IsConnected => true;
     int MaxPointsPerRequest { get; }
     int MaxPlayPointsPerRequest => MaxPointsPerRequest;
     TimeSpan PlaybackSyncDelay { get; }

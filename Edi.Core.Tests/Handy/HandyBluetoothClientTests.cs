@@ -9,6 +9,36 @@ namespace Edi.Core.Tests.Handy;
 
 public class HandyBluetoothClientTests
 {
+    [Fact]
+    public async Task ConnectionStateTracksSilentTransportDropAndDisposal()
+    {
+        var transport = new RecordingBluetoothTransport();
+        await using var client = await HandyBluetoothClient.CreateAsync(
+            transport, NullLogger.Instance, initialize: false,
+            TestContext.Current.CancellationToken);
+
+        Assert.True(client.IsConnected);
+        transport.IsConnected = false;
+        Assert.False(client.IsConnected);
+
+        transport.IsConnected = true;
+        await client.DisposeAsync();
+        Assert.False(client.IsConnected);
+    }
+
+    [Fact]
+    public async Task DisconnectEventKeepsClientUnavailableUntilReplaced()
+    {
+        var transport = new RecordingBluetoothTransport();
+        await using var client = await HandyBluetoothClient.CreateAsync(
+            transport, NullLogger.Instance, initialize: false,
+            TestContext.Current.CancellationToken);
+
+        transport.RaiseDisconnected();
+
+        Assert.False(client.IsConnected);
+    }
+
     [Theory]
     [InlineData("OHD_hw4_device-id", "The Handy 2 Pro (BLE)")]
     [InlineData("ohd_HW3_device-id", "The Handy 2 Standard (BLE)")]
@@ -454,6 +484,7 @@ public class HandyBluetoothClientTests
     private sealed class RecordingBluetoothTransport
         : IHandyBluetoothTransport
     {
+        public bool IsConnected { get; set; } = true;
         private readonly int _maxWriteSize;
 
         public RecordingBluetoothTransport(int maxWriteSize = 512)

@@ -6,6 +6,7 @@ internal interface IHandyBluetoothTransport : IAsyncDisposable
 {
     string Id { get; }
     string Name { get; }
+    bool IsConnected { get; }
     int MaxWriteSize { get; }
     event Action<byte[]> FrameReceived;
     event Action Disconnected;
@@ -48,6 +49,8 @@ internal sealed class HandyBluetoothTransport : IHandyBluetoothTransport
 
     public string Id => _device.Id;
     public string Name => _device.Name;
+    public bool IsConnected =>
+        Volatile.Read(ref _disposed) == 0 && _server.IsConnected;
 
     public int MaxWriteSize =>
         _server.Mtu > 3 ? _server.Mtu - 3 : 509;

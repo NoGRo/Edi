@@ -314,6 +314,59 @@ public class HandyProviderReconnectTests
             device => device.Name == secondClient.DisplayName);
     }
 
+    [Fact]
+    public async Task PeriodicCheckRecoversSilentDropAndRetainsHealthyHandy()
+    {
+        var staleClient = new FakeHandyClient("stale-device");
+        var healthyClient = new FakeHandyClient("healthy-device");
+        var replacement = new FakeHandyClient("stale-device");
+        var discovery = new QueueDiscovery(
+            [staleClient, healthyClient],
+            [replacement]);
+        await using var rig = await ProviderRig.CreateAsync(discovery);
+        await rig.Provider.Init();
+
+        staleClient.IsConnected = false; // No Disconnected event.
+        await rig.Provider.ConnectAll();
+
+        Assert.True(staleClient.WasDisposed);
+        Assert.False(healthyClient.WasDisposed);
+        Assert.False(replacement.WasDisposed);
+        Assert.Equal(2, rig.Collector.Devices.Count);
+        Assert.Equal([0, 1], discovery.ExpectedDeviceCounts);
+
+        // A delayed event for the old connection must not unload its replacement.
+        await rig.Provider.ObserveBluetoothDisconnect(staleClient);
+        await rig.Provider.ConnectAll();
+        Assert.False(replacement.WasDisposed);
+        Assert.Equal(2, rig.Collector.Devices.Count);
+        Assert.Equal([0, 1], discovery.ExpectedDeviceCounts);
+    }
+
+    [Fact]
+    public async Task SilentDropKeepsRetryingOnLaterPeriodicChecks()
+    {
+        var staleClient = new FakeHandyClient("same-device");
+        var replacement = new FakeHandyClient("same-device");
+        var discovery = new CountingQueueDiscovery(
+            [staleClient], [], [], [], [replacement]);
+        await using var rig = await ProviderRig.CreateAsync(discovery);
+        await rig.Provider.Init();
+
+        staleClient.IsConnected = false;
+        await rig.Provider.ConnectAll();
+
+        Assert.True(staleClient.WasDisposed);
+        Assert.Empty(rig.Collector.Devices);
+        Assert.Equal(4, discovery.Calls);
+
+        await rig.Provider.ConnectAll();
+
+        Assert.Single(rig.Collector.Devices);
+        Assert.False(replacement.WasDisposed);
+        Assert.Equal(5, discovery.Calls);
+    }
+
     private sealed class BlockingDiscovery : IHandyBluetoothDiscovery
     {
         public int Calls { get; private set; }
@@ -445,6 +498,7 @@ public class HandyProviderReconnectTests
         public string Id { get; }
         public string Key => string.Empty;
         public string DisplayName => "The Handy 2 Pro (BLE)";
+        public bool IsConnected { get; set; } = true;
         public int MaxPointsPerRequest => 50;
         public TimeSpan PlaybackSyncDelay => TimeSpan.Zero;
         public bool WasDisposed { get; private set; }

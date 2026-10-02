@@ -18,6 +18,7 @@ namespace Edi.Core
         public Task Init(string path = null, bool setGamePath = true);
         public Task ReloadAssets(string path);
         public Task InitDevices();
+        public bool LaunchGame(bool automatic = false);
         public Task<GameInfo> SelectGame(GameInfo game);
         public IPlayerChannels Player { get; }
 

@@ -5,6 +5,35 @@ namespace Edi.Core.Tests.Services;
 
 public class GameLaunchTargetTests
 {
+    [Theory]
+    [InlineData("http://127.0.0.1:5000/")]
+    [InlineData("https://example.test/player")]
+    [InlineData("  HTTP://127.0.0.1:5000/  ")]
+    public void UrlLaunchUsesShellWithoutRequiringAFile(string url)
+    {
+        var info = GameLaunchTarget.StartInfo(url, Path.Combine(Path.GetTempPath(), "game", "EdiConfig.json"));
+        Assert.Equal(url.Trim(), info.FileName);
+        Assert.True(info.UseShellExecute);
+    }
+
+    [Fact]
+    public void FileAndDirectoryLaunchRemainRelativeToGameConfig()
+    {
+        var folder = Path.Combine(Path.GetTempPath(), "edi-launch-target-tests", Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(folder);
+        try
+        {
+            File.WriteAllText(Path.Combine(folder, "Game.exe"), "fixture");
+            var config = Path.Combine(folder, "EdiConfig.json");
+            var file = GameLaunchTarget.StartInfo("Game.exe", config);
+            Assert.Equal(Path.Combine(folder, "Game.exe"), file.FileName);
+            Assert.True(file.UseShellExecute);
+            Assert.Equal(folder, GameLaunchTarget.StartInfo(".", config).FileName.TrimEnd(Path.DirectorySeparatorChar));
+            Assert.Throws<FileNotFoundException>(() => GameLaunchTarget.StartInfo("Missing.exe", config));
+        }
+        finally { Directory.Delete(folder, recursive: true); }
+    }
+
     [Fact]
     public void RelativeExecutableIsResolvedFromGameConfigDirectory()
     {

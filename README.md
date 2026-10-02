@@ -236,6 +236,9 @@ This section controls auto-repeat and timing between galleries. All values are i
   folder containing that game's `EdiConfig.json`.
 - `AutoLaunch`: automatically launches `ExecuteOnReady` when a device is ready. Defaults to
   `false`, so each game must first be launched manually or explicitly opted into auto launch.
+  Core checks readiness after its API starts, launches once per game selection and retries
+  failed shell launches while ready. HTTP/HTTPS URLs open in the default browser;
+  the WPF launch button uses the same Core mechanism. Upload reloads do not relaunch.
 - `UseHttps`, `UseLogs`: debugging and security options.
 
 #### `Devices` Section

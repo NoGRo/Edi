@@ -223,16 +223,9 @@ namespace Edi.Core.Services
                 : _gameConfigPath; // Ruta por defecto
 
             // Actualizar el diccionario en memoria
-            if (_configurations.ContainsKey(typeName))
-            {
-                _configObject[typeName] = config;
-                _configurations[typeName] = configJson;
-            }
-            else
-            {
-                _configObject.Add(typeName, config);
-                _configurations.Add(typeName, configJson);
-            }
+            // A selected game can omit a section whose object is already cached.
+            _configObject[typeName] = config;
+            _configurations[typeName] = configJson;
 
             if (!isUserConfig && !File.Exists(targetPath))
             {

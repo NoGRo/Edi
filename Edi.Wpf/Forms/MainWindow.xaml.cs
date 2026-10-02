@@ -58,7 +58,6 @@ namespace Edi.Forms
         public OSRConfig osrConfig;
         public DgLabConfig dgLabConfig;
         private Timer timer;
-        private bool launched;
         private record AudioDevice(int id, string name);
         private record ComPort(string name, string? value);
         private record ChannelsNames(string name, string? value);
@@ -216,15 +215,6 @@ namespace Edi.Forms
                 var hasReadyDevice = HasReadyDevice();
                 btnLaunch.IsEnabled = hasReadyDevice;
 
-                if (hasReadyDevice
-                    && config.AutoLaunch
-                    && !launched
-                    && !_isSelectingGame
-                    && !string.IsNullOrEmpty(config.ExecuteOnReady)
-                    )
-                {
-                    LaunchConfiguredGame(isAutomatic: true);
-                }
             });
         }
 
@@ -237,81 +227,12 @@ namespace Edi.Forms
             }
         }
 
-        private void LaunchConfiguredGame(bool isAutomatic = false)
+        private void LaunchConfiguredGame()
         {
-            if (!HasReadyDevice())
-            {
-                return;
-            }
-
-            if (string.IsNullOrWhiteSpace(config.ExecuteOnReady))
-            {
-                MessageBox.Show(
-                    "Set ExecuteOnReady in this game's EdiConfig.json before launching.",
-                    "Game not configured",
-                    MessageBoxButton.OK,
-                    MessageBoxImage.Information);
-                return;
-            }
-
-            if (isAutomatic)
-            {
-                launched = true;
-            }
-
-            try
-            {
-                var target = GameLaunchTarget.Resolve(
-                    config.ExecuteOnReady,
-                    edi.ConfigurationManager.GamePathConfig);
-                if (ExecuteCommandOrOpenPath(target))
-                {
-                    launched = true;
-                    lblStatus.Content = "launched: " + config.ExecuteOnReady;
-                }
-            }
+            try { edi.LaunchGame(); }
             catch (Exception ex)
             {
-                MessageBox.Show(
-                    $"Error al resolver la ruta configurada: {ex.Message}",
-                    "Error",
-                    MessageBoxButton.OK,
-                    MessageBoxImage.Error);
-            }
-        }
-
-        private bool ExecuteCommandOrOpenPath(string commandOrPath)
-        {
-            try
-            {
-                if (GameLaunchTarget.IsWebAddress(commandOrPath))
-                {
-                    // Abrir URL en el navegador predeterminado
-                    Process.Start(new ProcessStartInfo
-                    {
-                        FileName = commandOrPath,
-                        UseShellExecute = true
-                    });
-                }
-                else if (File.Exists(commandOrPath) || Directory.Exists(commandOrPath))
-                {
-                    // Ejecutar archivo o abrir directorio
-                    Process.Start(new ProcessStartInfo(commandOrPath)
-                    {
-                        UseShellExecute = true
-                    });
-                }
-                else
-                {
-                    throw new FileNotFoundException($"El archivo o comando no existe: {commandOrPath}");
-                }
-
-                return true;
-            }
-            catch (Exception ex)
-            {
-                MessageBox.Show($"Error al ejecutar el comando o abrir la ruta: {ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
-                return false;
+                MessageBox.Show(ex.Message, "Error", MessageBoxButton.OK, MessageBoxImage.Error);
             }
         }
 
@@ -642,7 +563,6 @@ namespace Edi.Forms
                 var resolvedGame = await edi.SelectGame(selectedGame);
                 GamesComboBox.SelectedItem = resolvedGame;
                 viewModel.galleries = ReloadGalleries();
-                launched = false;
                 btnLaunch.IsEnabled = HasReadyDevice();
             }
             finally

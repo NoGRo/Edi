@@ -135,6 +135,7 @@ public class EdiAssetUploadTests
         }
 
         public Task InitDevices() => Task.CompletedTask;
+        public bool LaunchGame(bool automatic = false) => false;
         public Task<GameInfo> SelectGame(GameInfo game) => Task.FromResult(game);
         public IPlayerChannels Player => PlayerRecorder;
         public DeviceCollector DeviceCollector => null!;

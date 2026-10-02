@@ -17,6 +17,7 @@ using System;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.IO;
+using System.Diagnostics;
 using System.Threading.Tasks;
 using System.Timers;
 using Timer = System.Timers.Timer;
@@ -32,6 +33,12 @@ namespace Edi.Core
         public IPlayerChannels Player { get; private set; }
         public string GalleryPath { get; private set; }
 
+
+        private readonly object launchLock = new();
+        private bool launched;
+        private int initializing;
+        internal Action<ProcessStartInfo> StartGameProcess { get; set; }
+            = info => Process.Start(info)?.Dispose();
 
         private readonly RepositoryManager _repositoryManager;
         public IEnumerable<IRepository> repos
@@ -120,16 +127,48 @@ namespace Edi.Core
             return resolvedGameInfo;
 
         }
+        public bool LaunchGame(bool automatic = false)
+        {
+            lock (launchLock)
+            {
+                if (initializing > 0 || (automatic && (!Config.AutoLaunch || launched)))
+                    return false;
+                lock (DeviceCollector.Devices)
+                    if (!DeviceCollector.Devices.Any(device => device.IsReady)) return false;
+                if (string.IsNullOrWhiteSpace(Config.ExecuteOnReady))
+                {
+                    if (automatic) return false;
+                    throw new InvalidOperationException("Set ExecuteOnReady in this game's EdiConfig.json before launching.");
+                }
+                StartGameProcess(GameLaunchTarget.StartInfo(Config.ExecuteOnReady, ConfigurationManager.GamePathConfig));
+                launched = true;
+            }
+            OnChangeStatus?.Invoke("Configured game launched.");
+            return true;
+        }
+
         public async Task Init(string path, bool setGamePath = true)
         {
-            string galleryPath = setGamePath ? ResolveGallery(path) : path;
-            await Player.Stop();
-            await DeviceCollector.Reload(async () =>
+            lock (launchLock)
             {
-                GalleryPath = galleryPath;
-                await _repositoryManager.ChangePath(galleryPath);
-            });
-            Player.ResetChannels(Config.Channels.ToList());
+                initializing++;
+                if (setGamePath) launched = false;
+            }
+            try
+            {
+                string galleryPath = setGamePath ? ResolveGallery(path) : path;
+                await Player.Stop();
+                await DeviceCollector.Reload(async () =>
+                {
+                    GalleryPath = galleryPath;
+                    await _repositoryManager.ChangePath(galleryPath);
+                });
+                Player.ResetChannels(Config.Channels.ToList());
+            }
+            finally
+            {
+                lock (launchLock) initializing--;
+            }
         }
 
         public async Task ReloadAssets(string path)

@@ -7,11 +7,14 @@ export function videoGeometry(video, settings, eye) {
     const geometry = new THREE.PlaneGeometry(settings.width, settings.width / aspect, curvature ? 32 : 1, 1);
     if (curvature) {
         const position = geometry.attributes.position;
-        const radius = settings.width / curvature;
+        // Keep the requested visible width as the chord instead of treating it
+        // as arc length; otherwise the screen appears to shrink while curving.
+        const radius = settings.width / (2 * Math.sin(curvature / 2));
         for (let index = 0; index < position.count; index++) {
-            const angle = position.getX(index) / radius;
+            const angle = position.getX(index) / settings.width * curvature;
             position.setX(index, Math.sin(angle) * radius);
-            position.setZ(index, radius * (Math.cos(angle) - 1));
+            // Positive local Z is toward the viewer, so the edges wrap forward.
+            position.setZ(index, radius * (1 - Math.cos(angle)));
         }
         position.needsUpdate = true;
         geometry.computeVertexNormals();
@@ -51,6 +54,13 @@ export function createVideoSurface(video, settings) {
             surface.add(mesh);
         }
     }
+    function dimensions() {
+        const width = Number(settings.width) || 2.4;
+        return { width, height: width / eyeAspect(video.videoWidth, video.videoHeight, settings) };
+    }
+    function useNativeLayer(enabled) {
+        if (material) material.visible = !enabled;
+    }
     rebuild();
-    return { group, rebuild, meshes: () => surface.children, dispose: clear };
+    return { group, rebuild, dimensions, useNativeLayer, meshes: () => surface.children, dispose: clear };
 }

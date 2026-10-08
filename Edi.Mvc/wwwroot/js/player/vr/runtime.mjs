@@ -1,15 +1,38 @@
 import * as THREE from '../../../lib/vr/three.module.min.js';
 import { createVideoSurface } from './video-surface.mjs';
-import { createHtmlPanels } from './html-panels.mjs';
-import { clamp, constrainPlacement, controllerButtons, createStillnessGate, easingAlpha,
+import { createMediaLayer } from './media-layer.mjs';
+import { clamp, constrainPlacement, controllerButtons, createStillnessGate, enforcementStep, insideFollowContour,
     gripStickAction, horizontalStick, intensityStickVelocity, stickAction } from './motion.mjs';
+
+function createExitControl(video) {
+    const canvas = document.createElement('canvas'); canvas.width = 512; canvas.height = 160;
+    const context = canvas.getContext('2d');
+    context.fillStyle = 'rgba(15, 20, 28, .94)'; context.roundRect(4, 4, 504, 152, 34); context.fill();
+    context.strokeStyle = '#58a6ff'; context.lineWidth = 8; context.stroke();
+    context.fillStyle = '#f0f6fc'; context.font = '600 54px system-ui'; context.textAlign = 'center';
+    context.textBaseline = 'middle'; context.fillText('Exit VR', 256, 82);
+    const texture = new THREE.CanvasTexture(canvas); texture.colorSpace = THREE.SRGBColorSpace;
+    const material = new THREE.MeshBasicMaterial({ map: texture, transparent: true, depthTest: false, toneMapped: false });
+    const button = new THREE.Mesh(new THREE.PlaneGeometry(.48, .15), material);
+    const hitMaterial = new THREE.MeshBasicMaterial({ transparent: true, opacity: 0, depthWrite: false, colorWrite: false });
+    const hit = new THREE.Mesh(new THREE.PlaneGeometry(.82, .38), hitMaterial);
+    const group = new THREE.Group(); group.add(hit, button); button.position.z = .006; button.visible = false;
+    button.renderOrder = 20; hit.userData.exitControl = true; button.userData.exitControlButton = true;
+    function layout() {
+        const { width, height } = video.dimensions();
+        group.position.set(width / 2 - .24, -height / 2 - .13, .012);
+    }
+    layout();
+    return { group, hit, layout, hover(value) { button.visible = value; },
+        dispose() { button.geometry.dispose(); material.dispose(); texture.dispose(); hit.geometry.dispose(); hitMaterial.dispose(); } };
+}
 
 export async function createVrRuntime({ session, elements, preferences, state, setIntensity,
     exit, onPlacement, onFormat, onPrimary, onVariant, onError }) {
     // Quest is fill-rate constrained. WebXR supplies its own compositor, so
     // disabling MSAA and using its foveated framebuffer saves substantially
     // more work than it costs in edge quality.
-    const renderer = new THREE.WebGLRenderer({ antialias: false, powerPreference: 'high-performance', precision: 'mediump' });
+    const renderer = new THREE.WebGLRenderer({ alpha: true, antialias: false, powerPreference: 'high-performance', precision: 'mediump' });
     renderer.domElement.className = 'vr-canvas';
     document.body.append(renderer.domElement);
     renderer.setSize(window.innerWidth, window.innerHeight);
@@ -17,39 +40,46 @@ export async function createVrRuntime({ session, elements, preferences, state, s
     renderer.xr.setReferenceSpaceType('local');
     renderer.xr.setFramebufferScaleFactor(.8);
     const scene = new THREE.Scene();
-    scene.background = new THREE.Color('#05080d');
+    scene.background = null;
     const camera = new THREE.PerspectiveCamera(70, 1, .03, 100);
     const video = createVideoSurface(elements.video, preferences);
     scene.add(video.group);
-    const menuRig = new THREE.Group(); video.group.add(menuRig);
+    // Video and UI remain separate scene branches. Only this lightweight
+    // Three.js exit affordance is rendered over VR; desktop HTML stays in place.
+    const uiRig = new THREE.Group(); scene.add(uiRig);
+    const exitControl = createExitControl(video); uiRig.add(exitControl.group);
     const raycaster = new THREE.Raycaster();
     const head = { position: new THREE.Vector3(), rotation: new THREE.Quaternion(), valid: false };
     const relativePosition = new THREE.Vector3(), desiredPosition = new THREE.Vector3();
     const dragMatrix = new THREE.Matrix4(), dragPosition = new THREE.Vector3();
     const dragRotation = new THREE.Quaternion(), dragScale = new THREE.Vector3();
     const placementRotation = new THREE.Quaternion(), faceMatrix = new THREE.Matrix4();
+    const gazeOrigin = new THREE.Vector3(), gazeDirection = new THREE.Vector3(), gazePoint = new THREE.Vector3();
+    const inverseVideo = new THREE.Matrix4(), followDelta = new THREE.Vector3();
     const gate = createStillnessGate();
     const controllers = [];
-    let panels, disposed = false, placed = false, catchingUp = false, grab = null;
+    let mediaLayer, disposed = false, placed = false, catchingUp = false, grab = null;
+    let outsideSince = null, followStarted = 0, followJourney = 0;
     let lastTime = null, lastStickTime = 0, stickAccumulator = 0, lastStickKind = null;
     let lastSurfaceUpdate = 0;
-    let snapshotErrorReported = false, frameErrorReported = false;
+    let frameErrorReported = false;
     let diagnosticStarted = performance.now(), diagnosticFrames = 0;
     const diagnostics = { active: true, frames: 0, fps: 0, lastFrameMs: 0, maxFrameMs: 0,
-        videoReadyState: elements.video.readyState, panels: null, follow: null, lastError: null };
+        videoReadyState: elements.video.readyState, videoStream: 'webgl-texture', controlsStream: 'three-exit-button',
+        follow: null, lastError: null };
     window.ediVrDiagnostics = diagnostics;
 
     function captureRelative() {
         if (!head.valid) return;
         const inverse = head.rotation.clone().invert();
         relativePosition.copy(video.group.position).sub(head.position).applyQuaternion(inverse);
-        gate.reset(); catchingUp = false;
+        gate.reset(); catchingUp = false; outsideSince = null;
     }
     function recenterVideo() {
         relativePosition.set(preferences.offsetX, preferences.offsetY, -preferences.distance);
         video.group.position.copy(relativePosition).applyQuaternion(head.rotation).add(head.position);
         video.group.quaternion.copy(head.rotation);
-        gate.reset(); catchingUp = false;
+        gate.reset(); catchingUp = false; outsideSince = null;
     }
     function faceViewer() {
         if (!head.valid || video.group.position.distanceToSquared(head.position) < .0001) return;
@@ -58,19 +88,36 @@ export async function createVrRuntime({ session, elements, preferences, state, s
         faceMatrix.lookAt(head.position, video.group.position, camera.up);
         video.group.quaternion.setFromRotationMatrix(faceMatrix);
     }
-    function toggleMenus() {
-        panels.toggle();
+    function syncSurfaces() {
+        uiRig.position.copy(video.group.position);
+        uiRig.quaternion.copy(video.group.quaternion);
+        mediaLayer?.update(video.group.position, video.group.quaternion);
+    }
+    function rebuildVideo() {
+        video.rebuild();
+        exitControl.layout();
+        video.useNativeLayer(mediaLayer?.rebuild());
+        diagnostics.videoStream = mediaLayer?.active() ? 'native-media-layer' : 'webgl-texture';
+    }
+    function gazeInContour() {
+        video.group.updateMatrixWorld(true);
+        gazeOrigin.copy(head.position); video.group.worldToLocal(gazeOrigin);
+        inverseVideo.copy(video.group.matrixWorld).invert();
+        gazeDirection.set(0, 0, -1).applyQuaternion(head.rotation).transformDirection(inverseVideo);
+        if (Math.abs(gazeDirection.z) < .0001) return false;
+        const distance = -gazeOrigin.z / gazeDirection.z;
+        if (distance <= 0) return false;
+        gazePoint.copy(gazeDirection).multiplyScalar(distance).add(gazeOrigin);
+        const dimensions = video.dimensions();
+        return insideFollowContour(gazePoint, dimensions.width, dimensions.height);
     }
     function intersection(controller) {
         scene.updateMatrixWorld(true);
         raycaster.ray.origin.setFromMatrixPosition(controller.object.matrixWorld);
         raycaster.ray.direction.set(0, 0, -1).transformDirection(controller.object.matrixWorld);
         raycaster.layers.set(0);
-        const ui = raycaster.intersectObjects(panels.meshes(), false)[0];
-        if (ui) {
-            const hit = panels.hitAt(ui.object.userData.panel, ui.uv);
-            if (hit) return { type: 'panel', distance: ui.distance, point: ui.point, hit };
-        }
+        const ui = raycaster.intersectObject(exitControl.hit, false)[0];
+        if (ui) return { type: 'exit', distance: ui.distance, point: ui.point };
         return videoIntersection();
     }
     function videoIntersection() {
@@ -85,7 +132,7 @@ export async function createVrRuntime({ session, elements, preferences, state, s
         video.group.updateMatrixWorld(true);
         grab = { controller, kind, space, offset: space.matrixWorld.clone().invert().multiply(video.group.matrixWorld),
             position: video.group.position.clone(), rotation: video.group.quaternion.clone(), moved: false };
-        gate.reset(); catchingUp = false;
+        gate.reset(); catchingUp = false; outsideSince = null;
         return true;
     }
     function moveGrab() {
@@ -112,42 +159,31 @@ export async function createVrRuntime({ session, elements, preferences, state, s
             preferences.offsetY = clamp(relativePosition.y, -3, 3);
             preferences.distance = clamp(-relativePosition.z, .45, 8);
             onPlacement();
-        } else if (kind === 'trigger') toggleMenus();
+        }
     }
     function gripStart(controller) {
-        if (disposed || !panels || !head.valid) return;
-        // Grip grabs the video even when a menu is in front of it. Selection
-        // keeps its normal UI priority, so clicking and grabbing stay distinct.
-        intersection(controller);
+        if (disposed || !head.valid) return;
         if (videoIntersection()) beginGrab(controller, 'grip');
     }
     function cancel(controller) {
-        if (controller.press?.type === 'panel') panels?.release(controller.press.action, null, true);
         if (grab?.controller === controller) { grab = null; captureRelative(); }
         controller.press = null;
     }
     function start(controller) {
-        if (disposed || !panels || !head.valid) return;
+        if (disposed || !head.valid) return;
         const target = intersection(controller);
-        if (target?.type === 'panel') controller.press = { type: 'panel', action: panels.press(target.hit) };
+        if (target?.type === 'exit') controller.press = { type: 'exit' };
         else if (target?.type === 'video' && !grab) {
             beginGrab(controller, 'trigger');
             controller.press = { type: 'video' };
         } else controller.press = { type: 'empty' };
     }
     function finish(controller) {
-        if (disposed || !panels) return;
+        if (disposed) return;
         const target = intersection(controller);
-        if (controller.press?.type === 'panel') panels.release(controller.press.action, target?.hit);
+        if (controller.press?.type === 'exit' && target?.type === 'exit') void exit();
         else if (controller.press?.type === 'video') finishGrab(controller, 'trigger');
-        else if (controller.press?.type === 'empty') toggleMenus();
         controller.press = null;
-    }
-    function targetKind(target) {
-        const element = target?.hit?.element;
-        if (element?.closest('.custom-volume-control')) return 'volume';
-        if (element?.closest('#customVideoControls')) return 'seek';
-        return 'intensity';
     }
     function applyStick(action, dt, now) {
         if (!action.value || grab) { lastStickKind = null; stickAccumulator = 0; return; }
@@ -185,23 +221,34 @@ export async function createVrRuntime({ session, elements, preferences, state, s
         preferences.width = width; preferences.curvature = curvature;
         grab.adjusted = true;
         lastSurfaceUpdate = now;
-        video.rebuild();
+        rebuildVideo();
     }
     function follow(now, dt) {
-        const ready = gate.ready(now, { position: head.position.toArray(), rotation: head.rotation.toArray() }, preferences.followDelay);
-        diagnostics.follow = { enabled: preferences.follow, ready, catchingUp, now, delay: preferences.followDelay };
-        if (!preferences.follow || grab || !ready) { catchingUp = false; return; }
+        const still = gate.ready(now, { position: head.position.toArray(), rotation: head.rotation.toArray() }, .18);
+        const inside = gazeInContour();
+        diagnostics.follow = { enabled: preferences.follow, inside, still, catchingUp, now, delay: preferences.followDelay };
+        if (!preferences.follow || grab) { catchingUp = false; outsideSince = null; return; }
+        // The last grip placement is the contract: enforcement follows the
+        // current head while preserving that exact relative x/y/z offset.
         desiredPosition.copy(relativePosition).applyQuaternion(head.rotation).add(head.position);
         const distance = video.group.position.distanceTo(desiredPosition);
         diagnostics.follow.distance = distance;
-        if (!catchingUp && distance > .1) catchingUp = true;
+        if (!catchingUp) {
+            outsideSince = inside ? null : outsideSince ?? now;
+            if (outsideSince !== null && now - outsideSince >= preferences.followDelay) {
+                catchingUp = true; followStarted = now; followJourney = Math.max(distance, .1);
+            }
+        }
         if (!catchingUp) return;
-        const alpha = easingAlpha(dt, preferences.followEase);
-        video.group.position.lerp(desiredPosition, alpha);
-        if (distance < .005) catchingUp = false;
+        followJourney = Math.max(followJourney, distance);
+        const step = enforcementStep(distance, followJourney, now - followStarted, dt, preferences.followEase);
+        if (distance > 0) video.group.position.addScaledVector(followDelta.copy(desiredPosition).sub(video.group.position), step / distance);
+        // Head movement never cancels enforcement. It only prevents completion;
+        // the target is recomputed every frame until both screen and head settle.
+        if (distance < .005 && still) { catchingUp = false; outsideSince = null; captureRelative(); }
     }
     function animate(milliseconds, frame) {
-        if (disposed || !panels || !frame) return;
+        if (disposed || !frame) return;
         const now = milliseconds / 1000;
         const dt = lastTime === null ? 0 : clamp(now - lastTime, 0, .05); lastTime = now;
         const pose = frame.getViewerPose(renderer.xr.getReferenceSpace());
@@ -213,8 +260,8 @@ export async function createVrRuntime({ session, elements, preferences, state, s
         video.group.visible = elements.video.readyState >= 2;
         follow(now, dt);
         faceViewer();
-        panels.update(now);
-        let hovered = null, activeStick = null;
+        syncSurfaces();
+        let exitHovered = false, activeStick = null;
         for (const controller of controllers) {
             if (!controller.source || !controller.object.visible) continue;
             controller.object.getWorldPosition(controller.posePosition);
@@ -234,7 +281,7 @@ export async function createVrRuntime({ session, elements, preferences, state, s
                 controller.hitPoint.copy(target.point);
                 controller.object.worldToLocal(controller.hitPoint);
                 controller.dot.position.copy(controller.hitPoint);
-                controller.dot.material.color.set(target.type === 'panel' ? 0x2f81f7 : 0xffffff);
+                controller.dot.material.color.set(target.type === 'exit' ? 0x2f81f7 : 0xffffff);
             }
             const active = Boolean(controller.source.gamepad && target);
             const opacity = controller.press || grab?.controller === controller ? 1
@@ -242,8 +289,7 @@ export async function createVrRuntime({ session, elements, preferences, state, s
             controller.line.material.opacity = controller.dot.material.opacity = opacity;
             controller.line.visible = opacity > .01;
             controller.dot.visible = Boolean(target) && opacity > .01;
-            if (target?.hit) hovered = target.hit;
-            if (controller.press?.type === 'panel') panels.move(controller.press.action, target?.hit);
+            if (target?.type === 'exit') exitHovered = true;
             const buttons = controllerButtons(controller.source, controller.previousButtons);
             controller.previousButtons = buttons.buttons;
             if (buttons.primary) onPrimary();
@@ -260,16 +306,17 @@ export async function createVrRuntime({ session, elements, preferences, state, s
                     if (sideways && !controller.variantStick) onVariant();
                     controller.variantStick = sideways;
                     if (!sideways) {
-                        const action = stickAction(controller.source.gamepad.axes, targetKind(target));
+                        const action = stickAction(controller.source.gamepad.axes);
                         if (action.value && (!activeStick || controller.source.handedness === 'right')) activeStick = action;
                     }
                 }
             }
         }
-        panels.hover(hovered);
+        exitControl.hover(exitHovered);
         applyStick(activeStick || { value: 0 }, dt, now);
         if (grab && !grab.space.visible) cancel(grab.controller);
         moveGrab();
+        syncSurfaces();
         renderer.render(scene, camera);
     }
     function animationLoop(milliseconds, frame) {
@@ -285,7 +332,6 @@ export async function createVrRuntime({ session, elements, preferences, state, s
             const diagnosticElapsed = performance.now() - diagnosticStarted;
             if (diagnosticElapsed >= 1000) {
                 diagnostics.fps = diagnosticFrames * 1000 / diagnosticElapsed;
-                diagnostics.panels = panels?.diagnostics?.() || null;
                 diagnosticFrames = 0; diagnosticStarted = performance.now();
             }
         } catch (error) {
@@ -314,7 +360,7 @@ export async function createVrRuntime({ session, elements, preferences, state, s
             controller.line.geometry.dispose(); controller.line.material.dispose();
             controller.dot.geometry.dispose(); controller.dot.material.dispose();
         });
-        panels?.dispose(); video.dispose(); renderer.dispose();
+        mediaLayer?.remove(); exitControl.dispose(); video.dispose(); renderer.dispose();
         renderer.domElement.remove();
     }
     session.addEventListener('end', dispose, { once: true });
@@ -350,15 +396,16 @@ export async function createVrRuntime({ session, elements, preferences, state, s
         await renderer.xr.setSession(session);
         renderer.xr.setFoveation(1);
         if (disposed) return { dispose };
-        panels = await createHtmlPanels({ rig: menuRig, elements, preferences, exit, onError(error) {
-            if (!snapshotErrorReported) { snapshotErrorReported = true; onError(error); }
-        } });
-        if (disposed) { panels.dispose(); return { dispose }; }
+        mediaLayer = createMediaLayer({ session, referenceSpace: renderer.xr.getReferenceSpace(),
+            projectionLayer: renderer.xr.getBaseLayer(), video: elements.video, settings: preferences });
+        video.useNativeLayer(mediaLayer.rebuild());
+        diagnostics.videoStream = mediaLayer.active() ? 'native-media-layer' : 'webgl-texture';
+        if (disposed) return { dispose };
         renderer.setAnimationLoop(animationLoop);
-        return { dispose, recenterVideo, rebuildVideo: video.rebuild, toggleMenus,
+        return { dispose, recenterVideo, rebuildVideo,
             settingsChanged(key) {
                 if (key === 'follow') captureRelative();
-                else if (['width', 'curvature', 'stereo', 'swapEyes', 'halfResolution'].includes(key)) video.rebuild();
+                else if (['width', 'curvature', 'stereo', 'swapEyes', 'halfResolution'].includes(key)) rebuildVideo();
                 if (['distance', 'offsetX', 'offsetY'].includes(key)) recenterVideo();
                 gate.reset();
             }

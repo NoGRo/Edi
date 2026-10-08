@@ -33,6 +33,27 @@ export function createStillnessGate() {
     };
 }
 
+// The follow boundary is expressed in the video's own dimensions. This makes
+// a wide screen allow more horizontal head movement than vertical movement,
+// and naturally scales the usable viewing area with distance and screen size.
+export function insideFollowContour(point, width, height, inset = .12) {
+    const safe = clamp(1 - inset, .5, .95);
+    return Number.isFinite(point?.x) && Number.isFinite(point?.y)
+        && Math.abs(point.x) <= width * .5 * safe
+        && Math.abs(point.y) <= height * .5 * safe;
+}
+
+// Follow motion has three deliberate phases: a hesitant launch, a confident
+// middle, and a slow precision approach. Return a distance rather than a lerp
+// alpha so a suspended frame cannot overshoot its moving target.
+export function enforcementStep(distance, journey, elapsed, dt, response = .6) {
+    if (distance <= 0 || dt <= 0) return 0;
+    const launch = .16 + .84 * clamp(elapsed / .45, 0, 1) ** 2;
+    const finish = .08 + .92 * clamp(distance / Math.max(.025, journey * .22), 0, 1) ** 1.5;
+    const speed = Math.max(.035, Math.max(.1, journey) / Math.max(.15, response) * launch * finish);
+    return Math.min(distance, speed * Math.min(dt, .05));
+}
+
 export function stickAction(axes, target = 'intensity') {
     const x = axes?.[2] || 0, y = -(axes?.[3] || 0);
     // Seeking requires explicitly pointing at the video control surface.
@@ -45,7 +66,7 @@ export function stickAction(axes, target = 'intensity') {
 // Quest thumbsticks reach their full reported range with little physical travel.
 // A power curve keeps the center precise while preserving deliberate full-range changes.
 export function intensityStickVelocity(value) {
-    return Math.sign(value) * Math.pow(Math.abs(value), 1.7) * 18;
+    return Math.sign(value) * Math.pow(Math.abs(value), 1.7) * 8;
 }
 
 export function gripStickAction(axes) {

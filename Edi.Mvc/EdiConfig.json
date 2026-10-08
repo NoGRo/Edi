@@ -106,7 +106,7 @@
         "OffsetMS": null
       },
       "The Handy 2 Pro (BLE)": {
-        "Variant": "R0",
+        "Variant": "default",
         "Channel": null,
         "Min": 0,
         "Max": 100,

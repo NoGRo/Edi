@@ -1,9 +1,10 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { detectVideoFormat, eyeUv, eyeAspect } from '../wwwroot/js/player/vr/format.mjs';
-import { constrainPlacement, controllerButtons, createStillnessGate, easingAlpha, gripStickAction,
+import { constrainPlacement, controllerButtons, createStillnessGate, easingAlpha, enforcementStep, insideFollowContour, gripStickAction,
     horizontalStick, intensityStickVelocity, stickAction } from '../wwwroot/js/player/vr/motion.mjs';
 import { videoGeometry } from '../wwwroot/js/player/vr/video-surface.mjs';
+import { createMediaLayer } from '../wwwroot/js/player/vr/media-layer.mjs';
 
 test('VR filename conventions detect only flat mono or side-by-side screens', () => {
     for (const [name, stereo, swapEyes] of [
@@ -46,7 +47,8 @@ test('video curvature bends only the horizontal plane and remains bounded', () =
     assert.equal(flat.attributes.position.count, 4);
     assert.ok(curved.attributes.position.count > flat.attributes.position.count);
     const position = curved.attributes.position;
-    assert.ok(position.getZ(0) < 0);
+    assert.ok(position.getZ(0) > 0, 'curved edges wrap toward the viewer');
+    assert.ok(Math.abs(Math.abs(position.getX(0)) - 1.2) < 1e-6, 'curvature preserves visible width');
     assert.equal(new Set(Array.from({ length: position.count }, (_, index) => position.getY(index))).size, 2);
     flat.dispose(); curved.dispose();
 });
@@ -70,6 +72,47 @@ test('smoothing is frame-rate independent and cannot overshoot after a suspended
     assert.ok(easingAlpha(10, .6) <= 1);
 });
 
+test('follow contour scales independently with the current video width and height', () => {
+    assert.equal(insideFollowContour({ x: .9, y: 0 }, 2.4, 1.35), true);
+    assert.equal(insideFollowContour({ x: 0, y: .6 }, 2.4, 1.35), false);
+    assert.equal(insideFollowContour({ x: 1.1, y: 0 }, 2.4, 1.35), false);
+    assert.equal(insideFollowContour({ x: 1.1, y: 0 }, 6, 3.375), true);
+});
+
+test('enforcement starts timidly, is confident in the middle and slows for final precision', () => {
+    const timid = enforcementStep(1, 1, 0, 1 / 90, .6);
+    const confident = enforcementStep(.6, 1, .6, 1 / 90, .6);
+    const precise = enforcementStep(.01, 1, 1.2, 1 / 90, .6);
+    assert.ok(timid < confident);
+    assert.ok(precise < confident);
+    assert.ok(precise > 0 && precise <= .01);
+});
+
+test('native media and WebGL controls are composed as separate ordered streams', () => {
+    const previousBinding = globalThis.XRMediaBinding, previousTransform = globalThis.XRRigidTransform;
+    class Transform { constructor(position = {}, orientation = {}) { this.position = position; this.orientation = orientation; } }
+    class Binding { createQuadLayer(video, options) { return { video, ...options }; } }
+    globalThis.XRMediaBinding = Binding; globalThis.XRRigidTransform = Transform;
+    try {
+        const projectionLayer = { kind: 'controls' };
+        const session = { renderState: { layers: [projectionLayer] },
+            updateRenderState(update) { this.renderState = { ...this.renderState, ...update }; } };
+        const media = createMediaLayer({ session, referenceSpace: {}, projectionLayer,
+            video: { videoWidth: 3840, videoHeight: 1080 },
+            settings: { width: 2.4, curvature: 0, stereo: 'sbs', swapEyes: false } });
+        assert.equal(media.rebuild(), true);
+        assert.equal(session.renderState.layers.length, 2);
+        assert.equal(session.renderState.layers[0].layout, 'stereo-left-right');
+        assert.equal(session.renderState.layers[1], projectionLayer);
+        media.update({ x: 1, y: 2, z: -3 }, { x: 0, y: 0, z: 0, w: 1 });
+        assert.deepEqual(session.renderState.layers[0].transform.position, { x: 1, y: 2, z: -3 });
+        media.remove();
+        assert.deepEqual(session.renderState.layers, [projectionLayer]);
+    } finally {
+        globalThis.XRMediaBinding = previousBinding; globalThis.XRRigidTransform = previousTransform;
+    }
+});
+
 test('VR screen placement stays in front of the viewer and inside a useful viewing cone', () => {
     assert.deepEqual(constrainPlacement({ x: 20, y: -20, z: 2 }), { x: .3825, y: -.29250000000000004, z: -.45 });
     assert.deepEqual(constrainPlacement({ x: 5, y: 5, z: -2 }), { x: 1.7, y: 1.3, z: -2 });
@@ -84,12 +127,12 @@ test('stick intensity is the default; horizontal seek requires the explicit vide
     assert.deepEqual(stickAction([0, 0, 0, 1]), { kind: 'intensity', value: -1 });
 });
 
-test('Quest intensity uses a fine center curve and a limited full-stick speed', () => {
+test('Quest intensity uses a fine center curve and a refresh-independent full-stick speed', () => {
     assert.equal(intensityStickVelocity(0), 0);
     assert.ok(intensityStickVelocity(.25) < 2);
     assert.ok(intensityStickVelocity(-.25) > -2);
-    assert.equal(intensityStickVelocity(1), 18);
-    assert.equal(intensityStickVelocity(-1), -18);
+    assert.equal(intensityStickVelocity(1), 8);
+    assert.equal(intensityStickVelocity(-1), -8);
 });
 
 test('grip stick separates size and curve while a lateral stick has a deliberate threshold', () => {

@@ -152,29 +152,17 @@ test('immersive startup keeps producing frames without a hidden runtime error', 
     await page.evaluate(() => window.fakeXr.session.end());
 }));
 
-test('immersive session renders, uses configured A/B actions and restores the desktop after repeated exits', async () => rig(async (page, calls) => {
+test('immersive session renders without HTML overlays, uses A/B actions and restores the desktop', async () => rig(async (page, calls) => {
     await addVideo(page, 'scene_SBS.webm');
     await installFakeXr(page);
     await page.evaluate(() => document.querySelector('#enterVr').click());
     await page.waitForFunction(() => document.querySelector('#enterVr').getAttribute('aria-pressed') === 'true'
         && window.fakeXr.session.frames > 10);
-    // Point only at controls that have actually been painted in the XR scene.
-    await page.waitForFunction(() => window.fakeXr.panels.some(mesh => mesh.userData.panel?.root.contains(document.querySelector('#customVideoControls'))
-        && mesh.visible && mesh.userData.panel.captured));
     assert.equal(await page.locator('.vr-canvas').count(), 1);
+    assert.equal(await page.locator('.vr-dom-panels').count(), 0);
+    assert.equal(await page.locator('#customVideoControls').evaluate(node => node.parentElement.id), 'videoStage');
     assert.equal(await page.evaluate(() => window.ediVrDiagnostics.lastError), null);
     assert.ok(await page.evaluate(() => window.ediVrDiagnostics.frames > 10));
-    await page.evaluate(() => {
-        window.fakeXr.session.pointAt(0, 2.8, -3);
-        window.fakeXr.session.trigger('selectstart');
-        window.fakeXr.session.trigger('selectend');
-    });
-    await page.waitForFunction(() => window.fakeXr.panels.every(mesh => !mesh.visible));
-    await page.evaluate(() => {
-        window.fakeXr.session.trigger('selectstart');
-        window.fakeXr.session.trigger('selectend');
-    });
-    await page.waitForFunction(() => window.fakeXr.panels.some(mesh => mesh.visible));
     await page.evaluate(() => {
         window.mouseButtons = [];
         document.querySelector('#videoPlayer').addEventListener('mousedown', event => window.mouseButtons.push(event.button));
@@ -202,41 +190,9 @@ test('immersive session renders, uses configured A/B actions and restores the de
     });
     await page.waitForFunction(() => Number(localStorage.getItem('edi-player-intensity')) >= 5);
     assert.ok(calls.some(path => path.includes('/Edi/Intensity/')));
-    const intensity = await page.evaluate(() => {
-        window.fakeXr.source.gamepad.axes[3] = 0;
-        return Number(localStorage.getItem('edi-player-intensity'));
-    });
-    await page.evaluate(async () => {
-        const THREE = await import('/lib/vr/three.module.min.js');
-        window.fakeXr.source.gamepad.axes[3] = 0;
-        document.querySelector('#videoPlayer').pause();
-        document.querySelector('#videoPlayer').volume = .5;
-        window.fakeXr.pointControl = selector => {
-            const node = document.querySelector(selector);
-            const mesh = window.fakeXr.panels.find(item => item.userData.panel?.root.contains(node));
-            const rect = node.getBoundingClientRect(), bounds = mesh.userData.panel.root.getBoundingClientRect();
-            const uv = { x: (rect.x + rect.width / 2 - bounds.x) / bounds.width,
-                y: 1 - (rect.y + rect.height / 2 - bounds.y) / bounds.height };
-            const point = new THREE.Vector3((uv.x - .5) * mesh.geometry.parameters.width,
-                (uv.y - .5) * mesh.geometry.parameters.height, 0);
-            mesh.localToWorld(point);
-            window.fakeXr.session.pointAt(...point.toArray());
-        };
-        window.fakeXr.pointControl('#customVolume');
-        window.fakeXr.source.gamepad.axes[3] = -1;
-    });
-    await page.waitForFunction(() => document.querySelector('#videoPlayer').volume >= .6);
-    assert.equal(await page.evaluate(() => Number(localStorage.getItem('edi-player-intensity'))), intensity);
     await page.evaluate(() => {
         window.fakeXr.source.gamepad.axes[3] = 0;
-        document.querySelector('#videoPlayer').currentTime = 0;
-        window.mouseButtons = [];
-        window.fakeXr.pointControl('#customTime');
-        window.fakeXr.source.gamepad.axes[2] = 1;
     });
-    await page.waitForFunction(() => window.mouseButtons.includes(2));
-    assert.equal(await page.locator('#videoPlayer').evaluate(video => video.currentTime), 0);
-    assert.equal(await page.evaluate(() => Number(localStorage.getItem('edi-player-intensity'))), intensity);
     await page.evaluate(() => {
         window.fakeXr.source.gamepad.axes[2] = 0;
         window.fakeXr.session.pointAt(0, 1.6, -2);
@@ -273,6 +229,29 @@ test('immersive session renders, uses configured A/B actions and restores the de
     assert.equal(await page.locator('.vr-dom-panels').count(), 0);
 }));
 
+test('the Three.js exit button appears only near the pointer and ends VR', async () => rig(async page => {
+    await addVideo(page, 'scene.webm');
+    await installFakeXr(page);
+    await page.evaluate(() => document.querySelector('#enterVr').click());
+    await page.waitForFunction(() => window.fakeXr.panels.some(mesh => mesh.userData.exitControlButton)
+        && window.fakeXr.session.frames > 5);
+    assert.equal(await page.locator('.vr-dom-panels').count(), 0);
+    assert.equal(await page.evaluate(() => window.fakeXr.panels.find(mesh => mesh.userData.exitControlButton).visible), false);
+    await page.evaluate(async () => {
+        const THREE = await import('/lib/vr/three.module.min.js');
+        const button = window.fakeXr.panels.find(mesh => mesh.userData.exitControlButton);
+        const point = button.localToWorld(new THREE.Vector3());
+        window.fakeXr.session.pointAt(...point.toArray());
+    });
+    await page.waitForFunction(() => window.fakeXr.panels.find(mesh => mesh.userData.exitControlButton).visible);
+    await page.evaluate(() => {
+        window.fakeXr.session.trigger('selectstart');
+        window.fakeXr.session.trigger('selectend');
+    });
+    await page.waitForFunction(() => document.querySelector('#enterVr').getAttribute('aria-pressed') === 'false');
+    assert.equal(await page.locator('#customVideoControls').evaluate(node => node.parentElement.id), 'videoStage');
+}));
+
 test('grip keeps the video facing the viewer and locked follow waits, eases and ignores micro motion', async () => rig(async page => {
     await addVideo(page, 'scene_SBS.webm');
     await installFakeXr(page);
@@ -295,6 +274,15 @@ test('grip keeps the video facing the viewer and locked follow waits, eases and 
         await page.waitForFunction(() => window.fakeXr.session.frames > window.poseFrame + 1);
     };
     const pose = () => page.evaluate(() => ({ position: window.videoSurface.position.toArray(), rotation: window.videoSurface.quaternion.toArray() }));
+    await page.evaluate(() => {
+        window.fakeXr.session.pointAt(0, 1.6, -2);
+        window.fakeXr.session.trigger('squeezestart');
+        window.fakeXr.session.rayPosition[1] += .25;
+    });
+    await step(50);
+    await page.evaluate(() => window.fakeXr.session.trigger('squeezeend'));
+    assert.ok(await page.evaluate(() => JSON.parse(localStorage.getItem('edi-player-vr')).view.offsetY) > .2,
+        'grip records a vertical relative placement');
     const initial = await pose();
     await page.evaluate(() => {
         window.fakeXr.session.clock = 0;
@@ -314,23 +302,32 @@ test('grip keeps the video facing the viewer and locked follow waits, eases and 
     assert.deepEqual((await pose()).position, initial.position);
     await page.evaluate(() => {
         window.fakeXr.session.headPosition[0] = .3;
-        window.fakeXr.session.headRotation = [0, Math.sin(.2), 0, Math.cos(.2)];
+        window.fakeXr.session.headRotation = [0, Math.sin(.35), 0, Math.cos(.35)];
     });
     await step(0);
     await step(400);
     assert.deepEqual((await pose()).position, initial.position);
     await step(200);
-    const targetX = .3 - 2 * Math.sin(.4), targetZ = -2 * Math.cos(.4);
+    let targetX = .3 - 2 * Math.sin(.7), targetZ = -2 * Math.cos(.7);
     let first = await pose();
     for (let index = 0; index < 4 && first.position[0] >= -.03; index++) {
         await step(50); first = await pose();
     }
     assert.ok(first.position[0] < -.03 && first.position[0] > targetX + .02,
         `follow eases instead of snapping: x=${first.position[0]}, target=${targetX}, diagnostics=${JSON.stringify(await page.evaluate(() => window.ediVrDiagnostics.follow))}`);
-    for (let index = 0; index < 15; index++) await step(50);
+    await page.evaluate(() => {
+        window.fakeXr.session.headPosition[0] = .4;
+        window.fakeXr.session.headRotation = [0, Math.sin(.4), 0, Math.cos(.4)];
+    });
+    const beforeRetarget = await pose(); await step(50); const afterRetarget = await pose();
+    assert.equal(await page.evaluate(() => window.ediVrDiagnostics.follow.catchingUp), true);
+    assert.notDeepEqual(afterRetarget.position, beforeRetarget.position, 'head motion cannot cancel active enforcement');
+    targetX = .4 - 2 * Math.sin(.8); targetZ = -2 * Math.cos(.8);
+    for (let index = 0; index < 30; index++) await step(50);
     const settled = await pose();
     assert.ok(Math.abs(settled.position[0] - targetX) < .01 && Math.abs(settled.position[2] - targetZ) < .01);
-    assert.ok(Math.abs(settled.rotation[1] - Math.sin(.2)) < .01);
+    assert.ok(Math.abs(settled.position[1] - initial.position[1]) < .01, 'follow preserves the grip height');
+    assert.ok(Math.abs(settled.rotation[1] - Math.sin(.4)) < .01);
     await page.evaluate(() => document.querySelector('#vrFollowToggle').click());
     await page.evaluate(() => {
         window.fakeXr.session.headPosition[0] = -1;

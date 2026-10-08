@@ -67,7 +67,7 @@ export function createImmersive({ state, elements, currentItem, setIntensity }) 
         try {
             // Request directly from the button event, before imports or fullscreen
             // exit can consume the browser's transient user activation.
-            session = await navigator.xr.requestSession('immersive-vr', { optionalFeatures: ['local-floor'] });
+            session = await navigator.xr.requestSession('immersive-vr', { optionalFeatures: ['local-floor', 'layers'] });
             session.addEventListener('end', cleanup, { once: true });
             if (document.fullscreenElement) await document.exitFullscreen();
             const { createVrRuntime } = await import('./runtime.mjs');
